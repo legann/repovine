@@ -1,0 +1,769 @@
+import * as path from 'node:path';
+import { availableParallelism } from 'node:os';
+import type { RepositoryFactsSnapshot, PackageInfo, ModuleInfo, PendingModule } from '../types.js';
+import { ARTIFACTS_DIR_NAME, cacheDirFor } from '../paths.js';
+import { collectInfraModules } from './infra.js';
+import { collectTemplates } from './templates.js';
+import { loadBundleOutputHandlerMap } from '../stage2/lambda-bundle-loader.js';
+import { hasLinkingConfig, normalizeLinkingConfig } from './linking-config.js';
+import { compileScanPatterns, type ScanPatternInput } from '../scan-filters.js';
+import { MemoryProfiler } from '../perf/memory-profiler.js';
+import { formatPackageProgressLine, formatPipelineDetail, formatPipelineStageDone, logPipeline, logPipelineProgress, logPipelineProgressEnd, logPipelineWarn } from '../cli/ui.js';
+import { modulePathResolverPriority, extractPackageName, packageJobKey } from './utils.js';
+import { PackageWorkerPool, chooseWorkerCount, effectiveTotalMemBytes, type PackageJob, type PackageJobResult } from './worker-pool.js';
+import { adviseFromCalibration, loadCalibration, saveCalibration } from './calibration.js';
+import { getSourcePlugin, getSourcePlugins } from './source/registry.js';
+import { runSourceExtraction } from './source/extract-runner.js';
+import { applyPluginConfig, type PluginsConfigInput } from './plugin-loader.js';
+import { currentEngineBuildId, engineBuildMatches } from './engine-build-id.js';
+import { computeExtractionConfigFingerprint } from './extraction-config-fingerprint.js';
+import { getRegisteredIaCPluginIds } from './iac/registry.js';
+import type { SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
+// Side-effect: register built-in source plugins (typescript, …) before discovery runs.
+import './source/bootstrap.js';
+
+/** Schema version of the Stage 1 facts snapshot; a mismatch invalidates the on-disk cache.
+ *  2: `ExportInfo.defaultLocalName` — a cached module extracted before it would still project no
+ *  node for a named default export, so the shape change has to force a re-extract. The same bump
+ *  covers the hint corrections that ship with it: `ssr.qwikServer`, `ui.framework` and
+ *  `serviceWrapper.delegateCallCount` are now decided from the syntax tree, and `ui.framework`
+ *  no longer infers Angular from a filename suffix. A module cached under version 1 can carry any
+ *  of those set from prose or from its name alone. */
+export const STAGE1_ANALYSIS_VERSION = 1;
+
+interface PackageJobInputs {
+  jobs: PackageJob[];
+  modulesByPackage: Map<string, PendingModule[]>;
+}
+
+function pendingJobKey(pending: PendingModule): string {
+  return packageJobKey({
+    name: pending.pkg.name,
+    path: pending.pkg.path,
+    sourcePluginId: pending.sourcePluginId ?? pending.pkg.sourcePluginId,
+  });
+}
+
+const DEFAULT_SHARD_TARGET_SIZE = 800;
+
+/** Split a package's pendingModules into evenly sized shards. Stable per-module ordering
+ * (relies on caller's order, which is filesystem-discovery order for cold scans and
+ * preserved across reruns). Single shard when sharding would not produce at least two. */
+export { packageJobKey } from './utils.js';
+
+export function splitIntoShards(pendingModules: PendingModule[], shardTargetSize: number): PendingModule[][] {
+  if (pendingModules.length < shardTargetSize * 2) return [pendingModules];
+  const shardCount = Math.max(2, Math.ceil(pendingModules.length / shardTargetSize));
+  const baseSize = Math.ceil(pendingModules.length / shardCount);
+  const shards: PendingModule[][] = [];
+  for (let i = 0; i < pendingModules.length; i += baseSize) {
+    shards.push(pendingModules.slice(i, i + baseSize));
+  }
+  return shards;
+}
+
+export function buildPackageJobs(
+  packages: PackageInfo[],
+  pendingModules: PendingModule[],
+  prevByPath: Map<string, ModuleInfo>,
+  shardTargetSize: number,
+): PackageJobInputs {
+  const modulesByPackage = new Map<string, PendingModule[]>();
+  for (const pending of pendingModules) {
+    const key = pendingJobKey(pending);
+    let list = modulesByPackage.get(key);
+    if (!list) { list = []; modulesByPackage.set(key, list); }
+    list.push(pending);
+  }
+
+  const jobs: PackageJob[] = [];
+  // Some workspaces register the same (sourcePluginId, name, path) in `packages[]` more
+  // than once (nested package roots etc.). Each pending module is uniquely owned by one
+  // such pkg via dedup-on-filePath in Pass 1, but iterating duplicate package entries
+  // would create duplicate shard jobs whose results then duplicate during merge. Track
+  // already-scheduled job keys so each package entry produces shards exactly once.
+  const scheduledJobKeys = new Set<string>();
+  for (const pkg of packages) {
+    const jobKey = packageJobKey(pkg);
+    if (scheduledJobKeys.has(jobKey)) continue;
+    const pkgModules = modulesByPackage.get(jobKey);
+    if (!pkgModules || pkgModules.length === 0) continue;
+    const sourcePluginId = pkg.sourcePluginId ?? pkgModules[0]!.sourcePluginId;
+    if (!sourcePluginId) continue;
+    scheduledJobKeys.add(jobKey);
+
+    const shards = splitIntoShards(pkgModules, shardTargetSize);
+    const totalShards = shards.length;
+    for (let shardIndex = 0; shardIndex < totalShards; shardIndex++) {
+      const shardModules = shards[shardIndex]!;
+      const prevEntries: [string, ModuleInfo][] = [];
+      for (const pm of shardModules) {
+        const prev = prevByPath.get(pm.filePath);
+        if (prev) prevEntries.push([pm.filePath, prev]);
+      }
+      jobs.push({
+        pkg,
+        sourcePluginId,
+        pendingModules: shardModules,
+        prevModuleEntries: prevEntries,
+        shardIndex,
+        totalShards,
+      });
+    }
+  }
+  return { jobs, modulesByPackage };
+}
+
+/** Merge per-shard results into the global module list, preserving `packages[]` order
+ * across packages and `shardIndex` order within a package. Each package job key is merged
+ * at most once even when `packages[]` contains duplicate entries (e.g. nested package roots),
+ * since each module is already uniquely owned by one pkg via Pass 1 dedup.
+ * Exported for the capability-first boundary guard (`test/laws/source-plugin-stamping.test.ts`),
+ * which verifies the per-module `sourcePluginId` stamp directly. */
+export function mergeResults(
+  resultsByJobKey: Map<string, PackageJobResult[]>,
+  packages: PackageInfo[],
+  allModules: ModuleInfo[],
+): { reused: number; rescanned: number } {
+  let reused = 0;
+  let rescanned = 0;
+  const merged = new Set<string>();
+  for (const pkg of packages) {
+    const jobKey = packageJobKey(pkg);
+    if (merged.has(jobKey)) continue;
+    const shards = resultsByJobKey.get(jobKey);
+    if (!shards || shards.length === 0) continue;
+    merged.add(jobKey);
+    shards.sort((a, b) => a.shardIndex - b.shardIndex);
+    for (const r of shards) {
+      if (r.error) {
+        throw new Error(`Package ${r.pkgName} shard ${r.shardIndex} extraction failed: ${r.error}`);
+      }
+      // Boundary invariant: stamp every module with its owning package's source-plugin id so
+      // downstream layers identify ownership by id alone, with no language-identity fallback
+      // (a plugin that forgets to self-stamp still produces correctly-owned modules here).
+      for (const m of r.modules) allModules.push(m.sourcePluginId ? m : { ...m, sourcePluginId: pkg.sourcePluginId });
+      reused += r.reused;
+      rescanned += r.rescanned;
+    }
+  }
+  return { reused, rescanned };
+}
+
+function rssMb(): number {
+  return Math.round(process.memoryUsage().rss / 1024 / 1024);
+}
+
+async function runInlineExtractionAsync(
+  jobs: PackageJob[],
+  absPathToId: Map<string, string>,
+  packages: PackageInfo[],
+  repoRoot: string,
+  extractContextByPlugin: Map<string, unknown>,
+  profiler: MemoryProfiler,
+  progress?: ExtractionProgressReporter,
+  signal?: AbortSignal,
+): Promise<Map<string, PackageJobResult[]>> {
+  const results = new Map<string, PackageJobResult[]>();
+  const total = jobs.length;
+  const t0 = Date.now();
+  let done = 0;
+  // On cancel, kill any in-flight subprocess a plugin spawned on THIS thread (python AST child). The
+  // pooled path does this via worker shutdown; the inline path has no worker, so wire it here.
+  let onAbort: (() => void) | undefined;
+  if (signal) {
+    onAbort = (): void => {
+      // terminateInFlight is async; swallow its rejection so a teardown error is not an unhandledRejection.
+      for (const p of getSourcePlugins()) {
+        try { void Promise.resolve(p.terminateInFlight?.()).catch(() => undefined); } catch { /* best-effort teardown */ }
+      }
+    };
+    signal.addEventListener('abort', onAbort);
+  }
+  try {
+  for (const job of jobs) {
+    // Cooperative cancel checkpoint: stop before extracting the next package.
+    signal?.throwIfAborted();
+    const plugin = getSourcePlugin(job.sourcePluginId);
+    let modules: ModuleInfo[] = [];
+    let reused = 0;
+    let rescanned = 0;
+    if (!plugin) {
+      logPipelineWarn(`  ⚠ No source plugin registered for "${job.sourcePluginId}" (package ${job.pkg.name}); skipping.`);
+    } else {
+      const r = await runSourceExtraction({
+        plugin,
+        repoRoot,
+        packages,
+        pendingModules: job.pendingModules,
+        prevByPath: new Map(job.prevModuleEntries),
+        absPathToId,
+        extractContext: extractContextByPlugin.get(job.sourcePluginId),
+        analysisVersion: STAGE1_ANALYSIS_VERSION,
+      });
+      modules = r.modules;
+      reused = r.reused;
+      rescanned = r.rescanned;
+    }
+    // Surface an abort that landed DURING this shard (esp. the last / only shard) — otherwise a
+    // single-job repo would finish as if it were never cancelled.
+    signal?.throwIfAborted();
+    const jobKey = packageJobKey(job.pkg);
+    const shardResult: PackageJobResult = {
+      pkgName: job.pkg.name,
+      jobKey,
+      shardIndex: job.shardIndex,
+      modules,
+      reused,
+      rescanned,
+    };
+    let bucket = results.get(jobKey);
+    if (!bucket) { bucket = []; results.set(jobKey, bucket); }
+    bucket.push(shardResult);
+    done++;
+    const shardTag = job.totalShards > 1 ? ` [shard ${job.shardIndex + 1}/${job.totalShards}]` : '';
+    const pluginTag = job.sourcePluginId ? ` (${job.sourcePluginId})` : '';
+    const extra = `(reused ${reused}, parsed ${rescanned})`;
+    logPipelineProgress(formatPackageProgressLine(done, total, job.pkg.name + pluginTag + shardTag, job.pendingModules.length, Date.now() - t0, rssMb(), extra));
+    if (profiler.enabled) profiler.phase(`stage1:extracted-${job.pkg.name}#${job.shardIndex}`);
+    try { progress?.packageDone?.(job.pkg.name, job.pendingModules.length); } catch { /* observer must not break extraction */ }
+  }
+  return results;
+  } finally {
+    // Detach the listener: a LATER abort of this (now-settled) build's signal must not fire
+    // terminateInFlight() and kill a different concurrent build's in-flight python children.
+    if (signal && onAbort) signal.removeEventListener('abort', onAbort);
+  }
+}
+
+async function runPooledExtraction(
+  jobs: PackageJob[],
+  absPathToId: Map<string, string>,
+  packages: PackageInfo[],
+  repoRoot: string,
+  extractContextByPlugin: Map<string, unknown>,
+  workerCount: number,
+  profiler: MemoryProfiler,
+  progress?: ExtractionProgressReporter,
+  signal?: AbortSignal,
+): Promise<Map<string, PackageJobResult[]>> {
+  const pool = new PackageWorkerPool({
+    size: workerCount,
+    packages,
+    absPathToId,
+    repoRoot,
+    extractContextByPlugin,
+    analysisVersion: STAGE1_ANALYSIS_VERSION,
+    soloThreshold: Number.MAX_SAFE_INTEGER,
+  });
+  const abort = abortSignalRejection(signal);
+  try {
+    // Submit by descending size so giant shards start early; pool's drainQueue handles ordering.
+    const ordered = [...jobs].sort((a, b) => b.pendingModules.length - a.pendingModules.length);
+    const total = ordered.length;
+    const t0 = Date.now();
+    let done = 0;
+    const pending = ordered.map(j =>
+      pool.submit(j).then(r => {
+        done++;
+        const shardTag = j.totalShards > 1 ? ` [shard ${j.shardIndex + 1}/${j.totalShards}]` : '';
+        const extra = r.error
+          ? `ERROR ${r.error}`
+          : `(reused ${r.reused}, parsed ${r.rescanned})`;
+        logPipelineProgress(formatPackageProgressLine(done, total, j.pkg.name + shardTag, j.pendingModules.length, Date.now() - t0, rssMb(), extra));
+        if (profiler.enabled) profiler.phase(`stage1:extracted-${j.pkg.name}#${j.shardIndex}`);
+        try { progress?.packageDone?.(j.pkg.name, j.pendingModules.length); } catch { /* observer must not break extraction */ }
+        return r;
+      }),
+    );
+    // Race worker completion against cancellation. On cancel the abort promise rejects, the loop
+    // exits, and the `finally` terminates every worker (pool.destroy → worker.terminate).
+    const settled = await Promise.race([Promise.all(pending), abort.promise]);
+    const out = new Map<string, PackageJobResult[]>();
+    for (const r of settled) {
+      let bucket = out.get(r.jobKey);
+      if (!bucket) { bucket = []; out.set(r.jobKey, bucket); }
+      bucket.push(r);
+    }
+    return out;
+  } finally {
+    abort.cleanup();
+    await pool.destroy();
+  }
+}
+
+/**
+ * A promise that rejects when `signal` aborts (or immediately if already aborted), with a cleanup
+ * to detach the listener. Used to race worker completion against cancellation; the caller's
+ * `finally { pool.destroy() }` terminates the workers. With no signal the promise never settles,
+ * so the race is decided solely by worker completion.
+ */
+function abortSignalRejection(signal: AbortSignal | undefined): { promise: Promise<never>; cleanup: () => void } {
+  if (!signal) {
+    return { promise: new Promise<never>(() => undefined), cleanup: () => undefined };
+  }
+  let onAbort: (() => void) | undefined;
+  const promise = new Promise<never>((_, reject) => {
+    const fail = () => reject(new Error('Build cancelled'));
+    if (signal.aborted) { fail(); return; }
+    onAbort = fail;
+    signal.addEventListener('abort', fail, { once: true });
+  });
+  // Swallow the rejection when worker completion wins the race and this promise is dropped, so a
+  // late abort does not surface as an unhandled rejection.
+  promise.catch(() => undefined);
+  return { promise, cleanup: () => { if (onAbort) signal.removeEventListener('abort', onAbort); } };
+}
+
+function buildAbsPathToId(pendingModules: PendingModule[]): Map<string, string> {
+  const absPathToId = new Map<string, string>();
+  for (const pending of pendingModules) {
+    absPathToId.set(pending.filePath, pending.moduleId);
+    if (pending.virtualPath) absPathToId.set(pending.virtualPath, pending.moduleId);
+  }
+  return absPathToId;
+}
+
+/** Resolve moduleId collisions deterministically by TS-resolver priority. Preserves the
+ * first-seen order of surviving entries (matches filesystem discovery order so cold runs
+ * remain reproducible). */
+export function dedupByModuleIdPreservingOrder(pendings: PendingModule[]): PendingModule[] {
+  const winnerByModuleId = new Map<string, PendingModule>();
+  const firstSeenOrder = new Map<string, number>();
+  let orderCounter = 0;
+  for (const p of pendings) {
+    const existing = winnerByModuleId.get(p.moduleId);
+    if (!existing) {
+      winnerByModuleId.set(p.moduleId, p);
+      firstSeenOrder.set(p.moduleId, orderCounter++);
+      continue;
+    }
+    if (modulePathResolverPriority(p.filePath) < modulePathResolverPriority(existing.filePath)) {
+      winnerByModuleId.set(p.moduleId, p);
+    }
+  }
+  const result: PendingModule[] = new Array(winnerByModuleId.size);
+  for (const [moduleId, winner] of winnerByModuleId) {
+    result[firstSeenOrder.get(moduleId)!] = winner;
+  }
+  return result;
+}
+
+function resolveRemainingImports(allModules: ModuleInfo[], packages: PackageInfo[]): void {
+  for (const mod of allModules) {
+    for (const imp of mod.imports) {
+      if (imp.isExternal) continue;
+      if (imp.resolvedModuleId && !imp.moduleSpecifier.startsWith('.')) continue;
+      if (!imp.moduleSpecifier.startsWith('.')) {
+        const pkgName = extractPackageName(imp.moduleSpecifier);
+        if (packages.some(p => p.name === pkgName)) {
+          imp.resolvedModuleId = `pkg:${pkgName}`;
+        } else {
+          imp.isExternal = true;
+        }
+      }
+    }
+  }
+}
+
+function buildSnapshot(
+  repoRoot: string,
+  packages: PackageInfo[],
+  allModules: ModuleInfo[],
+  extractionConfigFingerprint: string,
+  scanPatterns: ReturnType<typeof compileScanPatterns>,
+  linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
+  profiler: MemoryProfiler,
+): RepositoryFactsSnapshot {
+  const normalizedLinking = linkingOpt ? normalizeLinkingConfig(linkingOpt) : undefined;
+  const lambdaBundleHandlerMap = loadBundleOutputHandlerMap(
+    repoRoot,
+    normalizedLinking?.bundles.scripts ?? [],
+    normalizedLinking?.bundles.autoDetect ?? true,
+  );
+
+  // Infra scan is independent of source packages: an infra-only repo (Terraform/k8s with no
+  // tsconfig/pyproject) still gets its infra modules.
+  const infraModules = collectInfraModules({
+    repoRoot,
+    scanPatterns,
+  });
+  if (packages.length === 0 && infraModules.length === 0) {
+    logPipelineWarn('  No source packages or infra files found.');
+  }
+  const totalInfraResources = infraModules?.reduce((n, m) => n + m.resources.length, 0) ?? 0;
+  if (infraModules.length > 0) {
+    logPipeline(formatPipelineDetail(`  Infra: ${infraModules.length} module(s), ${totalInfraResources} resource(s)`));
+  }
+
+  // Template artifacts are independent of source packages; a project can have template nodes even
+  // when route extraction does not find matching render units.
+  const templates = collectTemplates({ repoRoot, scanPatterns });
+  if (templates.length > 0) {
+    logPipeline(formatPipelineDetail(`  Templates: ${templates.length} template artifact(s)`));
+  }
+
+  profiler.setCounter('infraModules', infraModules.length);
+  profiler.setCounter('templates', templates.length);
+  profiler.setCounter('infraResources', totalInfraResources);
+  profiler.setCounter('totalImports', allModules.reduce((sum, m) => sum + m.imports.length, 0));
+  profiler.setCounter('totalExports', allModules.reduce((sum, m) => sum + m.exports.length, 0));
+  profiler.phase('stage1:after-infra');
+
+  const snapshot: RepositoryFactsSnapshot = {
+    repoRoot,
+    timestamp: new Date().toISOString(),
+    analysisVersion: STAGE1_ANALYSIS_VERSION,
+    engineBuildId: currentEngineBuildId(),
+    extractionConfigFingerprint,
+    packages,
+    modules: allModules,
+    infraModules,
+    ...(templates.length > 0 ? { templates } : {}),
+    ...(Object.keys(lambdaBundleHandlerMap).length > 0 ? { lambdaBundleHandlerMap } : {}),
+    ...(linkingOpt && hasLinkingConfig(linkingOpt) ? {
+      linkingConfig: {
+        handlers: { searchRoots: normalizedLinking!.handlers.searchRoots },
+        bundles: {
+          scripts: normalizedLinking!.bundles.scripts,
+          autoDetect: normalizedLinking!.bundles.autoDetect,
+        },
+        containers: { dockerfileRoots: normalizedLinking!.containers.dockerfileRoots },
+      },
+    } : {}),
+  };
+  profiler.setCounter('snapshotJsonBytes', profiler.measureJsonBytes(snapshot));
+  profiler.phase('stage1:complete');
+  return snapshot;
+}
+
+interface PreparedRun {
+  packages: PackageInfo[];
+  pendingModules: PendingModule[];
+  absPathToId: Map<string, string>;
+  prevByPath: Map<string, ModuleInfo>;
+  /** Opaque per-plugin extractContext returned by each plugin's discover(). */
+  extractContextByPlugin: Map<string, unknown>;
+  /** Hash of compiler/discovery options, scan filters, and active plugin identities. */
+  extractionConfigFingerprint: string;
+  scanPatterns: ReturnType<typeof compileScanPatterns>;
+  linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined;
+  profiler: MemoryProfiler;
+}
+
+async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined): Promise<PreparedRun> {
+  const profiler = MemoryProfiler.ensure();
+  profiler.phase('stage1:start');
+
+  const scanPatterns = compileScanPatterns(
+    options?.scanInclude ?? [],
+    options?.scanExclude ?? [],
+  );
+  const discoveryOptions: SourceDiscoveryOptions = { scanPatterns };
+
+  // Pass 1 — discovery, per source plugin. Each plugin returns its packages, candidate files
+  // (keyed by absolute path), and an opaque extractContext threaded back into extract().
+  const allPackages: PackageInfo[] = [];
+  const seenPackageKeys = new Set<string>();
+  const mergedPendingByPath = new Map<string, PendingModule>();
+  const extractContextByPlugin = new Map<string, unknown>();
+  const activeSourcePlugins: SourcePlugin[] = [];
+
+  for (const plugin of getSourcePlugins()) {
+    // Graceful degradation: a plugin self-probes its prerequisites
+    // (e.g. Python's interpreter). When unavailable the engine skips it with ONE warning instead of
+    // letting every file fail downstream. Absent `available()` ⇒ always applicable.
+    if (plugin.available) {
+      const availability = await plugin.available();
+      if (!availability.ok) {
+        const reason = availability.reason ?? `${plugin.requires?.runtime ?? 'prerequisite'} unavailable`;
+        logPipelineWarn(`  ⚠ Skipping source plugin "${plugin.id}": ${reason}.`);
+        extractContextByPlugin.set(plugin.id, undefined);
+        continue;
+      }
+    }
+    activeSourcePlugins.push(plugin);
+    const { packages: pkgs, pendingByPath, extractContext } = plugin.discover(repoRoot, discoveryOptions);
+    for (const pkg of pkgs) {
+      const key = packageJobKey(pkg);
+      if (seenPackageKeys.has(key)) continue;
+      seenPackageKeys.add(key);
+      allPackages.push(pkg);
+    }
+    for (const [filePath, pending] of pendingByPath) {
+      const existing = mergedPendingByPath.get(filePath);
+      if (existing) {
+        logPipelineWarn(`  ⚠ File claimed by multiple source plugins (${existing.sourcePluginId} kept over ${pending.sourcePluginId}): ${filePath}`);
+        continue;
+      }
+      mergedPendingByPath.set(filePath, pending);
+    }
+    extractContextByPlugin.set(plugin.id, extractContext);
+  }
+
+  const packages = allPackages.sort((a, b) => a.path.localeCompare(b.path));
+  const extractionConfigFingerprint = computeExtractionConfigFingerprint({
+    repoRoot,
+    scanInclude: options?.scanInclude,
+    scanExclude: options?.scanExclude,
+    sourcePlugins: activeSourcePlugins,
+    iacPluginIds: getRegisteredIaCPluginIds(),
+    extractContextByPlugin,
+  });
+  profiler.setCounter('packagesScanned', packages.length);
+  profiler.phase('stage1:after-discover-packages');
+
+  const previousSnapshot = options?.previousSnapshot;
+  const versionMatches = previousSnapshot?.analysisVersion === STAGE1_ANALYSIS_VERSION;
+  const engineBuildOk = engineBuildMatches(previousSnapshot?.engineBuildId, currentEngineBuildId());
+  const extractionConfigMatches = previousSnapshot?.extractionConfigFingerprint === extractionConfigFingerprint;
+  const canReusePreviousSnapshot = Boolean(previousSnapshot)
+    && versionMatches
+    && engineBuildOk
+    && extractionConfigMatches;
+  if (previousSnapshot && !canReusePreviousSnapshot) {
+    const reason = !versionMatches
+      ? `analysisVersion ${previousSnapshot.analysisVersion ?? 'none'} != ${STAGE1_ANALYSIS_VERSION}`
+      : !engineBuildOk
+        ? 'engine build changed'
+        : 'extraction config changed';
+    logPipeline(formatPipelineDetail(`  Snapshot not reused (${reason}); full re-extract`));
+  }
+  const prevByPath = new Map<string, ModuleInfo>();
+  if (previousSnapshot && canReusePreviousSnapshot) {
+    for (const m of previousSnapshot.modules) prevByPath.set(m.filePath, m);
+  }
+
+  profiler.setCounter('sourceFilesDiscovered', mergedPendingByPath.size);
+  profiler.phase('stage1:after-file-discovery');
+
+  // `mergedPendingByPath` dedups by filePath. A SECOND collision can occur when two distinct
+  // filePaths collapse to the same moduleId — e.g. `foo.ts` and `foo/index.ts` both become
+  // `mod:<pkg>/foo`. Resolve by picking the resolver winner. absPathToId is built from the FULL
+  // pending set so imports of either filePath form still resolve to the surviving moduleId.
+  const absPathToId = buildAbsPathToId(Array.from(mergedPendingByPath.values()));
+  const pendingModules = dedupByModuleIdPreservingOrder(Array.from(mergedPendingByPath.values()));
+  profiler.setCounter('uniqueModules', pendingModules.length);
+  const pkgsWithModules = new Set(pendingModules.map(p => p.pkg.name)).size;
+  logPipeline(formatPipelineDetail(`  Discovered ${pendingModules.length} unique modules across ${pkgsWithModules} packages`));
+
+  return {
+    packages,
+    pendingModules,
+    absPathToId,
+    prevByPath,
+    extractContextByPlugin,
+    extractionConfigFingerprint,
+    scanPatterns,
+    linkingOpt: options?.linking,
+    profiler,
+  };
+}
+
+function finalize(
+  repoRoot: string,
+  packages: PackageInfo[],
+  results: Map<string, PackageJobResult[]>,
+  hasPreviousSnapshot: boolean,
+  extractionConfigFingerprint: string,
+  scanPatterns: ReturnType<typeof compileScanPatterns>,
+  linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
+  profiler: MemoryProfiler,
+): RepositoryFactsSnapshot {
+  const allModules: ModuleInfo[] = [];
+  const { reused, rescanned } = mergeResults(results, packages, allModules);
+  if (hasPreviousSnapshot) {
+    logPipeline(formatPipelineDetail(`  Incremental: ${reused} reused, ${rescanned} rescanned`));
+  }
+  profiler.setCounter('modulesReused', reused);
+  profiler.setCounter('modulesRescanned', rescanned);
+  profiler.phase('stage1:after-module-extraction');
+
+  resolveRemainingImports(allModules, packages);
+  profiler.phase('stage1:after-import-resolution');
+
+  return buildSnapshot(
+    repoRoot,
+    packages,
+    allModules,
+    extractionConfigFingerprint,
+    scanPatterns,
+    linkingOpt,
+    profiler,
+  );
+}
+
+export interface SnapshotOptions {
+  previousSnapshot?: RepositoryFactsSnapshot;
+  /** Repo-root-relative globs from `scan.include` (include wins over exclude). */
+  scanInclude?: ScanPatternInput[];
+  /** Repo-root-relative globs from `scan.exclude`. */
+  scanExclude?: ScanPatternInput[];
+  /** Infra → code linking hints passed through to stage 2. */
+  linking?: NonNullable<RepositoryFactsSnapshot['linkingConfig']>;
+  /** Worker pool size for Pass 2 per-package extraction (async API only).
+   * - undefined (default): auto = min(4, cpus-1).
+   * - 0 or 1: inline serial (no worker_threads).
+   * - >1: persistent pool of N workers. */
+  maxPackageWorkers?: number;
+  /** Target number of modules per shard. Packages with more than `MIN_SHARDING_THRESHOLD`
+   * modules are split into shards of approximately this size so a giant package can
+   * parallelize across workers. Default 800. */
+  shardTargetSize?: number;
+  /** Progress callbacks for external consumers (e.g. lazy MCP build status). */
+  progress?: ExtractionProgressReporter;
+  /** External plugin wiring (`config.plugins`). When present, the loader resolves/registers
+   *  third-party plugins from the analyzed repo and applies `{defaults, add, disable}` before
+   *  discovery. Absent ⇒ bundled preset only (the loader is not run — existing callers unchanged). */
+  plugins?: PluginsConfigInput;
+  /** Cooperative-cancel signal. When aborted, extraction stops at the next package/shard boundary
+   *  (inline) or wins a race against worker completion (pooled), then the worker pool is torn down. */
+  signal?: AbortSignal;
+}
+
+/** Optional progress reporting hook exposed by the async stage 1 API. */
+export interface ExtractionProgressReporter {
+  /** Called once before extraction starts. */
+  begin?(totals: { totalPackages: number; totalModules: number }): void;
+  /** Called once for each package that completes (in completion order). */
+  packageDone?(pkgName: string, pkgModules: number): void;
+}
+
+// ── Public API ──
+
+/** Collect a repository facts snapshot — enables worker_threads pool when `maxPackageWorkers > 1` (default).
+ * Falls back to inline serial when only 1 worker is requested. */
+export async function collectRepositoryFactsAsync(
+  repoRoot: string,
+  options?: SnapshotOptions,
+): Promise<RepositoryFactsSnapshot> {
+  options?.signal?.throwIfAborted();
+  // Environment cap on the worker pool, applied only when the caller didn't pass an explicit
+  // option. Used by harnesses/CI; the Jest setup file sets it to 1 because ts-jest runs Stage 1
+  // from src/ while worker_threads need dist/stage1/worker.js.
+  const envWorkersRaw = process.env.REPOVINE_MAX_PACKAGE_WORKERS;
+  const envWorkers = envWorkersRaw ? Number(envWorkersRaw) : undefined;
+  const resolvedOptions =
+    options?.maxPackageWorkers === undefined && envWorkers !== undefined && Number.isFinite(envWorkers)
+      ? { ...options, maxPackageWorkers: envWorkers }
+      : options;
+
+  const t0 = Date.now();
+
+  // External plugins: resolve/register third-party plugins from the analyzed
+  // repo, applying config.plugins.{defaults,add,disable}, BEFORE discovery reads the registry. When
+  // any external SOURCE plugin is active, force inline extraction — worker isolates only carry the
+  // bundled preset, so an external source plugin's extract() must run on the main thread.
+  let forceInlineExtraction = false;
+  if (resolvedOptions?.plugins) {
+    const report = await applyPluginConfig({ repoRoot, config: resolvedOptions.plugins });
+    forceInlineExtraction = report.externalSourceIds.size > 0;
+  }
+
+  const signal = resolvedOptions?.signal;
+  const prep = await prepareRun(repoRoot, resolvedOptions);
+  signal?.throwIfAborted();
+
+  // Calibration: read the previous run's observations (if any) and let them advise
+  // worker count + shard size. User-provided overrides still win. The cache path is
+  // anchored to `repoRoot` (the scanned project) — not cwd — so calibration follows
+  // the project across invocations even when repovine is run from elsewhere.
+  const calibrationCacheDir = cacheDirFor(path.join(repoRoot, ARTIFACTS_DIR_NAME));
+  const cpus = availableParallelism();
+  const totalRamMb = Math.round(effectiveTotalMemBytes() / 1024 / 1024);
+  const calibration = loadCalibration(calibrationCacheDir);
+  const advice = adviseFromCalibration(
+    calibration,
+    { maxPackageWorkers: resolvedOptions?.maxPackageWorkers, shardTargetSize: resolvedOptions?.shardTargetSize },
+    { cpuCount: cpus, totalRamMb, defaultShardSize: DEFAULT_SHARD_TARGET_SIZE },
+  );
+  const shardTargetSize = advice?.shardTargetSize ?? resolvedOptions?.shardTargetSize ?? DEFAULT_SHARD_TARGET_SIZE;
+  const { jobs } = buildPackageJobs(prep.packages, prep.pendingModules, prep.prevByPath, shardTargetSize);
+
+  try {
+    resolvedOptions?.progress?.begin?.({
+      totalPackages: jobs.length,
+      totalModules: prep.pendingModules.length,
+    });
+  } catch { /* observer must not break extraction */ }
+
+  // Pick the worker count, then never spin up more workers than there are jobs to
+  // dispatch (small repos otherwise pay extra spawn overhead for idle workers).
+  const requestedWorkerCount = advice?.workerCount ?? chooseWorkerCount(resolvedOptions?.maxPackageWorkers, cpus, effectiveTotalMemBytes());
+  // External source plugins are not registered in worker isolates → run extraction inline.
+  const workerCount = forceInlineExtraction ? 1 : Math.max(1, Math.min(requestedWorkerCount, jobs.length));
+
+  // Peak RSS tracker — sampled while extraction runs so calibration captures the real
+  // process-wide footprint (not just heap).
+  let peakRssMb = Math.max(1, Math.round(process.memoryUsage().rss / 1024 / 1024));
+  const rssTicker = setInterval(() => {
+    const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    if (rss > peakRssMb) peakRssMb = rss;
+  }, 250);
+
+  let snap: RepositoryFactsSnapshot;
+  try {
+    let results: Map<string, PackageJobResult[]>;
+    if (workerCount <= 1) {
+      results = await runInlineExtractionAsync(jobs, prep.absPathToId, prep.packages, repoRoot, prep.extractContextByPlugin, prep.profiler, resolvedOptions?.progress, signal);
+    } else {
+      results = await runPooledExtraction(
+        jobs,
+        prep.absPathToId,
+        prep.packages,
+        repoRoot,
+        prep.extractContextByPlugin,
+        workerCount,
+        prep.profiler,
+        resolvedOptions?.progress,
+        signal,
+      );
+    }
+    logPipelineProgressEnd();
+    snap = finalize(
+      repoRoot,
+      prep.packages,
+      results,
+      Boolean(resolvedOptions?.previousSnapshot),
+      prep.extractionConfigFingerprint,
+      prep.scanPatterns,
+      prep.linkingOpt,
+      prep.profiler,
+    );
+  } finally {
+    logPipelineProgressEnd();
+    // Always stop the RSS sampler — a throw above would otherwise leak the interval and keep
+    // a long-lived MCP server's event loop ticking forever.
+    clearInterval(rssTicker);
+  }
+  const wallSec = Math.max(1, Math.round((Date.now() - t0) / 1000));
+  logPipeline(formatPipelineStageDone(`  Stage 1 DONE in ${wallSec}s — ${snap.modules.length} modules, ${snap.infraModules?.length ?? 0} infra modules`));
+
+  // Persist what this run observed so the next run can self-tune. Best-effort: a
+  // calibration write failure should never break extraction. Skip persistence when
+  // the run is unrepresentative (forced single-worker, no shards) — saving those
+  // numbers would attribute the full process peak to one worker and starve future
+  // auto-picks.
+  const isRepresentativeRun = workerCount >= 2 && jobs.length >= 2;
+  if (isRepresentativeRun) {
+    try {
+      saveCalibration(calibrationCacheDir, {
+        at: new Date().toISOString(),
+        observed: {
+          cpuCount: cpus,
+          totalRamMb,
+          workerCount,
+          shardTargetSize,
+          peakRssMb,
+          wallSec,
+          totalModules: snap.modules.length,
+          totalShards: jobs.length,
+        },
+      });
+    } catch (e) {
+      logPipelineWarn(`  ⚠ Failed to save calibration: ${(e as Error).message}`);
+    }
+  }
+
+  return snap;
+}

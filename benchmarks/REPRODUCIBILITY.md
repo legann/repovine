@@ -1,0 +1,34 @@
+# Reproduction Envelope
+
+This document records the execution envelope and manual rerun procedure for the published 240-run corpus.
+
+The machine-readable corpus inventory is [`manifest.json`](manifest.json).
+
+## Recorded runtime
+
+| Dimension | Published corpus |
+|---|---|
+| Repovine | `0.1.0` |
+| Agent client | Claude Code `1.2` line; the exact per-run patch build was not retained |
+| Models | `claude-sonnet-5`, `claude-opus-4-8`, `claude-fable-5` |
+| Effort | Claude Code `--effort max` (`max (ultracode)`) |
+| Sessions | one fresh session per run; `autoMemoryEnabled: false` |
+| Runs | N=10 per model–case–arm cell |
+| Repository pins | recorded in each case README and `manifest.json` |
+
+## Manual rerun checklist
+
+1. Clone the upstream repository and check out the pin recorded for the case.
+2. Create clean baseline and Repovine worktrees from the same pin.
+3. Use the repository's native instructions, documentation, skills, and agent tools in both arms.
+4. Run the Repovine arm with Repovine `0.1.0` and the Repovine setup published for the case.
+5. Start a fresh Claude Code session with memory disabled and the highest effort setting. Submit the exact task prompt published in the case README.
+6. Allow one autonomous prompt-to-diff session. Exclude evaluator feedback and post-run diff repair.
+7. Preserve the complete final local diff, including untracked files, and score it against the case's published predicate.
+8. Record the actual Claude Code build, model identifier, timestamps, tool configuration, timeout status, and the scorer output for the new run.
+
+## Published evidence and reruns
+
+The published package contains redacted transcripts, prompts, pins, annotations, structural predicates, per-run facts, and transcript gate metadata. The transcripts omit upstream source and submitted code under the [redaction rules](METHODOLOGY.md#redaction); licensing details are in [README.md#license](README.md#license).
+
+The checklist above defines the current manual rerun procedure.

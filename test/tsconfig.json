@@ -1,0 +1,24 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "noEmit": true,
+    "rootDir": "..",
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "../src/**/*.ts",
+    "./*.ts",
+    "./cli/**/*.ts",
+    "./evals/**/*.ts",
+    "./helpers/**/*.ts",
+    "./integration/**/*.ts",
+    "./laws/**/*.ts",
+    "./unit/**/*.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../dist",
+    "./fixtures/**"
+  ]
+}

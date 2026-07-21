@@ -1,0 +1,572 @@
+{
+  "stats": {
+    "totalNodes": 13,
+    "totalEdges": 26,
+    "nodesByType": {
+      "domain": 4,
+      "export-symbol": 1,
+      "module": 2,
+      "package": 1,
+      "root": 1,
+      "runtime-resource": 4
+    },
+    "edgesByKind": {
+      "binds_to": 3,
+      "contains": 8,
+      "infra": 1,
+      "tagged": 11,
+      "uses_env": 3
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:infra-sam",
+      "domain:handler",
+      "domain:sam-lambda-app-fixture",
+      "domain:cluster"
+    ],
+    "export-symbol": [
+      "export:sam-lambda-app-fixture/src/handler/main"
+    ],
+    "module": [
+      "mod:sam-lambda-app-fixture/src/handler",
+      "infra:cloudformation:template.yaml"
+    ],
+    "package": [
+      "pkg:sam-lambda-app-fixture"
+    ],
+    "root": [
+      "root"
+    ],
+    "runtime-resource": [
+      "resource:aws-lambda:ApiFunction",
+      "resource:aws:DbSecret",
+      "resource:aws:secret:/demo/token",
+      "resource:aws:secret:GoogleSecretsArn"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:cluster",
+      "type": "domain",
+      "label": "cluster",
+      "description": "Domain: cluster",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:handler",
+      "type": "domain",
+      "label": "handler",
+      "description": "Domain: handler",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:infra-sam",
+      "type": "domain",
+      "label": "infra-sam",
+      "description": "Domain: infra-sam (IaC SAM/CloudFormation)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:sam-lambda-app-fixture",
+      "type": "domain",
+      "label": "sam-lambda-app-fixture",
+      "description": "Domain: sam-lambda-app-fixture",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:sam-lambda-app-fixture/src/handler/main",
+      "type": "export-symbol",
+      "label": "main",
+      "description": "function main: (): Promise<{ statusCode: number }>",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(): Promise<{ statusCode: number }>",
+        "params": [],
+        "returnType": "Promise<{ statusCode: number }>",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "infra:cloudformation:template.yaml",
+      "type": "module",
+      "label": "template.yaml",
+      "description": "IaC cloudformation module template.yaml",
+      "data": {
+        "filePath": "<FIXTURE>/template.yaml",
+        "relativeFilePath": "template.yaml"
+      }
+    },
+    {
+      "id": "mod:sam-lambda-app-fixture/src/handler",
+      "type": "module",
+      "label": "src/handler",
+      "description": "Module src/handler.ts in sam-lambda-app-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/handler.ts",
+        "relativeFilePath": "src/handler.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:sam-lambda-app-fixture",
+      "type": "package",
+      "label": "sam-lambda-app-fixture",
+      "description": "Package sam-lambda-app-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "1.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "resource:aws-lambda:ApiFunction",
+      "type": "runtime-resource",
+      "label": "ApiFunction",
+      "description": "lambda declared in template.yaml",
+      "data": {
+        "handler": "handler.main",
+        "envVars": [
+          "DB_SECRET",
+          "GOOGLE_SECRETS_ARN",
+          "GOOGLE_CLIENT_SECRET",
+          "SSM_TOKEN"
+        ],
+        "envRefs": [
+          {
+            "varName": "DB_SECRET",
+            "refType": "ref",
+            "targetLogicalId": "DbSecret"
+          },
+          {
+            "varName": "GOOGLE_SECRETS_ARN",
+            "refType": "ref",
+            "targetLogicalId": "secret:GoogleSecretsArn"
+          },
+          {
+            "varName": "GOOGLE_CLIENT_SECRET",
+            "refType": "sub",
+            "targetLogicalId": "secret:GoogleSecretsArn"
+          },
+          {
+            "varName": "SSM_TOKEN",
+            "refType": "sub",
+            "targetLogicalId": "secret:/demo/token"
+          }
+        ],
+        "contentHash": "1bbd383988ba338f",
+        "kind": "lambda",
+        "provider": "aws"
+      }
+    },
+    {
+      "id": "resource:aws:DbSecret",
+      "type": "runtime-resource",
+      "label": "DbSecret",
+      "description": "secret declared in template.yaml",
+      "data": {
+        "contentHash": "57850879901aa6dd",
+        "kind": "secret",
+        "provider": "aws"
+      }
+    },
+    {
+      "id": "resource:aws:secret:/demo/token",
+      "type": "runtime-resource",
+      "label": "secret:/demo/token",
+      "description": "secret declared in template.yaml",
+      "data": {
+        "contentHash": "41f8626fe28802a2",
+        "kind": "secret",
+        "provider": "aws"
+      }
+    },
+    {
+      "id": "resource:aws:secret:GoogleSecretsArn",
+      "type": "runtime-resource",
+      "label": "secret:GoogleSecretsArn",
+      "description": "secret declared in template.yaml",
+      "data": {
+        "contentHash": "e894bdea319ebfc5",
+        "kind": "secret",
+        "provider": "aws"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:cluster",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cluster",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:handler",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-sam",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-sam",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:sam-lambda-app-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:sam-lambda-app-fixture",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sam-lambda-app-fixture/src/handler/main",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sam-lambda-app-fixture/src/handler/main",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "infra:cloudformation:template.yaml",
+      "links": [
+        {
+          "to": "domain:infra-sam",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:aws-lambda:ApiFunction",
+        "resource:aws:DbSecret",
+        "resource:aws:secret:/demo/token",
+        "resource:aws:secret:GoogleSecretsArn"
+      ],
+      "view": {
+        "id": "infra:cloudformation:template.yaml",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "resource:aws-lambda:ApiFunction",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:aws:DbSecret",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:aws:secret:/demo/token",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:aws:secret:GoogleSecretsArn",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-sam",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod:sam-lambda-app-fixture/src/handler",
+      "links": [
+        {
+          "to": "resource:aws:DbSecret",
+          "kind": "binds_to"
+        },
+        {
+          "to": "resource:aws:secret:GoogleSecretsArn",
+          "kind": "binds_to"
+        },
+        {
+          "to": "resource:aws:secret:/demo/token",
+          "kind": "binds_to"
+        },
+        {
+          "to": "domain:handler",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:sam-lambda-app-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [
+        "export:sam-lambda-app-fixture/src/handler/main"
+      ],
+      "view": {
+        "id": "mod:sam-lambda-app-fixture/src/handler",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:sam-lambda-app-fixture/src/handler/main",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "resource:aws:DbSecret",
+            "kind": "binds_to"
+          },
+          {
+            "to": "resource:aws:secret:GoogleSecretsArn",
+            "kind": "binds_to"
+          },
+          {
+            "to": "resource:aws:secret:/demo/token",
+            "kind": "binds_to"
+          },
+          {
+            "to": "domain:handler",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sam-lambda-app-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:sam-lambda-app-fixture",
+      "links": [],
+      "children": [
+        "mod:sam-lambda-app-fixture/src/handler"
+      ],
+      "view": {
+        "id": "pkg:sam-lambda-app-fixture",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:sam-lambda-app-fixture/src/handler",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "resource:aws-lambda:ApiFunction",
+      "links": [
+        {
+          "to": "domain:infra-sam",
+          "kind": "tagged"
+        },
+        {
+          "to": "mod:sam-lambda-app-fixture/src/handler",
+          "kind": "infra"
+        },
+        {
+          "to": "resource:aws:DbSecret",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:aws:secret:GoogleSecretsArn",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:aws:secret:/demo/token",
+          "kind": "uses_env"
+        },
+        {
+          "to": "domain:handler",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:sam-lambda-app-fixture",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:aws-lambda:ApiFunction",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-sam",
+            "kind": "tagged"
+          },
+          {
+            "to": "mod:sam-lambda-app-fixture/src/handler",
+            "kind": "infra"
+          },
+          {
+            "to": "resource:aws:DbSecret",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:aws:secret:GoogleSecretsArn",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:aws:secret:/demo/token",
+            "kind": "uses_env"
+          },
+          {
+            "to": "domain:handler",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sam-lambda-app-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:aws:DbSecret",
+      "links": [
+        {
+          "to": "domain:infra-sam",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:aws:DbSecret",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-sam",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:aws:secret:/demo/token",
+      "links": [
+        {
+          "to": "domain:infra-sam",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:aws:secret:/demo/token",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-sam",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:aws:secret:GoogleSecretsArn",
+      "links": [
+        {
+          "to": "domain:infra-sam",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:aws:secret:GoogleSecretsArn",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-sam",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:sam-lambda-app-fixture",
+        "infra:cloudformation:template.yaml"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:sam-lambda-app-fixture",
+            "type": "package"
+          },
+          {
+            "id": "infra:cloudformation:template.yaml",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

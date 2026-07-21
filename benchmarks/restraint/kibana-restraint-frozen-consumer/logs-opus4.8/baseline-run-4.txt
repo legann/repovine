@@ -1,0 +1,197 @@
+# Bench kibana-restraint-frozen-consumer — Baseline run 4 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 968cc223a1c948b8.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the synthetics monitor validation code to understand the existing structure.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Let me look at the main validation file and related files.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [source removed — 591 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_locations_utils.ts
+    [source removed — 157 line(s)]
+
+Let me find all callers of `validateMonitor` and understand the create/update flow.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/saved_objects/migrations/monitors/8.8.0.ts
+    [source removed — 60 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [source removed — 40 line(s)]
+
+The migration at `8.8.0.ts` re-validates persisted monitors — that's exactly the retroactive path I must avoid. Let me examine the remaining call sites to understand each path's nature.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/inspect_monitor.ts
+    [source removed — 219 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/synthetics_service/run_once_monitor.ts
+    [source removed — 74 line(s)]
+
+Now let me look at the edit path and the project monitor formatter's validation flow.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [source removed — 60 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [source removed — 70 line(s)]
+
+I now understand all the call sites. Let me check for existing location-limit constants or precedent before deciding placement.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+No existing location limit exists. Let me look at where validation constants are defined to place the new one consistently.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [source removed — 20 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [source removed — 7 line(s)]
+
+No existing constant. Let me confirm the migration scope — verify `8.8.0.ts` is the only migration re-validating, and check nothing else outside server uses `validateMonitor`.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 32 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [source removed — 20 line(s)]
+
+All paths confirmed. The design:
+
+- [source-heavy implementation detail removed — files and functions are identified elsewhere]
+- **Opt the migration out** via a default-on flag, so persisted monitors with >100 locations aren't retroactively rejected during the 8.8.0 migration.
+
+Let me implement. First, the constant:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [edit applied]
+
+Now the validator. Update the import, signature, add the check, and add the error messages:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [edit applied]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [edit applied]
+
+Now opt the migration out so persisted monitors aren't retroactively rejected:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/saved_objects/migrations/monitors/8.8.0.ts
+    [edit applied]
+
+Let me verify the edits and run a type check on the synthetics plugin.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [source removed — 45 line(s)]
+
+The edits look correct. Now let me type-check the synthetics plugin to confirm nothing broke:
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 24 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 4 line(s)]
+
+The repo isn't bootstrapped (`node_modules` empty), so the type checker and i18n tooling can't run here. Bootstrapping is very heavy and out of scope for an implementation-only change. Let me verify type-safety and i18n-ID uniqueness by inspection instead.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Both i18n IDs are unique; the constant is defined once and used correctly. Let me review the complete diff:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 98 line(s)]
+
+The diff is coherent. Now let me complete the scope audit for deliverable 2 — I need to verify no monitor-write path persists *without* going through `validateMonitor`. Let me check the bulk/project persist internals and the `AddEditMonitorAPI`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+Let me check whether `edit_monitor_bulk.ts` is a route entry point or an internal helper invoked after validation, and inspect the `add_monitor`/`project_monitor` subdirs.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 26 line(s)]
+
+`syncEditedMonitorBulk` has a caller in `private_locations/helpers.ts` — a system-driven update path. Let me examine it and confirm the bulk helpers are post-validation persistence, not independent write entry points.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/settings/private_locations/helpers.ts
+    [source removed — 53 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+The task says not to modify tests, but I must ensure my change doesn't *break* existing ones. Let me check whether any existing test feeds `validateMonitor` more than 100 locations:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Let me do a final confirmation that the bulk persistence helpers don't independently validate (so the route-level `validateMonitor` is the true chokepoint):
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+All verified. The implementation is complete. Here's my report.
+
+## Summary
+
+Added a "≤ 100 locations per monitor" rule to synthetics monitor validation. It lives at the single server-side validation chokepoint (`validateMonitor`), so every create/update write inherits it, and it is opt-out only for the saved-object migration that re-validates already-persisted monitors.
+
+### Changed behavior
+A monitor whose `locations` array exceeds 100 entries is now rejected with `valid: false`, reason **"Monitor has too many locations"**, and a detail string naming the actual count and the limit. Any monitor with ≤ 100 locations behaves exactly as before (byte-identical result).
+
+### Files touched (high level)
+| File | Change |
+|---|---|
+| `common/constants/monitor_defaults.ts` | New `[expr]` constant, beside the other validation constants. |
+| `routes/monitor_cruds/monitor_validation.ts` | New rule in `validateMonitor` right after the existing empty-locations check; gated by a new default-on `validateLocationsLimit` option; two new i18n error/detail messages. |
+| `saved_objects/migrations/monitors/8.8.0.ts` | Passes `[expr]` so migrating pre-existing monitors doesn't retroactively reject them. |
+
+### Code paths — changed vs. intentionally unchanged
+
+**Changed (now enforce the limit, via the shared `validateMonitor`):**
+- **Create** — `add_monitor.ts:107` `validateMonitor(…)`.
+- **Update** — `edit_monitor.ts:132` `validateMonitor(…)`.
+- **Project push create/update** — `project_monitor_formatter.ts:222` `validateMonitor(…)` (only monitors returning a `decodedMonitor` proceed to bulk-persist).
+- **Inspect (dry-run)** — `inspect_monitor.ts:52`; keeps the preview consistent with what create would reject.
+- **Run-once (test run)** — `run_once_monitor.ts:39`; validates the request payload before executing.
+
+**Intentionally unchanged (with proof):**
+- **8.8.0 migration** — `8.8.0.ts:119` now passes `[expr]`; the rule is skipped so persisted monitors aren't retroactively rejected. All its *existing* rules still run unchanged.
+- **Private-location label reconciliation** — `settings/private_locations/helpers.ts:112` calls `syncEditedMonitorBulk` directly, never `validateMonitor`; and `helpers.ts:92-94` only remaps the label of an existing location (`[expr]`), leaving `locations.length` unchanged. System-driven update on persisted monitors → out of scope.
+- **Bulk persistence helpers** — `bulk_cruds/add_monitor_bulk.ts` (`syncNewMonitorBulk`) and `bulk_cruds/edit_monitor_bulk.ts` (`syncEditedMonitorBulk`) contain no `validateMonitor` call (grep of `bulk_cruds/` returns none); they persist only what the route handlers already validated.
+- **Project raw-payload location validator** — `validateLocation`/`validateProjectMonitor` (`[expr]`) left unchanged; the project path's total location count is enforced post-normalization by `validateMonitor` at `project_monitor_formatter.ts:222`, so duplicating the count rule there is unnecessary.
+- **`validateMonitorStatusParams`** (`uptime/.../validate_monitor_status.ts:17`) — alert-rule param validator, not monitor-fields validation; unrelated by signature.
+- **Existing rules inside `validateMonitor`** — the new check sits between the empty-locations return and the type decode; for every ≤100-location input the function returns identically, so no existing rule's behavior changes.
+
+### Residual risk
+- The new rule changes the *rejection reason ordering* only for monitors that both exceed 100 locations and violate another rule (e.g., invalid type): they now surface the locations error first. Such monitors were already rejected — no previously-accepted monitor becomes accepted or vice-versa.
+- An explicit **update** to a grandfathered monitor that already has >100 locations will be rejected until its location count is brought within the limit. This is intended ("update" is a new write); only passive re-validation (migration) is exempted.
+- I could not run the type checker, ESLint, i18n check, or Jest: the workspace has no `node_modules` (not bootstrapped). Verification was static — type-safety by inspection (new param is optional with a default, so all existing 2-arg callers still compile; the migration's 3-arg call matches the new signature), both new i18n IDs confirmed unique, and no existing test fixture exceeds 100 locations. Running `yarn kbn bootstrap` then `[expr]` would close this out.

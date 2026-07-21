@@ -1,0 +1,10 @@
+{
+  "_description": "SvelteKit: +page.ts / +server.ts / +layout.ts are framework slots, never domains. Routing directories give the actual domain names (users, dashboard, blog).",
+  "heavyDomains": ["cluster", "routing", "sveltekit-fixture"],
+  "lightweightDomains": ["auth", "blog", "dashboard", "db", "slug", "users"],
+  "rejectedAsDomain": ["+page", "+server", "+layout", "+page.server"],
+  "modulesInDomain": {
+    "users": ["src/routes/api/users/+server.ts"],
+    "dashboard": ["src/routes/dashboard/+page.ts", "src/routes/dashboard/+page.server.ts"]
+  }
+}

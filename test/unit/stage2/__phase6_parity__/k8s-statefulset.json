@@ -1,0 +1,627 @@
+{
+  "stats": {
+    "totalNodes": 17,
+    "totalEdges": 25,
+    "nodesByType": {
+      "domain": 5,
+      "export-symbol": 1,
+      "module": 5,
+      "package": 1,
+      "root": 1,
+      "runtime-resource": 4
+    },
+    "edgesByKind": {
+      "contains": 11,
+      "infra": 1,
+      "routes_to": 1,
+      "tagged": 12
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:infra-dockerfile",
+      "domain:infra-k8s",
+      "domain:worker",
+      "domain:k8s-statefulset-fixture",
+      "domain:cluster"
+    ],
+    "export-symbol": [
+      "export:k8s-statefulset-fixture/src/worker/run"
+    ],
+    "module": [
+      "mod:k8s-statefulset-fixture/src/worker",
+      "infra:dockerfile:Dockerfile",
+      "infra:kubernetes:manifests/ingress.yaml",
+      "infra:kubernetes:manifests/service.yaml",
+      "infra:kubernetes:manifests/statefulset.yaml"
+    ],
+    "package": [
+      "pkg:k8s-statefulset-fixture"
+    ],
+    "root": [
+      "root"
+    ],
+    "runtime-resource": [
+      "resource:generic:Dockerfile",
+      "resource:k8s:_/Ingress/demo-worker-ingress",
+      "resource:k8s:_/Service/demo-worker",
+      "resource:k8s:_/StatefulSet/demo-worker"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:cluster",
+      "type": "domain",
+      "label": "cluster",
+      "description": "Domain: cluster",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "type": "domain",
+      "label": "infra-dockerfile",
+      "description": "Domain: infra-dockerfile (Dockerfiles)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:infra-k8s",
+      "type": "domain",
+      "label": "infra-k8s",
+      "description": "Domain: infra-k8s (Kubernetes / k3d manifests)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:k8s-statefulset-fixture",
+      "type": "domain",
+      "label": "k8s-statefulset-fixture",
+      "description": "Domain: k8s-statefulset-fixture",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:worker",
+      "type": "domain",
+      "label": "worker",
+      "description": "Domain: worker",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:k8s-statefulset-fixture/src/worker/run",
+      "type": "export-symbol",
+      "label": "run",
+      "description": "function run: (): void",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(): void",
+        "params": [],
+        "returnType": "void",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "infra:dockerfile:Dockerfile",
+      "type": "module",
+      "label": "Dockerfile",
+      "description": "IaC dockerfile module Dockerfile",
+      "data": {
+        "filePath": "<FIXTURE>/Dockerfile",
+        "relativeFilePath": "Dockerfile"
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/ingress.yaml",
+      "type": "module",
+      "label": "manifests/ingress.yaml",
+      "description": "IaC kubernetes module manifests/ingress.yaml",
+      "data": {
+        "filePath": "<FIXTURE>/manifests/ingress.yaml",
+        "relativeFilePath": "manifests/ingress.yaml"
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/service.yaml",
+      "type": "module",
+      "label": "manifests/service.yaml",
+      "description": "IaC kubernetes module manifests/service.yaml",
+      "data": {
+        "filePath": "<FIXTURE>/manifests/service.yaml",
+        "relativeFilePath": "manifests/service.yaml"
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/statefulset.yaml",
+      "type": "module",
+      "label": "manifests/statefulset.yaml",
+      "description": "IaC kubernetes module manifests/statefulset.yaml",
+      "data": {
+        "filePath": "<FIXTURE>/manifests/statefulset.yaml",
+        "relativeFilePath": "manifests/statefulset.yaml"
+      }
+    },
+    {
+      "id": "mod:k8s-statefulset-fixture/src/worker",
+      "type": "module",
+      "label": "src/worker",
+      "description": "Module src/worker.ts in k8s-statefulset-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/worker.ts",
+        "relativeFilePath": "src/worker.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:k8s-statefulset-fixture",
+      "type": "package",
+      "label": "k8s-statefulset-fixture",
+      "description": "Package k8s-statefulset-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "1.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "resource:generic:Dockerfile",
+      "type": "runtime-resource",
+      "label": "Dockerfile",
+      "description": "other declared in Dockerfile",
+      "data": {
+        "contentHash": "edcb105218c15649",
+        "kind": "other",
+        "provider": "generic"
+      }
+    },
+    {
+      "id": "resource:k8s:_/Ingress/demo-worker-ingress",
+      "type": "runtime-resource",
+      "label": "demo-worker-ingress",
+      "description": "k8s-service declared in manifests/ingress.yaml",
+      "data": {
+        "contentHash": "9144c73ccf1a2592",
+        "kind": "k8s-service",
+        "k8sKind": "Ingress",
+        "provider": "k8s"
+      }
+    },
+    {
+      "id": "resource:k8s:_/Service/demo-worker",
+      "type": "runtime-resource",
+      "label": "demo-worker",
+      "description": "k8s-service declared in manifests/service.yaml",
+      "data": {
+        "contentHash": "7113a35c3b900705",
+        "kind": "k8s-service",
+        "k8sKind": "Service",
+        "provider": "k8s"
+      }
+    },
+    {
+      "id": "resource:k8s:_/StatefulSet/demo-worker",
+      "type": "runtime-resource",
+      "label": "demo-worker",
+      "description": "k8s-deployment declared in manifests/statefulset.yaml",
+      "data": {
+        "contentHash": "a8c26a3a405ffc17",
+        "kind": "k8s-deployment",
+        "k8sKind": "StatefulSet",
+        "provider": "k8s"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:cluster",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cluster",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-dockerfile",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-k8s",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-k8s",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:k8s-statefulset-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:k8s-statefulset-fixture",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:worker",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:worker",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:k8s-statefulset-fixture/src/worker/run",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:k8s-statefulset-fixture/src/worker/run",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "infra:dockerfile:Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:Dockerfile"
+      ],
+      "view": {
+        "id": "infra:dockerfile:Dockerfile",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "resource:generic:Dockerfile",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/ingress.yaml",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:k8s:_/Ingress/demo-worker-ingress"
+      ],
+      "view": {
+        "id": "infra:kubernetes:manifests/ingress.yaml",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "resource:k8s:_/Ingress/demo-worker-ingress",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/service.yaml",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:k8s:_/Service/demo-worker"
+      ],
+      "view": {
+        "id": "infra:kubernetes:manifests/service.yaml",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "resource:k8s:_/Service/demo-worker",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/statefulset.yaml",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:k8s:_/StatefulSet/demo-worker"
+      ],
+      "view": {
+        "id": "infra:kubernetes:manifests/statefulset.yaml",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "resource:k8s:_/StatefulSet/demo-worker",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod:k8s-statefulset-fixture/src/worker",
+      "links": [
+        {
+          "to": "domain:worker",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:k8s-statefulset-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [
+        "export:k8s-statefulset-fixture/src/worker/run"
+      ],
+      "view": {
+        "id": "mod:k8s-statefulset-fixture/src/worker",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:k8s-statefulset-fixture/src/worker/run",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:worker",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:k8s-statefulset-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:k8s-statefulset-fixture",
+      "links": [],
+      "children": [
+        "mod:k8s-statefulset-fixture/src/worker"
+      ],
+      "view": {
+        "id": "pkg:k8s-statefulset-fixture",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:k8s-statefulset-fixture/src/worker",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "resource:generic:Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:Dockerfile",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:_/Ingress/demo-worker-ingress",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        },
+        {
+          "to": "resource:k8s:_/Service/demo-worker",
+          "kind": "routes_to"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:_/Ingress/demo-worker-ingress",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          },
+          {
+            "to": "resource:k8s:_/Service/demo-worker",
+            "kind": "routes_to"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:_/Service/demo-worker",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:_/Service/demo-worker",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:_/StatefulSet/demo-worker",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        },
+        {
+          "to": "infra:dockerfile:Dockerfile",
+          "kind": "infra"
+        },
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:_/StatefulSet/demo-worker",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          },
+          {
+            "to": "infra:dockerfile:Dockerfile",
+            "kind": "infra"
+          },
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:k8s-statefulset-fixture",
+        "infra:dockerfile:Dockerfile",
+        "infra:kubernetes:manifests/ingress.yaml",
+        "infra:kubernetes:manifests/service.yaml",
+        "infra:kubernetes:manifests/statefulset.yaml"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:k8s-statefulset-fixture",
+            "type": "package"
+          },
+          {
+            "id": "infra:dockerfile:Dockerfile",
+            "type": "module"
+          },
+          {
+            "id": "infra:kubernetes:manifests/ingress.yaml",
+            "type": "module"
+          },
+          {
+            "id": "infra:kubernetes:manifests/service.yaml",
+            "type": "module"
+          },
+          {
+            "id": "infra:kubernetes:manifests/statefulset.yaml",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

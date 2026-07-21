@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-operator
+  namespace: demo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-operator
+  template:
+    metadata:
+      labels:
+        app: demo-operator
+    spec:
+      containers:
+        - name: operator
+          image: demo/operator:local
+          env:
+            - name: WORKER_IMAGE
+              value: "demo/worker:local"
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: operator-secrets
+                  key: api-token
+          envFrom:
+            - secretRef:
+                name: operator-env
+          volumeMounts:
+            - name: certs
+              mountPath: /var/run/operator-certs
+              readOnly: true
+      volumes:
+        - name: certs
+          secret:
+            secretName: operator-certs

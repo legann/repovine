@@ -1,0 +1,199 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 9 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 346970f058244368.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the connector file and understanding how URLs are used as document identifiers.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+Now let me understand how document IDs flow into storage, since `buildDocument` hashes the canonical URL into the document `id`.
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/base-connector.ts
+    [source removed — 329 line(s)]
+
+Now let me trace where a document's `sourceId` (the URL hash) is consumed outside the connector, and whether stale documents get pruned.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+`findByConnectorSourcePairs` looks like a serving path. Let me trace it and `findBySourceIds`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 34 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+Let me read the existing test file — it pins current behavior I must not break — and check the sync/scope interactions.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+Let me check the test baseline and git history for this file.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s)]
+
+Let me establish a baseline by running the existing web-crawler tests.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+No test runner here, so I'll reason from source. Let me verify whether stale documents get pruned and how `deleteByConnector` is used.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 30 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 73 line(s)]
+
+I now have the full picture. Let me lay out the constraint that decides the design before I edit.
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+- `web-crawler-connector.ts` — `id` and `sourceUrl` both come from `extracted.canonicalUrl`
+- `connector-sync.ts` — that `id` becomes the `sourceId` upsert key
+- [source-heavy implementation detail removed — files and functions are identified elsewhere]
+- `models/kb-document.ts` — `deleteByConnectorAndSourceId` exists but **has no callers**, so nothing ever prunes rows
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Two more couplings decide where trailing-slash stripping may live:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 15 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+So trailing-slash stripping cannot touch the URL we fetch, store, or scope from. It belongs in a dedup key. Let me implement.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the two normalization functions — the fetch/store URL, and the identity key:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the key set through the crawler, alongside the existing closure state:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me verify the final state of everything I changed.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 108 line(s)]
+
+Let me read the final helper region to confirm no syntax slip (I can't compile here).
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 55 line(s)]
+
+Syntax is clean. Node's `URL` semantics are load-bearing here, so let me verify them directly (this is a language check, not a build/test run).
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 25 line(s)]
+
+Let me confirm the scope-escalation claim concretely, so my report is grounded rather than asserted.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+## What happened
+
+I strengthened the normalization, but split it into **two** functions rather than one, because the single existing `normalizeCrawlUrl` is used for four different jobs and one of the four requested rules is unsafe in three of them.
+
+**Files changed: one** — `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`.
+
+- `normalizeCrawlUrl` (the URL we fetch, store, and scope from) now strips the seven tracking parameters, lowercases the host, and keeps the existing hash/default-port stripping.
+- A new `canonicalCrawlKey` adds trailing-slash removal on non-root paths, and is used **only** as a page-identity key.
+- `enqueueAllowedLinks` dedupes discovered links by that key against a per-crawl `Set` seeded with the start URL, so `/a`, `/a/`, `[expr]`, and `[expr]` are fetched once and produce one document.
+
+## Why trailing-slash stripping is confined to the key
+
+Putting it in `normalizeCrawlUrl` breaks two things, both of which I verified rather than assumed:
+
+**1. It silently widens the crawl scope.** `createCrawler:182` feeds `normalizeCrawlUrl(…)` into `buildAllowedPathPrefixes`, whose line 469 is `[expr]`. Strip the slash and it falls through to line 472. I ran the function verbatim:
+
+[code excerpt removed — 2 line(s)]
+
+A `/docs/`-scoped crawl becomes a whole-origin crawl. This connector scopes deliberately — `beforeRedirect` (lines 226-256) exists to stop out-of-scope redirects — so that is a scope escalation, not a cosmetic change.
+
+**2. It orphans every already-indexed document**, which is what your constraint forbids. The chain:
+
+| Location | Fact |
+|---|---|
+| `web-crawler-connector.ts:444-449` | `[expr]`, and `sourceUrl` is the same URL |
+| `connector-sync.ts:419-421`, `502-512` | that `id` is the `sourceId` upsert key — miss ⇒ `INSERT` |
+| `database/schemas/kb-document.ts:44-47` | `uniqueIndex(…)` — a new id doesn't collide, it coexists |
+| `models/kb-document.ts:332` | `deleteByConnectorAndSourceId` exists but **has zero callers** — nothing prunes |
+| `models/kb-chunk.ts:117` | search joins `kb_documents`, so the orphan keeps being served |
+
+Every directory-style URL (`/docs/`, `/docs/install/`) would get a new `source_id` on the next sync: a fresh row inserted, the old row left behind, never refreshed, still returned by search. Keeping the path as authored keeps `doc.id` byte-identical, so existing rows are found and updated in place.
+
+## Deliberately left unchanged
+
+| Path | Proof it's out of scope |
+|---|---|
+| `buildAllowedPathPrefixes` | `web-crawler-connector.ts:469` — correct *given* an unstripped path; the bug is upstream, so I fixed the input, not the function |
+| `buildDocument` | `web-crawler-connector.ts:444-449` — identity must stay stable; changing it is the failure mode |
+| `normalizeCanonicalUrl` | `web-crawler-connector.ts:580-595` — already delegates to `normalizeCrawlUrl`, so it inherits the fix |
+| `assertPublicCrawlUrl` | `web-crawler-connector.ts:627` — reads `hostname` only; query/path normalization can't affect it |
+| `base-connector.ts:264` `joinUrl` | shared by other connectors; no web-crawler URL flows through it |
+
+`[expr]` is a **no-op in practice** — WHATWG `URL` already ASCII-lowercases hosts for `http:`/`https:`, and `normalizeDiscoveredUrl:570` guarantees only those schemes reach it. I wrote it explicitly because you asked for it and it costs nothing, not because it fixes a live bug.
+
+## Verification, honestly
+
+This worktree has no `node_modules`; installs, type-checks, and tests are blocked, **so I did not run the test suite.** I verified the two functions' semantics by executing them standalone under `node` (11 normalization cases, variant-collapse groups, root-slash preservation, distinct-page separation — all pass), and I executed `buildAllowedPathPrefixes` verbatim to produce the scope table above. I also hand-traced the 20 existing tests: the ones pinning `[expr]` and `[expr]` (lines 163-180) are exactly the assertions the naive patch would break, and they hold under this design.
+
+## Residual risk
+
+The one case that can still create a duplicate: a page whose **only** indexed URL carried a tracking parameter. It was stored as `[expr]`; it will now be fetched and stored as `https://x/a`, so a new row appears and the old one goes stale while remaining searchable. This is forced by the "strip tracking parameters" requirement — it cannot be avoided while also honoring that bullet. It's narrow: `normalizeCanonicalUrl` prefers the page's `[expr]`, which rarely carries tracking params. Pre-existing `/a` vs `/a/` duplicate pairs collapse to one going forward, with the loser going stale for the same reason.
+
+Cleaning those up needs a prune the codebase doesn't currently perform — `KbDocumentModel.deleteByConnectorAndSourceId` is the right hook and is already written, just uncalled. I did not wire it up or write a backfill migration, since both reach well outside the file you scoped and a migration can't be generated here (`drizzle-kit` needs the toolchain, and hand-naming migration files is forbidden by the migrations skill). Say the word if you want either as a follow-up.

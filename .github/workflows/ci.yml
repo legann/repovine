@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit (fails only on advisories outside the documented allowlist)
+        run: npm run audit:check
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --maxWorkers=2
+
+      - name: Verify dist structure
+        run: |
+          test -f dist/mcp/index.js
+          test -f dist/index.js
+          echo "✓ dist/ structure OK"
+
+      - name: Verify bin is executable
+        run: |
+          set -o pipefail
+          chmod +x dist/mcp/index.js
+          test -x dist/mcp/index.js
+          node dist/mcp/index.js --help | grep -q 'repovine'
+          echo "✓ bin entry OK"
+
+      # Pack, install into a clean repo, and drive the MCP over stdio — the path
+      # `npx -y repovine@<version>` takes. Catches runtime imports that resolve in the
+      # engine checkout only because devDependencies are installed there.
+      - name: Smoke test packed install
+        run: node scripts/smoke-pack-install.mjs
+
+      # The plugin repo (legann/repovine-client-plugins) is rendered from engine SSoT.
+      # Render it to a temp root and validate the projection: manifests, MCP pins, hook layout.
+      - name: Verify client plugin projection
+        run: |
+          node scripts/render-client-plugins.mjs --out "$RUNNER_TEMP/client-plugins" --allow-unpublished
+          node scripts/validate-client-plugins.mjs --out "$RUNNER_TEMP/client-plugins"
+          echo "✓ client plugin projection OK"

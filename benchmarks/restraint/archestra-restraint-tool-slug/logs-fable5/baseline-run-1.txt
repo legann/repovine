@@ -1,0 +1,249 @@
+# Bench archestra-restraint-tool-slug — Baseline run 1 — model: fable-5 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max (ultracode). Agent 0c119d936fb745ec.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the repo to find where MCP tool names are turned into platform identifiers.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+The tool model is the prime candidate. Let me read it.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1550 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 300 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 130 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 160 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 80 line(s)]
+
+`app-mcp-backing.ts` slugifies a single fixed tool name — no collision possible there. Now reading `syncToolsForCatalog` and the tail helpers of tool.ts.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 260 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 91 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Tests pin `rawToolName` in the sync input shape — the field stays. Let me read the exact test expectations to make sure my keying change keeps them green.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 90 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 107 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 34 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 115 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+Let me check the mcp-client test around name resolution and see how the test drives `resolveActualToolName`.
+
+  → Read: platform/backend/src/clients/mcp-client.test.ts
+    [source removed — 140 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Write: platform/backend/src/utils/tool-name-collision.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 3 line(s)]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now `mcp-reinstall.ts` — check its import block first, then patch the sync mapping.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+Now the two sites in `archestra-mcp-server/mcp-servers.ts` plus its import.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now the `syncToolsForCatalog` matching-key fix in `models/tool.ts`.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the call-time resolution in `mcp-client.ts`. Check its imports first.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 34 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 17 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+Now add the private `slugifiedToolPart` helper next to `stripServerPrefix`:
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Edit: platform/backend/src/utils/tool-name-collision.ts
+    [edit failed — tool could not apply the requested change]
+
+Let me re-read the actual file to match exactly.
+
+  → Read: platform/backend/src/utils/tool-name-collision.ts
+    [source removed — 121 line(s)]
+
+  → Edit: platform/backend/src/utils/tool-name-collision.ts
+    [edit failed — tool could not apply the requested change]
+
+The string match is failing on some invisible detail — simplest to rewrite the file wholesale since I just read it.
+
+  → Write: platform/backend/src/utils/tool-name-collision.ts
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — checked or prepared the local tool environment]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 262 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 41 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 42 line(s)]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+Sweep complete — `filterUnavailableTools` only exact-matches the built-in knowledge tool name, unaffected by suffixes. The implementation is done and verified as far as this environment allows (the worktree is intentionally not bootstrapped, so no vitest/tsc; I verified by static reading, parse-checking every edited file, and property-testing the new dependency-free helper directly under Node).
+
+## Summary
+
+**Where tool names become identifiers.** `ToolModel.slugifyName` (`platform/backend/src/models/tool.ts:79`) builds every MCP tool identifier as `[expr]` lowercased, whitespace→`_`, with all other disallowed characters *removed*. The removal is lossy, so distinct raw names (`getUser` vs `get.user`) collapse into one identifier. Because the tools table's composite unique constraint contains NULL columns for MCP tools (`database/schemas/tool.ts:83`), such collisions previously produced duplicate same-name rows that could never be addressed individually. The identifier is slugified at five discovery sites and mapped back to the raw name at call time in `mcp-client.ts` (`stripServerPrefix` + `resolveActualToolName`).
+
+**What changed.**
+- **New** `backend/src/utils/tool-name-collision.ts` — `dedupeSlugifiedToolNames()`: given a discovery batch of (rawName, slug) pairs, unique slugs pass through byte-identical; within a collision group, the raw name the slug already resolves to today keeps it (identifier-safe charset first, all-lowercase spelling first, then byte order), and every other tool gets `[expr]`. Suffixes are functions of the raw name alone, so assignments are order-independent and survive rediscovery, catalog renames, and the clone/reconcile round-trip.
+- **Applied at all five batch discovery sites**: `routes/mcp-server.ts` (local ~L762 and remote ~L936 install), `services/mcp-reinstall.ts` (`syncToolsForServer`), `archestra-mcp-server/mcp-servers.ts` (`discoverLocalMcpServerTools`, `discoverRemoteMcpServerTools`).
+- **`models/tool.ts` `syncToolsForCatalog`** now matches incoming tools by the identifier's tool part (after the last `__`) — the same derivation used for existing rows — instead of preferring `rawToolName`. Without this, suffixed rows would be orphan-deleted and recreated (losing policies) on every reinstall; for all previously-matching inputs the keys are identical, and the pinned rename/removal tests remain satisfied. The `rawToolName` field stays (tests assert it is passed) and is marked deprecated.
+- **`clients/mcp-client.ts` `resolveActualToolName`** additionally seeds the name map with each raw name's disambiguated slug part (same algorithm), so a suffixed identifier resolves to its exact raw name at call time. Literal lowercase entries are written last and win, so every name that resolves today resolves identically.
+
+**Deliberately unchanged, with the source proving scope:** `slugifyName` itself (per-pair outputs pinned in `[expr]`; unique identifiers must stay byte-identical); app launch tools (`[expr]` — single fixed name already uniqued by app id); Archestra built-in seeding (`tool.ts` `seedArchestraTools` — curated registry names guarded by the partial unique index at `database/schemas/tool.ts:93`); agent delegation names (`shared/agents.ts:36` — derived from agent names, not MCP-server tools); proxy-sniffed tools (`tool.ts:2338` comment — names arrive from LLM traffic already as identifiers); the Apps run path (`mcp-server-gateway.utils.ts:60` lists lowercased parts and `mcp-client.ts:2999` `callToolForServer` forwards names verbatim — already lossy for any non-lowercase raw name, orthogonal to collisions); clone/reconcile code (`[expr]` — needs no change because suffixes are prefix-independent, verified by property test).
+
+**Verification.** Node-run property tests on the helper: unique passthrough, deterministic suffixing across 25 permutations × 4 prefixes, distinct identifiers for distinct raw names, provider-charset conformance, discovery↔resolution parity, and clone re-slug round-trip — all pass. Every edited file parse-checks under `node --experimental-strip-types`. The `@/models` mock in `mcp-reinstall.test.ts` is respected (the service still calls only `ToolModel.slugifyName`/`syncToolsForCatalog`; the helper lives outside `@/models` and is identity for that test's unique fixtures).
+
+**Residual risk.** A suffix depends on the server's sibling tool list, so if the server's toolset changes between discovery and a call, a suffixed identifier may not resolve until the next sync (same staleness class as renames today, and resolution still reads a single `tools/list` page — pre-existing). Legacy databases that already hold duplicate same-name rows converge on the next reinstall/sync via the existing orphan-transfer path rather than immediately. Suffixed identifiers exceed 128 chars only when the base slug already approaches that limit (`slugifyName` has never enforced length). I could not run the repo's vitest/tsc suites here (worktree intentionally not bootstrapped), so type-check/test execution remains to be done in a bootstrapped checkout.

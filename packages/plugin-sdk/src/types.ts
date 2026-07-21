@@ -1,0 +1,552 @@
+export type SymbolKind =
+  | 'function' | 'class' | 'interface' | 'type'
+  | 'const' | 'enum' | 'component' | 'unknown';
+export interface PackageInfo {
+  name: string;
+  path: string;
+  version?: string;
+  /** Logical id of the source plugin that discovered this package (e.g. 'typescript'). */
+  sourcePluginId?: string;
+}
+
+/** A discovered source file awaiting AST extraction. Produced by a source plugin's discover()
+ * pass and consumed by its extract() pass (the latter is worker_threads-safe). */
+export interface PendingModule {
+  filePath: string;
+  /** Present for SFCs: the virtual `.ts` path used by ts-morph. */
+  virtualPath?: string;
+  pkg: PackageInfo;
+  relPath: string;
+  moduleId: string;
+  /** Logical id of the source plugin that owns this file; drives worker dispatch. */
+  sourcePluginId?: string;
+}
+
+export interface ParamInfo {
+  name: string;
+  type: string;
+}
+
+export interface FieldInfo {
+  name: string;
+  type: string;
+  optional: boolean;
+}
+
+export interface MemberInfo {
+  name: string;
+  kind: 'method' | 'property';
+  access: 'private' | 'protected' | 'public';
+  signature?: string;
+  lineRange: { start: number; end: number };
+}
+
+export interface InternalInfo {
+  name: string;
+  kind: 'function' | 'variable' | 'destructuring';
+  signature?: string;
+  lineRange: { start: number; end: number };
+}
+
+export interface ConditionalRender {
+  component: string;
+  condition: string;
+  renderedIn: string;
+  lineRange: { start: number; end: number };
+}
+
+export interface ExportInfo {
+  name: string;
+  kind: SymbolKind;
+  signature?: string;
+  params?: ParamInfo[];
+  returnType?: string;
+  typeValue?: string;
+  fields?: FieldInfo[];
+  implementsInterfaces?: string[];
+  calls?: string[];
+  privateMembers?: MemberInfo[];
+  internals?: InternalInfo[];
+  lineRange: { start: number; end: number };
+  isDefault: boolean;
+  defaultLocalName?: string;
+}
+
+export interface ImportInfo {
+  moduleSpecifier: string;
+  resolvedModuleId?: string;
+  importedNames: string[];
+  isTypeOnly: boolean;
+  isExternal: boolean;
+}
+
+/**
+ * A re-export declaration (`export * from './x'` or `export { a, b } from './x'`). The barrel that
+ * carries it re-exports the target's symbols; the engine follows these to resolve a cross-barrel
+ * import to the defining leaf. Captured syntactically like imports — no name resolution at the
+ * producer boundary.
+ */
+export interface ReExportInfo {
+  moduleSpecifier: string;
+  resolvedModuleId?: string;
+  /** Named re-exports (`export { a, b } from`); undefined for `export * from` (star). */
+  names?: string[];
+  /** True for `export * from` (re-exports the whole module surface). */
+  isStar: boolean;
+  isExternal: boolean;
+}
+
+export interface ModuleInfo {
+  id: string;
+  packageName: string;
+  filePath: string;
+  relativeFilePath: string;
+  contentHash: string;
+  imports: ImportInfo[];
+  exports: ExportInfo[];
+  /** Re-export declarations carried by this module (barrels). Empty/absent for non-barrels. */
+  reExports?: ReExportInfo[];
+  /** Module-level forward calls: callee names not inside any exported declaration (top-level
+   * statements, non-exported local helpers). Per-export calls live on `ExportInfo.calls`; this
+   * bucket is what makes a non-exported helper's calls visible to reverse-by-name lookup. */
+  calls?: string[];
+  semanticHints?: SemanticHints;
+  /** Logical id of the source plugin that produced this module ('typescript' | 'python' | …).
+   * Lets language-specific downstream layers (frontend route inference, UI detectors) stay
+   * TS-only and keep non-TS modules deterministically empty. */
+  sourcePluginId?: string;
+}
+
+/**
+ * Producer output for ONE module: language semantics only. A source plugin emits these; the engine
+ * stamps all mechanical / language-agnostic metadata — `id`, `filePath`, `relativeFilePath`,
+ * `packageName`, `contentHash`, `sourcePluginId` provenance — at the Stage-1 boundary when it
+ * assembles the full `ModuleInfo`. The producer echoes back `moduleId` purely as a
+ * correlation key to the engine-minted `PendingModule.moduleId`; it does NOT mint ids or paths.
+ * Splitting this from `ModuleInfo` is what makes "plugin cannot set a mechanical field" a
+ * compile-time guarantee rather than a convention.
+ */
+export interface SemanticModuleDelta {
+  moduleId: string;
+  imports: ImportInfo[];
+  exports: ExportInfo[];
+  /** Re-export declarations (see `ModuleInfo.reExports`). */
+  reExports?: ReExportInfo[];
+  /** Module-level forward calls (see `ModuleInfo.calls`). Producer-owned semantics; the engine
+   * carries it onto the assembled `ModuleInfo` unchanged. */
+  calls?: string[];
+  semanticHints?: SemanticHints;
+  /**
+   * Set when this extraction is incomplete and must not be cached (e.g. a transient subprocess
+   * failure that yields empty imports/exports). The engine then stamps an empty `contentHash` so
+   * the next incremental run re-parses instead of reusing a poisoned result. Default false.
+   */
+  transient?: boolean;
+}
+
+export interface RouteInfo {
+  path: string;
+  component: string;
+  source?: 'jsx' | 'config' | 'file' | 'decorator' | 'ast';
+  kind?: 'frontend' | 'api';
+  method?: string;
+  /** File-route framework token used by MCP entrypoint output, e.g. nextjs-app, sveltekit. */
+  framework?: string;
+  /** File-route slot used by MCP entrypoint output and ids, e.g. page, route, server-api. */
+  fileType?: string;
+  /** Template names this route's handler/render unit renders, when statically known. */
+  rendersTemplate?: string[];
+}
+
+export interface RuntimeAction {
+  action: 'sqs.sendMessage' | 'sns.publish' | 'eventbridge.putEvents' | 'lambda.invoke';
+  envVar?: string;
+  lineRange?: { start: number; end: number };
+}
+
+export type UiFramework =
+  | 'react'
+  | 'next'
+  | 'vue'
+  | 'nuxt'
+  | 'angular'
+  | 'svelte'
+  | 'unknown';
+
+export interface UiSignalBase {
+  lineRange?: { start: number; end: number };
+}
+
+export interface UiLifecycleEffect extends UiSignalBase {
+  kind:
+    | 'react-effect'
+    | 'vue-watch'
+    | 'vue-lifecycle'
+    | 'svelte-lifecycle'
+    | 'angular-lifecycle'
+    | 'generic-effect';
+  name: string;
+  dataAccessCount?: number;
+  navigationCount?: number;
+  timerCount?: number;
+  subscriptionCount?: number;
+}
+
+export interface UiDataAccess extends UiSignalBase {
+  kind:
+    | 'fetch'
+    | 'http-client'
+    | 'query'
+    | 'mutation'
+    | 'graphql'
+    | 'storage'
+    | 'api-client';
+  callee: string;
+  target?: string;
+}
+
+export interface UiNavigationAction extends UiSignalBase {
+  kind: 'navigate' | 'router-push' | 'redirect' | 'history';
+  callee: string;
+  target?: string;
+}
+
+export interface UiTimerAction extends UiSignalBase {
+  kind: 'timeout' | 'interval' | 'animation-frame';
+  callee: string;
+}
+
+export interface UiSubscriptionAction extends UiSignalBase {
+  kind: 'event-listener' | 'observable' | 'websocket' | 'realtime';
+  callee: string;
+}
+
+export interface UiStateSignal extends UiSignalBase {
+  kind:
+    | 'react-state'
+    | 'react-reducer'
+    | 'react-context'
+    | 'vue-ref'
+    | 'vue-reactive'
+    | 'vue-provide'
+    | 'svelte-store'
+    | 'angular-service-state'
+    | 'rxjs-state'
+    | 'generic-state';
+  name?: string;
+}
+
+export interface UiServiceWrapperHint {
+  candidate: boolean;
+  role: 'service' | 'client' | 'api' | 'adapter' | 'manager' | 'provider';
+  lineCount: number;
+  delegateCallCount: number;
+}
+
+export interface UiComponentPropHint extends UiSignalBase {
+  name: string;
+  kind: 'data' | 'callback' | 'setter' | 'state-flag' | 'unknown';
+  source: 'destructured-param' | 'props-object' | 'type-only' | 'unknown';
+}
+
+export interface UiChildComponentHint extends UiSignalBase {
+  componentName: string;
+  passedProps: string[];
+  passedCallbacks: string[];
+  forwardedProps: string[];
+  spreadProps: string[];
+}
+
+export interface UiComponentLocalSignals {
+  localState: number;
+  effects: number;
+  dataAccess: number;
+  navigation: number;
+  timers: number;
+  subscriptions: number;
+  serviceImports: number;
+  validationOrMapping: number;
+}
+
+export interface UiComponentHint extends UiSignalBase {
+  framework: UiFramework;
+  name: string;
+  props: UiComponentPropHint[];
+  childComponents: UiChildComponentHint[];
+  localSignals: UiComponentLocalSignals;
+}
+
+export interface SecuritySignal extends UiSignalBase {
+  kind:
+    | 'secret-env'
+    | 'public-env'
+    | 'browser-storage'
+    | 'browser-storage-sensitive'
+    | 'cookie-access'
+    | 'validation'
+    | 'authz'
+    | 'source-disclosure';
+  name?: string;
+  callee?: string;
+  target?: string;
+}
+
+export interface UiHints {
+  framework?: UiFramework;
+  lifecycleEffects?: UiLifecycleEffect[];
+  dataAccess?: UiDataAccess[];
+  navigation?: UiNavigationAction[];
+  timers?: UiTimerAction[];
+  subscriptions?: UiSubscriptionAction[];
+  state?: UiStateSignal[];
+  serviceWrapper?: UiServiceWrapperHint;
+  components?: UiComponentHint[];
+}
+
+/**
+ * SSR / runtime markers detected from source text.
+ * These are framework-agnostic execution hints — they say WHERE/HOW a module runs,
+ * not WHAT it does (that's the domain).
+ */
+export interface SsrMarkers {
+  /** Contains `'use server'` directive at file top (Next.js Server Action / React Server Component). */
+  useServer?: boolean;
+  /** Contains `'use client'` directive at file top (Next.js Client Component). */
+  useClient?: boolean;
+  /** Exports `getServerSideProps` (Next.js Pages Router SSR). */
+  getServerSideProps?: boolean;
+  /** Exports `getStaticProps` (Next.js Pages Router SSG). */
+  getStaticProps?: boolean;
+  /** Exports `getInitialProps` (legacy Next.js SSR). */
+  getInitialProps?: boolean;
+  /** Exports `loader` (React Router SSR data loader). */
+  loader?: boolean;
+  /** Exports `action` (React Router form action). */
+  action?: boolean;
+  /** Uses Qwik `routeLoader$` / `routeAction$` / `server$` macros. */
+  qwikServer?: boolean;
+  /**
+   * Framework-general runtime marker (semanticHints v1): where this module executes. Source plugins
+   * derive it from their own conventions (TS: `'use server'`→`'server'`, `'use client'`→`'client'`;
+   * a Blazor/other plugin maps its equivalents). Omitted when ambiguous (both or neither), because
+   * the load-bearing `useServer`/`useClient` booleans remain authoritative — `runsOn` is an additive,
+   * lossy-by-design convenience for non-JS frameworks that have no `use server`/`use client` directive.
+   */
+  runsOn?: 'server' | 'client';
+  /**
+   * Framework-general runtime marker (semanticHints v1): module exports a server-side data loader
+   * (Next.js `getServerSideProps`/`getStaticProps`/`getInitialProps`, React Router `loader`, Blazor
+   * `OnInitializedAsync`, …). Form actions/mutations (React Router `action`) are intentionally excluded.
+   */
+  dataLoader?: boolean;
+}
+
+/**
+ * Web frameworks recognised by the built-in source plugins. The `WebFramework` alias is
+ * intentionally an open string (same `(string & {})` trick as `KnownInfraKind` below) so external
+ * plugins can declare a new framework (e.g. 'spring', 'aspnet', 'express') in `semanticHints` without
+ * modifying the core types — backend-route layers read the neutral `routes` slot, not this value.
+ */
+export type KnownWebFramework = 'fastapi' | 'django' | 'drf';
+export type WebFramework = KnownWebFramework | (string & {});
+
+/**
+ * Framework-general module hints written by source plugins and read by core/layer consumers.
+ *
+ * This is a public, versioned contract (semanticHints v1 — see `SEMANTIC_HINTS_VERSION` and the Zod
+ * schema in `source-plugin/semantic-hints-schema.ts`). The framework-general slots (`routes`,
+ * `envVars`, `ssr`, `security`, `webFramework`, …) are normalized so a single layer consumer can
+ * serve many languages/frameworks; keep additions neutral rather than framework-specific.
+ */
+export interface SemanticHints {
+  hasRoutes?: boolean;
+  routes?: RouteInfo[];
+  conditionalRenders?: ConditionalRender[];
+  envVars?: string[];
+  runtimeActions?: RuntimeAction[];
+  ui?: UiHints;
+  security?: SecuritySignal[];
+  /** SSR / runtime markers. Present only when at least one marker matches. */
+  ssr?: SsrMarkers;
+  /** Side-effect kinds conservatively inferred from unambiguous imports (e.g. Python `subprocess`,
+   * `requests`). Lets source plugins without full content analysis feed the declared-`pure`
+   * annotation consistency check honestly. `kind` follows the SideEffect vocabulary. */
+  effectImports?: Array<{ kind: string; source: string }>;
+  /** Web framework detected from imports/attributes. Open string: built-ins emit FastAPI / Django /
+   * DRF, external plugins may declare any framework (Spring, ASP.NET, …) without a core-type change. */
+  webFramework?: WebFramework;
+}
+
+/**
+ * Known built-in IaC kinds. The InfraKind alias is intentionally an open string so external
+ * plugins can introduce new kinds (e.g. 'pulumi', 'bicep') without modifying the core types.
+ * The `(string & {})` trick preserves autocomplete for known values while accepting any string.
+ */
+export type KnownInfraKind =
+  | 'aws-sam'
+  | 'cloudformation'
+  | 'kubernetes'
+  | 'helm'
+  | 'docker-compose'
+  | 'dockerfile'
+  | 'terraform'
+  | 'vercel';
+export type InfraKind = KnownInfraKind | (string & {});
+
+export type KnownInfraResourceKind =
+  | 'lambda'
+  | 'queue'
+  | 'topic'
+  | 'table'
+  | 'api'
+  | 'bucket'
+  | 'role'
+  | 'secret'
+  | 'k8s-deployment'
+  | 'k8s-service'
+  | 'k8s-crd'
+  | 'helm-release'
+  | 'vercel-function'
+  | 'vercel-cron'
+  | 'vercel-route'
+  | 'other';
+export type InfraResourceKind = KnownInfraResourceKind | (string & {});
+
+export type KnownInfraTriggerType =
+  | 'api'
+  | 'sqs'
+  /** Standalone EventBridge Rule with ScheduleExpression. */
+  | 'schedule'
+  /** Standalone EventBridge Rule with EventPattern (event-bus subscription). */
+  | 'event-bus'
+  /** AWS::Lambda::EventSourceMapping pointing at a DynamoDB Table stream. */
+  | 'dynamodb-stream'
+  /** AWS::Lambda::EventSourceMapping pointing at a Kinesis Stream. */
+  | 'kinesis-stream'
+  /** AWS::ApiGatewayV2::Route ($connect, $disconnect, $default, custom). */
+  | 'websocket'
+  | 'other';
+export type InfraTriggerType = KnownInfraTriggerType | (string & {});
+
+export interface InfraTrigger {
+  name: string;
+  type: InfraTriggerType;
+  method?: string;
+  path?: string;
+  schedule?: string;
+  /**
+   * Logical id of the upstream resource that fires this trigger. Set for queue/stream sources
+   * (SQS, DynamoDB stream, Kinesis), the API resource that owns a route, or the EventBridge
+   * rule that targets the Lambda. Used by stage2 to derive `consumes` edges.
+   */
+  queueRef?: string;
+}
+
+export interface InfraEnvRef {
+  varName: string;
+  refType: 'ref' | 'getatt' | 'sub' | 'literal';
+  targetLogicalId?: string;
+}
+
+export interface InfraResource {
+  id: string;
+  kind: InfraResourceKind;
+  provider: 'aws' | 'k8s' | 'generic' | 'terraform' | 'vercel';
+  /** Fingerprint of this resource's IaC fragment only (not the whole template file). Used for runtime-resource annotation freshness. */
+  contentHash: string;
+  attributes: Record<string, string>;
+  envVars?: string[];
+  links?: string[];
+  triggers?: InfraTrigger[];
+  envRefs?: InfraEnvRef[];
+}
+
+export interface InfraModuleInfo {
+  id: string;
+  kind: InfraKind;
+  filePath: string;
+  relativeFilePath: string;
+  contentHash: string;
+  resources: InfraResource[];
+}
+
+/**
+ * Producer output for ONE infra document: infra semantics only. An IaC parser emits this; the
+ * engine stamps the mechanical / agnostic metadata — `id` (`infra:<kind>:<relPath>`), `filePath`,
+ * `relativeFilePath`, and the module-level `contentHash` (raw-file fingerprint, computed once per
+ * file like template artifacts) — when it assembles the full `InfraModuleInfo` in
+ * `collectInfraModules`. Per-resource fingerprints (`InfraResource.contentHash`) stay
+ * producer-owned: they fingerprint a specific resource fragment, which is infra semantics, not
+ * file-level mechanics.
+ */
+export interface SemanticInfraDelta {
+  kind: InfraKind;
+  resources: InfraResource[];
+}
+
+/** How a candidate file is loaded before being passed to supports()/parse(). */
+export type IaCDocFormat = 'yaml' | 'json' | 'hcl' | 'dockerfile' | 'raw';
+
+/**
+ * Declarative file selectors. The scanner first computes the union of all registered parsers'
+ * fileMatch entries to decide which files are infra candidates at all. Then, per file, only
+ * parsers whose fileMatch includes it (or which declare no fileMatch) get to run supports().
+ */
+export interface IaCFileMatch {
+  /** Lowercased extensions including the leading dot, e.g. ['.yaml', '.yml']. */
+  extensions?: string[];
+  /** Exact base file names, e.g. ['Chart.yaml', 'vercel.json']. */
+  fileNames?: string[];
+  /** Regex patterns matched against the base file name. */
+  fileNamePatterns?: RegExp[];
+}
+
+export interface IaCParser {
+  kind: InfraKind;
+  /**
+   * Declarative pre-filter. When present, the parser only sees files whose base name is
+   * matched. When absent, the parser is invoked for every infra candidate file.
+   */
+  fileMatch?: IaCFileMatch;
+  /**
+   * How the file should be loaded before being handed to supports()/parse(). The first parser
+   * that claims a file via fileMatch determines the format for that file. Inferred from the
+   * legacy extension/name table when no parser declares a format.
+   */
+  docFormat?: IaCDocFormat;
+  supports(filePath: string, doc: unknown): boolean;
+  /** Emit infra semantics (kind + resources) for one document. The engine assembles the full
+   * `InfraModuleInfo` (id/filePath/relativeFilePath/module contentHash) at the Stage-1 boundary. */
+  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null;
+}
+
+/* ---------------------- IaC plugin registry metadata ---------------------- */
+
+export interface InfraKindDomain {
+  domainId: string;
+  label: string;
+  description: string;
+}
+
+export interface ResourceKindMeta {
+  /** stage2 attempts to resolve the resource's `handler` attribute to a code module. */
+  hasCodeHandler?: boolean;
+}
+
+export type TriggerEntryKind =
+  | 'api'
+  | 'websocket'
+  | 'queue-consumer'
+  | 'schedule'
+  | 'webhook'
+  | 'unknown';
+
+export interface TriggerTypeMeta {
+  /**
+   * Stage2 emits a `consumes` edge from `trigger.queueRef` to the target lambda when this is
+   * true (SQS, DynamoDB stream, Kinesis stream are the built-ins).
+   */
+  isStreamLike?: boolean;
+  /** Default entrypoint label used by repovine trigger entrypoint projection. */
+  entrypointKind?: TriggerEntryKind;
+}

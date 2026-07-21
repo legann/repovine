@@ -1,0 +1,28 @@
+{
+  "_description": "NestJS modular: <stem>.controller.ts/<stem>.service.ts → domain <stem> via high-confidence suffix match. @Controller + @Get/@Post/@Patch/@Delete decorators feed the routing domain and backend api entrypoints (source nestjs-decorator).",
+  "heavyDomains": ["auth", "billing", "nestjs-modular-fixture", "routing", "users"],
+  "lightweightDomains": ["cluster"],
+  "rejectedAsDomain": ["main", "users.controller", "users.service", "auth.controller", "billing.controller"],
+  "modulesInDomain": {
+    "users": [
+      "src/users/users.controller.ts",
+      "src/users/users.service.ts",
+      "src/users/users.repository.ts"
+    ],
+    "auth": [
+      "src/auth/auth.controller.ts",
+      "src/auth/auth.service.ts"
+    ],
+    "routing": [
+      "src/users/users.controller.ts",
+      "src/auth/auth.controller.ts",
+      "src/billing/billing.controller.ts"
+    ]
+  },
+  "entrypoints": [
+    { "path": "/users", "kind": "api", "layer": "backend", "method": "GET" },
+    { "path": "/users", "kind": "api", "layer": "backend", "method": "POST" },
+    { "path": "/auth/login", "kind": "api", "layer": "backend", "method": "POST" },
+    { "path": "/billing/invoices", "kind": "api", "layer": "backend", "method": "GET" }
+  ]
+}

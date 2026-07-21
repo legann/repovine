@@ -1,0 +1,7 @@
+# agent-harness-demo image (build context: repovine/)
+.git
+node_modules
+.repovine
+**/node_modules
+examples/agent-harness-demo/.workspace
+**/.env

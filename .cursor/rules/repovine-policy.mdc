@@ -1,0 +1,68 @@
+---
+description: Core policy -- call MCP before reading files, annotate after creating/changing modules
+alwaysApply: true
+---
+
+# repovine -- Core Policy
+
+## Rule 1: Call MCP before reading files
+
+First action on any non-trivial task: call MCP.
+
+Use `search_context` when the target is fuzzy, or `map_context` when the user names a domain/package/module. Follow `navigation` suggestions when the response includes them. Skip only for trivial single-file edits.
+
+All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`; reuse them in the same MCP session or expand from `refs`. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.
+
+If the call fails with a connection error, the MCP server is not running. Tell the user and do not fall back to blind file reading.
+
+If the response is a successful payload with `status:"building"` (not an error), the MCP server is up but the graph is still being built. Call `get_build_status({ "waitSec": 45 })` to long-poll instead of repeated calls; respect `retry_after_sec` between any retries, and when `eta_sec >= 60` tell the user the graph is still building (with the ETA) and fall back to direct file reads for this turn instead of polling. `get_build_status({ "cancel": true })` abandons a cold build; it returns `cancelled` (no graph) or keeps a prior `ready` graph.
+
+When a tool returns no items, check `result.emptyDiagnostic` before retrying. It distinguishes an empty graph from a bad scope, a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
+
+For `search_context`, also interpret non-empty results before `inspect_node`:
+
+- `emptyDiagnostic` is omitted when OR-relax or aux config/entrypoint matches produced hits — absence does not mean a strong match.
+- Read `result.matches.strategy`: `relaxedFrom: "and"` means auto fell back from AND to bounded OR; `weakTokenOnlySuppressed` means weak-token noise was intentionally suppressed (often with `emptyDiagnostic.reason: weak_token_only_suppressed`).
+- Check `gaps`, `summary`, `confidence`, and `topResults[].matchedTokenCount` / `score`. After OR-relax, `matchedTokenCount: 1` on a multi-token query or `confidence: "low"` is a weak signal — narrow the query or retry with `match: "and"`.
+- `search_context` omits annotation fields when `topResults[].annotationMatched` is true — the response `gaps` line and `navigation.deeper` point to `inspect_node`; do not treat the hit as fully understood from search alone.
+- Weak/common tokens (`package`, `route`, `handler`, `module`, …) match at reduced weight and can dominate `match: "or"` results.
+- `emptyDiagnostic` reasons for true empties include `no_token_hits`, `strict_and_no_single_node`, `weak_token_only_suppressed`, and `type_filter_excluded`.
+
+## Rule 2: Annotate after creating or changing modules
+
+After creating a new module or significantly changing an existing one:
+
+1. Call `refresh_context` to rebuild the graph.
+2. Call `write_annotation` with a annotation: summary, assumptions, sideEffects, risks (plain strings or `{ text, scope?: "local"|"consumer"|"boundary" }` — Mark a risk `scope: "consumer"` when an importer must verify it locally; mark `scope: "boundary"` for an off-limits surface importers must not edit in place (published contract, frozen migration, id-resolved structural slot). Leave risks local by default — standing risks are normal; consumer and boundary scopes are the selective exceptions that keep the edge flag meaningful.). If a consumer-risk SSOT is hidden behind a facade, add the carrier pair: the deep SSOT carries the consumer risk and the facade names it in `integrationPoints` with `mod:`/`export:`. `sideEffects` is a structured array of `{ kind, subtype?, description? }`; detectors read `kind` directly, a closed enum: `io-read`, `io-write`, `state-local`, `state-global`, `process`, `concurrency`, `time`, `subscribe`, `external`, `resource`, `pure`. A `[{ "kind": "pure" }]` module is dropped from `client-business-logic`; `io-write` (except `stdout`/`stderr`), `external`, `state-global`, or `resource` mark a client/UI module as a `privileged-client-side-effect` candidate. Never write `sideEffects: []` (rejected) — omit the field or declare `[{ "kind": "pure" }]`.
+3. After feature work, use `repovine-annotations` in touched scope — Drain the annotation queue in batches until `needsWork: 0` (includes propagation-stale with `staleKind: "propagation"`).
+
+Only ever change `repovine.annots.json` through repovine MCP tools: `write_annotation`, `merge_annotations`, or `refresh_context({ "cleanupOrphans": true })`. Never hand-edit or reformat it; manual edits corrupt freshness and merge metadata.
+
+Annotating modules and reading source to summarize them is summary-class work. Use the cheapest, fastest model for exploration/annotation; reserve stronger models for implementation and hard reasoning.
+
+## Rule 3: Check impact before changing shared contracts
+
+Before modifying shared types, interfaces, exported helpers, or package public APIs:
+
+- Call `analyze_dependencies({ "scope": "...", "mode": "impact" })`.
+- Review `downstream`, `upstream`, and `uses[]`.
+- For package boundaries, use `analyze_dependencies({ "scope": "pkg:name", "mode": "package-boundaries" })`.
+
+## Rule 4: Check config surface before adding env/resources
+
+Before adding environment variables, secrets, or resource bindings:
+
+- Call `get_config_surface`.
+- Align names and patterns with existing config usage.
+
+## Rule 5: Treat architecture reports as candidates
+
+`analyze_architecture` is read-only. It reports architectural candidates from the graph, annotations, and semantic hints, including security-sensitive boundary candidates; it does not prove that a refactor is safe.
+
+Before recommending edits, narrow by `scope` and `categories`, expand a selected finding with `detailFindingId`, inspect key nodes with `inspect_node`, and verify dependencies with `analyze_dependencies`.
+
+Security-sensitive categories include `secret-config-boundary`, `authorization-policy-drift`, `trust-boundary-validation`, `privileged-client-side-effect`, `sensitive-browser-storage`, `server-client-boundary`, `source-disclosure-surface`, and `annotation-secret-hygiene`. `analyze_architecture.strictness` in `repovine.config.json` tunes these detectors; set `strict` for fewer public-config/authz/storage false positives, then `refresh_context({ "reloadConfig": true })`.
+
+## Security
+
+Do not store secrets in the graph or annotations. repovine extracts env var names, not values, and `write_annotation` rejects obvious secret values. Never write secrets into annotations.

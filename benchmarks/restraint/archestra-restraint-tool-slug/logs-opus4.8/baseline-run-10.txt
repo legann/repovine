@@ -1,0 +1,131 @@
+# Bench archestra-restraint-tool-slug — Baseline run 10 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 1ec56b2e69d84ef7.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to understand how MCP tool names are converted into identifiers.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+`platform/backend/src/models/tool.ts` looks central. Let me read it.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1550 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+The test file `tool.test.ts` will reveal the intended contract. Let me read the `slugifyName`/`unslugifyName` tests and the shared parser.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 160 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 50 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 45 line(s)]
+
+`resolveActualToolName` matches against the upstream's live tool list. Let me read it fully to understand the matching, since this is what determines whether upstream calls still work.
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 90 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 27 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+I have the full scope now. Let me confirm the storage sites pass the slug as the stored `name`, and check the unique index, so my distinct slugs actually create distinct rows.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+Let me read the exact unique-constraint definition to cite it precisely.
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 20 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Now let me implement the fix.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+
+Let me re-read the exact region to satisfy the edit precondition.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 20 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Let me verify equivalence against the exact test inputs and confirm the new fallback behavior with a quick standalone check.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 25 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## Summary
+
+### Where tool names become identifiers
+`ToolModel.slugifyName(…)` in `platform/backend/src/models/tool.ts:79` is the single function that turns an MCP server's exposed tool name into the platform identifier. That slug is stored as `tools.name` (e.g. `mcp-server.ts:924`, `archestra-mcp-server/mcp-servers.ts:1506`) and keyed by the `[expr]` unique constraint (`database/schemas/tool.ts:83-96`). Every other producer routes through this one function, so fixing it covers all call sites (`mcp-server.ts:762/924`, `mcp-servers.ts:1451/1506`, `mcp-reinstall.ts:406`, `apps/app-mcp-backing.ts:73`, the clone path `tool.ts:839`, and `stripServerPrefix` at `mcp-client.ts:2120`).
+
+
+### What I changed
+- `platform/backend/src/models/tool.ts` — `slugifyName` now slugifies the server and tool segments separately (mathematically equivalent to the old combined pass, since the `__` separator is whitespace-free and passes the char filter). When the tool segment collapses to empty **but the input was non-empty**, it falls back to a deterministic UTF-8 hex encoding of the raw name, giving each distinct name a distinct segment. One file touched; no tests added or modified.
+
+### Deliberately left unchanged (with proof)
+| Path | Why out of scope |
+|---|---|
+| `shared/utils.ts:22` `slugify()` | Docstring (`utils.ts:19-21`) + `agents.ts:36-37`: builds **agent** delegation tool names, not MCP-server-exposed tools. |
+| `shared/utils.ts:38` `urlSlugify()` | Docstring (`utils.ts:34-37`): URL/gateway/project/skill slugs, not tool identifiers. |
+| Partial-removal collisions (`get@user`/`[expr]` → `getuser`) | Both already yield a usable, non-empty identifier; the constraint forbids changing an already-working identifier, and the pinned test `[expr]` → `[value]` (`tool.test.ts:78`) locks in removal. |
+| Upstream call routing (`mcp-client.ts:2144-2156`) | `resolveActualToolName` matches the stripped slug against the upstream's live tool list by case-insensitive equality; for all-dropped names this already can't match pre-change, so upstream delivery of such names is a pre-existing limitation, not the identifier-sharing bug. |
+| Empty input `[expr]` | Pinned by `tool.test.ts:105-108` (`server__`); guarded by the `[expr]` condition. |
+
+### Changed behavior & residual risk
+- **Behavior:** tool names that previously all collapsed to `[expr]` now each receive a distinct, stable identifier. Every tool whose name already produced a non-empty segment — and the empty-input case — keeps its exact current identifier (verified against all 14 pinned test inputs).
+- **Residual risk:** (1) a hex fallback segment could in principle clash with a tool *literally* named that hex string on the same server — pathological and unavoidable since no character in `[expr]` is reservable; (2) very long non-ASCII names produce longer segments (2× UTF-8 bytes), which combined with the prefix could exceed the 128-char LLM limit — not a regression, as the function never truncated; (3) routing an all-dropped name to the upstream server remains unsupported — the fix restores in-platform addressability (distinct rows, list entries, assignments), not upstream call delivery.

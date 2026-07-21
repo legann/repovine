@@ -1,0 +1,130 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 2 — model: fable-5 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max (ultracode). Agent 6ed2b838d62d4140.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the web crawler connector to understand the current normalization and how URLs are used for indexing/serving.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Read: platform/backend/src/types/knowledge-connector.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 7 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now let me verify: type-check, lint, and run the existing crawler test suite to see precisely what changes.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 69 line(s)]
+
+All 30 assertions pass against the code as written in the file (extracted verbatim). Let me do a final review of the changed regions in context:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 30 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 3 line(s)]
+
+One file changed. Final review of the complete diff:
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 109 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## Report
+
+### What changed
+
+**`platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`** — the only file touched:
+
+1. **`normalizeCrawlUrl`** (applies to the seed URL, every discovered link, and document identity): now also lowercases the host explicitly and strips the seven tracking parameters (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`, `fbclid`, as a `TRACKING_QUERY_PARAMS` set constant, matching the file's `BLOCKED_HOST_RANGES` style). Hash and default-port stripping are kept. The strip only mutates `searchParams` when a tracking param is actually present — I verified in Node that even a no-op `delete()` re-serializes the whole query (`[expr]` → `[expr]`), which would have silently changed the sha256 document IDs of unrelated already-indexed pages.
+
+2. **New `normalizeDocumentUrl`** = `normalizeCrawlUrl` + trailing-slash removal on non-root paths (multiple trailing slashes collapse too, so the function is idempotent). `normalizeCanonicalUrl` — the sole source of `doc.id`/`sourceUrl`/`metadata.url` — now routes through it. The slash rule deliberately does **not** feed the crawl frontier: many servers 301 or 404 `/p` vs `/p/`, so requests keep the form they were discovered with; this also keeps `testConnection` probing the URL the user actually configured, and keeps `buildAllowedPathPrefixes` (line 469-482) deriving the same scope from a `/docs/`-style start URL as today.
+
+3. **Per-crawl `emittedDocumentIds` dedup** in `createCrawler`: with slash variants now sharing one ID, a site linking both `/p` and `/p/` would emit two same-ID documents per crawl, and since `metadata.fetchedUrl` feeds the ingest content hash (connector-sync.ts:404-416) that meant guaranteed re-chunk/re-embed churn every sync. Each canonical URL now emits once per crawl.
+
+### Verification
+
+The runtime environment is blocked (worktree intentionally has no `node_modules`), so I verified by executing the functions extracted verbatim from the source file in plain Node: 30/30 assertions pass, covering each rule, byte-stability of URLs the rules don't touch, canonical-link wiring (relative/cross-origin/malformed fallbacks), idempotency, and the core scenario — five trivially-different variants of one page hashing to a single document ID.
+
+### Serving of already-indexed documents
+
+Safe, by construction of the pipeline:
+- Serving reads stored rows only — `query.ts:265` returns the persisted `sourceUrl`; `KbDocumentModel` looks up by DB id or `[expr]` (kb-document.ts:18, :151). No serve-time code re-derives URL normalization, so existing rows are untouched and unaffected.
+- Pages whose canonical form is unchanged by the new rules keep the same `doc.id`, so the next sync updates the same row via `findBySourceId` (connector-sync.ts:419).
+- Pages whose canonical form *does* change get a new `sourceId`; the sync pipeline is upsert-only (`ConnectorSyncBatch` has no deletion channel, types/knowledge-connector.ts:584-590), so the old row persists and keeps being served until replaced content-wise by search ranking.
+
+### Deliberately unchanged code paths (with evidence)
+
+- **Ingest/lookup and any ID migration** — `connector-sync.ts:419-422` looks up strictly by `[expr]`; reconstructing old IDs reliably is impossible (they hashed whichever raw variant the previous crawl happened to fetch), and no deletion/migration channel exists (`ConnectorSyncBatch`, types/knowledge-connector.ts:584-590).
+- **Redirect scope checks** — `beforeRedirect` (web-crawler-connector.ts:239-267) intentionally validates the raw redirect target; identity is canonicalized afterwards from `loadedUrl`.
+- **`metadata.fetchedUrl` and URL-fallback titles** — `buildDocument` (:471) and `extractPage` (:385) keep the real fetched URL; that field records what was fetched, not identity.
+- **Other connectors' URL helpers** — e.g. `stripTrailingSlashes` in types/knowledge-connector.ts:626 serves Outline/Perforce config parsing, not crawler page identity.
+
+### Residual risk
+
+- **Duplicates until re-crawl settles**: pages previously indexed under a now-changed canonical form (trailing slash or tracking params) will appear twice after the next sync — old row plus new row — until the old rows are cleaned up manually; the pipeline never deletes.
+- **Pre-existing tests pin the old canonical forms**: 5 tests in `web-crawler-connector.test.ts` assert slashed `sourceUrl`/`metadata.url`/`id` values (:163-180, :271, :317-318, :648, :667-668) and will fail against the new identity rules. Per the "do not add or modify tests" constraint I left the file untouched; crawl-mechanics tests (scoping, redirects, skips, batching, titles) are unaffected since request URLs keep their discovered form.
+- **`sourceUrl` now stores the slash-stripped form**: citation links like `https://x/docs` rely on the server redirecting to `/docs/`; on rare strict hosts (e.g. S3-style static sites) that link 404s in a browser even though the page was crawled fine.
+- Uppercase `UTM_SOURCE`-style params are not stripped (matching is case-sensitive, as trackers emit lowercase); such URLs behave exactly as before.

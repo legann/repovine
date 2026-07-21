@@ -1,0 +1,56 @@
+---
+description: Multi-agent coordination -- refresh as barrier, annotations as shared memory
+alwaysApply: false
+---
+
+# repovine -- Multi-Agent Coordination
+
+## Annotations = shared memory
+
+Annotations in `repovine.annots.json` coordinate knowledge between agents.
+
+- Producer: creates/changes a module, then calls `refresh_context` and `write_annotation`.
+- Consumer: calls `inspect_node` and reads the note instead of rediscovering the same context.
+
+Commit `repovine.annots.json` so the memory is durable across sessions.
+
+Drain the annotation queue in batches until `needsWork: 0` (includes propagation-stale with `staleKind: "propagation"`).
+
+Before annotation work, especially after pull/merge/rebase, call `get_annotation_merge_status` and `validate_annotations`.
+If `repovine.annots.json` contains conflict markers, call `merge_annotations` and then `validate_annotations`; do not resolve annotation JSON conflicts by hand.
+
+After git merge/rebase: resolve code conflicts first, then `merge_annotations({})`, `git add repovine.annots.json`, `refresh_context({})`, and `validate_annotations({})`. If merge-review markers remain, compare the ours/theirs assumptions and rewrite the final field via `write_annotation`.
+
+Only ever change `repovine.annots.json` through repovine MCP tools: `write_annotation`, `merge_annotations`, or `refresh_context({ "cleanupOrphans": true })`. Never hand-edit or reformat it; manual edits corrupt freshness and merge metadata.
+
+Annotating modules and reading source to summarize them is summary-class work. Use the cheapest, fastest model for exploration/annotation; reserve stronger models for implementation and hard reasoning.
+
+## Refresh as synchronization barrier
+
+Call `refresh_context`:
+
+- after creating, deleting, or moving graph-relevant files
+- before handing work to another agent
+- between dependent phases of a multi-step task
+
+If refresh reports orphaned annotations, preview with `get_annotation_status({ "view": "orphans" })` or clean with `refresh_context({ "cleanupOrphans": true })` when appropriate.
+
+## Writing good annotations
+
+```json
+write_annotation({
+  "nodeId": "mod:pkg/path/to/module",
+  "annotation": {
+    "summary": "What this module does.",
+    "assumptions": ["Input format expected", "Env requirements"],
+    "sideEffects": [
+      { "kind": "io-write", "subtype": "db", "description": "INSERT into TABLE_NAME" },
+      { "kind": "external", "subtype": "sdk", "description": "calls ApiName.method" }
+    ],
+    "risks": ["What can go wrong"],
+    "integrationPoints": "How to extend or integrate"
+  }
+})
+```
+
+Use concrete names, keep notes short, and point-merge stale notes by sending only fields that actually changed.

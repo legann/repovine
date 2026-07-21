@@ -1,0 +1,20 @@
+{
+  "domains": {},
+  "infra": {
+    "excludeSuffixes": [],
+    "excludePatterns": []
+  },
+  "basename": {
+    "files": {
+      "include": [],
+      "exclude": []
+    }
+  },
+  "packages": {
+    "enabled": true,
+    "exclude": [],
+    "rename": {},
+    "merge": {}
+  },
+  "structuralDirs": []
+}

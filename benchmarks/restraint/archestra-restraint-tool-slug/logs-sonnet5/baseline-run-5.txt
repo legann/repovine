@@ -1,0 +1,405 @@
+# Bench archestra-restraint-tool-slug — Baseline run 5 — model: sonnet-5 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max (ultracode). Agent 3067135e2be04071.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to find where MCP tool names get turned into identifiers.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 46 line(s)]
+
+Found the key function: `ToolModel.slugifyName` in `platform/backend/src/models/tool.ts`. Let me examine it closely.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1550 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Read: [local tool path]
+    [source removed — 196 line(s)]
+
+Let me look at the existing tests for `slugifyName`/`unslugifyName` to understand the exact contract I must preserve.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 107 line(s)]
+
+Let me look at where tool discovery produces a list of tools and calls `slugifyName` in a loop — that's where cross-tool collisions actually surface.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 280 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 130 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 80 line(s)]
+
+There's a very relevant precedent already in the codebase — `platform/frontend/src/app/chat/skill-commands.ts` mentions colliding slugs. Let me check how that was solved.
+
+  → Read: platform/frontend/src/app/chat/skill-commands.ts
+    [source removed — 77 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 290 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Now let me look at the exact surrounding code for each of the 5 call sites to plan precise edits, starting with `mcp-server.ts`.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 28 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 40 line(s)]
+
+Now let's check the `mcp-servers.ts` call sites again with more surrounding context, and the `mcp-reinstall.ts` one.
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 100 line(s)]
+
+Now the `mcp-reinstall.ts` call site with full context:
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 45 line(s)]
+
+Let me confirm I've found every production call site of `slugifyName` (not just the ones already seen) to make sure none are missed.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+Now I have full clarity on scope. Let me implement the fix, starting with the new batch-aware slugify method in `tool.ts`.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now let's update the 5 call sites. First, `routes/mcp-server.ts` (both occurrences):
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now `archestra-mcp-server/mcp-servers.ts` (both occurrences):
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now `services/mcp-reinstall.ts`:
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+Let me check the existing test that mocks `slugifyName` to ensure my changes don't break it.
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 70 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 42 line(s)]
+
+This existing test mocks `ToolModel` with only `slugifyName` + `syncToolsForCatalog` — calling `ToolModel.slugifyNames` there would break every test in this file. I need to check whether other call sites' tests have the same restrictive mock pattern before deciding on an approach.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+I need to avoid depending on a new `ToolModel` method since the reinstall test's mock only defines `slugifyName` + `syncToolsForCatalog`. Better approach: put the pure dedup logic in the shared package (no `ToolModel` dependency at all), so it's immune to that mock. Let me revert the `ToolModel.slugifyNames` addition first.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 45 line(s)]
+
+Now I'll remove it with the correct exact text.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now let me check `shared/utils.ts` and its test file before adding the new utility there.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/shared/utils.test.ts
+    [source removed — 77 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+Now I'll add the dedup utility, right after `buildFullToolName` since it's tool-name-identifier adjacent:
+
+  → Edit: platform/shared/utils.ts
+    [edit applied]
+
+Now let me update the call sites to use `dedupeBySuffix` instead. First, `routes/mcp-server.ts`:
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now `archestra-mcp-server/mcp-servers.ts`. Let's check its imports first:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 14 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now update the two call sites in this file:
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Now `services/mcp-reinstall.ts`. Let's check its current imports and fix the call site:
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 20 line(s)]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+Now add the `dedupeBySuffix` import to `mcp-reinstall.ts`:
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 6 line(s)]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+Let's verify `mcp-reinstall.test.ts` doesn't mock `@archestra/shared` (which would strip `dedupeBySuffix`):
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Let me verify the exact test fixtures around those assertions to be certain no duplicate tool names exist that would now get an unexpected suffix.
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 65 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 160 line(s)]
+
+Let's run the relevant backend test files to confirm nothing broke.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.test.ts
+    [source removed — 55 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.test.ts
+    [source removed — 55 line(s)]
+
+Let me run the actual test suite for the affected files to verify nothing broke.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+Since this benchmark worktree has no `node_modules` (tests/builds are blocked here), I'll verify correctness through careful static review instead. Let's re-check each edited file in full.
+
+  → Read: platform/shared/utils.ts
+    [source removed — 98 line(s)]
+
+Now let's verify `@archestra/shared`'s package entry actually re-exports from `utils.ts`:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 1 line(s)]
+
+`tool.ts` is untouched, as intended. Now let's review the full diff across all changed files.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 145 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 132 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 1 line(s)]
+
+Let me do a final full read-through of each modified section to check for correctness (matching array indices, no duplicate declarations, etc.).
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 20 line(s)]
+
+Good. Now the second site in the same file:
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 20 line(s)]
+
+Now `archestra-mcp-server/mcp-servers.ts`, both sites:
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 75 line(s)]
+
+Both correct. Now `services/mcp-reinstall.ts`:
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 35 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 7 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 50 line(s)]
+
+Let me view the complete `discoverLocalMcpServerTools` function once more to confirm no naming conflicts:
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 65 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 32 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.test.ts
+    [source removed — 100 line(s)]
+
+Let me check if there are any e2e tests already covering this collision scenario, to make sure I'm not missing an existing behavioral contract.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Let me do a final sanity sweep to ensure no stray references to the abandoned `slugifyNames` approach remain, and double-check bracket balance across all edits.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+Let me sanity-check the pure `dedupeBySuffix` logic in isolation using plain Node (no project dependencies needed):
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 5 line(s)]
+
+Everything checks out. Let me give a final look at the complete diff once more before reporting.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 140 line(s)]
+
+This is complete and clean. Here's the summary.
+
+## Where tool names become identifiers
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## Fix
+
+Added `dedupeBySuffix` to `platform/shared/utils.ts` — a pure function that walks a list of strings and appends `_2`, `_3`, … to any repeat of an already-seen value, leaving the first occurrence and all non-repeated values untouched. This mirrors the exact pattern already established in this codebase for the identical class of problem (`platform/frontend/src/app/chat/skill-commands.ts`'s `buildSkillCommands`, which disambiguates colliding skill-slash-commands the same way).
+
+Wired it into the 5 places that turn a whole MCP server's tool list into slugified names for persistence, applying it to the batch of `slugifyName(…)` outputs before they're written:
+- `platform/backend/src/routes/mcp-server.ts` (local-server async discovery, remote-server sync discovery)
+- `platform/backend/src/archestra-mcp-server/mcp-servers.ts` (the `deploy_mcp_server` agent tool's local/remote discovery — same feature, second entry point)
+- `platform/backend/src/services/mcp-reinstall.ts` (reinstall/resync)
+
+`ToolModel.slugifyName` itself is untouched, so any tool name that doesn't collide with a sibling produces byte-identical output to today — satisfying "keep the exact identifier it has today." I initially added a `ToolModel.slugifyNames` batch method instead, but `services/mcp-reinstall.test.ts` mocks `ToolModel` with only `[expr]` (not spread from the original), so any new `ToolModel` method would be `undefined` there and break every test in that file. Moving the dedup into a dependency-free shared utility sidesteps that mock entirely while leaving `ToolModel.slugifyName` called exactly as before.
+
+## Left unchanged, with evidence
+
+- **`ToolModel.unslugifyName`/`parseFullToolName`** — split on the *last* `__`; a `_2` suffix doesn't introduce a new `__`, so parsing is unaffected.
+- **`cloneToolsAndPoliciesFromCatalog`** (`tool.ts:836`) — its own comment asserts "the source's tool names are unique within its catalog." That's exactly the invariant this patch restores at discovery time; the clone path is a consumer of already-turned identifiers, not a place identifiers are minted.
+- **`mcp-client.ts:2120`** (`stripServerPrefix`) — calls `slugifyName(…)` once per server connection to compute a fixed prefix string to strip, not per-tool; no batch, no collision surface.
+- **`app-mcp-backing.ts:73`** — one tool per app, prefixed with an 8-char slice of the app's UUID; not a batch of raw MCP tool names.
+- **Built-in Archestra tools** (`seedArchestraTools`) — names come from a fixed, developer-authored `ARCHESTRA_TOOL_SHORT_NAMES` union, not arbitrary external strings, so this class of collision can't occur there.
+
+## Residual risk
+
+For the reinstall/resync path, `syncToolsForCatalog` matches existing rows by raw tool name extracted from the *previously persisted* slug. Disambiguation order is "first tool in the server's returned list keeps the bare slug." If a colliding MCP server ever changed the order it returns tools between syncs, which of the two colliding tools holds the bare vs. suffixed identifier could swap. This only affects the rare case of two names that already collide (never affects normal tools), and matches the same order-based convention already used elsewhere in this codebase for this problem class; a fully order-independent (content-hash-based) scheme would close it but wasn't justified given the scope of this fix. Pre-existing DB rows from installs that collided before this patch aren't migrated — this is a forward-fix, not a data backfill.

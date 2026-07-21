@@ -1,0 +1,442 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 6 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 233cf9f279984647.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by looking at the web crawler connector and understanding how URLs are used across the indexing and serving paths.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 755 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 607 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 328 line(s)]
+
+Now let me trace the serving side — anything that re-derives the document ID from a URL, or depends on `sourceUrl`/`metadata.url` for web_crawler documents.
+
+  → Agent [Explore]: [arguments redacted — tool action recorded]
+    [agent launched — async, awaiting completion]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 92 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 24 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 75 line(s)]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [subagent] Reading platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/query.ts
+    [subagent] Reading platform/backend/src/knowledge-base/query.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [subagent] Reading platform/backend/src/routes/knowledge-base.ts
+    [source removed — 70 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/query.ts
+    [subagent] Reading platform/backend/src/knowledge-base/query.ts
+    [source removed — 36 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [subagent] Reading platform/backend/src/routes/knowledge-base.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/models/kb-chunk.ts
+    [subagent] Reading platform/backend/src/models/kb-chunk.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 38 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 43 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/knowledge-management.ts
+    [subagent] Reading platform/backend/src/archestra-mcp-server/knowledge-management.ts
+    [source removed — 55 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 99 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [subagent] Reading platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Read: platform/backend/src/models/interaction-delta-manager.ts
+    [subagent] Reading platform/backend/src/models/interaction-delta-manager.ts
+    [source removed — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 41 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [subagent] Reading platform/backend/src/routes/knowledge-base.ts
+    [source removed — 20 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [subagent] Reading platform/backend/src/routes/knowledge-base.ts
+    [source removed — 30 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [subagent] Reading platform/backend/src/routes/knowledge-base.ts
+    [source removed — 42 line(s)]
+
+  ← agent completed [Find web_crawler serving paths]:
+    I have completed an exhaustive trace. Here are my findings.
+
+    ## Summary answer
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    ---
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    The **only** place any URL is hashed into an id is the producer itself. No serving/read path re-hashes a URL to look up a `kb_document`.
+
+    - **Producer (the one you named):** `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`
+      [source-heavy implementation detail removed — files and functions are identified elsewhere]
+      - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    ---
+
+    ## Point 2 — Reads of `sourceId` on `kb_documents`
+
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    ---
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    - `sourceUrl` (the column, not `metadata`) is read on the serving path and surfaced to the UI, never used to look anything up:
+      - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+      - `archestra-mcp-server/knowledge-management.ts` — the KB-query tool returns `results` (with citations) verbatim as JSON; no URL/id derivation.
+      - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    **Conclusion for point 3:** web-page identity flows purely through the stored `source_url`/`source_id`/`metadata` values; no read path recomputes an id from a URL.
+
+    ---
+
+    ## Point 4 — Stale-document cleanup / deletion of not-seen `kb_documents` (exhaustive)
+
+    **There is no stale/orphan cleanup for any connector, and specifically none for web_crawler.** The sync is strictly create/update/skip.
+
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    - `KbDocumentModel.deleteByConnectorAndSourceId` (`models/kb-document.ts`) — the one method shaped for per-source pruning — **has no non-test caller anywhere** (`grep` across `platform` returns only its definition).
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    1. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    2. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    3. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    4. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    **Why this orphans web_crawler docs if the id hash changes:**
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    Net: changing the hash input at `web-crawler-connector.ts` is a data-orphaning change with no self-healing path short of an explicit force-resync/connector delete.
+
+Two things I need to verify myself before designing the fix: the existing test's expectations (I can't modify tests, so they constrain the implementation), and whether the repo supports data migrations.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+The test file is the spec here, and it looks like it already pins the current `sourceUrl`/id shapes. Let me read it in full.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 340 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s); non-zero exit]
+
+node_modules live in a sibling worktree. Let me read Crawlee's actual dedup logic there.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 46 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — checked or prepared the local tool environment]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 361 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 25 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 66 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 33 line(s)]
+
+I have everything I need. The key findings:
+
+- [source-heavy implementation detail removed — files and functions are identified elsewhere]
+- So any normalization that rewrites the **canonical/fetched** URL silently re-keys every indexed page into an orphaned duplicate.
+- [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+So the fix splits normalization into a **fetch/identity URL** and a **page-identity dedup key** (Crawlee's `uniqueKey`).
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 14 line(s)]
+
+Now the implementation. First, the tracking-parameter constant alongside the other module constants:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the normalization core — `normalizeCrawlUrl` stays resource-preserving, and a new `crawlPageKey` carries the rules that would otherwise change which resource is fetched:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the dedup key into the three places requests enter the queue — the two `crawler.run` seeds and discovered links:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now let me verify the URL logic against every URL shape the existing tests pin, plus the dedup cases the task asks for.
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 9 line(s)]
+
+Pure logic is right. Now let me verify the Crawlee integration for real — that an explicit `uniqueKey` on the seed and on `enqueueLinks` actually dedupes, and that the fetched URL is preserved. I'll drive real Crawlee against a local server using the sibling worktree's installed deps.
+
+  → Bash: [command removed — checked or prepared the local tool environment]
+    [output redacted — 3 line(s)]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 24 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 37 line(s)]
+
+Ids differ only because each run binds a random port. Let me pin the port so the id comparison is meaningful, and check the two things that matter: identity preserved for untracked URLs, and variants collapsed.
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 59 line(s)]
+
+`userData` is attached before the transform runs, so the spread preserves it. Let me confirm empirically that crawl depth still propagates, since `maxDepth` depends on it.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 6 line(s)]
+
+Depth propagation holds, so `maxDepth` still bounds the crawl. Let me review the final diff.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 121 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me typecheck the Crawlee API shapes I rely on, using the sibling worktree's installed types.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 3 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 66 line(s)]
+
+Let me pin exact line numbers for the report's citations.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+## What happened
+
+I strengthened the normalization, but **not** in the function that produces a document's canonical URL — because that function determines document identity, and re-keying it would have orphaned every page this connector has ever indexed.
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+So the change splits one concept into two:
+
+- **`normalizeCrawlUrl`** — the URL actually fetched, and the basis of document identity. It only removes things a server cannot key on: fragment, default port, host casing, tracking parameters. The path is untouched.
+- **`crawlPageKey`** — decides whether two URLs are the same page. It adds trailing-slash removal on non-root paths and query-parameter ordering, and is handed to Crawlee as the request `uniqueKey`.
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## Files changed
+
+One file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`.
+
+Added `TRACKING_QUERY_PARAMS`; extended `normalizeCrawlUrl` with host lowercasing and tracking-parameter removal; added `crawlPageKey`, `buildCrawlRequest`, and `removeTrackingParams`; seeded both `crawler.run` calls with an explicit `uniqueKey`; and set `uniqueKey` on discovered links via `enqueueLinks`'s `transformRequestFunction`. No tests touched.
+
+`removeTrackingParams` only writes to `searchParams` when a tracking parameter is actually present — assigning re-encodes the whole query (`[expr]` → `[expr]`), which would have re-keyed documents that merely had an encoded space.
+
+## Left unchanged, with proof
+
+| Path | Why it's out of scope |
+|---|---|
+| `buildDocument` id derivation, `web-crawler-connector.ts:460` | Keeping `sha256(…)` is *what* preserves `source_id`. Changing it is the bug. |
+| Ingest lookup, `connector-sync.ts:419` | Matches on `[expr]`; correct as written. It's the reason identity must hold, not something to fix. |
+| `deleteByConnectorAndSourceId`, `models/kb-document.ts:332` | Zero callers — there is no stale-document reconcile to hook into. Inventing one is a separate change. |
+| Force-resync, `routes/knowledge-base.ts:1074` | The existing, explicit remediation (deletes all docs + resets checkpoint). Unchanged. |
+| Config-edit handler, `routes/knowledge-base.ts:918` | Resets `checkpoint: null` only, never deletes. Editing crawler config does not clean up — worth knowing, not worth changing here. |
+| `beforeRedirect` scope check, `web-crawler-connector.ts:237` | Security-sensitive origin/scope check on the raw redirect target. Redirect targets are normalized anyway once they become `loadedUrl` → canonical. |
+| `metadata.fetchedUrl`, `web-crawler-connector.ts:469` | Deliberately still the raw fetched URL; it's diagnostic ("what we actually requested"). |
+
+## Verification
+
+I couldn't run `pnpm test` — this worktree has no `node_modules`. Instead I drove **real Crawlee** (from a sibling worktree's install) against a local server, and typechecked both call shapes under `--strict`.
+
+Against a page linking `/docs/a`, `/docs/a/`, `[expr]`, `[expr]`, and `[expr]`:
+
+- **Before:** 5 documents — `/docs/a` and `[expr]` were two documents for one page (Crawlee's default key strips `[expr]` and trailing slashes but not `gclid`/`fbclid`).
+- **After:** 4 documents — all tracking/slash variants collapsed; `[expr]` correctly stayed a distinct page; `/docs/` and `/docs` self-links fetched once.
+- `/docs/` and `/docs/b/` kept **byte-identical** sha256 ids across before/after, and `/docs/b/` was still fetched with its published trailing slash.
+
+I also confirmed `userData.depth` survives `transformRequestFunction` (so `maxDepth` still bounds the crawl), and that every URL the existing test suite pins — `/docs/`, `/docs/install/`, `/docs/dest/`, `/docs/install.html` — round-trips through `normalizeCrawlUrl` unchanged, including the exact `sha256(…)` the suite asserts.
+
+## Residual risk
+
+The one case that still re-keys: a document whose canonical URL previously **baked tracking parameters into it** (a page with no `[expr]` first reached via a tracking link) gets a new `source_id`, and the old row lingers as a stale duplicate. Force-resync is the remediation. Worth noting that such a document's identity was *already* unstable — I reproduced it: reordering the links on the source page flipped the stored canonical URL to `[expr]`. The change makes identity deterministic for those pages going forward; it can't retroactively rename the rows they created.
+
+Two smaller ones. Trailing-slash identity is still discovery-order dependent: if a site links both `/a` and `/a/`, the document keeps whichever form was seen first, so a link reordering between syncs can re-key it. That is today's failure mode, now with a much narrower variant space; closing it entirely requires re-keying the existing corpus. And `metadata` participates in `contentHash` (`connector-sync.ts:416`), so affected documents will re-chunk and re-embed once on the next sync — cost, not correctness.
+
+Finally, the "lowercase the host" and default-port rules are belt-and-braces: the WHATWG `URL` parser already lowercases hosts and drops `:80`/`:443` at parse time, so neither can re-key anything. I kept both explicit — the first because you asked for it, the second because it was already there.

@@ -1,0 +1,75 @@
+{
+  "_description": "Python web fixture: FastAPI, Django, DRF — including first-pass edge syntax (add_api_route, websocket, AnnAssign, urlpatterns +=, include tuple, api_view).",
+  "python": {
+    "packages": ["django-app", "fastapi-app"],
+    "moduleIds": [
+      "mod:django-app/drf_advanced",
+      "mod:django-app/drf_fbv",
+      "mod:django-app/drf_urls",
+      "mod:django-app/firstpass_urls",
+      "mod:django-app/nested_urls",
+      "mod:django-app/urls",
+      "mod:fastapi-app/firstpass",
+      "mod:fastapi-app/main"
+    ],
+    "importEdges": [],
+    "externalImports": [
+      { "moduleId": "mod:django-app/drf_advanced", "specifier": "django.urls" },
+      { "moduleId": "mod:django-app/drf_advanced", "specifier": "rest_framework.decorators" },
+      { "moduleId": "mod:django-app/drf_advanced", "specifier": "rest_framework.routers" },
+      { "moduleId": "mod:django-app/drf_fbv", "specifier": "django.urls" },
+      { "moduleId": "mod:django-app/drf_fbv", "specifier": "rest_framework.decorators" },
+      { "moduleId": "mod:django-app/drf_urls", "specifier": "django.urls" },
+      { "moduleId": "mod:django-app/drf_urls", "specifier": "rest_framework.routers" },
+      { "moduleId": "mod:django-app/firstpass_urls", "specifier": "django.urls" },
+      { "moduleId": "mod:django-app/nested_urls", "specifier": "django.urls" },
+      { "moduleId": "mod:django-app/urls", "specifier": "django.urls" },
+      { "moduleId": "mod:fastapi-app/firstpass", "specifier": "fastapi" },
+      { "moduleId": "mod:fastapi-app/main", "specifier": "fastapi" }
+    ],
+    "tier3Empty": true,
+    "frameworks": [
+      { "moduleId": "mod:fastapi-app/main", "name": "fastapi" },
+      { "moduleId": "mod:fastapi-app/firstpass", "name": "fastapi" },
+      { "moduleId": "mod:django-app/urls", "name": "django" },
+      { "moduleId": "mod:django-app/nested_urls", "name": "django" },
+      { "moduleId": "mod:django-app/firstpass_urls", "name": "django" },
+      { "moduleId": "mod:django-app/drf_urls", "name": "drf" },
+      { "moduleId": "mod:django-app/drf_advanced", "name": "drf" },
+      { "moduleId": "mod:django-app/drf_fbv", "name": "drf" }
+    ],
+    "routes": [
+      { "moduleId": "mod:fastapi-app/firstpass", "path": "/pos/info", "method": "GET", "component": "info", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/firstpass", "path": "/report", "method": "GET", "component": "report", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/firstpass", "path": "/report", "method": "POST", "component": "report", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/firstpass", "path": "/ws/feed", "method": "WEBSOCKET", "component": "ws_feed", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/main", "path": "/health", "method": "GET", "component": "health", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/main", "path": "/api/items", "method": "POST", "component": "create_item", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/main", "path": "/v1/users", "method": "GET", "component": "list_users_v1", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/main", "path": "/metrics/live", "method": "GET", "component": "liveness", "source": "decorator" },
+      { "moduleId": "mod:fastapi-app/main", "path": "/v3/status", "method": "GET", "component": "status_v3", "source": "decorator" },
+      { "moduleId": "mod:django-app/firstpass_urls", "path": "/core/", "method": "GET", "component": "core_view", "source": "ast" },
+      { "moduleId": "mod:django-app/firstpass_urls", "path": "/more/", "method": "GET", "component": "extra_view", "source": "ast" },
+      { "moduleId": "mod:django-app/firstpass_urls", "path": "/ns/extra/", "method": "GET", "component": "extra_view", "source": "ast" },
+      { "moduleId": "mod:django-app/drf_fbv", "path": "/notes/", "method": "GET", "component": "notes_list", "source": "ast" },
+      { "moduleId": "mod:django-app/drf_fbv", "path": "/notes/", "method": "POST", "component": "notes_list", "source": "ast" },
+      { "moduleId": "mod:django-app/urls", "path": "/users/", "method": "GET", "component": "list_users", "source": "ast" },
+      { "moduleId": "mod:django-app/urls", "path": "^items/(?P<id>\\d+)/$", "method": "GET", "component": "item_detail", "source": "ast" },
+      { "moduleId": "mod:django-app/nested_urls", "path": "/legacy/old-users/", "method": "GET", "component": "legacy_view", "source": "ast" },
+      { "moduleId": "mod:django-app/drf_urls", "path": "/api/users/", "method": "GET", "component": "UserViewSet", "source": "ast" },
+      { "moduleId": "mod:django-app/drf_advanced", "path": "/ro/reports/", "method": "GET", "component": "ReadOnlyViewSet", "source": "ast" },
+      { "moduleId": "mod:django-app/drf_advanced", "path": "/c/billing/", "method": "GET", "component": "InvoiceViewSet", "source": "ast" },
+      { "moduleId": "mod:django-app/drf_advanced", "path": "/v2/invoices/open/", "method": "GET", "component": "InvoiceViewSet.open_invoices", "source": "ast" },
+      { "moduleId": "mod:django-app/drf_advanced", "path": "/v2/invoices/{pk}/void/", "method": "POST", "component": "InvoiceViewSet.void_invoice", "source": "ast" }
+    ],
+    "routesAbsent": [
+      { "moduleId": "mod:django-app/drf_advanced", "path": "/ro/reports/", "method": "POST" }
+    ],
+    "entrypoints": [
+      { "moduleId": "mod:fastapi-app/firstpass", "path": "/report", "method": "POST", "layer": "backend", "kind": "api" },
+      { "moduleId": "mod:fastapi-app/firstpass", "path": "/ws/feed", "method": "WEBSOCKET", "layer": "backend", "kind": "api" },
+      { "moduleId": "mod:django-app/firstpass_urls", "path": "/ns/extra/", "method": "GET", "layer": "backend", "kind": "api" },
+      { "moduleId": "mod:django-app/drf_fbv", "path": "/notes/", "method": "POST", "layer": "backend", "kind": "api" }
+    ]
+  }
+}

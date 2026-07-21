@@ -1,0 +1,43 @@
+{
+  "name": "@repovine/plugin-sdk",
+  "version": "0.1.0",
+  "description": "Public contract for authoring repovine source and IaC plugins.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./source-plugin": {
+      "types": "./dist/source-plugin/index.d.ts",
+      "import": "./dist/source-plugin/index.js"
+    },
+    "./iac-plugin": {
+      "types": "./dist/iac-plugin/index.d.ts",
+      "import": "./dist/iac-plugin/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "zod": "4.4.3"
+  }
+}

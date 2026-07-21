@@ -1,0 +1,238 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 4 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 3d4130cf28c3416c.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by examining the web crawler connector and understanding how URLs flow through the system.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/base-connector.ts
+    [source removed — 329 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+`deleteByConnector` exists but sync never prunes. Let me trace the serving path and hunt for anything that recomputes a document's identity from a URL.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 152 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 69 line(s)]
+
+Nothing recomputes identity at serve time, and no prune path exists. Let me check the schema constraint and this file's history for precedent.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+Tests can't run here, so I'll finalize from static reading. Let me check whether *any* prune/reconcile path exists that would clean up orphaned documents after a sync.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 21 line(s)]
+
+`@apify/utilities` (crawlee's URL normalizer for request `uniqueKey`) is in the tree. What it already dedupes determines what's actually missing. Let me find a copy on disk.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+Found a bootstrapped sibling worktree. Let me read crawlee's actual `uniqueKey` normalization.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 61 line(s)]
+
+Now let me confirm crawlee actually uses this for request dedupe (`uniqueKey`).
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 32 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 55 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+Let me verify `enqueueLinks` applies `userData` and `transformRequestFunction` together, and confirm ordering.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 47 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 20 line(s)]
+
+I now have everything I need. The key findings that determine the design:
+
+1. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+2. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+3. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+4. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+So the strengthened normalization belongs on the **dedupe key**, which is never fetched and never persisted.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the two seed call sites, so the start URL is deduplicated on the same key as discovered links:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the discovered-link path, and the normalization helpers themselves:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me review the complete diff.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 103 line(s)]
+
+The dedupe key is a pure function over Node's built-in `URL`, so I can exercise it directly without the repo's dependencies. Let me verify it actually canonicalizes the cases from the task.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 17 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 33 line(s)]
+
+Two `enqueueLinks` shapes exist (`RestrictedCrawlingContext` uses `ReadonlyDeep`). I need to know which one `CheerioCrawlingContext` resolves to, since `ReadonlyDeep` could affect the callback's assignability.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+`ReadonlyDeep` leaves a single-call-signature interface like `RequestTransform` unchanged, so the callback types cleanly. Let me confirm `Request` honors an explicit `uniqueKey`.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 27 line(s)]
+
+Let me check the formatter config, since I can't run `biome` here and want to avoid a lint diff.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 30 line(s)]
+
+Default `lineWidth` is 80. I'll use a named type alias — it matches the file's existing alias block and removes any formatter ambiguity.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now let me simulate the crawlee queue end-to-end: does my key actually collapse the variants, and does it preserve identity for every URL the existing tests pin?
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 23 line(s)]
+
+Everything checks out. Final review of the complete diff:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 112 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 25 line(s)]
+
+I implemented the normalization, and verified it by extracting the pure functions and running them against Node's real `URL` (the repo worktree has no `node_modules`, so the suite itself can't run here).
+
+## What changed
+
+**One file:** `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`
+
+I added `buildRequestDedupeKey()` — strips the seven tracking params, sorts the query, removes a trailing slash on non-root paths, and relies on the URL parser for lowercase host + default-port stripping — and wired it in as crawlee's `uniqueKey` on **every** request: the seed (`buildSeedRequest`, used by both `sync` and `testConnection`) and discovered links (`transformRequestFunction` in `enqueueAllowedLinks`).
+
+The important design decision: **the strengthened normalization is applied to the key the crawler compares by, not to the URL it fetches or stores.** That is forced by the constraint you gave, and I want to be explicit that it means I did *not* rewrite `normalizeCrawlUrl`'s output.
+
+## Why not just strengthen `normalizeCrawlUrl`
+
+Its return value is simultaneously (a) the URL that gets fetched and (b) the document's identity. Three independent things break if you canonicalize it:
+
+1. **Every already-indexed document is orphaned.** `[expr]` (`web-crawler-connector.ts:463`) is the `sourceId` that `connector-sync.ts:419-421` looks up via `findBySourceId`. Change the string, and the next sync misses every existing row and inserts a duplicate. Nothing cleans up: `KbDocumentModel.deleteByConnectorAndSourceId` (`models/kb-document.ts:332`) has **zero callers**, and rows are only ever removed wholesale by `deleteByConnector` (`models/kb-document.ts:324`, called from `routes/knowledge-base.ts:1074` on connector deletion). The old row keeps its chunks and keeps being served (`[expr]` join straight onto `kb_documents`), so you'd get each page twice — once stale, forever. The unique index on `[expr]` (`database/schemas/kb-document.ts:44-47`) confirms `source_id` *is* the identity.
+2. **The crawl scope silently widens.** `buildAllowedPathPrefixes` reads the start URL's trailing slash (`web-crawler-connector.ts:487-491`): `/docs/` yields prefix `/docs/`, but `/docs` falls through to `path.slice(…)` → `/`. Stripping the slash from the start URL turns a docs-scoped crawl into a whole-origin crawl, pulling out-of-scope pages into an ACL'd knowledge base.
+3. **`/a` and `/a/` are different resources.** Per RFC 3986 they are distinct targets; the equivalence is a site convention. Rewriting a URL you are about to `GET` risks a 404 on hosts that don't redirect, and costs an extra 301 on those that do.
+
+A dedupe key has none of these properties — it is never requested and never persisted — so it can canonicalize freely.
+
+## Deliberately left unchanged
+
+| Path | Why it's out of scope |
+|---|---|
+| `normalizeCanonicalUrl` (`web-crawler-connector.ts:599`) + `buildDocument` (`:463`, `:468`) | Produce `doc.id`/`sourceUrl`. Frozen by `connector-sync.ts:419-421` + the absent prune path (`models/kb-document.ts:332`, no callers). |
+| `buildAllowedPathPrefixes` (`:479-491`) | Consumes the un-stripped start-URL pathname; the slash is load-bearing for scope. |
+| `isPathInScope` (`:554`) / `beforeRedirect` (`:243`) | Match on raw `pathname`+`search` of the real target. Dedupe keys must not gate SSRF/scope checks. |
+| Other connectors' URL handling (e.g. `jira-connector.ts:618`, `notion-connector.ts:693`) | Build `sourceUrl` from provider IDs, not crawled links. No shared normalization. |
+
+## Behavior change and residual risk
+
+Verified against real `URL`: `[expr]` and `https://ex.com/docs/guide` now collapse to one queue entry, so the page is fetched and indexed once. Previously crawlee's built-in key (`@apify/utilities.normalizeUrl` — it strips `[expr]` but *not* `gclid`/`fbclid`) left three entries. I also checked the key is a strict superset of crawlee's merging, so nothing that used to dedupe now splits. Every URL the existing tests pin (`/docs/`, `/docs/install/`, `/docs/dest/`) keeps a byte-identical `sourceUrl` and `doc.id`.
+
+Two residual risks worth naming:
+
+- **`sourceUrl` is not itself canonicalized.** If a tracking-tagged link is discovered before the clean one, the document is still stored under `[expr]`. Whichever variant wins is now stable within a sync, but the winner can differ *across* syncs depending on link order — which re-keys the document and orphans the old row. That flapping predates this change and this change doesn't fix it. Fixing it properly means canonicalizing `sourceUrl` **plus** a data migration that recomputes `source_id` from `source_url` for `web_crawler` documents and resolves the collisions the unique index would otherwise reject. That's a separate, migration-bearing change; I did not fold it in.
+- **I did not run the test suite.** This worktree has no `node_modules` and installs are blocked. I verified the normalization logic by executing it directly on Node's `URL`, and verified the crawlee wiring by reading the installed `@crawlee/core@3.14.1` sources (`request.js:213` honors an explicit `uniqueKey`; `enqueue_links/shared.js:140-150` preserves it through `createRequests`; `RequestTransform` is a single-signature interface, so `ReadonlyDeep` passes it through unchanged). The type-level claims are read, not compiled.

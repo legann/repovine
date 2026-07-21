@@ -1,0 +1,10 @@
+{
+  "_description": "Nuxt: server/api/<entity>/*.ts → entity directory domain; composables/ structural; stores/ structural; <name>.store.ts → suffix-based domain.",
+  "heavyDomains": ["cart", "cluster", "nuxt-fixture", "routing", "user"],
+  "lightweightDomains": ["auth", "logger", "products", "useauth", "usefetch", "users"],
+  "rejectedAsDomain": ["index", "create", "user.store", "cart.store"],
+  "modulesInDomain": {
+    "users": ["server/api/users/create.ts", "server/api/users/index.ts"],
+    "user": ["stores/user.store.ts"]
+  }
+}

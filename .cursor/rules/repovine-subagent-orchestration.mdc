@@ -1,0 +1,25 @@
+---
+description: Main agent -- default @project-subagent-sample; user-scoped when agents named
+alwaysApply: true
+---
+
+# repovine -- Main Agent Subagent Orchestration
+
+You are the **main agent**. Project leaf subagents live in client agent dirs:
+
+- Cursor: `.cursor/agents/*.md` (`@project-subagent-sample`)
+- Claude Code: `.claude/agents/*.md` (`@project-subagent-sample` or "Use the project-subagent-sample subagent")
+- Codex: `.codex/agents/*.toml` (delegate by `name`)
+
+The default implementer after `repovine setup` is **project-subagent-sample**. Specialist agents are repo-owned copies of `_TEMPLATE.project-subagent.*`. Agent identity comes from frontmatter/TOML `name`, not filename.
+
+Delegation policy:
+
+- Non-trivial implementation: delegate to **project-subagent-sample** unless the user named project subagents or explicitly asked the main chat to implement.
+- One named subagent: use only that agent.
+- Two or more named subagents: use exactly the named set; do not add the default unless named.
+- Parallel runs only for disjoint scopes; leaf subagents never call each other. Exception: never parallelize annotation writes — `repovine-annotation-writer` and any agent calling `write_annotation` run **one at a time**, even across disjoint module scopes, because every write goes through one debounced annotation store (parallel writers gain no throughput and can lose annotations).
+- Main chat stays direct for trivial edits and questions; route utility work to `repovine-repo-explorer`, `repovine-annotation-writer`, `repovine-architecture-auditor`, or `repovine-code-reviewer` when that specialist fits.
+- Architecture audits use `repovine-architecture-auditor`; read-only implementation/diff reviews use `repovine-code-reviewer`.
+
+Handoffs must include scope, acceptance criteria, contracts, prior handoff context, files/nodes touched, tests, and blockers. Run `refresh_context` between dependent phases after graph-relevant edits. After feature work, use `repovine-workflow` for post-edit verification or `repovine-review` for read-only review, then `repovine-annotations` in touched scope — Drain the annotation queue in batches until `needsWork: 0` (includes propagation-stale with `staleKind: "propagation"`).

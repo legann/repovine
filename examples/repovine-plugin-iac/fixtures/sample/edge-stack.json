@@ -1,0 +1,31 @@
+{
+  "x-repovine-kind": "edge-stack",
+  "name": "orders-edge",
+  "queues": [
+    { "id": "OrdersQueue", "name": "orders" }
+  ],
+  "secrets": [
+    { "id": "DbPassword", "source": "external" }
+  ],
+  "functions": [
+    {
+      "id": "OrdersApi",
+      "handler": "handlers.api",
+      "env": {
+        "ORDERS_QUEUE": "OrdersQueue",
+        "DB_PASSWORD": "DbPassword"
+      },
+      "routes": [
+        { "method": "GET", "path": "/orders" }
+      ]
+    },
+    {
+      "id": "OrdersWorker",
+      "handler": "handlers.worker",
+      "env": {
+        "DB_PASSWORD": "DbPassword"
+      },
+      "consumes": ["OrdersQueue"]
+    }
+  ]
+}

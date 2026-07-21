@@ -1,0 +1,44 @@
+{
+  "_description": "Python monorepo fixture: two pyproject packages, relative + absolute intra-package + cross-package imports, __all__ re-export, env access, effect imports. Regression net for the built-in Python source plugin (Stage 1 + imports graph + fact-only semanticHints).",
+  "python": {
+    "packages": ["basic-python", "sharedlib"],
+    "moduleIds": [
+      "mod:basic-python/app",
+      "mod:basic-python/models",
+      "mod:basic-python/services",
+      "mod:basic-python/utils",
+      "mod:sharedlib/gateway",
+      "mod:sharedlib/sharedlib",
+      "mod:sharedlib/sharedlib/helpers"
+    ],
+    "importEdges": [
+      { "from": "mod:basic-python/app", "to": "mod:basic-python/models" },
+      { "from": "mod:basic-python/app", "to": "mod:basic-python/utils" },
+      { "from": "mod:basic-python/app", "to": "mod:sharedlib/sharedlib/helpers" },
+      { "from": "mod:basic-python/services", "to": "mod:basic-python/models" },
+      { "from": "mod:sharedlib/gateway", "to": "mod:sharedlib/sharedlib/helpers" },
+      { "from": "mod:sharedlib/sharedlib", "to": "mod:sharedlib/sharedlib/helpers" }
+    ],
+    "resolvedImports": [
+      { "moduleId": "mod:basic-python/app", "specifier": ".models", "resolvedModuleId": "mod:basic-python/models", "isExternal": false },
+      { "moduleId": "mod:basic-python/app", "specifier": ".utils", "resolvedModuleId": "mod:basic-python/utils", "isExternal": false },
+      { "moduleId": "mod:basic-python/app", "specifier": "sharedlib.helpers", "resolvedModuleId": "mod:sharedlib/sharedlib/helpers", "isExternal": false },
+      { "moduleId": "mod:basic-python/services", "specifier": "models", "resolvedModuleId": "mod:basic-python/models", "isExternal": false },
+      { "moduleId": "mod:sharedlib/gateway", "specifier": "sharedlib.helpers", "resolvedModuleId": "mod:sharedlib/sharedlib/helpers", "isExternal": false },
+      { "moduleId": "mod:sharedlib/sharedlib", "specifier": ".helpers", "resolvedModuleId": "mod:sharedlib/sharedlib/helpers", "isExternal": false }
+    ],
+    "externalImports": [
+      { "moduleId": "mod:basic-python/app", "specifier": "os" },
+      { "moduleId": "mod:basic-python/services", "specifier": "subprocess" },
+      { "moduleId": "mod:basic-python/services", "specifier": "requests" }
+    ],
+    "tier3Empty": true,
+    "factHintsOnly": true,
+    "envVars": [
+      { "moduleId": "mod:basic-python/app", "names": ["USER"] }
+    ],
+    "effectImports": [
+      { "moduleId": "mod:basic-python/services", "kinds": ["concurrency", "io-read"] }
+    ]
+  }
+}

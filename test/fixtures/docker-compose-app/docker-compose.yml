@@ -1,0 +1,26 @@
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  api_token:
+    external: true
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    secrets:
+      - db_password
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    secrets:
+      - source: api_token
+        target: api_token
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    env_file:
+      - .env.production

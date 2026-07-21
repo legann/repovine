@@ -1,0 +1,51 @@
+name: Embedder compatibility
+
+# Guards the @huggingface/transformers peer range (^3.8.1 || ^4.0.0) with real ONNX inference
+# through repovine's own createEmbedder. Heavy (pulls the ONNX runtime + a model), so it runs only
+# when embedder-relevant files change, on demand, and weekly to catch upstream transformers/onnx drift.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/semantic/**'
+      - 'scripts/check-embedder.mjs'
+      - 'package.json'
+      - '.github/workflows/embedder-matrix.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/semantic/**'
+      - 'scripts/check-embedder.mjs'
+      - 'package.json'
+      - '.github/workflows/embedder-matrix.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  inference:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both ends of the declared peer range. 3.8.1 is the last 3.x; 4.2.0 is the current 4.x.
+        transformers: ['3.8.1', '4.2.0']
+    name: transformers@${{ matrix.transformers }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pin @huggingface/transformers ${{ matrix.transformers }}
+        run: npm install --no-save @huggingface/transformers@${{ matrix.transformers }}
+
+      - name: Build
+        run: npm run build
+
+      - name: Embedder inference contract
+        run: node scripts/check-embedder.mjs

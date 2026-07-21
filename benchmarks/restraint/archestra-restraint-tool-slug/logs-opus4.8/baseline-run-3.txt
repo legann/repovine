@@ -1,0 +1,193 @@
+# Bench archestra-restraint-tool-slug — Baseline run 3 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent e3674b3b5d714197.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll explore the codebase to understand how MCP tool names are turned into identifiers.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+The core function is `ToolModel.slugifyName` in `platform/backend/src/models/tool.ts`. Let me examine it and the shared `slugify`.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 130 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+The key implementation is `ToolModel.slugifyName`. Let me find the shared constants and `parseFullToolName`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+Let me read the shared utils and the separator constant context.
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 58 line(s)]
+
+Let me read the existing `slugifyName`/`unslugifyName` tests to understand current guaranteed behavior.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 120 line(s)]
+
+Now let me examine the round-trip: how the slugified identifier maps back to the raw upstream tool name when invoking. This is critical for the fix.
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 80 line(s)]
+
+The invocation path recovers the raw upstream name via `unslugifyName`. I need to check whether the raw tool name is stored separately. Let me inspect the tool schema and the gateway utils.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 106 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 50 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+Let me read the two main call paths in mcp-client to see how the raw tool name reaches the upstream.
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 80 line(s)]
+
+Let me read `resolveActualToolName` and `stripServerPrefix` — they recover the true upstream name from the slugified identifier.
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 190 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 40 line(s)]
+
+Let me confirm the dedup behavior in `bulkCreateToolsIfNotExists`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 50 line(s)]
+
+Confirmed: `bulkCreateToolsIfNotExists` dedups by `name`, so two tools that slugify to the same identifier collapse to one row — the collision. The fix belongs in `slugifyName`. Let me check the codebase's hashing conventions before implementing.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/shared/agents.ts
+    [source removed — 71 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now let me verify the change compiles and the existing `slugifyName`/`unslugifyName` tests still pass.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+Tests can't run in this worktree. I'll verify by static reasoning against every existing test case. Let me re-read the final function.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 42 line(s)]
+
+Let me statically confirm no existing test asserts an exact `slugifyName` value for a non-ASCII/all-stripped **tool** argument (which would now hash), and check `mcp-reinstall.test.ts`'s mock which reimplements `slugifyName`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 23 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+Import ordering matches convention. Let me review the final diff.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 51 line(s)]
+
+The change is complete and minimal. Let me confirm the remaining `slugifyName` call sites (for the report) and verify none construct MCP tool identifiers by bypassing it.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## 1. Patch
+
+**File changed:** `platform/backend/src/models/tool.ts` — `ToolModel.slugifyName` (plus a `node:crypto` import).
+
+`slugifyName` is the one function that turns an MCP-exposed tool's name into the platform identifier (stored as `tools.name`). It lowercased, converted whitespace to `_`, and **stripped** every other character. A tool name made entirely of stripped characters (non-ASCII scripts, emoji, punctuation) collapsed to an empty tool segment, so the identifier degenerated to `[expr]`. Every such tool on a server shared that one string, and `bulkCreateToolsIfNotExists` (dedups by `name`) dropped all but one row — "cannot be addressed individually."
+
+The fix slugifies the server and tool segments independently and, **only when the tool segment collapses to empty for a non-empty raw name**, substitutes a deterministic 16-hex SHA-256 suffix of the raw name. Non-empty segments are untouched.
+
+## 2. Where names become identifiers / scope
+
+**The single conversion point** (all callers pass a raw upstream `tool.name`):
+
+| Call site | Purpose |
+|---|---|
+| `models/tool.ts` `slugifyName` | the conversion function (changed) |
+| `[expr]` | persist tools at install/discovery |
+| `services/mcp-reinstall.ts:406` | persist on reinstall |
+| `[expr]` | persist on connect/refresh |
+| `services/apps/app-mcp-backing.ts:73` | app-backed MCP tools |
+| `models/tool.ts:839` | re-slug during catalog clone |
+
+Fixing `slugifyName` fixes every caller; no code builds an MCP tool identifier by hand (grep for manual `[expr]` construction outside the agent/`slugify` paths returns nothing).
+
+**Deliberately left unchanged, with proof it's out of scope:**
+
+- **`buildAgentDelegationToolName` → `slugify()`** (`shared/agents.ts:36`): a different identifier space. Its own docstring (`[expr]`): *"These are dynamically generated and are not Archestra MCP tools."* The task scopes to "when an MCP server exposes a tool." Its analogous non-ASCII collapse (`agent__`) is a separate concern.
+- **`resolveActualToolName` / `stripServerPrefix`** (`[expr]`): these **recover** the upstream name from an identifier for invocation; they don't mint identifiers. `stripServerPrefix` calls `slugifyName(…)`, whose output (`[expr]`) is unchanged by my guard (`[expr]` → skip hash), so this path is byte-identical.
+- **Non-empty collisions** (e.g. `list all repos` vs `list_all_repos`, or `tool@1` vs `[expr]`, all yielding a valid non-empty slug): left as-is. Constraint: *"Do not change the identifier of a tool whose name already yields a usable one."* Each such name already yields a usable, pattern-valid identifier; `slugifyName` is a pure function of `[expr]` with no visibility into siblings, so it cannot disambiguate them without rewriting an already-usable identifier. Only the empty-segment case carries **zero** tool-identifying information and is therefore never "usable," making it the sole safe-to-change set.
+
+**Behavior preservation is provable:** `slug(…)` because `__` is preserved and no whitespace run crosses the literal separator. So splitting into segments is byte-identical to the old combined slugify for every non-empty-tool input — including the existing `[expr]` test (guarded off) and all 11 `slugifyName` tests.
+
+## 3. Summary
+
+- **Changed behavior:** MCP tools whose names slugified to nothing (non-ASCII/emoji/all-punctuation) previously all collapsed to `[expr]` and overwrote each other; each now gets a distinct `[expr]` identifier. Every tool whose name already produced a non-empty slug keeps its exact current identifier.
+- **Files touched:** one — `platform/backend/src/models/tool.ts` (the `slugifyName` function + a `node:crypto` import). No tests added or modified.
+- **Residual risk:**
+  - The 16-hex (64-bit) suffix could theoretically collide with another empty-slug tool on the same server or a real tool literally named that hex string — birthday-negligible at realistic per-server tool counts; widen the slice if ever a concern.
+  - `unslugifyName` now returns the hash (not the original non-ASCII name) for these tools, and `resolveActualToolName` still can't map a hash back to the upstream's raw name — so these specific tools remain non-invokable **upstream**. That was already true (they were indistinguishable before); the fix restores distinct *addressability* (listing, assignment, policies). Full upstream invocation for non-ASCII names would need the raw name stored in a column (schema change), which is beyond the "change implementation only" scope.
+  - Not runnable here (worktree isn't bootstrapped); verification is by static equivalence reasoning against the existing test cases.

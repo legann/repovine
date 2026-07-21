@@ -1,0 +1,35 @@
+{
+  "workspace": {
+    "annotationsFile": "repovine.annots.json"
+  },
+  "build": {
+    "scan": {
+      "include": [],
+      "exclude": []
+    },
+    "linking": {
+      "handlers": {
+        "searchRoots": []
+      },
+      "bundles": {
+        "scripts": [],
+        "autoDetect": true
+      },
+      "containers": {
+        "dockerfileRoots": []
+      }
+    }
+  },
+  "mcp": {
+    "verbose": false,
+    "response": {
+      "mode": "concise",
+      "pretty": false
+    }
+  },
+  "semantic_search_embeddings": true,
+  "analyze_architecture": {
+    "strictness": "normal",
+    "thresholds": {}
+  }
+}

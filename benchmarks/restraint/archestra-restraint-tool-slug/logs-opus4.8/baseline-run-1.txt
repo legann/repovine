@@ -1,0 +1,210 @@
+# Bench archestra-restraint-tool-slug — Baseline run 1 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent cafdd10a8c84484a.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to understand how MCP tool names are turned into identifiers.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+Let me look at the tool model and search for where MCP tool names become identifiers.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1550 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 111 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+Let me read the shared utilities and the surrounding `tool.ts` sections that handle name matching.
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Read: platform/shared/consts.ts
+    [source removed — 30 line(s)]
+
+Let me look at existing tests for `slugifyName` to understand pinned behavior (I must not change these).
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+Let me read the full `slugifyName`/`unslugifyName` test block — these outcomes must remain green.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 155 line(s)]
+
+The exact-value tests only ever delete disallowed chars from the **server** portion; tool names in exact-pinned tests are always clean. Let me verify how the slug maps back to the real remote tool name — this determines whether encoding the tool portion is safe.
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 120 line(s)]
+
+Let me read `resolveActualToolName` and `stripServerPrefix` — the reverse mapping from slug to real remote name.
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 190 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 107 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/clients/mcp-client.test.ts
+    [source removed — 130 line(s)]
+
+Resolution tests only cover clean names. Let me see how tool rows are created from a remote server's `listTools` (does anything persist the raw remote name?).
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 85 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 40 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 35 line(s)]
+
+Design is settled. Before writing, let me confirm no other test pins `slugifyName` output for dirty (non-ASCII/punctuation) tool names, and check the `createHash` import + `ToolModel` import in mcp-client.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 40 line(s)]
+
+`slugifyName` signature is unchanged, so the mcp-reinstall mock stays valid. Let me confirm mcp-client.test.ts uses the real `ToolModel` (not a mock missing `slugifyToolName`).
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 6 line(s)]
+
+No model mocks — real `ToolModel` is used. Now I'll implement. First, add the `createHash` import to `tool.ts`.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 20 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now rewrite the slugify methods:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now update the reverse lookup in `mcp-client.ts` so the newly-distinct identifiers resolve to the correct remote name, while clean names behave exactly as before.
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+Let me verify my reasoning by running the affected test suites. First the `slugifyName`/`unslugifyName` and clone tests, then the mcp-client resolution tests.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+Testing is intentionally unavailable here, so I'll finalize by static verification. Let me confirm the fallback test's assertion and the test's server/catalog setup so my `resolveActualToolName` change matches.
+
+  → Read: platform/backend/src/clients/mcp-client.test.ts
+    [source removed — 40 line(s)]
+
+Both fallback tests are preserved (`sometool`/`missingtool` return unchanged via the identity path). Let me review the final edited region in `tool.ts`.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 65 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 11 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 112 line(s)]
+
+The patch is complete. Both changes are surgical and verified by hand against every pinned test. Here's the report.
+
+## 1. Patch implemented
+
+Two files changed, no tests touched:
+
+| File | Change |
+|---|---|
+| `platform/backend/src/models/tool.ts` | Split `slugifyName` into an injective tool-name slug + a lossy server-prefix slug |
+| `platform/backend/src/clients/mcp-client.ts` | Reverse lookup (`resolveActualToolName`) matches remote names by tool-name slug |
+
+## 2. Where tool names become identifiers
+
+**The single conversion point is `ToolModel.slugifyName(…)`.** It builds the DB `tools.name` — the identifier the LLM addresses and the `[expr]` unique key. Call sites (all now route through the fix):
+
+- `[expr]`, `[expr]`, `services/mcp-reinstall.ts:406` — remote/local tool discovery
+- `services/apps/app-mcp-backing.ts:73` — MCP Apps backing tools
+- `models/tool.ts:839` — catalog clone (re-slug of an already-slug name; idempotent)
+- `clients/mcp-client.ts:2120` — `stripServerPrefix` derives the prefix via `slugifyName(…)`
+
+**The bug:** the old code did `[expr]` over the whole string — it *deleted* disallowed characters. Two tools on one server whose names differ only in deleted characters (dots, punctuation, any non-ASCII) collapsed to the same identifier; entirely non-ASCII names both collapsed to the empty tool portion (`server__`). The `[expr]` unique index then deduped them to one row (`bulkCreateToolsIfNotExists` uses `onConflictDoNothing`), so the second tool became unaddressable.
+
+**The fix:** `slugifyToolName` keeps a name unchanged when nothing is dropped (identity path → every already-usable identifier is byte-for-byte preserved), and appends a 12-hex-char SHA-256 digest of the raw name only when characters *were* dropped — so distinct raw names keep distinct identifiers. It is idempotent (its output re-slugifies to itself), so `resolveActualToolName` now keys remote names by the same slug and recovers the exact raw name for execution. For clean names the slug equals the lowercased name, so resolution of already-working tools is unchanged.
+
+**Related paths deliberately left unchanged, with proof of scope:**
+
+| Path | Why out of scope (source) |
+|---|---|
+| Server-prefix slugification (still drops disallowed chars) | Exact-value tests pin the deletion: `tool.test.ts:61-83` (`[expr]`→`[expr]`, `[expr]`→`[value]`, `[expr]`→`[value]`). Prefixes are catalog-scoped, so their collisions never make two tools of one server indistinguishable. |
+| Whitespace→`_` and lowercase normalization | Pinned as *collapsing* behavior: `[expr]`. `list all repos`/`list_all_repos` are meant to share an id; changing this would modify tests. This is exactly the "already-working identifier" to preserve. |
+| `parseFullToolName`/`buildFullToolName` (`shared/utils.ts`) | Split on the last `__`; the fix never introduces a *new* `__` (digest joins with `-`), so splitting is unaffected. |
+| `mcp-server-proxy.ts:168` + `mcp-server-gateway.utils.ts:60` (`unslugifyName`) | The Apps proxy lists and matches with the same `unslugifyName(…)` (self-consistent row selection); upstream execution delegates to the fixed `mcp-client` path (`mcp-server-proxy.ts:22`). |
+
+## 3. Summary
+
+**Changed behavior:** MCP tools whose names contain characters outside `[expr]` (dots, punctuation, non-ASCII) now receive distinct identifiers instead of colliding into one deduped row, and resolve back to their exact remote name at call time. Any tool whose name already produced a usable identifier is byte-for-byte unchanged in both how it is identified and how it is addressed.
+
+**Files touched:** `models/tool.ts` (identifier generation — split into injective tool slug + lossy prefix slug, `node:crypto` digest for disambiguation); `clients/mcp-client.ts` (reverse resolution keyed by the same tool slug).
+
+**Residual risk:**
+- **Digest collision** — two disambiguated names on one server colliding needs a 48-bit SHA-256 clash (~1 in 2⁴⁸); negligible for realistic tool counts.
+- **Length** — a pathologically long non-ASCII name plus the 13-char suffix could exceed the providers' 128-char cap; such names were fully broken before, and clean names (which have no suffix) are unaffected, so this is not a regression.
+- **Idempotency dependency** — resolution assumes the remote server reports the same raw tool name at call time as at install; if a server renames a tool between discovery and call, resolution falls back to the stripped name (same as the prior behavior).

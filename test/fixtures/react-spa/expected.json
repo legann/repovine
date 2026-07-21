@@ -1,0 +1,13 @@
+{
+  "_description": "React SPA: PascalCase components → lightweight basenames; useX hooks → no domain; features/<name>/ → directory domain",
+  "heavyDomains": ["billing", "cluster", "react-spa-fixture", "react-spa-fixture/billing"],
+  "lightweightDomains": ["billingform", "billingpage", "dashboard", "dashboardpage", "navbar", "siteheader", "useauth", "usetheme"],
+  "rejectedAsDomain": ["App", "main", "billing-api"],
+  "modulesInDomain": {
+    "billing": [
+      "src/features/billing/BillingPage.tsx",
+      "src/features/billing/BillingForm.tsx",
+      "src/features/billing/billing-api.ts"
+    ]
+  }
+}

@@ -1,0 +1,462 @@
+{
+  "stats": {
+    "totalNodes": 13,
+    "totalEdges": 16,
+    "nodesByType": {
+      "domain": 5,
+      "export-symbol": 1,
+      "module": 3,
+      "package": 1,
+      "root": 1,
+      "runtime-resource": 2
+    },
+    "edgesByKind": {
+      "contains": 7,
+      "infra": 1,
+      "tagged": 8
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:infra-dockerfile",
+      "domain:infra-k8s",
+      "domain:job",
+      "domain:k8s-cronjob-fixture",
+      "domain:cluster"
+    ],
+    "export-symbol": [
+      "export:k8s-cronjob-fixture/src/job/tick"
+    ],
+    "module": [
+      "mod:k8s-cronjob-fixture/src/job",
+      "infra:dockerfile:Dockerfile",
+      "infra:kubernetes:manifests/cronjob.yaml"
+    ],
+    "package": [
+      "pkg:k8s-cronjob-fixture"
+    ],
+    "root": [
+      "root"
+    ],
+    "runtime-resource": [
+      "resource:generic:Dockerfile",
+      "resource:k8s:_/CronJob/demo-scheduler"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:cluster",
+      "type": "domain",
+      "label": "cluster",
+      "description": "Domain: cluster",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "type": "domain",
+      "label": "infra-dockerfile",
+      "description": "Domain: infra-dockerfile (Dockerfiles)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:infra-k8s",
+      "type": "domain",
+      "label": "infra-k8s",
+      "description": "Domain: infra-k8s (Kubernetes / k3d manifests)",
+      "data": {
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:job",
+      "type": "domain",
+      "label": "job",
+      "description": "Domain: job",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:k8s-cronjob-fixture",
+      "type": "domain",
+      "label": "k8s-cronjob-fixture",
+      "description": "Domain: k8s-cronjob-fixture",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:k8s-cronjob-fixture/src/job/tick",
+      "type": "export-symbol",
+      "label": "tick",
+      "description": "function tick: (): void",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(): void",
+        "params": [],
+        "returnType": "void",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "infra:dockerfile:Dockerfile",
+      "type": "module",
+      "label": "Dockerfile",
+      "description": "IaC dockerfile module Dockerfile",
+      "data": {
+        "filePath": "<FIXTURE>/Dockerfile",
+        "relativeFilePath": "Dockerfile"
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/cronjob.yaml",
+      "type": "module",
+      "label": "manifests/cronjob.yaml",
+      "description": "IaC kubernetes module manifests/cronjob.yaml",
+      "data": {
+        "filePath": "<FIXTURE>/manifests/cronjob.yaml",
+        "relativeFilePath": "manifests/cronjob.yaml"
+      }
+    },
+    {
+      "id": "mod:k8s-cronjob-fixture/src/job",
+      "type": "module",
+      "label": "src/job",
+      "description": "Module src/job.ts in k8s-cronjob-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/job.ts",
+        "relativeFilePath": "src/job.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:k8s-cronjob-fixture",
+      "type": "package",
+      "label": "k8s-cronjob-fixture",
+      "description": "Package k8s-cronjob-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "1.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "resource:generic:Dockerfile",
+      "type": "runtime-resource",
+      "label": "Dockerfile",
+      "description": "other declared in Dockerfile",
+      "data": {
+        "contentHash": "edcb105218c15649",
+        "kind": "other",
+        "provider": "generic"
+      }
+    },
+    {
+      "id": "resource:k8s:_/CronJob/demo-scheduler",
+      "type": "runtime-resource",
+      "label": "demo-scheduler",
+      "description": "k8s-deployment declared in manifests/cronjob.yaml",
+      "data": {
+        "contentHash": "9d1a9b4dde4e4a7f",
+        "kind": "k8s-deployment",
+        "k8sKind": "CronJob",
+        "provider": "k8s"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:cluster",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cluster",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-dockerfile",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-k8s",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-k8s",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:job",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:job",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:k8s-cronjob-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:k8s-cronjob-fixture",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:k8s-cronjob-fixture/src/job/tick",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:k8s-cronjob-fixture/src/job/tick",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "infra:dockerfile:Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:Dockerfile"
+      ],
+      "view": {
+        "id": "infra:dockerfile:Dockerfile",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "resource:generic:Dockerfile",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/cronjob.yaml",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:k8s:_/CronJob/demo-scheduler"
+      ],
+      "view": {
+        "id": "infra:kubernetes:manifests/cronjob.yaml",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "resource:k8s:_/CronJob/demo-scheduler",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod:k8s-cronjob-fixture/src/job",
+      "links": [
+        {
+          "to": "domain:job",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:k8s-cronjob-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [
+        "export:k8s-cronjob-fixture/src/job/tick"
+      ],
+      "view": {
+        "id": "mod:k8s-cronjob-fixture/src/job",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:k8s-cronjob-fixture/src/job/tick",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:job",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:k8s-cronjob-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:k8s-cronjob-fixture",
+      "links": [],
+      "children": [
+        "mod:k8s-cronjob-fixture/src/job"
+      ],
+      "view": {
+        "id": "pkg:k8s-cronjob-fixture",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:k8s-cronjob-fixture/src/job",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "resource:generic:Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:Dockerfile",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:_/CronJob/demo-scheduler",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        },
+        {
+          "to": "infra:dockerfile:Dockerfile",
+          "kind": "infra"
+        },
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:_/CronJob/demo-scheduler",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          },
+          {
+            "to": "infra:dockerfile:Dockerfile",
+            "kind": "infra"
+          },
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:k8s-cronjob-fixture",
+        "infra:dockerfile:Dockerfile",
+        "infra:kubernetes:manifests/cronjob.yaml"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:k8s-cronjob-fixture",
+            "type": "package"
+          },
+          {
+            "id": "infra:dockerfile:Dockerfile",
+            "type": "module"
+          },
+          {
+            "id": "infra:kubernetes:manifests/cronjob.yaml",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

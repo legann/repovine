@@ -1,0 +1,135 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 7 — model: fable-5 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max (ultracode). Agent 9e2553b46eb84e7a.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the web crawler connector and exploring how it's used, especially how indexed documents are keyed and served.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+Now let me look at the sync pipeline to understand how `ConnectorDocument.id` is persisted and how documents are served.
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 118 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Node URL behavior confirmed — untouched URLs stay byte-identical (critical for ID stability). Crawlee isn't in the root node_modules; let me find it in the backend workspace.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s); non-zero exit]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the two `crawler.run` call sites:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the enqueue path — set the dedup key on every discovered link:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me review the final state of all changed regions to verify coherence:
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 97 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## Summary
+
+URL canonicalization in the web crawler is now two-layered: `normalizeCrawlUrl` (which feeds fetched URLs and document identity) strips tracking query parameters and explicitly lowercases the host, while a new request-queue dedup key additionally removes the trailing slash on non-root paths. `/page`, `/page/`, and `[expr]` now crawl and index as one page. Trailing-slash removal deliberately lives only in the dedup key, which is what keeps every already-indexed document served correctly (details below).
+
+### Files changed
+
+**`platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`** — the only file changed:
+
+- `normalizeCrawlUrl` now deletes tracking query params (`[expr]` prefix, plus `gclid`/`fbclid` via the new `TRACKING_QUERY_PARAMS` set) and sets `[expr]` explicitly. Hash and default-port stripping are kept. The query is only mutated when a tracking param is actually present, so URLs without them serialize byte-identically to before — this preserves the ID derivation for existing documents.
+- New `buildRequestUniqueKey` produces the crawl-frontier dedup key: the normalized URL with a non-root trailing slash removed. It is set as Crawlee's `uniqueKey` on the start request (new `buildStartRequest`, used by both `sync` and `testConnection`) and on every discovered link (`transformRequestFunction` in `enqueueAllowedLinks`), so slash variants collapse to one fetch and one document per crawl.
+
+### Why trailing-slash removal is confined to the dedup key
+
+Two constraints force it:
+1. **Fetch semantics** — servers may serve `/a` and `/a/` differently (or 404/301 one form), so the crawler must request the discovered form. The existing tests pin this: every test site only routes slash paths (e.g. `web-crawler-connector.test.ts:103`, and the title-fallback assertion at `:548` expects the fetched URL `.../docs/`).
+2. **Document identity stability** — `[expr]` at `web-crawler-connector.ts:444` becomes `kb_documents.sourceId`, and re-syncs match existing rows via `KbDocumentModel.findBySourceId` (`connector-sync.ts:419`) under the unique `[expr]` index (`database/schemas/kb-document.ts:44-47`). Stripping slashes from the canonical URL would change the ID of nearly every document on slash-style sites, orphaning existing rows as permanently-stale duplicates. Tests pin this too: `web-crawler-connector.test.ts:163-180` asserts `sourceUrl`, `metadata.url`, and `[expr]` with the trailing slash.
+
+### Related paths deliberately left unchanged, with proof of scope
+
+- **Serving/query paths** — documents are served from stored columns keyed by DB uuid; nothing recomputes a URL hash to look one up: `knowledge-base/query.ts:265-267` and `[expr]` return stored `sourceUrl`/`sourceId`; document listing is by connector uuid (`routes/knowledge-base.ts:679`). The sha256-over-URL exists solely at `web-crawler-connector.ts:444`, so no serving path can break from normalization changes.
+- **Ingestion dedup in `connector-sync.ts:419-422`** — connector-agnostic; left alone because IDs stay stable for existing pages (no migration or legacy-ID fallback needed).
+- **Document deletion** — only happens when the connector itself is deleted (`routes/knowledge-base.ts:1074`); there is no stale-document pruning that ID churn could trip.
+- **Scope derivation `buildAllowedPathPrefixes` (`web-crawler-connector.ts:466-479`)** — unchanged and safe precisely because `normalizeCrawlUrl` keeps trailing slashes: a start URL `/docs/` still derives prefix `/docs/`. Had slash-stripping gone into `normalizeCrawlUrl`, the last-slash fallback would widen the crawl scope from `/docs/` to `/`.
+- **Tests** — untouched per constraints; I traced every case in `web-crawler-connector.test.ts` against the new behavior (no test uses query strings, and fetch/identity URLs are unchanged for all test inputs).
+
+### Residual risk
+
+- **Pre-existing documents whose canonical URL contained tracking params** get a new ID on the next sync: a fresh row is created and the old row lingers (still served with its stored content and URL, but frozen and duplicated in results). Those IDs were already unstable — rotating campaign tags produced new IDs every sync — so this is a one-time settling, not a regression; still, it's the one class of documents whose refresh chain breaks.
+- **Rewritten queries re-encode surviving params** (`[expr]` → `[expr]`): affects only URLs that had a tracking param, whose ID changes anyway.
+- **Exclude patterns targeting tracking params** (`excludePathPatterns` matched against `[expr]`, `web-crawler-connector.ts:541-558`) no longer match, since params are stripped before scope checks — coherent with treating such URLs as the same page.
+- I could not run the suite or type-check here (environment is intentionally not bootstrapped); verification was by static trace of all test cases, empirical checks of Node's URL semantics, and use of stable Crawlee 3.x API (`RequestOptions.uniqueKey`, `enqueueLinks.transformRequestFunction`). Worth a `pnpm test` + `pnpm type-check` in a bootstrapped checkout.

@@ -1,0 +1,186 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 2 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 2282a3e025524597.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by looking at the web crawler connector and understanding how URLs flow through it.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+Now let me understand how documents are stored, keyed, and reconciled across syncs — the ID is a hash of the canonical URL, so changing normalization changes IDs.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+The critical question is what happens to already-indexed documents when their IDs change. Let me trace the sync path.
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+Let me read the existing test contract and trace how `sourceId` is consumed downstream, in parallel.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 36 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+There's a full-reset resync endpoint. Let me see its route path and check Crawlee's own unique-key normalization.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 39 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+Dependencies aren't installed, so I can't execute the suite — I'll note that. Let me check for any stale-document reconciliation I may have missed, plus history and docs.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 77 line(s)]
+
+Confirmed the key facts. Let me verify the URL semantics I'm relying on before writing code.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+One correctness detail to check: whether `searchParams.delete` re-serializes the query even when nothing matches (which would silently rewrite unrelated URLs and change their document IDs).
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 7 line(s)]
+
+Everything checks out. Now the patch — starting with the constant and the normalization function.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the normalization function itself:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the trailing-slash equivalence into the crawl frontier:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me review the final state of the changed regions and simulate the logic against the existing test expectations.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 103 line(s)]
+
+I can't run the suite (dependencies aren't installed), so let me verify the pure logic by extracting the real functions from the source and exercising them.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 27 line(s)]
+
+All green. Let me simulate the actual enqueue path end-to-end against the scenario the pinned test exercises, using the real functions.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 17 line(s); non-zero exit]
+
+My type-stripping regex was too naive. Node 22 can strip TypeScript natively — let me use that instead.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 40 line(s); non-zero exit]
+
+`SP` wasn't exported into the node process. Let me fix that.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 14 line(s); non-zero exit]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 8 line(s)]
+
+All assertions pass using the real functions. Let me do a syntax/type sanity check on the full file and confirm no unused-export (knip) surface.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+Let me pin exact line numbers for the citations in my report.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 23 line(s)]
+
+## Outcome
+
+All four normalization rules are implemented in one file, and no already-indexed document changes identity. The interesting part of this task turned out to be that the obvious implementation of two of the four rules silently re-keys the entire existing index.
+
+**File changed:** `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts` (only file).
+
+## Why the naive patch is unsafe
+
+A crawled document's id is `sha256(…)` (`web-crawler-connector.ts:464`), and that id lands in `kb_documents.source_id`, which is how sync matches a page to its existing row (`connector-sync.ts:419`) under a unique index on `[expr]` (`database/schemas/kb-document.ts:44`). When a lookup misses, sync inserts a new row (`connector-sync.ts:502`). Nothing ever prunes a row that stops appearing — the only deletion path is the manual force-resync endpoint (`routes/knowledge-base.ts:1074`). So **any change to the normalized canonical string leaves the old row behind forever, with stale content, still retrievable alongside the new one.** That is what "must continue to be served correctly" rules out.
+
+Two concrete traps followed from that, both of which I confirmed by running the real URL semantics under Node:
+
+**`searchParams.delete()` rewrites queries it doesn't match.** Calling it unconditionally re-serializes the whole query string even when no tracking parameter is present: `[expr]` becomes `[expr]`, `[expr]` becomes `[expr]`, and a bare `[expr]` is dropped. That would re-key every already-indexed URL carrying any query string at all. The patch guards each delete behind `has()`, so an untracked URL is never touched.
+
+**Stripping the trailing slash inside `normalizeCrawlUrl` would widen the crawl scope to the whole host.** `normalizeCrawlUrl` feeds the start URL into `buildAllowedPathPrefixes`, which branches on `path.endsWith(…)` (`web-crawler-connector.ts:489`). Given `/guide` instead of `/guide/` it returns `[expr]`, and `pathMatchesPrefix` accepts everything when the prefix is `/` (`web-crawler-connector.ts:575`). A connector scoped to `https://site/guide/` would begin crawling the entire origin. The same rule would also re-key every directory-style document and change the URL actually fetched, which an origin is free to 404.
+
+So trailing-slash equivalence is implemented where it belongs: as a **scheduling key** (`pageDedupKey`) that collapses `/docs` and `/docs/` to one visit, while the URL that gets fetched, scoped, and stored keeps its original path. Tracking-parameter stripping and host lowercasing are safe on the fetch path and live in `normalizeCrawlUrl`. Host lowercasing is already guaranteed by WHATWG `[expr]`; the explicit assignment makes the invariant local to the function and is a no-op, so it causes no id churn.
+
+## Deliberately left unchanged
+
+| Code path | Why it is out of scope |
+|---|---|
+| `buildAllowedPathPrefixes` (`web-crawler-connector.ts:480`) | Crawl scope is derived from the start URL's raw trailing slash (`:489`). It is a security boundary, not normalization. My change preserves paths, so it keeps working untouched. |
+| `normalizeCanonicalUrl` and the id in `buildDocument` (`web-crawler-connector.ts:600`, `:464`) | This string *is* `kb_documents.source_id` (`connector-sync.ts:419`, unique index at `database/schemas/kb-document.ts:44`). Changing it orphans existing rows, which the task forbids. |
+| `ingestDocument` in `connector-sync.ts:393` | Shared by every connector. A legacy-id migration here would change ingest semantics for Jira, Confluence, GitHub, and the rest, none of which are in scope. |
+| Test file | Constraint said implementation only. It also independently pins the behavior I preserved: `sourceUrl` values `/docs/` and `/docs/install/` at `web-crawler-connector.test.ts:163` and the exact document hash at `:178`. |
+
+## Residual risk
+
+A page whose *only* inbound link carried a tracking parameter was previously indexed under that dirty URL. It will now be indexed under the clean URL, and the old row will linger as a stale duplicate. This affects only URLs that already contained `[expr]`, `gclid`, or `fbclid`; clean URLs are bit-for-bit unchanged. `POST /api/connectors/:id/force-resync` (`routes/knowledge-base.ts:1039`) is the remediation if an operator wants those swept.
+
+Second, `excludePathPatterns` are matched against `[expr]` (`web-crawler-connector.ts:570`). A pattern written to exclude URLs *by* a tracking parameter will no longer match, since the parameter is gone by then. This seems like the intended direction, but it is a behavior change.
+
+Third, `/docs` and `/docs/` are now assumed to be the same page. That is what was asked for, and it is true of essentially every real site, but an origin that serves genuinely different content at the two paths would now have only one of them indexed.
+
+## Verification
+
+I could not run the test suite: `node_modules` is not installed in this worktree, so `pnpm test` and `pnpm type-check` are unavailable. Instead I extracted the real `normalizeCrawlUrl`, `pageDedupKey`, `normalizeDiscoveredUrl`, `isAllowedUrl`, and `buildAllowedPathPrefixes` from the edited source and exercised them directly under Node. All four rules behave as specified; the six URL shapes that existing documents use round-trip unchanged; the crawl-scope derivation is unaffected; and replaying the link list from the pinned test scenario reproduces its expected enqueue set, canonical URL, and document hash exactly. Five trivially-different variants of one page collapse to a single fetch. The file passes a Node type-stripping syntax check and adds no new exports, so `knip --production` is unaffected.

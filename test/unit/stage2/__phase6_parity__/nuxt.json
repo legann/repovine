@@ -1,0 +1,1194 @@
+{
+  "stats": {
+    "totalNodes": 31,
+    "totalEdges": 46,
+    "nodesByType": {
+      "domain": 11,
+      "export-symbol": 9,
+      "module": 9,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 19,
+      "tagged": 27
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:nuxt-fixture",
+      "domain:products",
+      "domain:users",
+      "domain:cluster",
+      "domain:auth",
+      "domain:logger",
+      "domain:useauth",
+      "domain:usefetch",
+      "domain:cart",
+      "domain:user",
+      "domain:routing"
+    ],
+    "export-symbol": [
+      "export:nuxt-fixture/server/api/products/default",
+      "export:nuxt-fixture/server/api/users/create/default",
+      "export:nuxt-fixture/server/api/users/default",
+      "export:nuxt-fixture/server/middleware/auth/default",
+      "export:nuxt-fixture/server/middleware/logger/default",
+      "export:nuxt-fixture/composables/useAuth/useAuth",
+      "export:nuxt-fixture/composables/useFetch/useFetchData",
+      "export:nuxt-fixture/stores/cart.store/useCartStore",
+      "export:nuxt-fixture/stores/user.store/useUserStore"
+    ],
+    "module": [
+      "mod:nuxt-fixture/server/api/products",
+      "mod:nuxt-fixture/server/api/users/create",
+      "mod:nuxt-fixture/server/api/users",
+      "mod:nuxt-fixture/server/middleware/auth",
+      "mod:nuxt-fixture/server/middleware/logger",
+      "mod:nuxt-fixture/composables/useAuth",
+      "mod:nuxt-fixture/composables/useFetch",
+      "mod:nuxt-fixture/stores/cart.store",
+      "mod:nuxt-fixture/stores/user.store"
+    ],
+    "package": [
+      "pkg:nuxt-fixture"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:auth",
+      "type": "domain",
+      "label": "auth",
+      "description": "Domain: auth",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:cart",
+      "type": "domain",
+      "label": "cart",
+      "description": "Domain: cart",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:cluster",
+      "type": "domain",
+      "label": "cluster",
+      "description": "Domain: cluster",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:logger",
+      "type": "domain",
+      "label": "logger",
+      "description": "Domain: logger",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:nuxt-fixture",
+      "type": "domain",
+      "label": "nuxt-fixture",
+      "description": "Domain: nuxt-fixture",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:products",
+      "type": "domain",
+      "label": "products",
+      "description": "Domain: products",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:useauth",
+      "type": "domain",
+      "label": "useauth",
+      "description": "Domain: useauth",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:usefetch",
+      "type": "domain",
+      "label": "usefetch",
+      "description": "Domain: usefetch",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:user",
+      "type": "domain",
+      "label": "user",
+      "description": "Domain: user",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:users",
+      "type": "domain",
+      "label": "users",
+      "description": "Domain: users",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/composables/useAuth/useAuth",
+      "type": "export-symbol",
+      "label": "useAuth",
+      "description": "function useAuth: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/composables/useFetch/useFetchData",
+      "type": "export-symbol",
+      "label": "useFetchData",
+      "description": "function useFetchData: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/api/products/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": true
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/api/users/create/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": true
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/api/users/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": true
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/middleware/auth/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": true
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/middleware/logger/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": true
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/stores/cart.store/useCartStore",
+      "type": "export-symbol",
+      "label": "useCartStore",
+      "description": "function useCartStore: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/stores/user.store/useUserStore",
+      "type": "export-symbol",
+      "label": "useUserStore",
+      "description": "function useUserStore: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/composables/useAuth",
+      "type": "module",
+      "label": "composables/useAuth",
+      "description": "Module composables/useAuth.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/composables/useAuth.ts",
+        "relativeFilePath": "composables/useAuth.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/composables/useFetch",
+      "type": "module",
+      "label": "composables/useFetch",
+      "description": "Module composables/useFetch.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/composables/useFetch.ts",
+        "relativeFilePath": "composables/useFetch.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/products",
+      "type": "module",
+      "label": "…/products/index",
+      "description": "Module server/api/products/index.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/server/api/products/index.ts",
+        "relativeFilePath": "server/api/products/index.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/users",
+      "type": "module",
+      "label": "…/users/index",
+      "description": "Module server/api/users/index.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/server/api/users/index.ts",
+        "relativeFilePath": "server/api/users/index.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/users/create",
+      "type": "module",
+      "label": "…/users/create",
+      "description": "Module server/api/users/create.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/server/api/users/create.ts",
+        "relativeFilePath": "server/api/users/create.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/middleware/auth",
+      "type": "module",
+      "label": "…/middleware/auth",
+      "description": "Module server/middleware/auth.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/server/middleware/auth.ts",
+        "relativeFilePath": "server/middleware/auth.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/middleware/logger",
+      "type": "module",
+      "label": "…/middleware/logger",
+      "description": "Module server/middleware/logger.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/server/middleware/logger.ts",
+        "relativeFilePath": "server/middleware/logger.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/stores/cart.store",
+      "type": "module",
+      "label": "stores/cart.store",
+      "description": "Module stores/cart.store.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/stores/cart.store.ts",
+        "relativeFilePath": "stores/cart.store.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/stores/user.store",
+      "type": "module",
+      "label": "stores/user.store",
+      "description": "Module stores/user.store.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/stores/user.store.ts",
+        "relativeFilePath": "stores/user.store.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:nuxt-fixture",
+      "type": "package",
+      "label": "nuxt-fixture",
+      "description": "Package nuxt-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:auth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:auth",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:cart",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cart",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:cluster",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cluster",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:logger",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:logger",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:nuxt-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:nuxt-fixture",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:products",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:products",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:useauth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:useauth",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:usefetch",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:usefetch",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:user",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:user",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/composables/useAuth/useAuth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/composables/useAuth/useAuth",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/composables/useFetch/useFetchData",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/composables/useFetch/useFetchData",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/api/products/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/server/api/products/default",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/api/users/create/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/server/api/users/create/default",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/api/users/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/server/api/users/default",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/middleware/auth/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/server/middleware/auth/default",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/server/middleware/logger/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/server/middleware/logger/default",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/stores/cart.store/useCartStore",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/stores/cart.store/useCartStore",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nuxt-fixture/stores/user.store/useUserStore",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nuxt-fixture/stores/user.store/useUserStore",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/composables/useAuth",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:useauth",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/composables/useAuth/useAuth"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/composables/useAuth",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/composables/useAuth/useAuth",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:useauth",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/composables/useFetch",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:usefetch",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/composables/useFetch/useFetchData"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/composables/useFetch",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/composables/useFetch/useFetchData",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:usefetch",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/products",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:products",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/server/api/products/default"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/server/api/products",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/server/api/products/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:products",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/users",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/server/api/users/default"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/server/api/users",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/server/api/users/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/users/create",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/server/api/users/create/default"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/server/api/users/create",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/server/api/users/create/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/middleware/auth",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/server/middleware/auth/default"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/server/middleware/auth",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/server/middleware/auth/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/middleware/logger",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:logger",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/server/middleware/logger/default"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/server/middleware/logger",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/server/middleware/logger/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:logger",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/stores/cart.store",
+      "links": [
+        {
+          "to": "domain:cart",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/stores/cart.store/useCartStore"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/stores/cart.store",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/stores/cart.store/useCartStore",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:cart",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/stores/user.store",
+      "links": [
+        {
+          "to": "domain:user",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [
+        "export:nuxt-fixture/stores/user.store/useUserStore"
+      ],
+      "view": {
+        "id": "mod:nuxt-fixture/stores/user.store",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nuxt-fixture/stores/user.store/useUserStore",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:user",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:nuxt-fixture",
+      "links": [],
+      "children": [
+        "mod:nuxt-fixture/server/api/products",
+        "mod:nuxt-fixture/server/api/users/create",
+        "mod:nuxt-fixture/server/api/users",
+        "mod:nuxt-fixture/server/middleware/auth",
+        "mod:nuxt-fixture/server/middleware/logger",
+        "mod:nuxt-fixture/composables/useAuth",
+        "mod:nuxt-fixture/composables/useFetch",
+        "mod:nuxt-fixture/stores/cart.store",
+        "mod:nuxt-fixture/stores/user.store"
+      ],
+      "view": {
+        "id": "pkg:nuxt-fixture",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:nuxt-fixture/server/api/products",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/server/api/users/create",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/server/api/users",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/server/middleware/auth",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/server/middleware/logger",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/composables/useAuth",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/composables/useFetch",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/stores/cart.store",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/stores/user.store",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:nuxt-fixture"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:nuxt-fixture",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": [
+    {
+      "id": "entrypoint:file:mod:nuxt-fixture/server/api/products:/api/products:server-api",
+      "kind": "api",
+      "layer": "frontend",
+      "path": "/api/products",
+      "moduleId": "mod:nuxt-fixture/server/api/products",
+      "source": "nuxt",
+      "fileType": "server-api"
+    },
+    {
+      "id": "entrypoint:file:mod:nuxt-fixture/server/api/users/create:/api/users/create:server-api",
+      "kind": "api",
+      "layer": "frontend",
+      "path": "/api/users/create",
+      "moduleId": "mod:nuxt-fixture/server/api/users/create",
+      "source": "nuxt",
+      "fileType": "server-api"
+    },
+    {
+      "id": "entrypoint:file:mod:nuxt-fixture/server/api/users:/api/users:server-api",
+      "kind": "api",
+      "layer": "frontend",
+      "path": "/api/users",
+      "moduleId": "mod:nuxt-fixture/server/api/users",
+      "source": "nuxt",
+      "fileType": "server-api"
+    }
+  ]
+}

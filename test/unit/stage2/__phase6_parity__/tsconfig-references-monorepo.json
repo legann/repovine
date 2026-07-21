@@ -1,0 +1,863 @@
+{
+  "stats": {
+    "totalNodes": 23,
+    "totalEdges": 35,
+    "nodesByType": {
+      "domain": 7,
+      "export-symbol": 4,
+      "module": 6,
+      "package": 5,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 15,
+      "imports": 4,
+      "reexports": 1,
+      "tagged": 15
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:cluster",
+      "domain:handler",
+      "domain:fixture-api",
+      "domain:util",
+      "domain:fixture-shared",
+      "domain:fixture-web",
+      "domain:button"
+    ],
+    "export-symbol": [
+      "export:fixture-api/src/handler/handleRequest",
+      "export:fixture-shared/src/lib/util/util",
+      "export:fixture-web/src/main/bootstrap",
+      "export:fixture-web/src/components/Button/Button"
+    ],
+    "module": [
+      "mod:fixture-api/src/handler",
+      "mod:fixture-shared/src",
+      "mod:fixture-shared/src/lib/util",
+      "mod:fixture-web/src/main",
+      "mod:fixture-web/src/components/Button.stories",
+      "mod:fixture-web/src/components/Button"
+    ],
+    "package": [
+      "pkg:root",
+      "pkg:fixture-api",
+      "pkg:fixture-shared",
+      "pkg:fixture-web",
+      "pkg:packages-web-.storybook"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:button",
+      "type": "domain",
+      "label": "button",
+      "description": "Domain: button",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:cluster",
+      "type": "domain",
+      "label": "cluster",
+      "description": "Domain: cluster",
+      "data": {
+        "weight": "heavy",
+        "tier": "business"
+      }
+    },
+    {
+      "id": "domain:fixture-api",
+      "type": "domain",
+      "label": "fixture-api",
+      "description": "Domain: fixture-api",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:fixture-shared",
+      "type": "domain",
+      "label": "fixture-shared",
+      "description": "Domain: fixture-shared",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:fixture-web",
+      "type": "domain",
+      "label": "fixture-web",
+      "description": "Domain: fixture-web",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:handler",
+      "type": "domain",
+      "label": "handler",
+      "description": "Domain: handler",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:util",
+      "type": "domain",
+      "label": "util",
+      "description": "Domain: util",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:fixture-api/src/handler/handleRequest",
+      "type": "export-symbol",
+      "label": "handleRequest",
+      "description": "function handleRequest: (): string",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(): string",
+        "params": [],
+        "returnType": "string",
+        "lineRange": {
+          "start": 1,
+          "end": 3
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fixture-shared/src/lib/util/util",
+      "type": "export-symbol",
+      "label": "util",
+      "description": "function util: (): boolean",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(): boolean",
+        "params": [],
+        "returnType": "boolean",
+        "lineRange": {
+          "start": 1,
+          "end": 3
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fixture-web/src/components/Button/Button",
+      "type": "export-symbol",
+      "label": "Button",
+      "description": "function Button: (): null",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(): null",
+        "params": [],
+        "returnType": "null",
+        "lineRange": {
+          "start": 1,
+          "end": 3
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fixture-web/src/main/bootstrap",
+      "type": "export-symbol",
+      "label": "bootstrap",
+      "description": "function bootstrap: (): void",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(): void",
+        "params": [],
+        "returnType": "void",
+        "calls": [
+          "util"
+        ],
+        "lineRange": {
+          "start": 4,
+          "end": 7
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:fixture-api/src/handler",
+      "type": "module",
+      "label": "src/handler",
+      "description": "Module src/handler.ts in fixture-api",
+      "data": {
+        "filePath": "<FIXTURE>/packages/api/src/handler.ts",
+        "relativeFilePath": "src/handler.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-shared/src",
+      "type": "module",
+      "label": "src/index",
+      "description": "Module src/index.ts in fixture-shared",
+      "data": {
+        "filePath": "<FIXTURE>/packages/shared/src/index.ts",
+        "relativeFilePath": "src/index.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-shared/src/lib/util",
+      "type": "module",
+      "label": "…/lib/util",
+      "description": "Module src/lib/util.ts in fixture-shared",
+      "data": {
+        "filePath": "<FIXTURE>/packages/shared/src/lib/util.ts",
+        "relativeFilePath": "src/lib/util.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-web/src/components/Button",
+      "type": "module",
+      "label": "…/components/Button",
+      "description": "Module src/components/Button.tsx in fixture-web",
+      "data": {
+        "filePath": "<FIXTURE>/packages/web/src/components/Button.tsx",
+        "relativeFilePath": "src/components/Button.tsx",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-web/src/components/Button.stories",
+      "type": "module",
+      "label": "…/components/Button.stories",
+      "description": "Module src/components/Button.stories.ts in fixture-web",
+      "data": {
+        "filePath": "<FIXTURE>/packages/web/src/components/Button.stories.ts",
+        "relativeFilePath": "src/components/Button.stories.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-web/src/main",
+      "type": "module",
+      "label": "src/main",
+      "description": "Module src/main.ts in fixture-web",
+      "data": {
+        "filePath": "<FIXTURE>/packages/web/src/main.ts",
+        "relativeFilePath": "src/main.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:fixture-api",
+      "type": "package",
+      "label": "fixture-api",
+      "description": "Package fixture-api (packages/api)",
+      "data": {
+        "path": "packages/api",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:fixture-shared",
+      "type": "package",
+      "label": "fixture-shared",
+      "description": "Package fixture-shared (packages/shared)",
+      "data": {
+        "path": "packages/shared",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:fixture-web",
+      "type": "package",
+      "label": "fixture-web",
+      "description": "Package fixture-web (packages/web)",
+      "data": {
+        "path": "packages/web",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:packages-web-.storybook",
+      "type": "package",
+      "label": "packages-web-.storybook",
+      "description": "Package packages-web-.storybook (packages/web/.storybook)",
+      "data": {
+        "path": "packages/web/.storybook",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:root",
+      "type": "package",
+      "label": "root",
+      "description": "Package root (.)",
+      "data": {
+        "path": ".",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 5 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:button",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:button",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:cluster",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cluster",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:fixture-api",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:fixture-api",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:fixture-shared",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:fixture-shared",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:fixture-web",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:fixture-web",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:handler",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:util",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:util",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fixture-api/src/handler/handleRequest",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fixture-api/src/handler/handleRequest",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fixture-shared/src/lib/util/util",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fixture-shared/src/lib/util/util",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fixture-web/src/components/Button/Button",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fixture-web/src/components/Button/Button",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fixture-web/src/main/bootstrap",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fixture-web/src/main/bootstrap",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:fixture-api/src/handler",
+      "links": [
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:handler",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:fixture-api",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:fixture-api/src/handler/handleRequest"
+      ],
+      "view": {
+        "id": "mod:fixture-api/src/handler",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:fixture-api/src/handler/handleRequest",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:handler",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:fixture-api",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-shared/src",
+      "links": [
+        {
+          "to": "mod:fixture-shared/src/lib/util",
+          "kind": "reexports"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:fixture-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:fixture-shared/src",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "mod:fixture-shared/src/lib/util",
+            "kind": "reexports"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:fixture-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-shared/src/lib/util",
+      "links": [
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:util",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:fixture-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:fixture-shared/src/lib/util/util"
+      ],
+      "view": {
+        "id": "mod:fixture-shared/src/lib/util",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:fixture-shared/src/lib/util/util",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:util",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:fixture-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-web/src/components/Button",
+      "links": [
+        {
+          "to": "domain:fixture-web",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:button",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:fixture-web/src/components/Button/Button"
+      ],
+      "view": {
+        "id": "mod:fixture-web/src/components/Button",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:fixture-web/src/components/Button/Button",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:fixture-web",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:button",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-web/src/components/Button.stories",
+      "links": [
+        {
+          "to": "mod:fixture-web/src/components/Button",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:fixture-web",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:fixture-web/src/components/Button.stories",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "mod:fixture-web/src/components/Button",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:fixture-web",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:fixture-web/src/main",
+      "links": [
+        {
+          "to": "mod:fixture-web/src/components/Button",
+          "kind": "imports"
+        },
+        {
+          "to": "mod:fixture-shared/src",
+          "kind": "imports"
+        },
+        {
+          "to": "mod:fixture-shared/src/lib/util",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:fixture-web",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [
+        "export:fixture-web/src/main/bootstrap"
+      ],
+      "view": {
+        "id": "mod:fixture-web/src/main",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:fixture-web/src/main/bootstrap",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "mod:fixture-web/src/components/Button",
+            "kind": "imports"
+          },
+          {
+            "to": "mod:fixture-shared/src",
+            "kind": "imports"
+          },
+          {
+            "to": "mod:fixture-shared/src/lib/util",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:fixture-web",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:fixture-api",
+      "links": [],
+      "children": [
+        "mod:fixture-api/src/handler"
+      ],
+      "view": {
+        "id": "pkg:fixture-api",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:fixture-api/src/handler",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:fixture-shared",
+      "links": [],
+      "children": [
+        "mod:fixture-shared/src",
+        "mod:fixture-shared/src/lib/util"
+      ],
+      "view": {
+        "id": "pkg:fixture-shared",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:fixture-shared/src",
+            "type": "module"
+          },
+          {
+            "id": "mod:fixture-shared/src/lib/util",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:fixture-web",
+      "links": [],
+      "children": [
+        "mod:fixture-web/src/main",
+        "mod:fixture-web/src/components/Button.stories",
+        "mod:fixture-web/src/components/Button"
+      ],
+      "view": {
+        "id": "pkg:fixture-web",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:fixture-web/src/main",
+            "type": "module"
+          },
+          {
+            "id": "mod:fixture-web/src/components/Button.stories",
+            "type": "module"
+          },
+          {
+            "id": "mod:fixture-web/src/components/Button",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:packages-web-.storybook",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "pkg:packages-web-.storybook",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:root",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "pkg:root",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:root",
+        "pkg:fixture-api",
+        "pkg:fixture-shared",
+        "pkg:fixture-web",
+        "pkg:packages-web-.storybook"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:root",
+            "type": "package"
+          },
+          {
+            "id": "pkg:fixture-api",
+            "type": "package"
+          },
+          {
+            "id": "pkg:fixture-shared",
+            "type": "package"
+          },
+          {
+            "id": "pkg:fixture-web",
+            "type": "package"
+          },
+          {
+            "id": "pkg:packages-web-.storybook",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

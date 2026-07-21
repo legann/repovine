@@ -1,0 +1,236 @@
+# Bench archestra-restraint-tool-slug — Baseline run 6 — model: fable-5 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max (ultracode). Agent 26642aa769944b50.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by finding where MCP tool names are converted into platform identifiers.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 10 line(s)]
+
+The model file for tools looks most relevant. Let me examine it.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1550 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 110 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 120 line(s)]
+
+Now let me check the other resolution paths — the local pod proxy and the server-scoped gateway.
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 91 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 130 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 160 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 90 line(s)]
+
+The reinstall path passes `rawToolName` into `syncToolsForCatalog` — let me see that model method and the remaining call sites.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 180 line(s)]
+
+`syncToolsForCatalog` matches existing rows by raw-name remainder — this is important for identifier stability. Let me read the rest of it, then the remaining call sites.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 130 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 230 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/shared/agents.ts
+    [source removed — 71 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+Delegation tools are minted from agent names (`shared/agents.ts`), not MCP tool names — out of scope. Let me be exhaustive about discovery entry points before writing code.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 140 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the module-level helper and constant at the bottom of the file:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the `syncToolsForCatalog` matching so suffixed identifiers survive re-syncs and no row is double-claimed:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the five discovery sites. First the two in `routes/mcp-server.ts`:
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now the reinstall sync path and the two archestra-mcp-server deploy paths:
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+All edits are in. Now verify: type-check, the pinned tests, and a behavioral sanity check of the new assignment logic.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 140 line(s)]
+
+Now re-checking the `syncToolsForCatalog` edit and the file bottom:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 115 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 34 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 45 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 91 line(s)]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 29 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+Let me review the `syncToolsForCatalog` test suite in detail against my new matching logic:
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 250 line(s)]
+
+First tests pass trivially (exact-name matches). The rename/duplicate/deletion tests are the sensitive ones:
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 270 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.test.ts
+    [source removed — 140 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+Everything checks out. Final full-diff review of `tool.ts` and `mcp-client.ts`:
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 252 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 11 line(s)]
+
+Done. Five implementation files changed, no tests touched.
+
+## What was broken
+
+`ToolModel.slugifyName` (`platform/backend/src/models/tool.ts:80`) builds a tool's platform identifier as `[expr]` lowercased, whitespace→`_`, all other disallowed characters dropped. The transform is lossy, so distinct tool names on one server collapse into one identifier (`getUser`/`get.user` → `srv__getuser`; `Get User`/`get_user` → `srv__get_user`). Discovery then dedupes by name, leaving a single DB row for several upstream tools — only one (at most) is addressable.
+
+## The fix
+
+**Minting** — new batch-aware API in `models/tool.ts`: `ToolModel.slugifyNames(…)` on top of `ToolModel.disambiguateToolSlugs(…)`.
+- A tool whose slug is unique in the batch keeps **byte-for-byte** today's `slugifyName` output (`slugifyName` itself is unchanged; it now delegates to a shared `slugifyToolNameText` helper producing identical bytes).
+- In a colliding group, the single tool whose lowercased name equals the shared slug keeps it — that is the tool the identifier already routes to today via case-insensitive resolution, so its working identifier is preserved exactly. Every other member gets `[expr]`, lengthened deterministically on the (freak) clash with another slug. The suffix depends only on the raw name, so identifiers are stable across list order, re-discovery, and catalog renames. When zero or several members lowercase to the shared slug (pure case twins), routing today is list-order-dependent, so no one owns it and all get suffixes.
+
+**Identifiers are minted in exactly five discovery sites, all switched to the batch API**: `routes/mcp-server.ts` (local install ~line 761, remote install ~line 927), `services/mcp-reinstall.ts` (`syncToolsForServer`, ~line 405), `archestra-mcp-server/mcp-servers.ts` (`discoverLocalMcpServerTools` ~1450, `discoverRemoteMcpServerTools` ~1506).
+
+**Addressing** — `clients/mcp-client.ts` `resolveActualToolName` recomputes the same assignment from the live tool list and adds slug→raw-name entries to its resolution map, non-overwriting, so each suffixed identifier invokes its own upstream tool. Existing lowercase lookups (the path working identifiers use) are untouched.
+
+**Stability across re-syncs** — `syncToolsForCatalog` now matches existing rows by exact identifier first, then raw name, then incoming slug, with claim tracking. Without this, suffixed rows would be deleted and recreated on every reinstall (losing policies/assignments), and colliding raw names would double-claim one row.
+
+## Deliberately unchanged, with proof of scope
+
+- **App launch tools** — single fixed-name tool with an app-id-suffixed prefix, unique by construction (`services/apps/app-mcp-backing.ts:66-76` and the comment there).
+- **Agent delegation tools** — minted from agent names, not MCP server tool names (`shared/agents.ts:36-38`).
+- **Archestra built-ins** — fixed compile-time short-name registry, no collisions possible (`shared/archestra-mcp-server.ts`, `ARCHESTRA_TOOL_SHORT_NAMES`).
+- **Catalog clone re-prefixing** (`models/tool.ts` `cloneToolsAndPoliciesFromCatalog`) — re-prefixes already-unique identifiers; the suffix rides along verbatim and re-discovery reproduces it (hash input is the raw name only), so no change needed.
+- **Apps run path** (`clients/mcp-client.ts:2999` `callToolForServer`, `routes/mcp-server-gateway.utils.ts:56-60`) — passes names to the upstream verbatim and already only works when slug == raw name (it can't call case-mangled names today either); suffixed tools are no worse off there, and adding per-call list-tools resolution would change a working path's behavior/latency.
+- **Cross-server prefix collisions** (two catalogs whose names slug identically) — a different axis; fixing it would rename every tool of an affected server, violating "keep working identifiers" (`findByNameForAgent`'s `[expr]` at `models/tool.ts:494` marks the ambiguity boundary).
+- **Proxy-sniffed tools** — names arrive already as client-chosen identifiers, no slugging (`createToolIfNotExists` path).
+
+## Verification and residual risk
+
+The environment forbids installs/builds/tests, so I verified by static review plus a dependency-free scratchpad mirror of the algorithm: all 27 checks pass — byte-identity with the old function for every pinned `slugifyName` test case (plus whitespace-composition edge cases), keeper selection, distinctness, order independence, rename stability, clash lengthening, and resolution-map routing. I also walked every existing `syncToolsForCatalog` and name-resolution test against the new logic; each still holds.
+
+Residual risk: `tsc`/biome could not be run here (the `[expr]` and `as const` patterns mirror ones already compiling in this file, so risk is low); pre-existing rows minted from a collision keep working as before but their colliding siblings only gain rows on the next discovery/re-sync; and the secondary apps run path still can't call tools whose slug differs from the raw name — a pre-existing limitation, not widened by this change.

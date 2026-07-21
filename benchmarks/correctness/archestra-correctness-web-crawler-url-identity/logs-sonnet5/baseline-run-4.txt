@@ -1,0 +1,291 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 4 — model: sonnet-5 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max (ultracode). Agent 8636efa84c804067.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by examining the current URL normalization implementation in the web crawler connector.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+I'll verify a couple of assumptions before writing the patch: whether Node's URL parser already lowercases ASCII hosts, and how the existing test suite exercises this connector.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/types/knowledge-connector.ts
+    [source removed — 40 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s)]
+
+My analysis confirms a real regression risk: naively feeding a trailing-slash-stripped URL into `buildAllowedPathPrefixes` (used for default crawl-scope inference when `includePathPrefixes` isn't configured) would widen scope from a single directory to the entire origin. I'll fix that alongside the requested normalization. Let me apply the changes.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the `buildAllowedPathPrefixes` fix to decouple scope inference from the new trailing-slash canonicalization:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now update the two call sites that no longer need to pass the normalized `startUrl`:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me review the final state of the file to verify correctness end-to-end:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 60 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 15 line(s)]
+
+Good. Now let's check `validateParsedConfig` and the two rewritten functions near the bottom of the file:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 40 line(s)]
+
+Now the `buildAllowedPathPrefixes` and `normalizeCrawlUrl` functions themselves:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 20 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 30 line(s)]
+
+All edits look correct. Now let's run type-checking and the existing test suite to confirm nothing broke.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Testing tools are unavailable in this benchmark worktree, so I'll verify correctness by carefully re-reading the complete file.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 771 line(s)]
+
+I need to reconsider one part of my design. Let me trace through what actually happens when the crawler's *fetch* target (not just the stored identity) gets a stripped trailing slash — this matters because the crawler makes real HTTP requests using that normalized URL.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+I need to revise: trailing-slash stripping must apply only to the **stored document identity** (`sourceUrl`/`metadata.url`/`id`), never to the URL actually used to make the HTTP request. Let me restructure — first revert the `buildAllowedPathPrefixes` change since it becomes unnecessary once `normalizeCrawlUrl` no longer touches the path.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now remove trailing-slash stripping from `normalizeCrawlUrl` (used for fetch targets) and add a separate identity-only helper used exclusively by `normalizeCanonicalUrl`:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now update `normalizeCanonicalUrl` to use the new identity-normalizing function at its three return points:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me re-read the complete file to verify the final state is fully consistent.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 785 line(s)]
+
+Let me do an exhaustive final check of every `sourceUrl`/`metadata.url`/`id` assertion in the test file to make sure my report on affected tests is complete and accurate.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+Let me quickly check how the sync batches (and document `id`) are consumed downstream, so I can accurately describe the residual risk around already-indexed documents.
+
+  → Agent [Explore]: [arguments redacted — tool action recorded]
+    [agent launched — async, awaiting completion]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 37 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/base-connector.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connectors/base-connector.ts
+    [source removed — 329 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+While the exploration agent runs, let me tighten an overly long comment to better match this file's terse style and the repo's comment conventions.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Read: platform/backend/src/knowledge-base/connectors/perforce/perforce-connector.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connectors/perforce/perforce-connector.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [subagent] Reading platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [subagent] Reading platform/backend/src/routes/knowledge-base.ts
+    [source removed — 60 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [subagent] Reading platform/backend/src/routes/knowledge-base.ts
+    [source removed — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: platform/backend/src/types/knowledge-connector.ts
+    [subagent] Reading platform/backend/src/types/knowledge-connector.ts
+    [source removed — 70 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 30 line(s)]
+
+Let me check whether the docs directory documents this connector's URL normalization behavior, per the repo's documentation-audit convention.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: docs/pages/platform-knowledge-connectors.md
+    [source removed — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/CHANGELOG.md
+    [source removed — 40 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [subagent] Reading platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 73 line(s)]
+
+  ← agent completed [Trace knowledge-base document upsert/dedup by id]:
+    ## Findings
+
+    **1. Where `sync` is consumed**
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    **2. The upsert / key**
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    **3. Stale-row cleanup: none in the normal sync path**
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+
+Let me get precise, final line numbers for the citations in my report.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 45 line(s)]
+
+Got the missing piece from the investigation: the sync pipeline's upsert semantics, which determines exactly what happens to already-indexed documents. Here's the full report.
+
+## Patch implemented
+
+Single file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`. The diff is 31 insertions / 4 deletions, all within that file.
+
+**Design:** two normalization layers instead of one, because the existing `normalizeCrawlUrl` is reused both to build the URL the crawler actually *requests* and to build the URL stored as document identity — and those two uses tolerate different amounts of normalization.
+
+| Function | Used for | New behavior |
+|---|---|---|
+| `normalizeCrawlUrl` (existing, extended) | crawl seed, enqueued/discovered links, redirect-scope checks — i.e. anything that becomes a live HTTP request or an origin comparison | + lowercases host, + strips `utm_source/medium/campaign/term/content`, `gclid`, `fbclid`; keeps existing hash-clear and default-port strip |
+| `normalizeDocumentUrl` (new, wraps the above) | only the stored document identity: `id`, `sourceUrl`, `metadata.url`, via `normalizeCanonicalUrl` | + strips a trailing slash on non-root paths |
+
+I initially put trailing-slash stripping directly in `normalizeCrawlUrl`, then reverted it after finding two concrete regressions:
+
+1. **Scope escape**: `buildAllowedPathPrefixes` (`web-crawler-connector.ts:469-482`) infers the default crawl scope from whether the *configured* start URL ends in `/` (directory → scoped to that directory) or not (file → scoped to its parent). Feeding it a slash-stripped URL turns every directory-style start URL into a "file", widening the default scope from e.g. `[expr]` to the entire origin. Verified with a standalone repro before touching code.
+2. **Live 404**: the URL passed to `crawler.run()`/`enqueueLinks` is the literal fetch target. The test harness's fake server (`web-crawler-connector.test.ts`'s `createTestSite`) does exact-string route lookup with a hard 404 fallback, no auto-redirect for bare paths — and plenty of real origins behave the same way. Stripping the trailing slash there would make the connector fail to crawl its own configured start URL whenever the origin doesn't redirect `/docs` → `/docs/`.
+
+So `normalizeCrawlUrl` stays path-preserving, and only the final stored identity (`normalizeDocumentUrl`) drops the slash.
+
+## Left unchanged, and why
+
+| Code path | file:line | Why it's out of scope |
+|---|---|---|
+| `buildAllowedPathPrefixes` directory/file heuristic | `web-crawler-connector.ts:472-478` | Reverted to original; no longer at risk since `normalizeCrawlUrl` doesn't touch the path |
+| `metadata.fetchedUrl` | `web-crawler-connector.ts:462` (`[expr]`) | Deliberately the raw as-fetched URL (debug field), distinct from the canonical identity fields |
+| Relative-link base URL | `web-crawler-connector.ts:413` (`normalizeDiscoveredUrl(…)`) | Uses the raw request URL as resolution base; a trailing slash on the *base* changes relative-URL resolution semantics (RFC 3986), so it must stay unnormalized until after resolution |
+| Canonical-tag origin check | `web-crawler-connector.ts:596-599` | Compares raw origins; `.origin` is unaffected by host-case/port/query/path, so untouched by the new rules |
+| `validateIncludePathPrefixOrigins` | `web-crawler-connector.ts:484-497` | Never calls `normalizeCrawlUrl`; compares raw `config.startUrl` origin against configured prefixes |
+| Exclude-pattern matching order | `web-crawler-connector.ts:544-561` via `:409-422` | Already ran after normalization pre-existing (hash/port); now also sees post-tracking-strip query strings — pre-existing ordering, just a larger set of stripped params |
+
+## Residual risk
+
+- **Already-indexed documents get a new `id` on the next sync, and the old row isn't cleaned up.** I traced the consumer (`ConnectorSyncService.executeSync` / `ingestDocument` in `connector-sync.ts`, keyed by `[expr]` where `[expr]`, unique index in `kb-document.ts:44-47`). There's no "delete rows not seen this sync" step on incremental syncs — only a manual per-document delete or a full "Force Resync" (`knowledge-base.ts:1074-1082`) clears stale rows. So any page whose canonical URL previously had a tracking param, mixed-case host, or trailing slash will be **re-inserted under a new id** on the next sync, and the **old row persists** as a duplicate until someone force-resyncs that connector or deletes it manually. Each row individually still serves correct content/links — nothing breaks — but search results can show duplicates transiently. This is a pre-existing, accepted characteristic of the sync pipeline shared by all connectors (see the comment at `perforce-connector.ts:36-37` acknowledging the same gap), not something introduced by or fixable from this file.
+- **Trailing-slash equivalence is an assumption, not a verified fact per-site.** A small minority of origins genuinely serve different content (or a 404) at `/docs` vs `/docs/`. This was explicitly requested behavior, so I implemented it, but it's worth knowing the assumption exists.
+- **Existing tests will now fail on hardcoded trailing-slash URL strings** — expected, since they pin the old behavior and I was told not to touch tests. Affected: the `sourceUrl`/`metadata.url`/`id` assertions in the tests `"crawls same-host HTML pages..."` (lines 163, 172, 178), `"follows a same-host redirect..."` (line 271), `"falls back to the fetched URL when canonical points to another origin"` (lines 317-318), `"ignores fragment and non-HTTP links..."` (line 648, one of two array entries), and `"falls back to the fetched URL when the canonical link is malformed"` (lines 667-668). Titles/content/skip assertions in those same tests are unaffected since they don't depend on the canonical URL string.

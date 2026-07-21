@@ -1,0 +1,177 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 5 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 6df6141ecc9e4b77.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by looking at the web crawler connector to understand the current normalization.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+Now let me understand the surrounding system — particularly how document IDs are derived and consumed, since `buildDocument` hashes the canonical URL.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+Let me look at how documents are keyed and whether stale ones get pruned, plus how `sourceUrl`/`sourceId` are consumed downstream.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+Let me read the existing connector test (to avoid breaking pinned behavior) and check for any existing URL-normalization utility in the repo.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+The tests reference trailing-slash `sourceUrl`s and a hashed id. Let me read the full test file carefully — I must not break it.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+Tests can't be run in this worktree (no `node_modules`), so I'll verify semantics directly with Node and reason statically. Let me confirm the exact `URL` behaviors my patch will depend on.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 11 line(s)]
+
+Two facts to nail down before I write code: whether stale documents are ever purged, and whether the serving path filters by freshness.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 29 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 25 line(s)]
+
+Facts confirmed. Two decisive constraints emerged from the code:
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+So trailing-slash stripping cannot go into `normalizeCrawlUrl`. Let me implement the split.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the dedupe key into link discovery, so trailing-slash variants collapse to one fetched page.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me review the final diff and verify the normalization behaves as intended by exercising the exact logic against the cases in the task and the pinned tests.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 118 line(s)]
+
+The diff is in place. Since I can't run vitest here, let me verify the pure normalization logic directly by transcribing the functions verbatim into a script and exercising both the task's requirements and every URL the existing test file pins.
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 118 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 8 line(s)]
+
+Every edge case round-trips cleanly (IPv6 brackets, IDN punycode, port, userinfo), so the host-lowercasing is a strict no-op — exactly like the existing default-port block. Let me confirm nothing outside this module depends on these helpers.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 16 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 55 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+I strengthened the crawler's URL normalization, but split it into two functions rather than one — because `normalizeCrawlUrl` turned out to have three jobs, and only some of them can safely absorb all four rules.
+
+## What I changed
+
+One file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`.
+
+**`normalizeCrawlUrl` (`:626`)** — now also strips the seven tracking parameters and lowercases the host, on top of the existing fragment and default-port stripping. This function's output is the URL that gets fetched, scope-checked, and hashed into the document id, so it only touches parts that cannot change which resource an origin serves.
+
+**`canonicalPageKey` (`:646`)** — new. Adds trailing-slash folding on top of `normalizeCrawlUrl`. Used solely as a crawl-time dedupe key.
+
+**`enqueueAllowedLinks` (`:412`) + `createCrawler` (`:202`)** — a `queuedPageKeys` set, seeded with the start URL, drops a discovered link whose canonical key is already queued. This is what actually makes trivially-different URLs resolve to one page.
+
+`stripTrackingParams` (`:654`) only mutates `searchParams` when a tracking key is present, because assigning to `searchParams` re-encodes the entire query string (`[expr]` → `[expr]`) — that would silently change the fetched URL and the document id of every page carrying an encoded query param.
+
+## Why the trailing-slash rule could not go in `normalizeCrawlUrl`
+
+Folding `/docs/` → `/docs` there breaks three things:
+
+1. **It changes what gets fetched.** `normalizeCrawlUrl` feeds `crawler.run()` at `:131` and `:172`, and every discovered link at `:598`. `/docs/` and `/docs` are distinct HTTP requests; a start URL of `/docs/` would be requested as `/docs`.
+2. **It silently widens the crawl scope.** `:193` normalizes the start URL and hands its pathname to `buildAllowedPathPrefixes`, which at `:493` branches on `path.endsWith(…)`. With the slash gone, `/docs/` falls to the parent-directory branch and yields `/` — the whole host. I confirmed this: the naive normalization turns the prefix `/docs/` into `/`. No test covers it.
+3. **It orphans every indexed document.** `doc.id` is `sha256(…)` (`:468`) and is persisted as `kb_documents.source_id` (`connector-sync.ts:504`), the only key matching a crawled page to its indexed row (`connector-sync.ts:419-422`). Re-hashing a different string means `findBySourceId` misses, a duplicate row is inserted, and the old row is never reconciled — `deleteByConnectorAndSourceId` (`models/kb-document.ts:332`) has zero callers, and the retrieval join (`models/kb-chunk.ts:117-127`) has no freshness filter. The stale copy would be served forever.
+
+So the fold happens at the dedupe key, where it collapses `/docs/guide/` and `/docs/guide` to one fetched page without rewriting any URL that is requested, scoped, or hashed.
+
+I verified the pure logic by transcribing the helpers into a script (tests can't run — this worktree has no `node_modules`). All six trivial variants of one page collapse to a single key; tracking params are stripped case-insensitively while `[expr]` and the lookalike `[expr]` survive; `[expr]` stays `[expr]` when no tracking param is present; IPv6 brackets, IDN punycode, port and userinfo all round-trip the `hostname` setter. I also walked each URL the existing test file pins (`:163`, `:175`, `:178`, `:271`, `:317`, `:648`, `:667`) — each still normalizes to its expected value.
+
+## Deliberately left unchanged
+
+| Path | Proof it's out of scope |
+|---|---|
+| `buildAllowedPathPrefixes` | `:493` derives scope from the pathname; folding the slash upstream widens `/docs/` to `/` |
+| `isPathInScope` | `:574` matches exclude patterns against `[expr]` — unchanged, since tracking params no longer reach it |
+| `beforeRedirect` origin check | `:248` compares `target.origin`; `origin` already lowercases host and drops default ports |
+| `assertPublicCrawlUrl` | `:685` reads `hostname`, which the WHATWG parser already lowercases — my setter is a strict no-op |
+| `connector-sync.ts` upsert | `:419-422` is shared by all 15 connectors; changing the identity contract there is not a web-crawler change |
+| `deleteByConnectorAndSourceId` | `models/kb-document.ts:332`, zero callers — wiring up a purge deletes user data, well beyond this task |
+| Other connectors | `grep` for `id: [expr]` across `connectors/` matches only `web-crawler-connector.ts:468`; the helpers are module-private (the file's sole export is `WebCrawlerConnector`, `:72`) |
+
+## Residual risk
+
+Two, both worth naming.
+
+**A page previously indexed under a URL containing tracking params changes its `source_id`.** That page is exactly what the task asks to canonicalize, so the churn is intended — but because no purge path exists, the old row lingers and keeps being served alongside the new clean one until the connector is deleted. Documents whose URLs carry no tracking params — the overwhelming majority, and everything with a `[expr]` — keep their id and are updated in place. I did not add a migration or purge: reconstructing the mapping is impossible (old and new `source_url` are different URLs), and deleting indexed rows is not something I'd do without asking.
+
+**Enqueue dedupe can drop a page if a site links the bare form `/a` before `/a/` and hard-404s the bare form.** In practice servers redirect `/a` → `/a/`; the `beforeRedirect` hook permits same-origin in-scope redirects, `loadedUrl` restores the slash, and the document keeps its identity. Only a server that 404s the bare form loses the page, and it surfaces in the run's `skipped` list rather than failing silently.
+
+I did not run the test suite or type-check — the worktree is intentionally not bootstrapped, so my confidence rests on static reading plus the transcribed-logic verification above, not on a green run.

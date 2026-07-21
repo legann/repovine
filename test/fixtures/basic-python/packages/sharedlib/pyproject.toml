@@ -1,0 +1,4 @@
+[project]
+name = "sharedlib"
+version = "0.1.0"
+description = "Second Python package in the basic-python monorepo fixture"

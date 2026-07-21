@@ -1,0 +1,969 @@
+{
+  "stats": {
+    "totalNodes": 25,
+    "totalEdges": 41,
+    "nodesByType": {
+      "domain": 10,
+      "export-symbol": 4,
+      "module": 9,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 14,
+      "imports": 2,
+      "tagged": 25
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:vue-spa-fixture",
+      "domain:users",
+      "domain:useauth",
+      "domain:cluster",
+      "domain:usetheme",
+      "domain:cart",
+      "domain:user",
+      "domain:basebutton",
+      "domain:usercard",
+      "domain:userlistview"
+    ],
+    "export-symbol": [
+      "export:vue-spa-fixture/src/composables/useAuth/useAuth",
+      "export:vue-spa-fixture/src/composables/useTheme/useTheme",
+      "export:vue-spa-fixture/src/stores/cart/useCartStore",
+      "export:vue-spa-fixture/src/stores/user/useUserStore"
+    ],
+    "module": [
+      "mod:vue-spa-fixture/src/main",
+      "mod:vue-spa-fixture/src/composables/useAuth",
+      "mod:vue-spa-fixture/src/composables/useTheme",
+      "mod:vue-spa-fixture/src/stores/cart",
+      "mod:vue-spa-fixture/src/stores/user",
+      "mod:vue-spa-fixture/src/App.vue",
+      "mod:vue-spa-fixture/src/components/BaseButton.vue",
+      "mod:vue-spa-fixture/src/components/UserCard.vue",
+      "mod:vue-spa-fixture/src/views/users/UserListView.vue"
+    ],
+    "package": [
+      "pkg:vue-spa-fixture"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:basebutton",
+      "type": "domain",
+      "label": "basebutton",
+      "description": "Domain: basebutton",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:cart",
+      "type": "domain",
+      "label": "cart",
+      "description": "Domain: cart",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:cluster",
+      "type": "domain",
+      "label": "cluster",
+      "description": "Domain: cluster",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:useauth",
+      "type": "domain",
+      "label": "useauth",
+      "description": "Domain: useauth",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:user",
+      "type": "domain",
+      "label": "user",
+      "description": "Domain: user",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:usercard",
+      "type": "domain",
+      "label": "usercard",
+      "description": "Domain: usercard",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:userlistview",
+      "type": "domain",
+      "label": "userlistview",
+      "description": "Domain: userlistview",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:users",
+      "type": "domain",
+      "label": "users",
+      "description": "Domain: users",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:usetheme",
+      "type": "domain",
+      "label": "usetheme",
+      "description": "Domain: usetheme",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:vue-spa-fixture",
+      "type": "domain",
+      "label": "vue-spa-fixture",
+      "description": "Domain: vue-spa-fixture",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/composables/useAuth/useAuth",
+      "type": "export-symbol",
+      "label": "useAuth",
+      "description": "function useAuth: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "calls": [
+          "useUserStore"
+        ],
+        "lineRange": {
+          "start": 3,
+          "end": 6
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/composables/useTheme/useTheme",
+      "type": "export-symbol",
+      "label": "useTheme",
+      "description": "function useTheme: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/stores/cart/useCartStore",
+      "type": "export-symbol",
+      "label": "useCartStore",
+      "description": "function useCartStore: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/stores/user/useUserStore",
+      "type": "export-symbol",
+      "label": "useUserStore",
+      "description": "function useUserStore: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/App.vue",
+      "type": "module",
+      "label": "src/App.vue",
+      "description": "Module src/App.vue in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/App.vue",
+        "relativeFilePath": "src/App.vue",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/components/BaseButton.vue",
+      "type": "module",
+      "label": "…/components/BaseButton.vue",
+      "description": "Module src/components/BaseButton.vue in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/components/BaseButton.vue",
+        "relativeFilePath": "src/components/BaseButton.vue",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/components/UserCard.vue",
+      "type": "module",
+      "label": "…/components/UserCard.vue",
+      "description": "Module src/components/UserCard.vue in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/components/UserCard.vue",
+        "relativeFilePath": "src/components/UserCard.vue",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/composables/useAuth",
+      "type": "module",
+      "label": "…/composables/useAuth",
+      "description": "Module src/composables/useAuth.ts in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/composables/useAuth.ts",
+        "relativeFilePath": "src/composables/useAuth.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/composables/useTheme",
+      "type": "module",
+      "label": "…/composables/useTheme",
+      "description": "Module src/composables/useTheme.ts in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/composables/useTheme.ts",
+        "relativeFilePath": "src/composables/useTheme.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/main",
+      "type": "module",
+      "label": "src/main",
+      "description": "Module src/main.ts in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/main.ts",
+        "relativeFilePath": "src/main.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/stores/cart",
+      "type": "module",
+      "label": "…/stores/cart",
+      "description": "Module src/stores/cart.ts in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/stores/cart.ts",
+        "relativeFilePath": "src/stores/cart.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/stores/user",
+      "type": "module",
+      "label": "…/stores/user",
+      "description": "Module src/stores/user.ts in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/stores/user.ts",
+        "relativeFilePath": "src/stores/user.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/views/users/UserListView.vue",
+      "type": "module",
+      "label": "…/users/UserListView.vue",
+      "description": "Module src/views/users/UserListView.vue in vue-spa-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/views/users/UserListView.vue",
+        "relativeFilePath": "src/views/users/UserListView.vue",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:vue-spa-fixture",
+      "type": "package",
+      "label": "vue-spa-fixture",
+      "description": "Package vue-spa-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:basebutton",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:basebutton",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:cart",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cart",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:cluster",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cluster",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:useauth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:useauth",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:user",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:user",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:usercard",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:usercard",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:userlistview",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:userlistview",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:usetheme",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:usetheme",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:vue-spa-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:vue-spa-fixture",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/composables/useAuth/useAuth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:vue-spa-fixture/src/composables/useAuth/useAuth",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/composables/useTheme/useTheme",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:vue-spa-fixture/src/composables/useTheme/useTheme",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/stores/cart/useCartStore",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:vue-spa-fixture/src/stores/cart/useCartStore",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:vue-spa-fixture/src/stores/user/useUserStore",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:vue-spa-fixture/src/stores/user/useUserStore",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/App.vue",
+      "links": [
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/App.vue",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/components/BaseButton.vue",
+      "links": [
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:basebutton",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/components/BaseButton.vue",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:basebutton",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/components/UserCard.vue",
+      "links": [
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:usercard",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/components/UserCard.vue",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:usercard",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/composables/useAuth",
+      "links": [
+        {
+          "to": "mod:vue-spa-fixture/src/stores/user",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:useauth",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:vue-spa-fixture/src/composables/useAuth/useAuth"
+      ],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/composables/useAuth",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:vue-spa-fixture/src/composables/useAuth/useAuth",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "mod:vue-spa-fixture/src/stores/user",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:useauth",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/composables/useTheme",
+      "links": [
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:usetheme",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:vue-spa-fixture/src/composables/useTheme/useTheme"
+      ],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/composables/useTheme",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:vue-spa-fixture/src/composables/useTheme/useTheme",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:usetheme",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/main",
+      "links": [
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/main",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/stores/cart",
+      "links": [
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:cart",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:vue-spa-fixture/src/stores/cart/useCartStore"
+      ],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/stores/cart",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:vue-spa-fixture/src/stores/cart/useCartStore",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cart",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/stores/user",
+      "links": [
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:user",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:vue-spa-fixture/src/stores/user/useUserStore"
+      ],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/stores/user",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:vue-spa-fixture/src/stores/user/useUserStore",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:user",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:vue-spa-fixture/src/views/users/UserListView.vue",
+      "links": [
+        {
+          "to": "mod:vue-spa-fixture/src/composables/useAuth",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:vue-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:userlistview",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:vue-spa-fixture/src/views/users/UserListView.vue",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "mod:vue-spa-fixture/src/composables/useAuth",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:vue-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:userlistview",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:vue-spa-fixture",
+      "links": [],
+      "children": [
+        "mod:vue-spa-fixture/src/main",
+        "mod:vue-spa-fixture/src/composables/useAuth",
+        "mod:vue-spa-fixture/src/composables/useTheme",
+        "mod:vue-spa-fixture/src/stores/cart",
+        "mod:vue-spa-fixture/src/stores/user",
+        "mod:vue-spa-fixture/src/App.vue",
+        "mod:vue-spa-fixture/src/components/BaseButton.vue",
+        "mod:vue-spa-fixture/src/components/UserCard.vue",
+        "mod:vue-spa-fixture/src/views/users/UserListView.vue"
+      ],
+      "view": {
+        "id": "pkg:vue-spa-fixture",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:vue-spa-fixture/src/main",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/composables/useAuth",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/composables/useTheme",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/stores/cart",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/stores/user",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/App.vue",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/components/BaseButton.vue",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/components/UserCard.vue",
+            "type": "module"
+          },
+          {
+            "id": "mod:vue-spa-fixture/src/views/users/UserListView.vue",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:vue-spa-fixture"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:vue-spa-fixture",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

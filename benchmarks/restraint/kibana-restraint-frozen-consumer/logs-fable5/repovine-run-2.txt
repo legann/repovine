@@ -1,0 +1,180 @@
+# Bench kibana-restraint-frozen-consumer — Repovine run 2 — model: fable-5 — effort: max (ultracode)
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max (ultracode). Agent 6a772da5f9814fbe.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting with the repovine MCP tools to find the synthetics monitor validation code paths.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+Now let me search for the synthetics monitor validation code.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — status building; source-derived fields removed]
+
+The graph is still building (ETA ~18s). I'll long-poll until it settles.
+
+  → repovine.get_build_status: [repository query]
+    [graph output redacted — status ready; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/common/types/monitor_validation, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation, mod:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/synthetics_private_locations, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_locations_utils/validateMonitorPrivateLocationSpaces; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateMonitor, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateProjectMonitor, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateLocation; functions validateMonitor, validateProjectMonitor, validateLocation, MonitorValidationError, normalizeAPIConfig; architectural annotation delivered; source-derived fields removed]
+
+  → repovine.analyze_dependencies: [target export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateMonitor]
+    [graph output redacted — scope export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateMonitor, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/add_monitor, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/edit_monitor, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/inspect_monitor; source-derived fields removed]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [source removed — 591 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [source removed — 204 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor/add_monitor_api.ts
+    [source removed — 375 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [source removed — 407 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor/utils.ts
+    [source removed — 84 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/normalizers/common_fields.ts
+    [source removed — 522 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/saved_objects/migrations/monitors/8.8.0.ts
+    [source removed — 235 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [source removed — 474 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/services/reset_monitor_api.ts
+    [source removed — 222 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/settings/private_locations/helpers.ts
+    [source removed — 122 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/inspect_monitor.ts
+    [source removed — 219 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/synthetics_service/run_once_monitor.ts
+    [source removed — 74 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/bulk_cruds/edit_monitor_bulk.ts
+    [source removed — 120 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [source removed — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [source removed — 30 line(s)]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/normalizers/common_fields.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/normalizers/common_fields.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/normalizers/common_fields.ts
+    [edit applied]
+
+Both edits are in. Now verifying: eslint on changed files, scoped typecheck, and refreshing the repovine index.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 67 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+The i18n id is unique. A standalone `tsc` exists in a sibling project — I'll use it for a syntax-level parse of the edited files (imports unresolved, but it catches syntax errors).
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+No test references `getMonitorLocations` with large fixtures. Let me view the final state of the edited code and refresh the repovine index.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/normalizers/common_fields.ts
+    [source removed — 60 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 63 line(s)]
+
+Done and verified. The repovine graph is refreshed and the diff is minimal (2 files, +22 lines). Here is the full report.
+
+## Summary of changed behavior
+
+A monitor may now target at most 100 locations (constant `[expr]`). The check lives in `getMonitorLocations` — the single function where every create/update write resolves its final location set — and fires after invalid-location resolution and deduplication, so it counts the unique set that would actually be persisted. Exceeding it throws `InvalidLocationError` with a clear message ("A monitor cannot target more than 100 locations, but N were specified (Elastic managed and private locations combined). Remove some locations and try again."). Exactly 100 is still allowed.
+
+**Files touched:**
+- `x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts` — new `MAX_MONITOR_LOCATIONS` constant.
+- `x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/normalizers/common_fields.ts` — the limit check in `getMonitorLocations` plus the i18n error factory.
+
+## Write paths covered (via existing error plumbing, no route changes needed)
+
+- **Create** `POST /api/synthetics/monitors`: `normalizeMonitor` always resolves locations through `getMonitorLocations` (`add_monitor_api.ts:230`; the carry-forward branch requires `prevLocations`, which a create never has). The thrown `InvalidLocationError` is already mapped to HTTP 400 at `add_monitor.ts:180-182`.
+- **Update** `[expr]`: any request that specifies `locations`/`private_locations` (including merges with the previous set via `parseMonitorLocations`) goes through the same resolution; mapped to 400 at `edit_monitor.ts:229-231`.
+- **Project push** `[expr]`: all four type normalizers call `getNormalizeCommonFields` → `getMonitorLocations` (`common_fields.ts:73`); the formatter catches `InvalidLocationError` per monitor and records a failed-monitor entry with the message (`project_monitor_formatter.ts:231-243`), so one oversized monitor doesn't block the rest of the push.
+
+## Related paths intentionally left unchanged, with citations
+
+- **`validateMonitor` (`monitor_cruds/monitor_validation.ts:78-207`)** — the released 8.8.0 saved-object migration imports it (`saved_objects/migrations/monitors/8.8.0.ts:29`) and throws when it returns invalid (`8.8.0.ts:119-131`). Adding the rule there would fail persisted monitors during upgrade — exactly the retroactive rejection the task forbids.
+- **`validateProjectMonitor`/`validateLocation` (`monitor_validation.ts:381-487`)** — redundant for this rule: the project flow runs `normalizeProjectMonitor` (which hits the new check) at `project_monitor_formatter.ts:189` *before* `validateProjectMonitor` at line 205, so every push is already gated.
+- **Edit carry-forward branch (`add_monitor_api.ts:196-211`)** — `[expr]` copies the persisted set verbatim; the count cannot grow on this branch. Checking it would block renames or the enable/disable toggle (which flows through this route per the comment at `edit_monitor.ts:96-98`) on a hypothetical legacy >100-location monitor. This mirrors existing behavior: carried-forward locations are not re-validated against the location registry today either (no `getMonitorLocations` call on that branch).
+- **`inspect_monitor.ts:52` and `run_once_monitor.ts:39`** — both call `validateMonitor` directly on the request body without `normalizeMonitor`, and neither persists a monitor (inspect renders service configs, `inspect_monitor.ts:85-91`; run-once triggers `testNowConfigs`, `run_once_monitor.ts:52-65`). Not create/update writes; their behavior is bit-for-bit unchanged since they never reach `getMonitorLocations`.
+- **`ResetMonitorAPI` (`services/reset_monitor_api.ts`)** — re-syncs persisted attributes only: monitors come from `monitorConfigRepository.getDecrypted` (line 60) and locations from stored `normalizedMonitor.attributes` (lines 157-173, 206-213); no user-supplied location set exists on this path.
+- **`updatePrivateLocationMonitors` (`settings/private_locations/helpers.ts:92-95`)** — rewrites persisted monitors only to relabel a location (`[expr]`); the set size never changes.
+- **Bulk rollback writes (`[expr]`)** — restore `decryptedPreviousMonitor.attributes`, i.e. persisted state.
+- **Client-side form validation (`public/apps/synthetics/components/monitor_add_edit/form/validation`)** — not a write gate; the UI submits through the same REST routes, which now reject server-side with the 400 mapping cited above.
+
+These call sites are exhaustive: the only writers of monitor saved objects are `add_monitor_api.ts:91`, `edit_monitor.ts:319`, `add_monitor_bulk.ts:71`, and `edit_monitor_bulk.ts:104/157/213`, and each is accounted for above.
+
+## Residual risk
+
+- This worktree has no `node_modules` (not bootstrapped), so I could not run the repo's real `type_check`, `eslint`, or Jest. I verified syntax with a standalone `tsc` parse (clean apart from unresolved-import artifacts), confirmed the i18n id is unique and follows the file's existing `[expr]` convention, and confirmed no existing test feeds `getMonitorLocations` a >100-location fixture. Running `[expr]` is the remaining confirmation step.
+- Semantics choice worth flagging: an update that explicitly specifies locations for a legacy >100-location monitor must trim to ≤100 (new write, rule applies); an update that doesn't touch locations keeps working (no retroactive rejection). Duplicated location entries dedupe before counting, matching what would be persisted.

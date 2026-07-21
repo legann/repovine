@@ -1,0 +1,381 @@
+# Bench archestra-restraint-tool-slug — Repovine run 7 — model: sonnet-5 — effort: max (ultracode)
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-sonnet-5; effort: max (ultracode). Agent ffec5e2178854f2f.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting with repovine to find where MCP tool names get converted into platform identifiers.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — status building; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — status building; source-derived fields removed]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 63 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 36 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 36 line(s)]
+
+Found the core function: `ToolModel.slugifyName` in `platform/backend/src/models/tool.ts`. Let me examine it and the underlying `slugify` helper.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 140 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 200 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 140 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 125 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 107 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 80 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 155 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 50 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-gateway.utils.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 220 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 245 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 61 line(s)]
+
+  → Read: platform/backend/src/routes/proxy/utils/tools.ts
+    [source removed — 112 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 110 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 70 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 300 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 130 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 48 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 440 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Now I have a clear picture of the bug and a safe fix design. Let me check the remaining two call sites in full before editing.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 50 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 40 line(s)]
+
+Now let's implement. First, add the `createHash` import and the new `slugifyToolNames` batch-disambiguation method in `tool.ts`.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+The hook surfaced a relevant repovine boundary annotation on this exact file. Let me check if the graph has finished building so I can consult it directly for more precise guidance before continuing.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.get_build_status: [repository query]
+    [graph output redacted — status ready; source-derived fields removed]
+
+The graph is ready now. Let me inspect the actual node to see the full annotation detail behind that boundary warning.
+
+  → repovine.inspect_node: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, export:@backend/src/models/tool/parseArchestraBuiltInName, export:@backend/src/models/tool/toolUiResourceUriSql, export:@backend/src/models/tool/default; functions parseArchestraBuiltInName, toolUiResourceUriSql, default; architectural annotation delivered; source-derived fields removed]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → repovine.analyze_dependencies: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@backend/src/middleware/audit-decisions, mod:@backend/src/middleware/audit-log-registry, mod:@backend/src/models/agent; source-derived fields removed]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 20 line(s)]
+
+Now let's add the new batch-disambiguation method right after `unslugifyName`.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+Now let's update the two call sites in `mcp-servers.ts`.
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 16 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 28 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now the `routes/mcp-server.ts` call site.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 25 line(s)]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now `services/mcp-reinstall.ts`.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 16 line(s)]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+Now let's harden `syncToolsForCatalog`'s matching logic. Let me re-locate it since line numbers shifted after the earlier edit.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 100 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+All edits are in. Let's refresh the repovine graph, then typecheck and run the relevant tests.
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Now let's typecheck the backend to catch any type errors from the refactor.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Since this worktree has no `node_modules` (builds/tests are blocked here), I'll verify correctness by carefully re-reading every edited section statically instead.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 165 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 5 line(s)]
+
+Let's review the complete diff carefully since I can't run the type-checker in this environment.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 75 line(s)]
+
+All four call sites look correct and consistent. Now let's review the full `tool.ts` diff.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 118 line(s)]
+
+  → Read: platform/backend/src/models/mcp-server.ts
+    [source removed — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Two more call sites I hadn't examined — let me check both to see if they're in scope.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 70 line(s)]
+
+Found a **fifth write-path call site** with the same bug pattern — a synchronous remote-install discovery block I hadn't caught in my initial grep pass (it was past my earlier read window). Let me fix it, and also read a bit more of `mcp-client.ts` to confirm the wire-consumer path is correctly out of scope.
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 40 line(s)]
+
+This confirms the wire-consumer path is correctly out of scope (case-insensitive live lookup, already acknowledged as lossy for punctuation/unicode collisions — matches the repovine annotation exactly). Now let's fix the missed call site.
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Let me do a final comprehensive sweep of this file and the whole backend to make sure no other collision-prone call site remains.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 100 line(s)]
+
+Everything checks out structurally. Let's finish the review by confirming the tail of the loop is untouched and correct.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 45 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 10 line(s)]
+
+All changes are in place. Here's the full report.
+
+## Where tool names become identifiers
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## Files changed
+
+- **`models/tool.ts`**: added `ToolModel.slugifyToolNames(…)` — a new batch method next to `slugifyName`. It computes the naive slug per name, and only for names that collide with a sibling, picks one deterministic "primary" (the raw name already byte-identical to the shared slug, i.e. needed no normalization; otherwise lexicographically first) to keep the bare slug, and appends a `[expr]` suffix to the rest. Non-colliding names are returned byte-identical to today's `slugifyName` output. Also hardened `syncToolsForCatalog`'s existing-row matching to check an exact-name map before its fuzzy lowercased-raw-name map, so two newly-distinct names don't get merged back onto one row on a second reinstall/sync.
+- **`archestra-mcp-server/mcp-servers.ts`**, **`routes/mcp-server.ts`**, **`services/mcp-reinstall.ts`**: the 5 real write-path call sites (local async discovery, remote discovery, remote sync-install, remote async-install, reinstall sync) now call `slugifyToolNames` over the whole discovered batch instead of `slugifyName` per tool.
+
+## Deliberately left unchanged (with proof)
+
+- **`slugifyName` / `unslugifyName` (the codec itself)** — untouched signature and behavior. Proven by the existing pinned unit tests (`tool.test.ts:44-153`) that assert exact 2-arg output, and by this repo's own repovine boundary annotation on the module, which calls these two out as the frozen "stored-identity codec" and says collision-handling belongs to "the layer that holds tools together," not this transform.
+- **Wire/invocation path** (`clients/mcp-client.ts` `stripServerPrefix`/`resolveActualToolName`, `mcp-server-gateway.utils.ts`, `mcp-server-proxy.ts`) — untouched. `mcp-client.ts:2134-2156` resolves a stored name to the live upstream tool via a case-insensitive map built from `client.listTools()`, which by construction can only resolve one name per collision bucket. The repovine annotation explicitly states these are "frozen alongside the codec" and that a disambiguated slug not round-tripping to a raw upstream name "is not a defect this task repairs."
+- **`cloneToolsAndPoliciesFromCatalog`** (`[expr]`) — untouched. Its own comment (`tool.ts:833-836`) states source tool names are already unique within their catalog and share one prefix, so re-slugifying under a new catalog name preserves uniqueness by construction.
+- **`app-mcp-backing.ts:73`** — untouched. One synthetic launch tool per app, and the "server name" passed in is already suffixed with the app's own id (`[expr]`, per the comment at line 68-71), so it's a batch of size 1 — never collides.
+- **Proxy-sniffed tools** (`routes/proxy/utils/tools.ts` → `bulkCreateProxyToolsIfNotExists`) — untouched. `toolName` is taken verbatim from an already-executed tool call, not generated via `slugifyName` at all.
+- **Delegation tool names** (`[expr]`) — untouched. Scoped by `delegateToAgentId` uniqueness, not `name` (`tool.ts:2441-2498`), and not "an MCP server exposing a tool" per the task's own framing.
+
+## Residual risk
+
+If a collision group grows later (a third, alphabetically-earlier raw name joins two already-colliding tools, neither of which is byte-identical to the shared slug), the tie-break for "primary" can shift, renaming a previously-suffixed tool back toward the bare slug. This is a narrow edge case (requires an ongoing multi-way collision that then changes shape), and `syncToolsForCatalog` already treats such renames as a first-class, ID/policy-preserving operation (same mechanism it uses for catalog renames), so it degrades to a rename, not data loss.

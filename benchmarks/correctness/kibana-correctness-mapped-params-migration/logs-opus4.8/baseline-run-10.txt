@@ -1,0 +1,358 @@
+# Bench kibana-correctness-mapped-params-migration — Baseline run 10 — model: opus-4.8 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent fd8e60bafb534311.
+# Gate: DQ — projection-consistency gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the Kibana alerting codebase to understand how rules are stored and how model versions/migrations work for the rule saved object type.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+Found the alerting saved objects. Let me explore the rule model versions structure.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 189 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/index.ts
+    [source removed — 15 line(s)]
+
+Now let me look at the raw rule schemas and understand where `severity` lives in the params, plus how model version data transforms work.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+Let me read the raw rule schemas to understand the params structure.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v1.ts
+    [source removed — 281 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/index.ts
+    [source removed — 23 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/latest.ts
+    [source removed — 28 line(s)]
+
+Let me look at the mapped_params utilities and mappings to understand the relationship between `params.severity` and `mapped_params.severity`.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/rules_client/common/mapped_params_utils.ts
+    [source removed — 186 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/common/saved_objects/rules/mappings.ts
+    [source removed — 348 line(s)]
+
+I now understand the data model: `params.severity` is the free-form param; `mapped_params.severity` is a derived searchable copy. Let me research how model version transforms work in core and look at existing examples in the codebase.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+The grep output shows some identifiers redacted as `ln`/`n`. Let me read the actual source files directly with the Read tool to see true content.
+
+  → Read: src/core/packages/saved-objects/server/src/model_version/model_change.ts
+    [source removed — 186 line(s)]
+
+Now I understand the change types. Mutating an existing field's value calls for `unsafe_transform` (data_backfill is documented as new-fields-only). Let me confirm the runtime behavior and look at existing in-place transform examples in the codebase for convention.
+
+  → Read: src/core/packages/saved-objects/base-server-internal/src/model_version/build_transform_fn.ts
+    [source removed — 112 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/maintenance_windows/server/saved_objects/model_versions.ts
+    [source removed — 117 line(s)]
+
+Let me look at the actions plugin's `unsafe_transform` example — it's the closest analog to an in-place value transform.
+
+  → Read: x-pack/platform/plugins/shared/actions/server/saved_objects/model_versions/connector_model_versions.ts
+    [source removed — 36 line(s)]
+
+Let me find a real `unsafe_transform` example that mutates existing data to match conventions precisely.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+The Bash output obfuscates identifiers. Let me read a real `unsafe_transform` example directly (Read shows true content).
+
+  → Read: x-pack/platform/plugins/shared/fleet/server/saved_objects/model_versions/synthetics_disable_browser_input.ts
+    [source removed — 31 line(s)]
+
+Let me see how this transform is wired into the model version's `changes` array.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/fleet/server/saved_objects/index.ts
+    [source removed — 30 line(s)]
+
+Let me read the thin schema version files to understand the per-version schema convention.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v13.ts
+    [source removed — 10 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v10.ts
+    [source removed — 14 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v12.ts
+    [source removed — 56 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 50 line(s)]
+
+This SO type is passed `encryptedSavedObjects` — the rule is an **Encrypted Saved Object**. That's critical: model version transforms on ESOs need `createModelVersion` wrapping so AAD stays valid. Let me check the ESO registration and its AAD.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+The `alert` type is an ESO. Let me read the actual registration (Bash obfuscates the field names) and the AAD definitions.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 105 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+Let me find the ESO `registerType` call for the alert type in index.ts.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 28 line(s)]
+
+Now I have the exact ESO registration. `ruleModelVersions` is currently a static map, but `createModelVersion` needs the ESO setup contract. Let me find how other ESO types (especially in alerting/actions) wire `createModelVersion` to establish the local pattern.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+`createModelVersion` shows as `ln`. The key precedent is the sibling **actions** plugin's `connector_token_model_versions.ts`. Let me read it, its call site, the ESO example, and the `createModelVersion` signature.
+
+  → Read: x-pack/platform/plugins/shared/actions/server/saved_objects/model_versions/connector_token_model_versions.ts
+    [source removed — 75 line(s)]
+
+  → Read: examples/eso_model_version_example/server/plugin.ts
+    [source removed — 488 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/server/create_model_version.ts
+    [source removed — 141 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/ad_hoc_run_params_model_versions.ts
+    [source removed — 53 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+The Bash obfuscation makes these unreadable. Let me Read the actual files to confirm the `RawRule` export and the `EncryptedSavedObjectTypeRegistration` interface.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/types.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/types.ts
+    [source removed — 14 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/server/crypto/encrypted_saved_objects_service.ts
+    [source removed — 70 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Let me create a task list and start implementing.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+Starting implementation. Creating the v14 schema alias, the transform, and updating the schema index.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Write: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v14.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/index.ts
+    [edit applied]
+
+Now the transform function.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Write: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/normalize_rule_severity_param.ts
+    [edit applied]
+
+Now I'll rewrite `rule_model_versions.ts` as a factory (matching the actions/connector_token precedent) that adds version 14 wrapped in `createModelVersion`. I use a concise arrow body to preserve the existing indentation of versions 1–13, and a module-level helper for the ESO registration (read at call-time, avoiding the init-order cycle — the same constants `partially_update_rule.ts` already imports from index.ts).
+
+  → Write: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+Now update the call site in `saved_objects/index.ts` to invoke the factory.
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+Now let me typecheck the alerting package. First confirm the tsconfig path, then run the scoped type check.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+Running the scoped type check (this takes a few minutes for a Kibana project).
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 24 line(s)]
+
+The workspace isn't bootstrapped. Let me check the environment state before deciding whether to bootstrap.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 5 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 10 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+All syntax-valid. Let me also syntax-check the edited `saved_objects/index.ts` call site.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 3 line(s)]
+
+Syntax-clean and the call site is correct. Full `type_check`/`eslint` can't run here (empty `node_modules`; a from-scratch Kibana bootstrap is out of scope for this sandbox), so I validated syntax and matched types against the exact in-repo interfaces and precedents. Let me quickly confirm the `alerting_v2` boundary so I can cite it as deliberately out of scope, and re-confirm the unrelated `severity` code paths.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Let me check for a registered-types/migration-hash snapshot that adding a model version would make stale (so I can flag it as residual risk — I won't modify tests).
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+No `check_registered_types`/hash-snapshot test exists in this repo snapshot (searches came up empty), so there's likely no stale snapshot here — I'll note it conditionally as residual risk. Let me record the honest validation state and finalize.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+## Summary
+
+I added **model version 14** to the alerting rule (`alert`) saved object. On upgrade it lowercases each rule's `params.severity` value in place; rules whose severity is already lowercase, non-string, or absent pass through untouched. Because `params` is part of the rule's encryption AAD, the transform is wrapped in the Encrypted Saved Objects `createModelVersion` decrypt → transform → re-encrypt pass so `apiKey`/`uiamApiKey` stay decryptable — without that wrapper, changing `params` would make every rule with an API key fail to decrypt after upgrade.
+
+## Where I localized the migration
+
+The rule model-version map: `x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts` (versions 1–13 already lived here; 14 is next in sequence). The rule SO type consumes it at `saved_objects/index.ts:147` (`modelVersions: ruleModelVersions`).
+
+## Files changed
+
+| File | Change |
+|---|---|
+| `.../model_versions/normalize_rule_severity_param.ts` | **New.** `[expr]` that lowercases `params.severity`; returns the doc unchanged when severity is already lowercase, not a string, or missing. |
+| `.../model_versions/rule_model_versions.ts` | **Edit.** `ruleModelVersions` is now a factory `[expr]` (matching `actions/.../connector_token_model_versions.ts`). Adds version `14` via `encryptedSavedObjects.createModelVersion(…)`. `[expr]` (the ESO registration is unchanged; only a value changes). |
+| `.../schemas/raw_rule/v14.ts` | **New.** Re-exports v13's schema — no storage-shape change (same pattern as `v13.ts`). |
+| `.../schemas/raw_rule/index.ts` | **Edit.** Exports `rawRuleSchemaV14`. |
+| `.../saved_objects/index.ts` | **Edit.** Call site → `ruleModelVersions(…)`. |
+
+The intra-directory import cycle (`rule_model_versions.ts` → `..` for `RULE_SAVED_OBJECT_TYPE`/`RuleAttributesToEncrypt`/`RuleAttributesIncludedInAAD`) is the pattern `saved_objects/partially_update_rule.ts` already uses; the constants are read only at factory-call time, not module-init, so it's load-order safe.
+
+## Related paths deliberately left unchanged
+
+| Path | Why out of scope (source) |
+|---|---|
+| `mapped_params.severity` (the searchable copy) | Derived from `params.severity` at write time via `getMappedParams`/`getModifiedValue` (`[expr]`). Task scopes to "the `severity` param" and forbids changes "beyond the case normalization"; touching it would alter a second field. It's in AAD (`saved_objects/index.ts:68`), so `createModelVersion` still re-encrypts consistently around it. |
+| Snooze conditions `severity_change` / `severity_equals` | A separate field — `[expr]` — with its own lowercase enum (`schemas/raw_rule/v12.ts:24-36`), not `params.severity`. |
+| Action-group severity (`actionGroup.severity.level`) | A numeric action-group level (`rule_type_registry.ts`, `alerts_client/lib/is_alert_improving.ts`), unrelated to the string `params.severity`. |
+| `alerting_v2` plugin's `ruleModelVersions` | Different plugin/SO types (`action_policy`, …); its "severity" is an alert-**event** field in an ES\|QL datastream (`alerting_v2/server/resources/datastreams/alert_events.ts`), not a rule `params` SO value — no `mapped_params`. |
+
+## Residual risk
+
+- **Toolchain not run.** `node_modules` is empty and a from-scratch Kibana bootstrap is out of scope for this sandbox, so `scripts/type_check`/`eslint` didn't run. I validated syntax (`node --experimental-strip-types --check` on all five files) and matched types against the actual `CreateEsoModelVersionFnOpts`, `SavedObjectModelUnsafeTransformFn`, and `EncryptedSavedObjectTypeRegistration` definitions plus the `connector_token`/`fleet` precedents. Worth a `type_check` + `eslint` pass in a bootstrapped tree.
+- **All rules are re-encrypted at the v13→v14 boundary**, including already-lowercase ones. This is inherent to any ESO AAD-attribute migration (`createModelVersion` always decrypts then re-encrypts); it is behavior-preserving — same decrypted `apiKey`, same AAD, new ciphertext IV only. It cannot be avoided without leaving mis-cased rules' encryption broken.
+- **Undecryptable rules:** `shouldTransformIfDecryptionFails: true` (as in both precedents) keeps a single bad doc from blocking the whole upgrade; such a rule is stripped of its (already-unusable) encrypted key and continues, rather than failing Kibana startup.
+- **Snapshot tests:** in full Kibana, adding a model version updates the `alert` hash in `check_registered_types.test.ts`. No such snapshot exists in this repo snapshot (searches were empty), and per the task I changed no tests — flag for the team if that test is present upstream.

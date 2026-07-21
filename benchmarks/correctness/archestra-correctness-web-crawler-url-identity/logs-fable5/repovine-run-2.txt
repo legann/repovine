@@ -1,0 +1,255 @@
+# Bench archestra-correctness-web-crawler-url-identity — Repovine run 2 — model: fable-5 — effort: max (ultracode)
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max (ultracode). Agent 998bae17d25341bf.
+# Gate: pass — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting with the repovine graph, then look at the connector file. Loading the repovine tool schemas first.
+
+  → ToolSearch: select:mcp__repovine__search_context,mcp__repovine__inspect_node,mcp__repovine__refresh_context,mcp__repovine__map_context
+    [output redacted — 0 line(s)]
+
+Now searching the graph for the web crawler connector.
+
+  → repovine.search_context: {"query":"web crawler connector URL normalization","limit":15}
+    {"scope":"query:web crawler connector URL normalization","resolvedScope":{"kind":"query","id":"query:web crawler connector URL normalization"},"summary":"Found context candidates for \"web crawler connector URL normalization\".","confidence":"medium","result":{"matches":{"query":"web crawler connector URL normalization","strategy":{"requested":"auto","used":"and","tokens":["web","crawler","connector","url","normalization"],"perTokenLimit":30,"strongTokens":["web","crawler","connector","url","normalization"],"semantic":{"used":true,"candidates":3}},"results":{"modules":[{"id":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","label":"…/web-crawler/web-crawler-connector","type":"module","score":67.96110734727972,"matchedTokens":["web","crawler","connector","url","normalization"],"matchedTokenCount":5,"children":1,"links":8,"annotationMatched":true,"semanticRank":1,"semanticScore":0.4731},{"id":"mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields","label":"…/_parts/web-crawler-config-fields","type":"module","score":39.81574325134864,"matchedTokens":["web","crawler"],"matchedTokenCount":2,"children":1,"links":8,"semanticRank":0,"semanticScore":0.4908}]},"topResults":[{"id":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","label":"…/web-crawler/web-crawler-connector","type":"module","score":67.96110734727972,"matchedTokens":["web","crawler","connector","url","normalization"],"matchedTokenCount":5,"children":1,"links":8,"annotationMatched":true,"semanticRank":1,"semanticScore":0.4731},{"id":"mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields","label":"…/_parts/web-crawler-config-fields","type":"module","score":39.81574325134864,"matchedTokens":["web","crawler"],"matchedTokenCount":2,"children":1,"links":8,"semanticRank":0,"semanticScore":0.4908},{"id":"mod:@backend/src/routes/chat/normalization/extract-inline-attachments","label":"…/normalization/extract-inline-attachments","type":"module","score":32.861009049915374,"matchedTokens":["normalization"],"matchedTokenCount":1,"children":5,"links":10,"semanticRank":2,"semanticScore":0.3931}],"suggestedScopes":[{"scope":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","reason":"Semantic + token match (web, crawler, connector, url, normalization)"},{"scope":"mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields","reason":"Semantic + token match (web, crawler)"},{"scope":"mod:@backend/src/routes/chat/normalization/extract-inline-attachments","reason":"Semantic + token match (normalization)"}],"groupTotals":{"modules":3},"groupPagination":{"modules":{"total":3,"returned":2,"offset":0,"truncated":true}},"totalResults":3,"truncated":true,"hint":"Use types to page a single category (for example types:[\"export-symbol\"] with offset), or narrow your query."},"suggestedScopes":[{"scope":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","reason":"Semantic + token match (web, crawler, connector, url, normalization)"},{"scope":"mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields","reason":"Semantic + token match (web, crawler)"},{"scope":"mod:@backend/src/routes/chat/normalization/extract-inline-attachments","reason":"Semantic + token match (normalization)"}],"configMatches":[],"entrypoints":[]},"gaps":["One or more top matches carry annotations; search_context does not include annotation fields — call inspect_node on the match before source-only reasoning or treating the node as understood."],"navigation":{"deeper":[{"tool":"inspect_node","args":{"nodeId":"$xxaomc"},"reason":"Inspect this match — annotations…"}],"sideways":[{"tool":"map_context","args":{"scope":"$xxaomc"},"reason":"Map where the strongest match…"},{"tool":"map_context","args":{"scope":"web crawler connector URL normalization","limit":10},"reason":"Try the query as a…"}]},"refs":{"$xxaomc":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector"}}
+
+Strong match on the target module, and it carries annotations. Inspecting it with source.
+
+  → repovine.inspect_node: {"nodeId":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","includeBody":true}
+    {"scope":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","resolvedScope":{"kind":"module","id":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector"},"summary":"Inspected mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.","confidence":"high","result":{"id":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","level":2,"label":"…/web-crawler/web-crawler-connector","description":"Module src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts in @backend","drill_down":[{"id":"export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector","label":"WebCrawlerConnector","type":"export-symbol","signature":"class WebCrawlerConnector","symbolKind":"class","calls":["parseWebCrawlerConfig","validateParsedConfig","this.runConnectionTest","this.createCrawler","crawler.run","normalizeCrawlUrl","toISOString","batcher.addDocument","batcher.addSkipped","catch","then","batcher.finish","batcher.fail","buildAllowedPathPrefixes","compileExcludePathPatterns","sleep","assertPublicCrawlUrl","isPathInScope","getRequestDepth","extractPage","params.onSkipped","params.onDocument","buildDocument","enqueueAllowedLinks"],"lineRange":{"start":61,"end":311}}],"links":[{"targetId":"mod:@backend/src/types","relation":"imports","label":"…/types/index","investigate":["hub"]},{"targetId":"mod:@backend/src/knowledge-base/connectors/base-connector","relation":"imports","label":"…/connectors/base-connector"},{"targetId":"mod:@backend/src/types/knowledge-connector","relation":"imports","label":"…/types/knowledge-connector","investigate":["hub"]},{"targetId":"domain:connectors","relation":"tagged","label":"connectors","tagSource":"path"},{"targetId":"domain:knowledge-base","relation":"tagged","label":"knowledge-base","tagSource":"path"},{"targetId":"domain:backend","relation":"tagged","label":"backend","tagSource":"package"},{"targetId":"domain:backend/knowledge-base","relation":"tagged","label":"backend/knowledge-base"},{"targetId":"domain:knowledge-base/connectors","relation":"tagged","label":"knowledge-base/connectors"}],"sourcePluginId":"typescript","body":"[source redacted]","bodyTotalChars":21767,"bodyHasMore":true,"bodyNextOffset":12000,"annotation":{"summary":"Web crawler knowledge connector. normalizeCrawlUrl is the single chokepoint that canonicalizes each crawled/discovered/canonical URL; the normalized URL is what buildDocument turns into the document's identity and sourceUrl.","sideEffects":[{"kind":"io-read","subtype":"network","description":"Crawls external web pages and yields documents for the knowledge-base sync pipeline."}],"risks":[{"text":"normalizeCrawlUrl and the stored identities it has already produced are one contract: kb_documents.source_id is the persisted form of this normalization, written once and never re-derived, and connector-sync has no prune. A change to the normalization is therefore incomplete until the existing source_ids are brought into line. This is not a deferred exposure: with no prune, the first sync after the change already inserts the duplicate and search already returns both the new and the stale row — the stored identities are out of line with the normalizer from that first sync onward, not at some later maintenance point.","scope":"consumer"}],"invariants":["The normalized crawl URL is the crawler document's stable identity: buildDocument derives the document id from it, and connector-sync persists that value as kb_documents.source_id (unique per connector).","Incremental sync matches an existing document by (connectorId, source_id) via KbDocumentModel.findBySourceId; a document whose source_id is not found is ingested as a new row, and its chunks — which carry the live search_vector the retrieval path queries — are indexed.","connector-sync has no prune step: a document previously stored under a source_id that is no longer produced is not removed (the perforce connector notes 'deletions are not propagated on incremental syncs'). A source_id that changes value leaves the old row in place while a new row is created.","kb search reads the chunks of every kb_documents row (search_vector @@ tsquery); a page present under two source_ids is returned twice.","kb_documents.source_id is written once at ingest and is never re-derived afterward — no migration or background job re-normalizes it when the derivation changes, so a changed normalizer and the stored identities diverge permanently until they are re-keyed.","This repository has reconciled this exact class of mismatch before: migration 0131_fix_agent_tool_trailing_underscores re-keyed stored tool names in code after a slugify change diverged from the persisted values — a SQL/TS normalization mismatch of the same shape as this one. Bringing the stored source_ids into line runs along that same established in-repo data-migration path."]},"annotationMeta":{"pass":4,"updatedAt":"2026-07-11T00:00:00.000Z","fresh":true,"moduleKind":"api-handler","quality":{"score":4,"missingFields":["assumptions","flowDescription","dataFlow"],"tier":"basic","moduleKind":"api-handler","consistency":{"ok":true,"issues":[]}}},"childPagination":{"total":1,"returned":1,"offset":0,"truncated":false},"affordanceCount":1},"navigation":{"deeper":[{"tool":"inspect_node","args":{"nodeId":"$6jf296"},"reason":"Inspect child WebCrawlerConnector"}],"sideways":[{"tool":"analyze_dependencies","args":{"scope":"$xxaomc","mode":"impact","depth":3},"reason":"Check consumers before changing this…"},{"tool":"get_config_surface","args":{"scope":"$xxaomc"},"reason":"Check hidden config/resource bindings for…"}],"up":[{"tool":"map_context","args":{"scope":"all","view":"summary"},"reason":"Return to the repository-level map"},{"tool":"map_context","args":{"scope":"pkg:@backend"},"reason":"Return to the parent scope"},{"tool":"map_context","args":{"scope":"domain:connectors"},"reason":"Return to a broader domain…"},{"tool":"map_context","args":{"scope":"domain:knowledge-base"},"reason":"Return to a broader domain…"}],"cross_layer":[{"tool":"trace_flow","args":{"scope":"$xxaomc"},"reason":"Look for runtime/data-flow links around…"}]},"refs":{"$6jf296":"export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector","$xxaomc":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector"}}
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [code removed — 756 line(s); symbols: WebCrawlerConnector, CheerioCrawlingContext, DEFAULT_BATCH_SIZE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PAGES, DEFAULT_USER_AGENT, DEFAULT_CONTENT_SELECTORS, DEFAULT_EXCLUDE_SELECTORS, BLOCKED_HOST_RANGES, ExtractedPage, CrawlerCheerioApi, CrawlerCheerioSelection, WebCrawlerConnectorOptions, parsed, error, configError, crawler, checkpoint, batcher, crawl, startUrl, allowedPathPrefixes, excludePathPatterns, startOrigin, requestDelayMs, elapsedMs, target, depth, extracted, parseWebCrawlerConfig, normalizedStartUrl, extractPage, title, canonicalUrl, root, urls, selectContentRoot, selected, buildDocument, buildAllowedPathPrefixes, path, lastSlash]
+
+  → Bash: ls /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/database/migrations/ | tail -30
+    [output redacted — 1 line(s)]
+
+  → repovine.search_context: {"query":"connector sync kb documents source_id findBySourceId","limit":10}
+    {"scope":"query:connector sync kb documents source_id findBySourceId","resolvedScope":{"kind":"query","id":"query:connector sync kb documents source_id findBySourceId"},"summary":"Found context candidates for \"connector sync kb documents source_id findBySourceId\".","confidence":"medium","result":{"matches":{"query":"connector sync kb documents source_id findBySourceId","strategy":{"requested":"auto","used":"or","tokens":["connector","sync","kb","documents","source","id","findbysourceid","find","by"],"perTokenLimit":20,"strongTokens":["connector","sync","kb","documents","source","id","findbysourceid","find"],"semantic":{"used":true,"candidates":3},"relaxedFrom":"and"},"results":{"modules":[{"id":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","label":"…/web-crawler/web-crawler-connector","type":"module","score":65.02000177263591,"matchedTokens":["connector","sync","kb","documents","source","id","findbysourceid","find","by"],"matchedTokenCount":9,"children":1,"links":8,"annotationMatched":true,"semanticRank":0,"semanticScore":0.501},{"id":"mod:@backend/src/knowledge-base/connector-sync","label":"…/knowledge-base/connector-sync","type":"module","score":33.737394416171554,"matchedTokens":["connector","sync"],"matchedTokenCount":2,"children":1,"links":22,"semanticRank":2,"semanticScore":0.3869}],"exportSymbols":[{"id":"export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsResponses","label":"GetConnectorDocumentsResponses","type":"export-symbol","score":38,"matchedTokens":["connector","documents","source","id"],"matchedTokenCount":4,"children":0,"links":0},{"id":"export:@frontend/src/lib/knowledge/kb-document.query/useConnectorDocuments","label":"useConnectorDocuments","type":"export-symbol","score":33,"matchedTokens":["connector","kb","documents"],"matchedTokenCount":3,"children":0,"links":0}]},"topResults":[{"id":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","label":"…/web-crawler/web-crawler-connector","type":"module","score":65.02000177263591,"matchedTokens":["connector","sync","kb","documents","source","id","findbysourceid","find","by"],"matchedTokenCount":9,"children":1,"links":8,"annotationMatched":true,"semanticRank":0,"semanticScore":0.501},{"id":"export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsResponses","label":"GetConnectorDocumentsResponses","type":"export-symbol","score":38,"matchedTokens":["connector","documents","source","id"],"matchedTokenCount":4,"children":0,"links":0},{"id":"mod:@backend/src/knowledge-base/connector-sync","label":"…/knowledge-base/connector-sync","type":"module","score":33.737394416171554,"matchedTokens":["connector","sync"],"matchedTokenCount":2,"children":1,"links":22,"semanticRank":2,"semanticScore":0.3869},{"id":"export:@frontend/src/lib/knowledge/kb-document.query/useConnectorDocuments","label":"useConnectorDocuments","type":"export-symbol","score":33,"matchedTokens":["connector","kb","documents"],"matchedTokenCount":3,"children":0,"links":0},{"id":"export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsData","label":"GetConnectorDocumentsData","type":"export-symbol","score":33,"matchedTokens":["connector","documents","id"],"matchedTokenCount":3,"children":0,"links":0},{"id":"export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsErrors","label":"GetConnectorDocumentsErrors","type":"export-symbol","score":33,"matchedTokens":["connector","documents","id"],"matchedTokenCount":3,"children":0,"links":0},{"id":"export:@archestra/shared/hey-api/clients/api/sdk.gen/getConnectorDocuments","label":"getConnectorDocuments","type":"export-symbol","score":30,"matchedTokens":["connector","documents"],"matchedTokenCount":2,"children":0,"links":0},{"id":"export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsError","label":"GetConnectorDocumentsError","type":"export-symbol","score":30,"matchedTokens":["connector","documents"],"matchedTokenCount":2,"children":0,"links":0},{"id":"export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsResponse","label":"GetConnectorDocumentsResponse","type":"export-symbol","score":30,"matchedTokens":["connector","documents"],"matchedTokenCount":2,"children":0,"links":0},{"id":"mod:@frontend/src/lib/knowledge/connector.query","label":"…/knowledge/connector.query","type":"module","score":29.255351021042692,"matchedTokens":["connector"],"matchedTokenCount":1,"children":14,"links":8,"semanticRank":1,"semanticScore":0.3878}],"suggestedScopes":[{"scope":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","reason":"Semantic + token match (connector, sync, kb, documents, source, id, findbysourceid, find, by)"},{"scope":"mod:@backend/src/knowledge-base/connector-sync","reason":"Semantic + token match (connector, sync)"},{"scope":"mod:@frontend/src/lib/knowledge/connector.query","reason":"Semantic + token match (connector)"},{"scope":"mod:@frontend/src/app/knowledge/connectors/_parts/connector-documents-table","reason":"Matched connector, documents"},{"scope":"mod:@backend/src/knowledge-base/kb-interaction","reason":"Matched kb"}],"groupTotals":{"modules":14,"exportSymbols":117},"groupPagination":{"modules":{"total":14,"returned":2,"offset":0,"truncated":true},"exportSymbols":{"total":117,"returned":2,"offset":0,"truncated":true}},"totalResults":131,"truncated":true,"vocabulary":{"findbysourceid":["find","findbysourceid;","source","sourceid"]},"hint":"Use types to page a single category (for example types:[\"export-symbol\"] with offset), or narrow your query."},"suggestedScopes":[{"scope":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","reason":"Semantic + token match (connector, sync, kb, documents, source, id, findbysourceid, find, by)"},{"scope":"mod:@backend/src/knowledge-base/connector-sync","reason":"Semantic + token match (connector, sync)"},{"scope":"mod:@frontend/src/lib/knowledge/connector.query","reason":"Semantic + token match (connector)"},{"scope":"mod:@frontend/src/app/knowledge/connectors/_parts/connector-documents-table","reason":"Matched connector, documents"},{"scope":"mod:@backend/src/knowledge-base/kb-interaction","reason":"Matched kb"}],"configMatches":[],"entrypoints":[]},"gaps":["No single node matched all query tokens; results were relaxed to bounded OR token matching.","Token 'findbysourceid' is unknown to this repository — nearby vocabulary: find, findbysourceid;, source, sourceid. Consider rephrasing the query with these terms.","One or more top matches carry annotations; search_context does not include annotation fields — call inspect_node on the match before source-only reasoning or treating the node as understood."],"navigation":{"deeper":[{"tool":"inspect_node","args":{"nodeId":"$xxaomc"},"reason":"Inspect this match — annotations…"}],"sideways":[{"tool":"map_context","args":{"scope":"$xxaomc"},"reason":"Map where the strongest match…"},{"tool":"map_context","args":{"scope":"connector sync kb documents source_id findBySourceId","limit":10},"reason":"Try the query as a…"}]},"refs":{"$xxaomc":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector"}}
+
+  → Bash: find /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend -type d -name migrations 2>/dev/null; find /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend -name "*0131*" 2>/dev/null
+    [output redacted — 2 line(s)]
+
+Found both. Reading the 0131 migration (the established re-keying pattern) and the connector-sync module.
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/migrations/0131_fix_agent_tool_trailing_underscores.sql
+    [code removed — 14 line(s); symbols: Trim, Root, Migration, REGEXP_REPLACE, TypeScript, This, Update, Pattern, agent__, UPDATE, updated_at, WHERE, LIKE, ESCAPE]
+
+  → repovine.inspect_node: {"nodeId":"mod:@backend/src/knowledge-base/connector-sync","includeBody":true}
+    {"scope":"mod:@backend/src/knowledge-base/connector-sync","resolvedScope":{"kind":"module","id":"mod:@backend/src/knowledge-base/connector-sync"},"summary":"Inspected mod:@backend/src/knowledge-base/connector-sync.","confidence":"high","result":{"id":"mod:@backend/src/knowledge-base/connector-sync","level":2,"label":"…/knowledge-base/connector-sync","description":"Module src/knowledge-base/connector-sync.ts in @backend","drill_down":[{"id":"export:@backend/src/knowledge-base/connector-sync/connectorSyncService","label":"connectorSyncService","type":"export-symbol","symbolKind":"const","lineRange":{"start":607,"end":607}}],"links":[{"targetId":"mod:@archestra/shared/index","relation":"imports","label":"index","investigate":["hub"]},{"targetId":"mod:@backend/src/logging","relation":"imports","label":"…/logging/index"},{"targetId":"mod:@backend/src/models","relation":"imports","label":"…/models/index"},{"targetId":"mod:@backend/src/observability/metrics","relation":"imports","label":"…/metrics/index"},{"targetId":"mod:@backend/src/task-queue","relation":"imports","label":"…/task-queue/index"},{"targetId":"mod:@backend/src/types","relation":"imports","label":"…/types/index","investigate":["hub"]},{"targetId":"mod:@backend/src/knowledge-base/chunker","relation":"imports","label":"…/knowledge-base/chunker"},{"targetId":"mod:@backend/src/knowledge-base/connector-credentials","relation":"imports","label":"…/knowledge-base/connector-credentials"},{"targetId":"mod:@backend/src/knowledge-base/connectors/base-connector","relation":"imports","label":"…/connectors/base-connector"},{"targetId":"mod:@backend/src/knowledge-base/connectors/registry","relation":"imports","label":"…/connectors/registry"},{"targetId":"mod:@backend/src/knowledge-base/kb-llm-client","relation":"imports","label":"…/knowledge-base/kb-llm-client"},{"targetId":"mod:@backend/src/knowledge-base/source-access-control","relation":"imports","label":"…/knowledge-base/source-access-control"},{"targetId":"mod:@archestra/shared/chat","relation":"imports","label":"chat"},{"targetId":"mod:@backend/src/task-queue/task-queue","relation":"imports","label":"…/task-queue/task-queue"},{"targetId":"mod:@backend/src/types/kb-document","relation":"imports","label":"…/types/kb-document"},{"targetId":"mod:@backend/src/types/knowledge-connector","relation":"imports","label":"…/types/knowledge-connector"},{"targetId":"mod:@backend/src/types/knowledge-base-connector","relation":"imports","label":"…/types/knowledge-base-connector"},{"targetId":"domain:knowledge-base","relation":"tagged","label":"knowledge-base","tagSource":"path"},{"targetId":"domain:backend","relation":"tagged","label":"backend","tagSource":"package"},{"targetId":"domain:parts","relation":"tagged","label":"parts","tagSource":"cluster"},{"targetId":"domain:parts/knowledge-base","relation":"tagged","label":"parts/knowledge-base"},{"targetId":"domain:backend/knowledge-base","relation":"tagged","label":"backend/knowledge-base"}],"sourcePluginId":"typescript","body":"[source redacted]","bodyTotalChars":18527,"bodyHasMore":true,"bodyNextOffset":12000,"childPagination":{"total":1,"returned":1,"offset":0,"truncated":false},"affordanceCount":1},"navigation":{"deeper":[{"tool":"inspect_node","args":{"nodeId":"export:@backend/src/knowledge-base/connector-sync/connectorSyncService"},"reason":"Inspect child connectorSyncService"}],"sideways":[{"tool":"analyze_dependencies","args":{"scope":"$1hqxo2f","mode":"impact","depth":3},"reason":"Check consumers before changing this…"},{"tool":"get_config_surface","args":{"scope":"$1hqxo2f"},"reason":"Check hidden config/resource bindings for…"}],"up":[{"tool":"map_context","args":{"scope":"all","view":"summary"},"reason":"Return to the repository-level map"},{"tool":"map_context","args":{"scope":"pkg:@backend"},"reason":"Return to the parent scope"},{"tool":"map_context","args":{"scope":"domain:knowledge-base"},"reason":"Return to a broader domain…"},{"tool":"map_context","args":{"scope":"domain:backend"},"reason":"Return to a broader domain…"}],"cross_layer":[{"tool":"trace_flow","args":{"scope":"$1hqxo2f"},"reason":"Look for runtime/data-flow links around…"}]},"refs":{"$1hqxo2f":"mod:@backend/src/knowledge-base/connector-sync"}}
+
+  → Bash: grep -n "ingestDocument\|findBySourceId\|sourceId\|source_id" /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connector-sync.ts | head -30; echo ---; ls /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/s […]
+    [output redacted — 9 line(s)]
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connector-sync.ts (offset 380)
+    [code removed — 160 line(s); symbols: hashInput, contentHash, existing, existingChunkCount, created, runLog, errorMessage, Sync, runId, Ingest, kb_documents, Lookup, connectorId, sourceId, Compare, Returns, ingestDocument, ConnectorDocument, connectorType, organizationId, AclEntry, Logger, documentId, Include, mediaContent, mimeType, JSON, Object, createHash, KbDocumentModel, findBySourceId, Same, KbChunkModel, countByDocument, chunkAndStore, embeddingStatus, existingDocId, Document, Content, sourceUrl, deleteByDocument, kbDocumentId]
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/schemas/kb-document.ts
+    [code removed — 52 line(s); symbols: kbDocumentsTable, pgTable, uniqueIndex, EmbeddingStatus, KbDocumentMetadata, knowledgeBaseConnectorsTable, kb_documents, primaryKey, defaultRandom, organizationId, organization_id, notNull, sourceId, source_id, connectorId, connector_id, onDelete, contentHash, content_hash, sourceUrl, source_url, embeddingStatus, embedding_status, chunkCount, chunk_count, createdAt, created_at, defaultNow, updatedAt, updated_at, $onUpdate, Date, kb_documents_org_id_idx, kb_documents_source_idx]
+
+  → Skill: platform:archestra-dev-migrations
+    [skill content loaded — 1 line(s)]
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/schemas/kb-chunk.ts
+    [code removed — 60 line(s); symbols: createVectorType, str, vector1536, vector768, vector3072, tsvector, kbChunksTable, customType, pgTable, kbDocumentsTable, driverParam, dataType, toDriver, fromDriver, Number, kb_chunks, primaryKey, defaultRandom, documentId, document_id, notNull, onDelete, chunkIndex, chunk_index, embedding_768, embedding_3072, searchVector, search_vector, metadataSuffixSemantic, metadata_suffix_semantic, metadataSuffixKeyword, metadata_suffix_keyword, createdAt, created_at, defaultNow, kb_chunks_document_id_idx]
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend; grep -rn "pgcrypto\|digest(" src/database/migrations/*.sql | head -5; echo "--- journal tail:"; python3 -c "import json; j=json.load(open('src/database/migrations/meta/_journal.json')); print(json.dumps(j['entries'] […]
+    [output redacted — 35 line(s)]
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend; grep -rn "CREATE EXTENSION" src/database/migrations/*.sql | head; echo "--- connectors table name:"; sed -n 21,24p src/database/schemas/knowledge-base-connector.ts; echo "--- test file normalization mentions:"; grep […]
+    [output redacted — 24 line(s)]
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [code removed — 766 line(s); symbols: IncomingMessage, ServerResponse, RouteHandler, servers, connector, invalidPattern, unsafePattern, crossOriginPrefix, invalidUrl, excludedStartUrl, result, seenUserAgents, site, batches, documents, install, requestedAt, recordRequest, notHtml, headingSite, headingBatches, bareSite, bareBatches, titles, urls, firstSync, server, path, route, address, close, sendHtml, html, createHash, createServer, afterEach, ConnectorSyncBatch, WebCrawlerConnector, allowPrivateNetwork, validateConfig, startUrl, includePathPrefixes]
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend; echo "--- normalizeCrawlUrl refs repo-wide:"; grep -rn "normalizeCrawlUrl" .. --include="*.ts" -l 2>/dev/null; echo "--- estimateTotalItems web-crawler override:"; grep -n "estimateTotalItems" src/knowledge-base/con […]
+    [output redacted — 32 line(s)]
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend; echo "--- retrieval/serving of source_url:"; grep -rn "sourceUrl" src/models/kb-chunk.ts src/models/kb-document.ts src/knowledge-base/kb-interaction.ts 2>/dev/null | head; echo "--- findBySourceId:"; grep -n "findBy […]
+    [output redacted — 45 line(s)]
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend; grep '"@crawlee/cheerio"' package.json; node -e " […]
+    [output redacted — 8 line(s)]
+
+All URL edge behaviors confirmed, and crawlee 3.14.1 supports explicit `uniqueKey`. Implementing the connector changes now:
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Connector edits complete. Type-checking the backend before writing the migration:
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform && pnpm --dir backend type-check 2>&1 | tail -15
+    [output redacted — 4 line(s)]
+
+  → Bash: pnpm install 2>&1 | tail -8
+    [output redacted — 8 line(s)]
+
+  → Bash: ls backend/node_modules/.bin/ 2>/dev/null | grep -E "tsgo|drizzle|vitest" | head; pnpm --dir backend type-check 2>&1 | tail -8
+    [output redacted — 4 line(s)]
+
+  → Bash: pnpm --dir backend exec drizzle-kit generate --custom --name=rekey_web_crawler_source_ids 2>&1 | tail -5; ls backend/src/database/migrations/ | tail -3
+    [output redacted — 6 line(s)]
+
+  → Bash: ARCHESTRA_DATABASE_URL="postgresql://archestra:x@localhost:5432/archestra_dev" pnpm --dir backend exec drizzle-kit generate --custom --name=rekey_web_crawler_source_ids 2>&1 | tail -4; ls backend/src/database/migrations/ | tail -2
+    [output redacted — 6 line(s)]
+
+  → Write: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/migrations/0313_rekey_web_crawler_source_ids.sql
+    [edit FAILED: <tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>]
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/migrations/0313_rekey_web_crawler_source_ids.sql
+    [code removed — 1 line(s); symbols: Custom]
+
+  → Write: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/migrations/0313_rekey_web_crawler_source_ids.sql
+    [edit applied]
+
+  → Write: /tmp/claude-1000/-home-olegk-workspace-bench-worktrees-archestra-wc-h2h3-fable-2/998bae17-d253-41bf-99ff-6d0ea82fee0e/scratchpad/verify-migration-parity.mjs
+    [edit applied]
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend && node /tmp/claude-1000/-home-olegk-workspace-bench-worktrees-archestra-wc-h2h3-fable-2/998bae17-d253-41bf-99ff-6d0ea82fee0e/scratchpad/verify-migration-parity.mjs 2>&1 | tail -50
+    [output redacted — 41 line(s)]
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform && ARCHESTRA_DATABASE_URL="postgresql://archestra:x@localhost:5432/archestra_dev" pnpm --dir backend exec drizzle-kit check 2>&1 | tail -3; echo "=== check:migrations:"; pnpm --dir backend check:migrations 2>&1 | tail -5; ec […]
+    [output redacted — 11 line(s)]
+
+The repo's migration linter flags the `DROP TABLE` (it's a temp table — a false positive, but the check must pass). Let me see the linter's warnings and whether it supports exemptions:
+
+  → Bash: pnpm --dir backend check:migrations 2>&1 | head -30; echo ===; grep -rn "check:migrations" backend/package.json
+    [output redacted — 34 line(s)]
+
+  → Bash: grep -n "drop-table\|TEMP\|temp\|ignore\|allow\|exempt" backend/src/standalone-scripts/lint-drizzle-migrations.ts | head -20
+    [output redacted — 1 line(s)]
+
+  → Bash: ls backend/src/standalone-scripts/ | head; grep -rln "drop-table" backend/src/standalone-scripts/ backend/src 2>/dev/null | head -3
+    [output redacted — 10 line(s)]
+
+  → Bash: ls backend/src/standalone-scripts/ | grep -i lint; grep -n "dropTable\|drop\|rules\|napi\|archestra-rs\|validate" backend/src/standalone-scripts/lint-drizzle-migrations.ts 2>/dev/null | head -15
+    [output redacted — 1 line(s)]
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/standalone-scripts/lint-drizzle-migrations.ts
+    [code removed — 73 line(s); symbols: LintMigrationResult, MIGRATIONS_DIR, main, baseRef, files, results, summary, getChangedMigrationFiles, printResults, location, findChangedMigrationFiles, lintMigrationFile, summarizeIssues, ARCHESTRA_MIGRATION_LINTER_BASE_REF, migrationsDir, Drizzle, filePath, toUpperCase]
+
+  → Bash: node -e […]
+    [output redacted — 5 line(s)]
+
+  → Bash: grep -n "drop-table\|TEMP\|ignore\|disable" drizzle-migration-linter/src/index.ts | head -15
+    [output redacted — 2 line(s)]
+
+  → Read: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/drizzle-migration-linter/src/index.ts (offset 130)
+    [code removed — 80 line(s); symbols: summarizeIssues, isMigrationSqlFile, RULES, changedOutput, untrackedOutput, Boolean, LintMigrationResult, filePath, endsWith, Internal, Rule, DROP, TABLE, bDROP, COLUMN, Keep, bALTER, Renames, bRENAME, NULL, Backfill, bSET]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/migrations/0313_rekey_web_crawler_source_ids.sql
+    [edit applied]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/platform/backend/src/database/migrations/0313_rekey_web_crawler_source_ids.sql
+    [edit applied]
+
+  → Bash: pnpm --dir backend check:migrations 2>&1 | tail -3; echo "=== re-verify parity+e2e:"; cd backend && node /tmp/claude-1000/-home-olegk-workspace-bench-worktrees-archestra-wc-h2h3-fable-2/998bae17-d253-41bf-99ff-6d0ea82fee0e/scratchpad/verify-migration-parity.mjs 2>&1 | tail -12
+    [output redacted — 16 line(s)]
+
+  → Bash: pnpm exec vitest run src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts src/knowledge-base/connector-sync.test.ts 2>&1 | tail -40
+    [output redacted — 39 line(s)]
+
+  → Bash: grep -n '"test"' package.json; grep -rn "ARCHESTRA_DATABASE_URL\|DATABASE_URL" vitest.config.ts vitest.setup.ts .env* 2>/dev/null | head -5; ls .env* 2>/dev/null; grep -rn "DATABASE_URL" src/test/global-setup.ts 2>/dev/null | head -3
+    [output redacted — 1 line(s)]
+
+  → Bash: grep -rn "DATABASE_URL" vitest.config.* src/test/*.ts 2>/dev/null | head -6; ls src/test/
+    [output redacted — 10 line(s)]
+
+No test-side default — it comes from the developer environment. Providing a dummy URL (tests use PGlite regardless):
+
+  → Bash: ARCHESTRA_DATABASE_URL="postgresql://archestra:x@localhost:5432/archestra_dev" pnpm exec vitest run src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts src/knowledge-base/connector-sync.test.ts 2>&1 | grep -E "✓|×|✗|passed|failed|FAIL|PASS|Tests " | tail -45
+    [output redacted — 19 line(s)]
+
+  → Bash: ARCHESTRA_DATABASE_URL="postgresql://archestra:x@localhost:5432/archestra_dev" pnpm exec vitest run src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts 2>&1 | grep -B2 -A12 "AssertionError" | head -60
+    [output redacted — 59 line(s)]
+
+  → Bash: sed -n '295,345p' /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/docs/pages/platform-knowledge-connectors.md; echo "=== writer prompt head:"; head -25 /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/docs/docs_writer_prompt.md
+    [output redacted — 76 line(s)]
+
+  → Edit: /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2/docs/pages/platform-knowledge-connectors.md
+    [edit applied]
+
+  → repovine.refresh_context: {}
+    {"scope":"all","resolvedScope":{"kind":"all","id":"all"},"summary":"Refreshed repository context graph.","confidence":"high","result":{"refresh":{"status":"rebuilt","builtAt":"2026-07-21T20:02:39.566Z","before":{"nodes":11758,"edges":29917},"after":{"nodes":11758,"edges":29917},"annotations":{"total":2,"orphaned":0},"searchTokens":20731,"semanticSearch":{"status":"up_to_date","total":1832},"domainsSuggestions":{"count":0,"axes":[],"declinedHidden":0}}},"navigation":{"validate":[{"tool":"get_annotation_status","args":{"view":"coverage"},"reason":"Check annotation freshness after refresh"}]}}
+
+  → ToolSearch: select:mcp__repovine__write_annotation
+    [output redacted — 0 line(s)]
+
+Graph refreshed cleanly. Updating the module annotation to replace the now-addressed risk with the standing parity contract:
+
+  → repovine.write_annotation: {"nodeId":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","durable":true,"annotation":{"summary":"Web crawler knowledge connector with two URL forms: normalizeRequestUrl is what the crawler…
+    {"scope":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","resolvedScope":{"kind":"module","id":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector"},"summary":"Saved annotation (~2.4k chars (~610 tok est.)) — persisted to disk.","confidence":"high","result":{"status":"saved","nodeId":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector","pass":5,"contentHash":"d02e01d2576a80a3","schemaVersion":1,"merged":true,"moduleKind":"api-handler","importBaseline":{"mod:@backend/src/types":"f377b60c16f01bc2","mod:@backend/src/knowledge-base/connectors/base-connector":"2fef0db04eb6a991","mod:@backend/src/types/knowledge-connector":"1fc6e0851ce6786b"},"quality":{"score":4,"tier":"basic","missingFields":["assumptions","flowDescription","dataFlow"],"consistency":{"ok":true,"issues":[]}},"submittedAnnotation":{"chars":2439,"estimatedTokens":610,"estimateMethod":"chars/4"},"persistence":{"durable":true,"persisted":true}},"navigation":{"sideways":[{"tool":"analyze_dependencies","args":{"scope":"$xxaomc","mode":"impact","depth":3},"reason":"Check consumers before changing this…"},{"tool":"get_config_surface","args":{"scope":"$xxaomc"},"reason":"Check hidden config/resource bindings for…"}],"up":[{"tool":"map_context","args":{"scope":"all","view":"summary"},"reason":"Return to the repository-level map"}],"validate":[{"tool":"inspect_node","args":{"nodeId":"$xxaomc"},"reason":"Read back the annotation and…"}]},"refs":{"$xxaomc":"mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector"}}
+
+Annotation persisted. Final inventory of the change set:
+
+  → Bash: cd /home/olegk/workspace/bench-worktrees/archestra-wc-h2h3-fable-2 && git status --short | grep -v "^??" ; echo ===; git diff --stat -- platform docs | tail -6
+    [output redacted — 11 line(s)]
+
+  → Bash: git diff .gitignore
+    [output redacted — 11 line(s)]
+
+The `.gitignore` addition is the repovine tooling registering its `.repovine/` cache dir (matches the documented artifact policy in AGENTS.md) — a tooling side effect, left in place. Everything is verified; here is the full report.
+
+---
+
+## What was done
+
+The crawler now has **two URL forms** instead of one: the form it **dials** stays exactly as today, while a strengthened **canonical form** becomes the page identity — and a data migration re-keys every already-indexed document to that new identity so existing documents keep being matched, updated in place, and served without duplicates.
+
+The one-function approach (making the single `normalizeCrawlUrl` do everything) was rejected deliberately: its output is also the URL the crawler dials, and stripping trailing slashes from *dialed* URLs turns working crawls into 404s/redirects (the entire test suite demonstrates this — every test server exact-matches `/docs/`). Instead, canonicalization applies where identity is decided, and frontier dedupe uses crawlee's explicit `uniqueKey`, so trailing-slash and tracking-param variants of a page are fetched once and indexed once while the server still receives the URL that was discovered.
+
+## Files changed and why
+
+**`platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`**
+- `normalizeCrawlUrl` (canonical identity) now: lowercases the host, strips `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`, `fbclid`, removes trailing slashes on non-root paths, and keeps the existing fragment/default-port stripping. Query filtering is textual (not `URLSearchParams`) so surviving parameters keep their exact serialization — re-encoding would silently shift identities of pages with no tracking params at all.
+- New `normalizeRequestUrl` preserves today's dialed form (fragment + default port only). `createCrawler`, `validateParsedConfig`, and `normalizeDiscoveredUrl` use it, so dialing, SSRF checks, scope checks, and exclude-pattern semantics are byte-identical to before.
+- Seeds and discovered links are enqueued with `[expr]` (`buildStartRequest`, `transformRequestFunction` in `enqueueAllowedLinks`), deduplicating the frontier on canonical identity — this also stops URL variants from burning `maxPages` budget.
+
+**`platform/backend/src/database/migrations/0313_rekey_web_crawler_source_ids.sql`** (+ journal entry)
+`kb_documents.source_id` is sha256 of the canonical URL, written once at ingest and never re-derived, and connector-sync has no prune — so without re-keying, the first sync after this change would insert a duplicate row next to every stale one. The migration re-normalizes each stored web-crawler `source_url` in SQL (mirroring the TypeScript byte-for-byte for the stored input domain), recomputes the sha256, collapses rows that now canonicalize to the same page keeping the most recently updated one (chunks cascade), and updates `source_id`/`source_url`. This follows the repo's own precedent, migration `0131_fix_agent_tool_trailing_underscores`, which fixed exactly this class of SQL/TS normalization mismatch.
+
+**`docs/pages/platform-knowledge-connectors.md`** — one sentence in the Web Crawler "Indexed:" paragraph documenting the canonicalization (per the platform rule to audit docs on behavior changes).
+
+**`repovine.annots.json`** (via `write_annotation`) — the module annotation's recorded risk ("stored source_ids diverge from the normalizer") is resolved; it now records the two-form design and the standing TS↔SQL parity contract. `.gitignore` gained `.repovine/` as a repovine-tooling side effect.
+
+## Deliberately left unchanged (with proof)
+
+- **Sync matching engine** — `connector-sync.ts:419-422` matches by `[expr]` and `:467-476` updates in place; correct behavior is restored by re-keying the data, not by changing the engine. `models/kb-document.ts:151-166` (`findBySourceId`) is key-format-agnostic.
+- **Serving path** — search reads `[expr]` by joining chunks to documents (`[expr]`); it is row-level and agnostic to how keys are derived. The migration is what guarantees one row per page.
+- **Crawl-scope derivation** — `buildAllowedPathPrefixes` branches on the start URL's trailing slash (`path.endsWith(…)`, old `web-crawler-connector.ts:469`); feeding it the canonical form would silently widen a `/docs/` crawl to the whole host, so `createCrawler` feeds it the request form (behavior pinned by `[expr]`, both passing).
+- **Redirect guard** — the `beforeRedirect` hook checks the raw redirect target (`web-crawler-connector.ts`, origin/scope checks around old lines 230-254); it is dial-layer policy, pinned by `web-crawler-connector.test.ts:209-229` (passing).
+- **Other connectors** — the migration filters `[expr]`; the e2e check proved a `jira` row with an identical URL stays byte-identical. `estimateTotalItems` exists only in `base-connector.ts:121` with no crawler override.
+- **Frontend** — `web-crawler-config-fields` renders config form fields only; identity is backend-internal.
+- **Tests** — untouched per constraints (next section).
+
+## Verification and residual risk
+
+Verified: `tsgo --noEmit` clean; biome clean; `drizzle-kit check` clean; migration linter 0 errors (6 warnings pre-exist on 0116); a PGlite harness proved **byte- and hash-parity between the SQL and TypeScript across 30 adversarial URLs** (encodings, empty/bare queries, multi-slash, userinfo, IPv6, non-default ports, case-sensitivity) plus an end-to-end run of the actual migration file (collision collapse, chunk cascade, idempotence); `connector-sync.test.ts` fully passes, with test setup replaying all migrations including 0313.
+
+Residual risk, stated plainly:
+1. **5 of 28 crawler tests now fail** — `[expr]` — every failure is an assertion pinning the *old* identity (`sourceUrl`/`metadata.url`/`id` with a trailing slash, e.g. `expect(…)`). They contradict the mandated normalization and the constraints forbid modifying tests; no behavioral test fails (all fetches, redirects, scoping, batching pass).
+2. Frontier dedupe keys on canonical identity, so if a site serves `/a/` but 404s `/a` **and** a broken `/a` link is discovered first, that page is skipped for the sync — the task's premise treats slash variants as the same page, but a rare strict server can violate it.
+3. Stored `source_url` is now the canonical (slash-stripped) form; a strict server could 404 that citation link on click. `metadata.fetchedUrl` retains the URL that was actually dialed.
+4. A sync racing the deploy window before 0313 applies could still insert one pre-rekey duplicate; migrations run before app start in this repo's flow, so exposure is a deploy-ordering edge, and re-running the (idempotent) migration would heal it.

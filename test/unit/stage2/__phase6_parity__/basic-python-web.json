@@ -1,0 +1,2690 @@
+{
+  "stats": {
+    "totalNodes": 65,
+    "totalEdges": 84,
+    "nodesByType": {
+      "domain": 12,
+      "export-symbol": 42,
+      "module": 8,
+      "package": 2,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 52,
+      "tagged": 32
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:django-app",
+      "domain:cluster",
+      "domain:drf-advanced-py",
+      "domain:drf-fbv-py",
+      "domain:drf-urls-py",
+      "domain:firstpass-urls-py",
+      "domain:nested-urls-py",
+      "domain:urls-py",
+      "domain:firstpass-py",
+      "domain:fastapi-app",
+      "domain:main-py",
+      "domain:routing"
+    ],
+    "export-symbol": [
+      "export:django-app/drf_advanced/InvoiceViewSet",
+      "export:django-app/drf_advanced/ReadOnlyViewSet",
+      "export:django-app/drf_advanced/BillingRouter",
+      "export:django-app/drf_advanced/full_router",
+      "export:django-app/drf_advanced/readonly_router",
+      "export:django-app/drf_advanced/billing_router",
+      "export:django-app/drf_advanced/urlpatterns",
+      "export:django-app/drf_fbv/notes_list",
+      "export:django-app/drf_fbv/urlpatterns",
+      "export:django-app/drf_urls/UserViewSet",
+      "export:django-app/drf_urls/router",
+      "export:django-app/drf_urls/urlpatterns",
+      "export:django-app/firstpass_urls/core_view",
+      "export:django-app/firstpass_urls/extra_view",
+      "export:django-app/firstpass_urls/core_patterns",
+      "export:django-app/firstpass_urls/extra_patterns",
+      "export:django-app/firstpass_urls/urlpatterns",
+      "export:django-app/firstpass_urls/more_patterns",
+      "export:django-app/nested_urls/legacy_view",
+      "export:django-app/nested_urls/legacy_patterns",
+      "export:django-app/nested_urls/urlpatterns",
+      "export:django-app/urls/list_users",
+      "export:django-app/urls/item_detail",
+      "export:django-app/urls/urlpatterns",
+      "export:fastapi-app/firstpass/app",
+      "export:fastapi-app/firstpass/PREFIX",
+      "export:fastapi-app/firstpass/pos_router",
+      "export:fastapi-app/firstpass/info",
+      "export:fastapi-app/firstpass/report",
+      "export:fastapi-app/firstpass/ws_feed",
+      "export:fastapi-app/main/app",
+      "export:fastapi-app/main/router",
+      "export:fastapi-app/main/health",
+      "export:fastapi-app/main/create_item",
+      "export:fastapi-app/main/v1_router",
+      "export:fastapi-app/main/list_users_v1",
+      "export:fastapi-app/main/METRICS_PREFIX",
+      "export:fastapi-app/main/API_VER",
+      "export:fastapi-app/main/metrics_router",
+      "export:fastapi-app/main/liveness",
+      "export:fastapi-app/main/v3_router",
+      "export:fastapi-app/main/status_v3"
+    ],
+    "module": [
+      "mod:django-app/drf_advanced",
+      "mod:django-app/drf_fbv",
+      "mod:django-app/drf_urls",
+      "mod:django-app/firstpass_urls",
+      "mod:django-app/nested_urls",
+      "mod:django-app/urls",
+      "mod:fastapi-app/firstpass",
+      "mod:fastapi-app/main"
+    ],
+    "package": [
+      "pkg:django-app",
+      "pkg:fastapi-app"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:cluster",
+      "type": "domain",
+      "label": "cluster",
+      "description": "Domain: cluster",
+      "data": {
+        "weight": "heavy",
+        "tier": "business"
+      }
+    },
+    {
+      "id": "domain:django-app",
+      "type": "domain",
+      "label": "django-app",
+      "description": "Domain: django-app",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:drf-advanced-py",
+      "type": "domain",
+      "label": "drf-advanced-py",
+      "description": "Domain: drf-advanced-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:drf-fbv-py",
+      "type": "domain",
+      "label": "drf-fbv-py",
+      "description": "Domain: drf-fbv-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:drf-urls-py",
+      "type": "domain",
+      "label": "drf-urls-py",
+      "description": "Domain: drf-urls-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:fastapi-app",
+      "type": "domain",
+      "label": "fastapi-app",
+      "description": "Domain: fastapi-app",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:firstpass-py",
+      "type": "domain",
+      "label": "firstpass-py",
+      "description": "Domain: firstpass-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:firstpass-urls-py",
+      "type": "domain",
+      "label": "firstpass-urls-py",
+      "description": "Domain: firstpass-urls-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:main-py",
+      "type": "domain",
+      "label": "main-py",
+      "description": "Domain: main-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:nested-urls-py",
+      "type": "domain",
+      "label": "nested-urls-py",
+      "description": "Domain: nested-urls-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:urls-py",
+      "type": "domain",
+      "label": "urls-py",
+      "description": "Domain: urls-py",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/billing_router",
+      "type": "export-symbol",
+      "label": "billing_router",
+      "description": "const billing_router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 30,
+          "end": 30
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/BillingRouter",
+      "type": "export-symbol",
+      "label": "BillingRouter",
+      "description": "class BillingRouter",
+      "data": {
+        "symbolKind": "class",
+        "lineRange": {
+          "start": 20,
+          "end": 21
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/full_router",
+      "type": "export-symbol",
+      "label": "full_router",
+      "description": "const full_router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 24,
+          "end": 24
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/InvoiceViewSet",
+      "type": "export-symbol",
+      "label": "InvoiceViewSet",
+      "description": "class InvoiceViewSet",
+      "data": {
+        "symbolKind": "class",
+        "lineRange": {
+          "start": 6,
+          "end": 13
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/readonly_router",
+      "type": "export-symbol",
+      "label": "readonly_router",
+      "description": "const readonly_router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 27,
+          "end": 27
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/ReadOnlyViewSet",
+      "type": "export-symbol",
+      "label": "ReadOnlyViewSet",
+      "description": "class ReadOnlyViewSet",
+      "data": {
+        "symbolKind": "class",
+        "lineRange": {
+          "start": 16,
+          "end": 17
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/urlpatterns",
+      "type": "export-symbol",
+      "label": "urlpatterns",
+      "description": "const urlpatterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 33,
+          "end": 37
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_fbv/notes_list",
+      "type": "export-symbol",
+      "label": "notes_list",
+      "description": "function notes_list",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 6,
+          "end": 7
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_fbv/urlpatterns",
+      "type": "export-symbol",
+      "label": "urlpatterns",
+      "description": "const urlpatterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 10,
+          "end": 12
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_urls/router",
+      "type": "export-symbol",
+      "label": "router",
+      "description": "const router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 9,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_urls/urlpatterns",
+      "type": "export-symbol",
+      "label": "urlpatterns",
+      "description": "const urlpatterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 12,
+          "end": 14
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/drf_urls/UserViewSet",
+      "type": "export-symbol",
+      "label": "UserViewSet",
+      "description": "class UserViewSet",
+      "data": {
+        "symbolKind": "class",
+        "lineRange": {
+          "start": 5,
+          "end": 6
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/core_patterns",
+      "type": "export-symbol",
+      "label": "core_patterns",
+      "description": "const core_patterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 12,
+          "end": 14
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/core_view",
+      "type": "export-symbol",
+      "label": "core_view",
+      "description": "function core_view",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 4,
+          "end": 5
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/extra_patterns",
+      "type": "export-symbol",
+      "label": "extra_patterns",
+      "description": "const extra_patterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 16,
+          "end": 18
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/extra_view",
+      "type": "export-symbol",
+      "label": "extra_view",
+      "description": "function extra_view",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 8,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/more_patterns",
+      "type": "export-symbol",
+      "label": "more_patterns",
+      "description": "const more_patterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 24,
+          "end": 26
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/urlpatterns",
+      "type": "export-symbol",
+      "label": "urlpatterns",
+      "description": "const urlpatterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 20,
+          "end": 22
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/nested_urls/legacy_patterns",
+      "type": "export-symbol",
+      "label": "legacy_patterns",
+      "description": "const legacy_patterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 8,
+          "end": 10
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/nested_urls/legacy_view",
+      "type": "export-symbol",
+      "label": "legacy_view",
+      "description": "function legacy_view",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 4,
+          "end": 5
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/nested_urls/urlpatterns",
+      "type": "export-symbol",
+      "label": "urlpatterns",
+      "description": "const urlpatterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 12,
+          "end": 14
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/urls/item_detail",
+      "type": "export-symbol",
+      "label": "item_detail",
+      "description": "function item_detail",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 8,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/urls/list_users",
+      "type": "export-symbol",
+      "label": "list_users",
+      "description": "function list_users",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 4,
+          "end": 5
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:django-app/urls/urlpatterns",
+      "type": "export-symbol",
+      "label": "urlpatterns",
+      "description": "const urlpatterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 12,
+          "end": 15
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/app",
+      "type": "export-symbol",
+      "label": "app",
+      "description": "const app",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 3,
+          "end": 3
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/info",
+      "type": "export-symbol",
+      "label": "info",
+      "description": "function info",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 10,
+          "end": 11
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/pos_router",
+      "type": "export-symbol",
+      "label": "pos_router",
+      "description": "const pos_router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 6,
+          "end": 6
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/PREFIX",
+      "type": "export-symbol",
+      "label": "PREFIX",
+      "description": "const PREFIX",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 4,
+          "end": 4
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/report",
+      "type": "export-symbol",
+      "label": "report",
+      "description": "function report",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 14,
+          "end": 15
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/ws_feed",
+      "type": "export-symbol",
+      "label": "ws_feed",
+      "description": "function ws_feed",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 22,
+          "end": 23
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/API_VER",
+      "type": "export-symbol",
+      "label": "API_VER",
+      "description": "const API_VER",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 26,
+          "end": 26
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/app",
+      "type": "export-symbol",
+      "label": "app",
+      "description": "const app",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 3,
+          "end": 3
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/create_item",
+      "type": "export-symbol",
+      "label": "create_item",
+      "description": "function create_item",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 13,
+          "end": 14
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/health",
+      "type": "export-symbol",
+      "label": "health",
+      "description": "function health",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 8,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/list_users_v1",
+      "type": "export-symbol",
+      "label": "list_users_v1",
+      "description": "function list_users_v1",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 21,
+          "end": 22
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/liveness",
+      "type": "export-symbol",
+      "label": "liveness",
+      "description": "function liveness",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 32,
+          "end": 33
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/METRICS_PREFIX",
+      "type": "export-symbol",
+      "label": "METRICS_PREFIX",
+      "description": "const METRICS_PREFIX",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 25,
+          "end": 25
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/metrics_router",
+      "type": "export-symbol",
+      "label": "metrics_router",
+      "description": "const metrics_router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 28,
+          "end": 28
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/router",
+      "type": "export-symbol",
+      "label": "router",
+      "description": "const router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 4,
+          "end": 4
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/status_v3",
+      "type": "export-symbol",
+      "label": "status_v3",
+      "description": "function status_v3",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 40,
+          "end": 41
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/v1_router",
+      "type": "export-symbol",
+      "label": "v1_router",
+      "description": "const v1_router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 17,
+          "end": 17
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/v3_router",
+      "type": "export-symbol",
+      "label": "v3_router",
+      "description": "const v3_router",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 36,
+          "end": 36
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:django-app/drf_advanced",
+      "type": "module",
+      "label": "drf_advanced.py",
+      "description": "Module drf_advanced.py in django-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/django-app/drf_advanced.py",
+        "relativeFilePath": "drf_advanced.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/drf_fbv",
+      "type": "module",
+      "label": "drf_fbv.py",
+      "description": "Module drf_fbv.py in django-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/django-app/drf_fbv.py",
+        "relativeFilePath": "drf_fbv.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/drf_urls",
+      "type": "module",
+      "label": "drf_urls.py",
+      "description": "Module drf_urls.py in django-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/django-app/drf_urls.py",
+        "relativeFilePath": "drf_urls.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/firstpass_urls",
+      "type": "module",
+      "label": "firstpass_urls.py",
+      "description": "Module firstpass_urls.py in django-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/django-app/firstpass_urls.py",
+        "relativeFilePath": "firstpass_urls.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/nested_urls",
+      "type": "module",
+      "label": "nested_urls.py",
+      "description": "Module nested_urls.py in django-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/django-app/nested_urls.py",
+        "relativeFilePath": "nested_urls.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/urls",
+      "type": "module",
+      "label": "urls.py",
+      "description": "Module urls.py in django-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/django-app/urls.py",
+        "relativeFilePath": "urls.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:fastapi-app/firstpass",
+      "type": "module",
+      "label": "firstpass.py",
+      "description": "Module firstpass.py in fastapi-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/fastapi-app/firstpass.py",
+        "relativeFilePath": "firstpass.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:fastapi-app/main",
+      "type": "module",
+      "label": "main.py",
+      "description": "Module main.py in fastapi-app",
+      "data": {
+        "filePath": "<FIXTURE>/packages/fastapi-app/main.py",
+        "relativeFilePath": "main.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "pkg:django-app",
+      "type": "package",
+      "label": "django-app",
+      "description": "Package django-app (packages/django-app)",
+      "data": {
+        "path": "packages/django-app",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "pkg:fastapi-app",
+      "type": "package",
+      "label": "fastapi-app",
+      "description": "Package fastapi-app (packages/fastapi-app)",
+      "data": {
+        "path": "packages/fastapi-app",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 2 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:cluster",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:cluster",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:django-app",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:django-app",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:drf-advanced-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:drf-advanced-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:drf-fbv-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:drf-fbv-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:drf-urls-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:drf-urls-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:fastapi-app",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:fastapi-app",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:firstpass-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:firstpass-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:firstpass-urls-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:firstpass-urls-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:main-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:main-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:nested-urls-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:nested-urls-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:urls-py",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:urls-py",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/billing_router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_advanced/billing_router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/BillingRouter",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_advanced/BillingRouter",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/full_router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_advanced/full_router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/InvoiceViewSet",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_advanced/InvoiceViewSet",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/readonly_router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_advanced/readonly_router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/ReadOnlyViewSet",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_advanced/ReadOnlyViewSet",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_advanced/urlpatterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_advanced/urlpatterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_fbv/notes_list",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_fbv/notes_list",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_fbv/urlpatterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_fbv/urlpatterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_urls/router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_urls/router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_urls/urlpatterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_urls/urlpatterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/drf_urls/UserViewSet",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/drf_urls/UserViewSet",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/core_patterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/firstpass_urls/core_patterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/core_view",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/firstpass_urls/core_view",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/extra_patterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/firstpass_urls/extra_patterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/extra_view",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/firstpass_urls/extra_view",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/more_patterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/firstpass_urls/more_patterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/firstpass_urls/urlpatterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/firstpass_urls/urlpatterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/nested_urls/legacy_patterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/nested_urls/legacy_patterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/nested_urls/legacy_view",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/nested_urls/legacy_view",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/nested_urls/urlpatterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/nested_urls/urlpatterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/urls/item_detail",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/urls/item_detail",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/urls/list_users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/urls/list_users",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:django-app/urls/urlpatterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:django-app/urls/urlpatterns",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/app",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/firstpass/app",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/info",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/firstpass/info",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/pos_router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/firstpass/pos_router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/PREFIX",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/firstpass/PREFIX",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/report",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/firstpass/report",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/firstpass/ws_feed",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/firstpass/ws_feed",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/API_VER",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/API_VER",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/app",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/app",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/create_item",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/create_item",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/health",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/health",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/list_users_v1",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/list_users_v1",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/liveness",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/liveness",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/METRICS_PREFIX",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/METRICS_PREFIX",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/metrics_router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/metrics_router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/status_v3",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/status_v3",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/v1_router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/v1_router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:fastapi-app/main/v3_router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:fastapi-app/main/v3_router",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:django-app/drf_advanced",
+      "links": [
+        {
+          "to": "domain:django-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:drf-advanced-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:django-app/drf_advanced/InvoiceViewSet",
+        "export:django-app/drf_advanced/ReadOnlyViewSet",
+        "export:django-app/drf_advanced/BillingRouter",
+        "export:django-app/drf_advanced/full_router",
+        "export:django-app/drf_advanced/readonly_router",
+        "export:django-app/drf_advanced/billing_router",
+        "export:django-app/drf_advanced/urlpatterns"
+      ],
+      "view": {
+        "id": "mod:django-app/drf_advanced",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:django-app/drf_advanced/InvoiceViewSet",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_advanced/ReadOnlyViewSet",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_advanced/BillingRouter",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_advanced/full_router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_advanced/readonly_router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_advanced/billing_router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_advanced/urlpatterns",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:django-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:drf-advanced-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/drf_fbv",
+      "links": [
+        {
+          "to": "domain:django-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:drf-fbv-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:django-app/drf_fbv/notes_list",
+        "export:django-app/drf_fbv/urlpatterns"
+      ],
+      "view": {
+        "id": "mod:django-app/drf_fbv",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:django-app/drf_fbv/notes_list",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_fbv/urlpatterns",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:django-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:drf-fbv-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/drf_urls",
+      "links": [
+        {
+          "to": "domain:django-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:drf-urls-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:django-app/drf_urls/UserViewSet",
+        "export:django-app/drf_urls/router",
+        "export:django-app/drf_urls/urlpatterns"
+      ],
+      "view": {
+        "id": "mod:django-app/drf_urls",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:django-app/drf_urls/UserViewSet",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_urls/router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/drf_urls/urlpatterns",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:django-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:drf-urls-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/firstpass_urls",
+      "links": [
+        {
+          "to": "domain:django-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:firstpass-urls-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:django-app/firstpass_urls/core_view",
+        "export:django-app/firstpass_urls/extra_view",
+        "export:django-app/firstpass_urls/core_patterns",
+        "export:django-app/firstpass_urls/extra_patterns",
+        "export:django-app/firstpass_urls/urlpatterns",
+        "export:django-app/firstpass_urls/more_patterns"
+      ],
+      "view": {
+        "id": "mod:django-app/firstpass_urls",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:django-app/firstpass_urls/core_view",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/firstpass_urls/extra_view",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/firstpass_urls/core_patterns",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/firstpass_urls/extra_patterns",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/firstpass_urls/urlpatterns",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/firstpass_urls/more_patterns",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:django-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:firstpass-urls-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/nested_urls",
+      "links": [
+        {
+          "to": "domain:django-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:nested-urls-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:django-app/nested_urls/legacy_view",
+        "export:django-app/nested_urls/legacy_patterns",
+        "export:django-app/nested_urls/urlpatterns"
+      ],
+      "view": {
+        "id": "mod:django-app/nested_urls",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:django-app/nested_urls/legacy_view",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/nested_urls/legacy_patterns",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/nested_urls/urlpatterns",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:django-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nested-urls-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:django-app/urls",
+      "links": [
+        {
+          "to": "domain:django-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:urls-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:django-app/urls/list_users",
+        "export:django-app/urls/item_detail",
+        "export:django-app/urls/urlpatterns"
+      ],
+      "view": {
+        "id": "mod:django-app/urls",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:django-app/urls/list_users",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/urls/item_detail",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:django-app/urls/urlpatterns",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:django-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:urls-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:fastapi-app/firstpass",
+      "links": [
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:firstpass-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:fastapi-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:fastapi-app/firstpass/app",
+        "export:fastapi-app/firstpass/PREFIX",
+        "export:fastapi-app/firstpass/pos_router",
+        "export:fastapi-app/firstpass/info",
+        "export:fastapi-app/firstpass/report",
+        "export:fastapi-app/firstpass/ws_feed"
+      ],
+      "view": {
+        "id": "mod:fastapi-app/firstpass",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:fastapi-app/firstpass/app",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/firstpass/PREFIX",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/firstpass/pos_router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/firstpass/info",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/firstpass/report",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/firstpass/ws_feed",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:firstpass-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:fastapi-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:fastapi-app/main",
+      "links": [
+        {
+          "to": "domain:cluster",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:main-py",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:fastapi-app",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:fastapi-app/main/app",
+        "export:fastapi-app/main/router",
+        "export:fastapi-app/main/health",
+        "export:fastapi-app/main/create_item",
+        "export:fastapi-app/main/v1_router",
+        "export:fastapi-app/main/list_users_v1",
+        "export:fastapi-app/main/METRICS_PREFIX",
+        "export:fastapi-app/main/API_VER",
+        "export:fastapi-app/main/metrics_router",
+        "export:fastapi-app/main/liveness",
+        "export:fastapi-app/main/v3_router",
+        "export:fastapi-app/main/status_v3"
+      ],
+      "view": {
+        "id": "mod:fastapi-app/main",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:fastapi-app/main/app",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/health",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/create_item",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/v1_router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/list_users_v1",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/METRICS_PREFIX",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/API_VER",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/metrics_router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/liveness",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/v3_router",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:fastapi-app/main/status_v3",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:cluster",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:main-py",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:fastapi-app",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "pkg:django-app",
+      "links": [],
+      "children": [
+        "mod:django-app/drf_advanced",
+        "mod:django-app/drf_fbv",
+        "mod:django-app/drf_urls",
+        "mod:django-app/firstpass_urls",
+        "mod:django-app/nested_urls",
+        "mod:django-app/urls"
+      ],
+      "view": {
+        "id": "pkg:django-app",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:django-app/drf_advanced",
+            "type": "module"
+          },
+          {
+            "id": "mod:django-app/drf_fbv",
+            "type": "module"
+          },
+          {
+            "id": "mod:django-app/drf_urls",
+            "type": "module"
+          },
+          {
+            "id": "mod:django-app/firstpass_urls",
+            "type": "module"
+          },
+          {
+            "id": "mod:django-app/nested_urls",
+            "type": "module"
+          },
+          {
+            "id": "mod:django-app/urls",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:fastapi-app",
+      "links": [],
+      "children": [
+        "mod:fastapi-app/firstpass",
+        "mod:fastapi-app/main"
+      ],
+      "view": {
+        "id": "pkg:fastapi-app",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:fastapi-app/firstpass",
+            "type": "module"
+          },
+          {
+            "id": "mod:fastapi-app/main",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:django-app",
+        "pkg:fastapi-app"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:django-app",
+            "type": "package"
+          },
+          {
+            "id": "pkg:fastapi-app",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": [
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/",
+      "component": "InvoiceViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/",
+      "component": "InvoiceViewSet",
+      "method": "POST",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/{pk}/:DELETE",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "DELETE",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/{pk}/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/{pk}/:PATCH",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "PATCH",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/{pk}/:PUT",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "PUT",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/{pk}/void/:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/{pk}/void/",
+      "component": "InvoiceViewSet.void_invoice",
+      "method": "POST",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/open/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/open/",
+      "component": "InvoiceViewSet.open_invoices",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/ro/reports/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/ro/reports/",
+      "component": "ReadOnlyViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/ro/reports/{pk}/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/ro/reports/{pk}/",
+      "component": "ReadOnlyViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/",
+      "component": "InvoiceViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/",
+      "component": "InvoiceViewSet",
+      "method": "POST",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/{pk}/:DELETE",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "DELETE",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/{pk}/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/{pk}/:PATCH",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "PATCH",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/{pk}/:PUT",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/{pk}/",
+      "component": "InvoiceViewSet",
+      "method": "PUT",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/{pk}/void/:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/{pk}/void/",
+      "component": "InvoiceViewSet.void_invoice",
+      "method": "POST",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/open/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/open/",
+      "component": "InvoiceViewSet.open_invoices",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_fbv:/notes/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/notes/",
+      "component": "notes_list",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_fbv",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_fbv:/notes/:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/notes/",
+      "component": "notes_list",
+      "method": "POST",
+      "moduleId": "mod:django-app/drf_fbv",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_urls:/api/users/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users/",
+      "component": "UserViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_urls:/api/users/:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users/",
+      "component": "UserViewSet",
+      "method": "POST",
+      "moduleId": "mod:django-app/drf_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_urls:/api/users/{pk}/:DELETE",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users/{pk}/",
+      "component": "UserViewSet",
+      "method": "DELETE",
+      "moduleId": "mod:django-app/drf_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_urls:/api/users/{pk}/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users/{pk}/",
+      "component": "UserViewSet",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_urls:/api/users/{pk}/:PATCH",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users/{pk}/",
+      "component": "UserViewSet",
+      "method": "PATCH",
+      "moduleId": "mod:django-app/drf_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_urls:/api/users/{pk}/:PUT",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users/{pk}/",
+      "component": "UserViewSet",
+      "method": "PUT",
+      "moduleId": "mod:django-app/drf_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/firstpass_urls:/core/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/core/",
+      "component": "core_view",
+      "method": "GET",
+      "moduleId": "mod:django-app/firstpass_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "django"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/firstpass_urls:/more/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/more/",
+      "component": "extra_view",
+      "method": "GET",
+      "moduleId": "mod:django-app/firstpass_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "django"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/firstpass_urls:/ns/extra/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/ns/extra/",
+      "component": "extra_view",
+      "method": "GET",
+      "moduleId": "mod:django-app/firstpass_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "django"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/nested_urls:/legacy/old-users/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/legacy/old-users/",
+      "component": "legacy_view",
+      "method": "GET",
+      "moduleId": "mod:django-app/nested_urls",
+      "source": "django-urlpatterns",
+      "webFramework": "django"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/urls:/users/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/users/",
+      "component": "list_users",
+      "method": "GET",
+      "moduleId": "mod:django-app/urls",
+      "source": "django-urlpatterns",
+      "webFramework": "django"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/urls:^items/(?P<id>\\d+)/$:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "^items/(?P<id>\\d+)/$",
+      "component": "item_detail",
+      "method": "GET",
+      "moduleId": "mod:django-app/urls",
+      "source": "django-urlpatterns",
+      "webFramework": "django"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/firstpass:/pos/info:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/pos/info",
+      "component": "info",
+      "method": "GET",
+      "moduleId": "mod:fastapi-app/firstpass",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/firstpass:/report:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/report",
+      "component": "report",
+      "method": "GET",
+      "moduleId": "mod:fastapi-app/firstpass",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/firstpass:/report:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/report",
+      "component": "report",
+      "method": "POST",
+      "moduleId": "mod:fastapi-app/firstpass",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/firstpass:/ws/feed:WEBSOCKET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/ws/feed",
+      "component": "ws_feed",
+      "method": "WEBSOCKET",
+      "moduleId": "mod:fastapi-app/firstpass",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/main:/api/items:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/items",
+      "component": "create_item",
+      "method": "POST",
+      "moduleId": "mod:fastapi-app/main",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/main:/health:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/health",
+      "component": "health",
+      "method": "GET",
+      "moduleId": "mod:fastapi-app/main",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/main:/metrics/live:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/metrics/live",
+      "component": "liveness",
+      "method": "GET",
+      "moduleId": "mod:fastapi-app/main",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/main:/v1/users:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v1/users",
+      "component": "list_users_v1",
+      "method": "GET",
+      "moduleId": "mod:fastapi-app/main",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    },
+    {
+      "id": "entrypoint:api:mod:fastapi-app/main:/v3/status:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v3/status",
+      "component": "status_v3",
+      "method": "GET",
+      "moduleId": "mod:fastapi-app/main",
+      "source": "fastapi-decorator",
+      "webFramework": "fastapi"
+    }
+  ]
+}

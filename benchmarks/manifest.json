@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "corpusId": "repovine-complete-scoped-changes-2026-07",
+  "status": "published",
+  "treatment": {
+    "baseline": "Native repository instructions, skills, documentation, and agent tools; Repovine absent.",
+    "repovine": "The same native environment with Repovine 0.1.0 enabled under the setup published for each case."
+  },
+  "runtime": {
+    "client": "Claude Code",
+    "clientVersionLine": "1.2",
+    "exactPerRunClientBuildRetained": false,
+    "effortFlag": "--effort max",
+    "effortLabel": "max (ultracode)",
+    "autoMemoryEnabled": false,
+    "hostedModelRuntimeMutable": true
+  },
+  "models": [
+    {
+      "slug": "opus-4.8",
+      "apiId": "claude-opus-4-8"
+    },
+    {
+      "slug": "sonnet-5",
+      "apiId": "claude-sonnet-5"
+    },
+    {
+      "slug": "fable-5",
+      "apiId": "claude-fable-5"
+    }
+  ],
+  "runsPerModelArm": 10,
+  "totalRuns": 240,
+  "cases": [
+    {
+      "id": "archestra-restraint-tool-slug",
+      "class": "restraint",
+      "repository": "archestra-ai",
+      "pin": "f34dc474913a85700bebd29f5065800bb79accb3",
+      "baselinePasses": {
+        "opus-4.8": 0,
+        "sonnet-5": 9,
+        "fable-5": 0
+      },
+      "repovinePasses": {
+        "opus-4.8": 10,
+        "sonnet-5": 10,
+        "fable-5": 10
+      }
+    },
+    {
+      "id": "kibana-restraint-frozen-consumer",
+      "class": "restraint",
+      "repository": "elastic/kibana",
+      "pin": "68df830b2849a4b8e53114d621906b81fdbca99f",
+      "baselinePasses": {
+        "opus-4.8": 1,
+        "sonnet-5": 4,
+        "fable-5": 1
+      },
+      "repovinePasses": {
+        "opus-4.8": 10,
+        "sonnet-5": 10,
+        "fable-5": 10
+      }
+    },
+    {
+      "id": "kibana-correctness-mapped-params-migration",
+      "class": "correctness",
+      "repository": "elastic/kibana",
+      "pin": "68df830b2849a4b8e53114d621906b81fdbca99f",
+      "baselinePasses": {
+        "opus-4.8": 0,
+        "sonnet-5": 0,
+        "fable-5": 0
+      },
+      "repovinePasses": {
+        "opus-4.8": 7,
+        "sonnet-5": 7,
+        "fable-5": 10
+      }
+    },
+    {
+      "id": "archestra-correctness-web-crawler-url-identity",
+      "class": "correctness",
+      "repository": "archestra-ai",
+      "pin": "f34dc474913a85700bebd29f5065800bb79accb3",
+      "baselinePasses": {
+        "opus-4.8": 0,
+        "sonnet-5": 0,
+        "fable-5": 0
+      },
+      "repovinePasses": {
+        "opus-4.8": 7,
+        "sonnet-5": 7,
+        "fable-5": 10
+      }
+    }
+  ],
+  "aggregates": {
+    "fullCorpus": {
+      "baselinePasses": 15,
+      "repovinePasses": 108,
+      "runsPerArm": 120
+    },
+    "baselineHeadroomAtMostEightOfTen": {
+      "baselinePasses": 6,
+      "repovinePasses": 98,
+      "runsPerArm": 110,
+      "excludedCell": "archestra-restraint-tool-slug/sonnet-5"
+    }
+  },
+  "publishedArtifacts": {
+    "taskPrompts": true,
+    "repositoryPins": true,
+    "gateDefinitions": true,
+    "annotations": true,
+    "redactedTranscripts": 240,
+    "originalDiffsPublic": false,
+    "runnerPackaged": false,
+    "scorerPackaged": false
+  }
+}

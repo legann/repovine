@@ -1,0 +1,368 @@
+# Isolated harness sandbox — pick ONE profile (security posture is in this file):
+#   cp .env.example .env   # LLM keys (+ TELEGRAM_* for tg-bot)
+#
+# Build (all services are profile-gated — plain `docker compose build` builds nothing):
+#   docker compose --profile cli --profile http --profile tg-bot build
+#
+# CLI one-shot:
+#   docker compose --profile cli run --rm cli --goal "сделай todo app"
+#
+# HTTP handle (curl from another console):
+#   docker compose --profile http up -d http
+#   curl -s localhost:8080/goal -H 'content-type: application/json' -d '{"goal":"…"}'
+#
+# Telegram bot (long-running):
+#   docker compose --profile tg-bot up -d tg-bot
+#
+# Plain `docker compose up` starts nothing — every mode is opt-in via profile.
+# The agent runs WRITE-ONLY in a hardened container; egress is locked down by
+# `egress-gw` (default-deny allow-list). See README.
+#
+# No Docker-in-Docker and no host /var/run/docker.sock: the write-only worker does
+# not run containers, so there is no privileged daemon anywhere. The agent WRITES a
+# project (incl. its own compose) into ./.workspace/sandbox; you run/verify it
+# yourself on the host. Egress is locked down by the `egress-gw` sidecar below:
+# default-deny except anthropic.com (Telegram optional via EGRESS_ALLOW_TELEGRAM=1) (ALLOW_DOMAINS);
+# the harness keeps cap_drop:[ALL] (only the gateway holds NET_ADMIN). See README.
+
+x-harness-app: &harness-app
+  build:
+    context: ../..
+    dockerfile: examples/agent-harness-demo/Dockerfile
+  # Resource ceilings so a runaway agent/build can't exhaust the host. Override
+  # via .env (HARNESS_MEM_LIMIT / HARNESS_CPUS / HARNESS_PIDS_LIMIT); honored by
+  # `docker compose up`. pids_limit caps process count so an agent-run command
+  # cannot fork-bomb host PIDs despite the memory ceiling.
+  mem_limit: ${HARNESS_MEM_LIMIT:-4g}
+  cpus: ${HARNESS_CPUS:-2}
+  pids_limit: ${HARNESS_PIDS_LIMIT:-512}
+  environment: &harness-env
+    REPOVINE_CLI: /app/repovine/dist/mcp/index.js
+    NODE_OPTIONS: "${NODE_OPTIONS:---max-old-space-size=4096}"
+    LLM_PROVIDER: ${LLM_PROVIDER:-claude}
+    # Claude auth is custodied by the egress-gw proxy: the worker holds only a PLACEHOLDER
+    # (matching the credential TYPE the operator set in .env) and points ANTHROPIC_BASE_URL
+    # at the proxy, which injects the real secret and re-originates to api.anthropic.com.
+    # The real token never enters this container.
+    ANTHROPIC_BASE_URL: http://127.0.0.1:${PROXY_ANTHROPIC_PORT:-8788}
+    # HTTP-layer debug for the worker's Anthropic SDK (hang diagnosis) — set in .env.
+    ANTHROPIC_LOG: ${ANTHROPIC_LOG:-}
+    # Capture worker (Claude Code process) stderr to .harness/worker-stderr.log.
+    HARNESS_WORKER_STDERR: ${HARNESS_WORKER_STDERR:-}
+    CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:+proxy-injected-oauth}
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:+proxy-injected-key}
+    # Local provider (LLM_PROVIDER=local): OpenAI-compatible endpoint + model id.
+    # Empty by default; set in .env. Run the model on the host/another machine — see
+    # docs/usage.md#local-models.
+    LOCAL_BASE_URL: ${LOCAL_BASE_URL:-}
+    LOCAL_MODEL: ${LOCAL_MODEL:-}
+    LOCAL_API_KEY: ${LOCAL_API_KEY:-}
+    AGENTS: ${AGENTS:-auto}
+    HARNESS_AGENTS_DIR: ${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}
+    HARNESS_RULES_DIR: ${HARNESS_RULES_DIR:-/app/repovine/examples/agent-harness-demo/lib/rules}
+    HARNESS_HANDOFF_DIR: ${HARNESS_HANDOFF_DIR:-/app/repovine/examples/agent-harness-demo/lib/handoff}
+    # runtime_check (build/test the generated project) is OFF by default: the hardened egress
+    # allows only anthropic.com, so npm install + build/test fail closed. Set
+    # HARNESS_RUNTIME_CHECK=1 in .env AND add npm to ALLOW_DOMAINS to enable. These knobs
+    # reach the worker ONLY via this list (the container carries no .env file).
+    HARNESS_RUNTIME_CHECK: ${HARNESS_RUNTIME_CHECK:-0}
+    HARNESS_RUNTIME_CHECK_FIX: ${HARNESS_RUNTIME_CHECK_FIX:-}
+    HARNESS_RUNTIME_CHECK_FIX_MAX: ${HARNESS_RUNTIME_CHECK_FIX_MAX:-2}
+    HARNESS_RUNTIME_CHECK_CMD: ${HARNESS_RUNTIME_CHECK_CMD:-}
+    HARNESS_RUNTIME_CHECK_CMDS: ${HARNESS_RUNTIME_CHECK_CMDS:-}
+    HARNESS_RUNTIME_CHECK_TIMEOUT_MS: ${HARNESS_RUNTIME_CHECK_TIMEOUT_MS:-}
+    HARNESS_RUNTIME_CHECK_LOG_TAIL: ${HARNESS_RUNTIME_CHECK_LOG_TAIL:-}
+    # Telegram token is custodied by the proxy too: the worker holds a placeholder and
+    # targets TELEGRAM_API_BASE (the proxy), which injects the real token and pins the
+    # outbound chat_id to TELEGRAM_RECIPIENT_IDS. TELEGRAM_ALLOWED_IDS gates INBOUND authors.
+    TELEGRAM_API_BASE: http://127.0.0.1:${PROXY_TELEGRAM_PORT:-8789}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:+proxy-injected}
+    TELEGRAM_ALLOWED_IDS: ${TELEGRAM_ALLOWED_IDS:-}
+    # The container IS the sandbox: default-deny egress, read-only rootfs + write-only
+    # workspace, cap_drop:ALL, no Docker-in-Docker. The prompt also tells the agent to
+    # write code, not run it. The Claude SDK's own bwrap sandbox is fail-hard and cannot
+    # start here (unprivileged userns disabled), so CLAUDE_SANDBOX defaults to 0 —
+    # what starts claude in Docker, not a relaxation of the posture above.
+    CLAUDE_SANDBOX: ${CLAUDE_SANDBOX:-0}
+    REPOVINE_IN_DOCKER: "1"
+    # The Claude Code SDK writes config/caches under $HOME; tmpfs /home/node is tiny (ENOSPC).
+    HOME: ${HARNESS_HOME:-/app/repovine/examples/agent-harness-demo/.workspace/.harness-home}
+  volumes: &harness-volumes
+    # Bind mount (not a named volume) so the sandbox the agent builds is visible on
+    # the host for inspection: ./.workspace/sandbox/… (the dir is gitignored). The
+    # container runs as uid 1000 (`node`). Docker auto-creates a missing host path as
+    # root — workspace-init fixes ownership before harness services start (see
+    # docker/init-workspace.sh; skips recursive chown when already uid 1000). Override the
+    # host path with HARNESS_WORKSPACE_DIR.
+    - ${HARNESS_WORKSPACE_DIR:-./.workspace}:/app/repovine/examples/agent-harness-demo/.workspace
+    # Role briefs: host lib/agents/ overrides the image COPY — edit markdown without rebuild.
+    - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
+  # Credentials come ONLY from .env (explicit provider keys) — no ambient mounts.
+  # ── Defense-in-depth on the harness container ───────────────────────────────
+  read_only: true # immutable rootfs; bind mounts (workspace, lib/agents) + tmpfs are writable/readable
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  tmpfs:
+    # Writable scratch: /tmp (heartbeat file, build temp) and the node user's HOME
+    # (Claude SDK caches/config: ~/.claude, ~/.cache).
+    - /tmp:size=${HARNESS_TMP_TMPFS:-512m}
+    # Fallback when HOME is not redirected; SDK caches can be large on multi-agent runs.
+    - /home/node:size=${HARNESS_NODE_TMPFS:-512m},uid=1000,gid=1000
+  working_dir: /app/repovine/examples/agent-harness-demo
+  # NOTE: this service shares egress-gw's network namespace (below), and Docker forbids
+  # `extra_hosts` on a network_mode:service container. So for a host-side local model the
+  # app must use a RAW IP in LOCAL_BASE_URL (host.docker.internal can't be mapped here).
+  # The host IP is allow-listed on the gateway via EGRESS_ALLOW_CIDRS / the host-gateway
+  # auto-allow (egress-gw resolves host.docker.internal on ITS side).
+  # Share the egress gateway's network namespace: ALL harness traffic passes its
+  # allow-list (default-deny except anthropic.com; Telegram optional). The harness
+  # itself keeps cap_drop:ALL — only the gateway holds NET_ADMIN.
+  network_mode: "service:egress-gw"
+  depends_on:
+    workspace-init:
+      condition: service_completed_successfully
+    egress-gw:
+      condition: service_healthy
+
+services:
+  # Fix bind-mount ownership before harness services start (see docker/init-workspace.sh).
+  workspace-init:
+    profiles: ["cli", "http", "tg-bot"]
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    user: "0:0"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    volumes:
+      - ${HARNESS_WORKSPACE_DIR:-./.workspace}:/workspace
+      - ./docker/init-workspace.sh:/init-workspace.sh:ro
+    entrypoint: ["/bin/sh", "/init-workspace.sh"]
+    restart: "no"
+
+  # Transparent egress allow-list (dnsmasq + ipset). The only thing the harness can
+  # reach is anthropic.com (Telegram optional via EGRESS_ALLOW_TELEGRAM=1); everything else is dropped
+  # (fail-closed). Tune the list / upstream resolver in .env.
+  egress-gw:
+    # Attach profiles included: harness services depend_on egress-gw, and Compose
+    # hard-errors when depends_on names a profile-excluded service.
+    profiles: ["cli", "http", "tg-bot", "attach-cli", "attach-http", "attach-tg-bot"]
+    build:
+      context: docker/egress-gw
+    # Least privilege: drop everything, add back only what's needed —
+    # NET_ADMIN/NET_RAW for iptables+ipset, SETUID/SETGID so dnsmasq can drop to
+    # its own unprivileged user. Nothing runs as host-root-with-broad-caps.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    # Resolve host.docker.internal here too: the gateway reads /etc/hosts to find and
+    # allow the host IP for a local model (EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-claude}
+      ALLOW_DOMAINS: ${ALLOW_DOMAINS:-anthropic.com}
+      UPSTREAM_DNS: ${UPSTREAM_DNS:-1.1.1.1}
+      # Local model (LLM_PROVIDER=local): punch the host-side OpenAI-compatible endpoint
+      # through default-deny. Auto-allow the host gateway (host.docker.internal), and/or
+      # list extra static IPs/CIDRs (e.g. a model on another LAN host) in EGRESS_ALLOW_CIDRS.
+      EGRESS_ALLOW_HOST_DOCKER_INTERNAL: ${EGRESS_ALLOW_HOST_DOCKER_INTERNAL:-0}
+      EGRESS_ALLOW_CIDRS: ${EGRESS_ALLOW_CIDRS:-}
+      # tg-bot profile: open api.telegram.org (the proxy still pins the recipient chat_id).
+      EGRESS_ALLOW_TELEGRAM: ${EGRESS_ALLOW_TELEGRAM:-0}
+      EGRESS_SELF_TEST: ${EGRESS_SELF_TEST:-1}
+      EGRESS_SELF_TEST_ALLOW_URLS: ${EGRESS_SELF_TEST_ALLOW_URLS:-}
+      EGRESS_SELF_TEST_BLOCKED_URL: ${EGRESS_SELF_TEST_BLOCKED_URL:-https://example.com/}
+      # ── Credential-custody origin proxy (proxy.mjs) ──────────────────────────────
+      # The REAL secrets live HERE, in the gateway — never in the worker. The proxy
+      # injects them and re-originates over HTTPS (claude → api.anthropic.com; Telegram →
+      # api.telegram.org with the outbound chat_id pinned to TELEGRAM_RECIPIENT_IDS).
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_RECIPIENT_IDS: ${TELEGRAM_RECIPIENT_IDS:-}
+      PROXY_ANTHROPIC_PORT: ${PROXY_ANTHROPIC_PORT:-8788}
+      PROXY_TELEGRAM_PORT: ${PROXY_TELEGRAM_PORT:-8789}
+      PROXY_HEALTH_PORT: ${PROXY_HEALTH_PORT:-8790}
+    # 128m + a small node proxy: bump headroom so the custody proxy has room next to dnsmasq.
+    mem_limit: ${EGRESS_GW_MEM_LIMIT:-192m}
+    # The HTTP handle shares this netns, so the published port lives HERE (a
+    # network_mode:service container cannot publish its own ports). Harmless in
+    # tg-bot/cli/http modes (nothing listens until http profile is up).
+    ports:
+      - "${HARNESS_HTTP_BIND:-127.0.0.1}:${HARNESS_HTTP_PORT:-8080}:${HARNESS_HTTP_PORT:-8080}"
+    healthcheck:
+      test: ["CMD", "/entrypoint.sh", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  tg-bot:
+    <<: *harness-app
+    profiles: ["tg-bot"]
+    entrypoint: ["node", "scripts/langgraph-tg-bot.mjs"]
+    restart: unless-stopped
+    # The tg-bot has no port; liveness = a fresh heartbeat file the poll loop touches
+    # each iteration. A wedged loop (not just a dead process) fails this and the
+    # restart policy recycles it.
+    healthcheck:
+      test: ["CMD-SHELL", "test $(( $(date +%s) - $(date -r /tmp/harness-tg-bot.alive +%s 2>/dev/null || echo 0) )) -lt 120"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  http:
+    <<: *harness-app
+    profiles: ["http"]
+    entrypoint: ["node", "scripts/langgraph-http.mjs"]
+    restart: unless-stopped
+    environment:
+      <<: *harness-env
+      PORT: ${HARNESS_HTTP_PORT:-8080}
+      HARNESS_HTTP_TOKEN: ${HARNESS_HTTP_TOKEN:-}
+    # No `ports:` here — this service shares egress-gw's netns, so the port is
+    # published on egress-gw (loopback by default; HARNESS_HTTP_BIND to widen).
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "fetch('http://localhost:'+(process.env.PORT||8080)+'/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  cli:
+    <<: *harness-app
+    profiles: ["cli"]
+    # Args after the service name are passed to the CLI entrypoint, e.g.
+    #   docker compose --profile cli run --rm cli --goal "…"
+    entrypoint: ["node", "scripts/langgraph-cli.mjs"]
+
+  # For LLM_PROVIDER=local, run Ollama (or any OpenAI-compatible server) on the host /
+  # another machine and point LOCAL_BASE_URL at it (see docs/usage.md#local-models). No
+  # in-compose model service: it would bind :11434 on this host and collide with a real
+  # Ollama, and the egress-gw default-deny does not fit an internal service anyway.
+
+  # ── Attach mode ──────────────────────────────────────────────────────────────
+  # Mounts a pre-created host Git worktree at /workspace instead of the managed
+  # sandbox. scripts/attach-launcher.mjs is the supported entrypoint: it runs the
+  # fail-closed preflight and creates the state layout BEFORE any docker call.
+  # A direct `docker compose --profile attach-* up` with hand-set env bypasses
+  # that preflight — a deliberate operator override, unsupported and not
+  # prevented here.
+  #
+  # `${VAR:?}` is forbidden for the attach vars: Compose interpolates the WHOLE
+  # file before profile filtering, so a required-var error would break every
+  # sandbox invocation. The `/dev/null/attach-unset` default keeps unset vars
+  # fail-closed instead: the path sits under a device FILE, so Docker cannot
+  # silently auto-create it as a root-owned host dir and container create errors.
+  #
+  # YAML merge: `<<: *harness-app` plus a local `volumes:` / `depends_on:` /
+  # `environment:` key REPLACES the anchor's value for that key wholesale.
+  # That is the point — attach never mounts .workspace and never waits on
+  # workspace-init (sandbox-only). `environment:` re-merges *harness-env inside
+  # to keep the shared vars.
+  cli-attach:
+    <<: *harness-app
+    profiles: ["attach-cli"]
+    # Run as the worktree owner so writes land with the operator's uid/gid.
+    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
+    entrypoint: ["node", "scripts/langgraph-cli.mjs"]
+    environment:
+      <<: *harness-env
+      HARNESS_TARGET_MODE: attach
+      HARNESS_REPO_ROOT: /workspace
+      HOME: /state/home
+    volumes:
+      # Worktree at the stable container path; state runtime/ subtrees for HOME,
+      # the run ledger, and the disposable Git repo; the read-only git-guard
+      # shadows the worktree's real `.git` pointer with a VALID pointer into the
+      # disposable repo at /state/git (ro so the agent cannot repoint it; the
+      # repo itself is rw by design — sandbox-parity posture). The state parent
+      # and control/ are never mounted; the source common dir stays unmounted.
+      - ${HARNESS_ATTACH_WORKTREE:-/dev/null/attach-unset}:/workspace:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/home:/state/home:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/harness:/workspace/.harness:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/git:/state/git:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/control/git-guard:/workspace/.git:ro
+      - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
+    depends_on:
+      egress-gw:
+        condition: service_healthy
+
+  http-attach:
+    <<: *harness-app
+    profiles: ["attach-http"]
+    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
+    entrypoint: ["node", "scripts/langgraph-http.mjs"]
+    restart: unless-stopped
+    environment:
+      <<: *harness-env
+      HARNESS_TARGET_MODE: attach
+      HARNESS_REPO_ROOT: /workspace
+      HOME: /state/home
+      PORT: ${HARNESS_HTTP_PORT:-8080}
+      HARNESS_HTTP_TOKEN: ${HARNESS_HTTP_TOKEN:-}
+    volumes:
+      - ${HARNESS_ATTACH_WORKTREE:-/dev/null/attach-unset}:/workspace:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/home:/state/home:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/harness:/workspace/.harness:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/git:/state/git:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/control/git-guard:/workspace/.git:ro
+      - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
+    depends_on:
+      egress-gw:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "fetch('http://localhost:'+(process.env.PORT||8080)+'/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  tg-bot-attach:
+    <<: *harness-app
+    profiles: ["attach-tg-bot"]
+    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
+    entrypoint: ["node", "scripts/langgraph-tg-bot.mjs"]
+    restart: unless-stopped
+    environment:
+      <<: *harness-env
+      HARNESS_TARGET_MODE: attach
+      HARNESS_REPO_ROOT: /workspace
+      HOME: /state/home
+    volumes:
+      - ${HARNESS_ATTACH_WORKTREE:-/dev/null/attach-unset}:/workspace:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/home:/state/home:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/harness:/workspace/.harness:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/git:/state/git:rw
+      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/control/git-guard:/workspace/.git:ro
+      - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
+    depends_on:
+      egress-gw:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test $(( $(date +%s) - $(date -r /tmp/harness-tg-bot.alive +%s 2>/dev/null || echo 0) )) -lt 120"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s

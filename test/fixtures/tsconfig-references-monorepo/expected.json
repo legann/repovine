@@ -1,0 +1,53 @@
+{
+  "_description": "Solution-style tsconfig references: empty package roots with app/lib child configs, entry-only app config, and storybook include outside package dir.",
+  "modules": [
+    "mod:fixture-api/src/handler",
+    "mod:fixture-shared/src",
+    "mod:fixture-shared/src/lib/util",
+    "mod:fixture-web/src/main",
+    "mod:fixture-web/src/components/Button",
+    "mod:fixture-web/src/components/Button.stories"
+  ],
+  "excludedModules": [
+    "mod:fixture-api/src/handler.spec"
+  ],
+  "typescript": {
+    "resolvedImports": [
+      {
+        "moduleId": "mod:fixture-web/src/main",
+        "specifier": "./components/Button",
+        "resolvedModuleId": "mod:fixture-web/src/components/Button",
+        "isExternal": false
+      },
+      {
+        "moduleId": "mod:fixture-web/src/main",
+        "specifier": "../../shared/src",
+        "resolvedModuleId": "mod:fixture-shared/src",
+        "isExternal": false
+      }
+    ],
+    "importEdges": [
+      {
+        "from": "mod:fixture-web/src/main",
+        "to": "mod:fixture-web/src/components/Button"
+      },
+      {
+        "from": "mod:fixture-web/src/main",
+        "to": "mod:fixture-shared/src"
+      }
+    ],
+    "reExportEdges": [
+      {
+        "from": "mod:fixture-shared/src",
+        "to": "mod:fixture-shared/src/lib/util"
+      }
+    ],
+    "redirectedImportEdges": [
+      {
+        "from": "mod:fixture-web/src/main",
+        "to": "mod:fixture-shared/src/lib/util",
+        "usedNames": ["util"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,159 @@
+import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from '../../annotations/format.js';
+import type { RepositoryGraph } from '../../types.js';
+import type { McpToolRuntime } from '../types.js';
+import type { ResolvedScope } from '../scope/resolve.js';
+
+export const RUNTIME_HANDOFF_LIMIT = 3;
+
+export const RUNTIME_HANDOFF_NOTE =
+  'Handler module owns editable code; inspect it for consumer/boundary obligations before editing.';
+
+export type RuntimeHandoffTrigger = 'annotation' | 'secret-binding' | 'scoped-resource';
+
+export interface RuntimeHandoffEntry {
+  resourceId: string;
+  handlerModuleId: string;
+  trigger: RuntimeHandoffTrigger;
+  note: string;
+}
+
+export interface RuntimeHandoffResult {
+  items: RuntimeHandoffEntry[];
+  truncated: boolean;
+  omittedCount: number;
+}
+
+const TRIGGER_PRIORITY: Record<RuntimeHandoffTrigger, number> = {
+  'secret-binding': 0,
+  annotation: 1,
+  'scoped-resource': 2,
+};
+
+export function resolveHandlerModuleId(graph: RepositoryGraph, resourceId: string): string | undefined {
+  const infraMods = (graph.outEdges.get(resourceId) ?? [])
+    .filter(edge => edge.kind === 'infra' && edge.to.startsWith('mod:') && graph.nodes.has(edge.to))
+    .map(edge => edge.to)
+    .sort();
+  if (infraMods[0]) return infraMods[0];
+
+  const resourceNode = graph.nodes.get(resourceId);
+  const handler = resourceNode?.type === 'runtime-resource' ? resourceNode.data?.handler : undefined;
+  if (!handler) return undefined;
+  if (handler.startsWith('mod:') && graph.nodes.get(handler)?.type === 'module') return handler;
+
+  return [...(graph.byType.get('module') ?? [])]
+    .filter((moduleId) => {
+      const node = graph.nodes.get(moduleId);
+      if (!node) return false;
+      const data = node.data as { relativeFilePath?: string; filePath?: string } | undefined;
+      return node.label === handler
+        || moduleId === handler
+        || data?.relativeFilePath === handler
+        || data?.filePath === handler;
+    })
+    .sort()[0];
+}
+
+function hasScopedAnnotationRisk(ctx: McpToolRuntime, nodeId: string): boolean {
+  const annotation = ctx.getState().annotations.get(nodeId)?.annotation;
+  return hasConsumerScopedRisk(annotation) || hasBoundaryScopedRisk(annotation);
+}
+
+function pointsToSecret(graph: RepositoryGraph, sourceId: string): boolean {
+  return (graph.outEdges.get(sourceId) ?? []).some((edge) => {
+    if (edge.kind !== 'binds_to' && edge.kind !== 'uses_env') return false;
+    const target = graph.nodes.get(edge.to);
+    return target?.type === 'runtime-resource' && target.data?.kind === 'secret';
+  });
+}
+
+function hasSecretBindingForPair(graph: RepositoryGraph, resourceId: string, handlerModuleId: string): boolean {
+  return pointsToSecret(graph, resourceId) || pointsToSecret(graph, handlerModuleId);
+}
+
+function primaryResourceSeedsForModule(graph: RepositoryGraph, moduleId: string): string[] {
+  return (graph.inEdges.get(moduleId) ?? [])
+    .filter(edge => edge.kind === 'infra' && edge.from.startsWith('resource:'))
+    .map(edge => edge.from)
+    .sort();
+}
+
+function chooseTrigger(args: {
+  hasSecretBinding: boolean;
+  hasAnnotationRisk: boolean;
+  isScopedResource: boolean;
+}): RuntimeHandoffTrigger | undefined {
+  if (args.hasSecretBinding) return 'secret-binding';
+  if (args.hasAnnotationRisk) return 'annotation';
+  if (args.isScopedResource) return 'scoped-resource';
+  return undefined;
+}
+
+export function computeRuntimeHandoff(
+  ctx: McpToolRuntime,
+  args: {
+    scope: ResolvedScope;
+    serviceIds: string[];
+  },
+): RuntimeHandoffResult {
+  const { graph } = ctx.getState();
+  const candidateResourceIds = new Set(
+    args.serviceIds.filter(id => graph.nodes.get(id)?.type === 'runtime-resource'),
+  );
+  const scopedResourceIds = new Set<string>();
+
+  if (args.scope.kind === 'runtime-resource') {
+    const resourceId = args.scope.nodeId ?? args.scope.resolvedScope;
+    if (graph.nodes.get(resourceId)?.type === 'runtime-resource') {
+      candidateResourceIds.add(resourceId);
+      scopedResourceIds.add(resourceId);
+    }
+  }
+
+  if (args.scope.kind === 'module') {
+    const moduleId = args.scope.nodeId ?? args.scope.resolvedScope;
+    const primarySeeds = primaryResourceSeedsForModule(graph, moduleId);
+    if (primarySeeds.length === 1) {
+      candidateResourceIds.add(primarySeeds[0]);
+      scopedResourceIds.add(primarySeeds[0]);
+    }
+  }
+
+  const entries: RuntimeHandoffEntry[] = [];
+  const seenPairs = new Set<string>();
+
+  for (const resourceId of candidateResourceIds) {
+    const handlerModuleId = resolveHandlerModuleId(graph, resourceId);
+    if (!handlerModuleId) continue;
+    const pairKey = `${resourceId}\0${handlerModuleId}`;
+    if (seenPairs.has(pairKey)) continue;
+    seenPairs.add(pairKey);
+
+    const trigger = chooseTrigger({
+      hasSecretBinding: hasSecretBindingForPair(graph, resourceId, handlerModuleId),
+      hasAnnotationRisk: hasScopedAnnotationRisk(ctx, resourceId) || hasScopedAnnotationRisk(ctx, handlerModuleId),
+      isScopedResource: scopedResourceIds.has(resourceId),
+    });
+    if (!trigger) continue;
+
+    entries.push({
+      resourceId,
+      handlerModuleId,
+      trigger,
+      note: RUNTIME_HANDOFF_NOTE,
+    });
+  }
+
+  entries.sort((a, b) =>
+    TRIGGER_PRIORITY[a.trigger] - TRIGGER_PRIORITY[b.trigger]
+    || a.resourceId.localeCompare(b.resourceId)
+    || a.handlerModuleId.localeCompare(b.handlerModuleId),
+  );
+
+  const items = entries.slice(0, RUNTIME_HANDOFF_LIMIT);
+  return {
+    items,
+    truncated: entries.length > RUNTIME_HANDOFF_LIMIT,
+    omittedCount: Math.max(0, entries.length - RUNTIME_HANDOFF_LIMIT),
+  };
+}

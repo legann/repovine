@@ -1,0 +1,190 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 10 — model: fable-5 — effort: max (ultracode)
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max (ultracode). Agent 32c8b91abe7c4f6c.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the web crawler connector and understanding how URLs flow through indexing and serving.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+Now let me look at the sync pipeline and storage models to understand how document IDs are used for upsert, deletion, and serving.
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/base-connector.ts
+    [source removed — 329 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 121 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/perforce/perforce-connector.ts
+    [source removed — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the enqueue path — set the deduplication key on discovered links:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the core normalization functions:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 87 line(s)]
+
+Diff looks right. Now I need to verify: install dependencies, type-check, and run the existing web-crawler tests unmodified.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s); non-zero exit]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 105 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 12 line(s)]
+
+A standalone `biome` binary exists — I can verify formatting and lint without node_modules:
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 27 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 61 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 109 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 227 line(s)]
+
+That command mangled — let me read the file directly:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 67 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+Done. One file changed, verified statically against the pinned Crawlee 3.14.1 sources and the existing test suite (this worktree intentionally blocks installs/tests, so verification was by tracing every test fixture through the new code, plus a clean Biome lint/format check).
+
+## 1. What was implemented
+
+All changes are in `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`:
+
+- **`normalizeCrawlUrl` (line 604)** — the normalization applied to fetched URLs and to the canonical URL that becomes `sourceUrl`/document id — now also deletes tracking query parameters (any `[expr]`-prefixed name, plus `gclid`/`fbclid` via the new `TRACKING_QUERY_PARAMS` set, line 37) and explicitly lowercases the host. Hash removal and default-port stripping are kept as-is.
+- **New `buildUrlDeduplicationKey` (line 637)** — a stricter key used only for request-queue deduplication: on top of `normalizeCrawlUrl` it removes a trailing slash on non-root paths and sorts query parameters. `/docs/page`, `/docs/page/`, and `[expr]` now collapse to one crawl request and therefore one document per crawl.
+- **New `buildCrawlRequest` (line 626)** — pairs the normalized fetch URL with its deduplication key; used for the start request in both `testConnection` (line 123) and `sync` (line 164). `enqueueAllowedLinks` sets the same key on every discovered link via `transformRequestFunction` (line 421), so every queue entry point uses one consistent key scheme.
+
+## 2. Why the trailing-slash rule lives in the dedupe key, not in the fetched/stored URL
+
+Two hard constraints force this split:
+
+- **Existing tests pin the trailing slash** on `sourceUrl`, `metadata.url`, and the sha256 document id (`web-crawler-connector.test.ts:163-180`, also `:271`, `:317`), and the test sites 404 on slash-less fetches. Tests may not be modified, so the emit/fetch path must keep the slash.
+- **Already-indexed documents are matched by `[expr]` on re-sync** (`connector-sync.ts:419-422`), and the pipeline has no delete channel (`perforce-connector.ts:36-37`), so changing ids for existing pages would permanently duplicate every directory-style URL (`/docs/` → `/docs`) in `kb_documents`. Keeping the emitted URL stable means re-syncs keep updating existing rows in place.
+
+Deduplicating on the stricter key while fetching/storing the discovered form gives the "one page per URL variant" behavior without either breakage. I verified against the installed Crawlee 3.14.1 sources that an explicit `uniqueKey` is honored verbatim (`@crawlee/core/request.js:213`), that `userData` (crawl depth) is merged before the transform runs and survives the spread (`enqueue_links/shared.js` `createRequestOptions`), and that the new key is a strict superset of Crawlee's previous default key normalization (`@apify/utilities` `normalizeUrl`: `[expr]`, sort, lowercase, trailing slash) — so nothing that deduplicated before stops deduplicating now.
+
+Code paths deliberately left unchanged, with the source that puts them out of scope:
+
+- **Serving**: search results read `source_id`/`source_url` from stored rows (`models/kb-chunk.ts:117`, `:174`; `knowledge-base/query.ts:267`). No code re-derives a document id from a URL at serve time, so existing documents are served exactly as before.
+- **Emitted document identity** (`normalizeCanonicalUrl`, line 587; id hashing at line 451): unchanged except for tracking-param stripping — pinned by `web-crawler-connector.test.ts:178-180` and required for id stability per `connector-sync.ts:419`.
+- **Redirect handling** (`beforeRedirect` hooks, lines ~229-259): redirect targets are followed in-flight by got and never enter the request queue, so no dedupe key applies there — same as today.
+- **`KbDocumentModel.findBySourceIds` / `deleteByConnectorAndSourceId`** (`models/kb-document.ts:168`, `:332`): no non-test callers, so no other id-derivation path exists.
+- Replacing the crawler's built-in `transformRequestFunction` disables Crawlee's `crawlDepth` stamping, which is inert: it is only read when `maxCrawlDepth` is set (`@crawlee/basic/internals/basic-crawler.js:746`), and this connector enforces depth itself via `userData.depth` (`getRequestDepth`).
+
+## 3. Summary and residual risk
+
+**Behavior change**: tracking parameters (`[expr]`, `gclid`, `fbclid`) are stripped from every crawled and stored URL; the host is explicitly lowercased; and URL variants differing only by trailing slash, tracking params, or query-parameter order now resolve to a single crawl request and a single document. Default-port stripping is unchanged. **Files touched**: only the web-crawler connector.
+
+**Residual risk**: pages that were previously indexed under a tracking-param-bearing URL (with no canonical link) get a new, param-free id on the next sync; because the pipeline has no delete channel, their old rows linger as stale near-duplicates until a manual cleanup or corpus rebuild — these are exactly the duplicate documents this change eliminates going forward. Also, for sites serving both `/page` and `/page/` without a canonical link, which form gets stored still depends on which link is discovered first (same as today); the dedupe key guarantees only one is crawled per sync. I could not run the test suite or type-check in this worktree (bootstrapping is intentionally blocked); those should be run wherever the change lands.

@@ -1,0 +1,62 @@
+{
+  "_description": "Terraform monorepo: HCL parser extracts resource/data/module blocks across providers. AWS types map to lambda/table/queue/bucket/role; module blocks become InfraResources too. Declared secrets (SecretsManager, SSM SecureString, GCP Secret Manager) become kind='secret'; SSM plain String stays 'other'. Lambda env interpolations (${type.name.attr}) become envRefs -> generic uses_env edges, including cross-file (main.tf -> storage.tf). output/variable/provider/locals are skipped (not infra entities).",
+  "heavyDomains": ["infra-terraform", "users"],
+  "lightweightDomains": ["cluster", "terraform-app-fixture"],
+  "rejectedAsDomain": ["main"],
+  "modulesInDomain": {},
+  "runtimeResourceNodes": [
+    { "label": "users_api", "kind": "lambda", "provider": "terraform" },
+    { "label": "lambda_role", "kind": "role", "provider": "terraform" },
+    { "label": "events", "kind": "queue", "provider": "terraform" },
+    { "label": "uploads", "kind": "bucket", "provider": "terraform" },
+    { "label": "current", "kind": "other", "provider": "terraform" },
+    { "label": "vpc", "kind": "other", "provider": "terraform" },
+    { "label": "users", "kind": "table", "provider": "terraform" },
+    { "label": "db_password", "kind": "secret", "provider": "terraform" },
+    { "label": "api_key", "kind": "secret", "provider": "terraform" },
+    { "label": "log_level", "kind": "other", "provider": "terraform" },
+    { "label": "gcp_key", "kind": "secret", "provider": "terraform" }
+  ],
+  "linking": {
+    "handlers": {
+      "searchRoots": ["src"]
+    }
+  },
+  "runtimeLinks": [
+    {
+      "fromServiceLabel": "users_api",
+      "fromServiceKind": "lambda",
+      "fromServiceProvider": "terraform",
+      "toModuleSuffix": "users"
+    }
+  ],
+  "serviceLinks": [
+    {
+      "fromServiceLabel": "users_api",
+      "fromServiceKind": "lambda",
+      "fromServiceProvider": "terraform",
+      "toServiceLabel": "db_password",
+      "toServiceKind": "secret",
+      "toServiceProvider": "terraform",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "users_api",
+      "fromServiceKind": "lambda",
+      "fromServiceProvider": "terraform",
+      "toServiceLabel": "api_key",
+      "toServiceKind": "secret",
+      "toServiceProvider": "terraform",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "users_api",
+      "fromServiceKind": "lambda",
+      "fromServiceProvider": "terraform",
+      "toServiceLabel": "users",
+      "toServiceKind": "table",
+      "toServiceProvider": "terraform",
+      "edge": "uses_env"
+    }
+  ]
+}

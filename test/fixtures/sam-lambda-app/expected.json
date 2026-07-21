@@ -1,0 +1,47 @@
+{
+  "_description": "SAM template.yaml: Serverless Function CodeUri + Handler linked to TS module; Lambda env references a SecretsManager secret -> generic uses_env edge, secret-ness read from target.kind == 'secret'.",
+  "heavyDomains": ["handler", "infra-sam"],
+  "lightweightDomains": ["cluster", "sam-lambda-app-fixture"],
+  "rejectedAsDomain": [],
+  "runtimeResourceNodes": [
+    { "label": "ApiFunction", "kind": "lambda", "provider": "aws" },
+    { "label": "DbSecret", "kind": "secret", "provider": "aws" },
+    { "label": "secret:/demo/token", "kind": "secret", "provider": "aws" },
+    { "label": "secret:GoogleSecretsArn", "kind": "secret", "provider": "aws" }
+  ],
+  "runtimeLinks": [
+    {
+      "fromServiceLabel": "ApiFunction",
+      "toModuleSuffix": "handler"
+    }
+  ],
+  "serviceLinks": [
+    {
+      "fromServiceLabel": "ApiFunction",
+      "fromServiceKind": "lambda",
+      "fromServiceProvider": "aws",
+      "toServiceLabel": "DbSecret",
+      "toServiceKind": "secret",
+      "toServiceProvider": "aws",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "ApiFunction",
+      "fromServiceKind": "lambda",
+      "fromServiceProvider": "aws",
+      "toServiceLabel": "secret:/demo/token",
+      "toServiceKind": "secret",
+      "toServiceProvider": "aws",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "ApiFunction",
+      "fromServiceKind": "lambda",
+      "fromServiceProvider": "aws",
+      "toServiceLabel": "secret:GoogleSecretsArn",
+      "toServiceKind": "secret",
+      "toServiceProvider": "aws",
+      "edge": "uses_env"
+    }
+  ]
+}
