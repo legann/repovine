@@ -21,7 +21,13 @@ const DIM = 384; // Xenova/all-MiniLM-L6-v2
 function transformersVersion(root) {
   try {
     const resolved = createRequire(path.join(root, 'package.json')).resolve('@huggingface/transformers');
-    const pkgRoot = resolved.slice(0, resolved.indexOf('@huggingface/transformers') + '@huggingface/transformers'.length);
+    // Match on the POSIX form: on win32 `resolved` carries backslashes and a
+    // forward-slash needle never matches. path.sep is one char, so indices
+    // transfer to the original string unchanged.
+    const posix = resolved.split(path.sep).join('/');
+    const idx = posix.indexOf('@huggingface/transformers');
+    if (idx < 0) return 'unknown';
+    const pkgRoot = resolved.slice(0, idx + '@huggingface/transformers'.length);
     return JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8')).version;
   } catch {
     return 'unknown';
@@ -46,7 +52,27 @@ console.log(`check-embedder: transformers@${transformersVersion(root)} (workspac
 const embedder = createEmbedder(true, root);
 assert('createEmbedder returns an embedder', embedder !== null);
 
-const [anchor, related, unrelated] = await embedder.embed([
+// First embed downloads the model and loads it into ORT. On Windows a freshly
+// written model file can be held by the AV/indexer for a moment (ort surfaces
+// it as "system error number 13"/EACCES) — retry the load a few times before
+// declaring the platform broken.
+async function firstEmbedWithRetry(texts, attempts = 3) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await embedder.embed(texts);
+    } catch (e) {
+      lastErr = e;
+      const msg = String(e?.message ?? e);
+      if (!/error number 13|EACCES|EBUSY/i.test(msg)) throw e;
+      console.log(`  model load attempt ${i + 1}/${attempts} hit a transient file lock; retrying in 2s`);
+      await new Promise(r => setTimeout(r, 2_000));
+    }
+  }
+  throw lastErr;
+}
+
+const [anchor, related, unrelated] = await firstEmbedWithRetry([
   'the graph stores repository structure and dependencies',
   'repository dependency graph',
   'a recipe for baking chocolate cake',

@@ -33,6 +33,16 @@ jobs:
         # Native ONNX runtimes differ per OS/arch (plan WS-5). The script's own
         # process exit doubles as the macOS teardown-SIGABRT smoke.
         os: [ubuntu-latest, macos-15, windows-latest]
+        exclude:
+          # Documented per-OS floor, NOT a silent skip (run #4 evidence, 2026-07-22):
+          # transformers 3.8.1 bundles onnxruntime-node 1.21.0, whose exit teardown
+          # aborts on macOS (libc++ "mutex lock failed" → exit 134) — inference
+          # itself passed 11/11. In-repo session options cannot fix the bundled
+          # runtime; 4.x ships ort 1.24.3 where the bug is fixed and is green on
+          # macOS. Embedder on darwin therefore requires transformers 4.x
+          # (docs/platform-support.md; doctor warns in PR-4a).
+          - os: macos-15
+            transformers: '3.8.1'
     name: transformers@${{ matrix.transformers }} (${{ matrix.os }})
     # Non-Linux legs are advisory until proven green (plan WS-7 staging).
     continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}

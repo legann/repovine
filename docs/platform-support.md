@@ -26,6 +26,8 @@ Target tiers. A row is promoted only after its gate in [CI](../.github/workflows
 
 Harness demo modes carry separate contracts; see [usage.md, "Platform support"](../examples/agent-harness-demo/docs/usage.md).
 
+Embedder floor on macOS: `@huggingface/transformers` 4.x. The 3.8.1 floor bundles onnxruntime 1.21, whose exit teardown aborts on darwin — inference completes, the exit code is corrupt. The embedder matrix records this as a documented exclusion.
+
 ## Current status (2026-07-22)
 
 | Evidence | State |
