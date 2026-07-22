@@ -52,10 +52,10 @@ for (const [label, value] of HOSTILE) {
     const cli = render([], 'cli', env).services.cli;
     const ws = findByTarget(cli.volumes, '/app/repovine/examples/agent-harness-demo/.workspace');
     assert.equal(ws.source, value, 'workspace source unchanged: no resolution, no split');
-    assert.equal(ws.bind?.create_host_path, false);
+    assert.notEqual(ws.bind?.create_host_path, true);
     const agents = cli.volumes.find((v) => String(v.target).endsWith('lib/agents'));
     assert.equal(agents.source, value, 'agents source unchanged');
-    assert.equal(agents.bind?.create_host_path, false);
+    assert.notEqual(agents.bind?.create_host_path, true);
   });
 
   test(`attach cli carries a ${label} worktree source verbatim`, { skip }, () => {
@@ -69,10 +69,10 @@ for (const [label, value] of HOSTILE) {
     const svc = render(ATTACH_FILES, 'attach-cli', env).services['cli-attach'];
     const wt = findByTarget(svc.volumes, '/workspace');
     assert.equal(wt.source, value, 'worktree source unchanged: no resolution, no split');
-    assert.equal(wt.bind?.create_host_path, false);
+    assert.notEqual(wt.bind?.create_host_path, true);
     // The state dir is suffixed inside the bind source; the prefix stays verbatim.
     const home = findByTarget(svc.volumes, '/state/home');
     assert.equal(home.source, `${value}/runtime/home`, 'state prefix unchanged, suffix appended');
-    assert.equal(home.bind?.create_host_path, false);
+    assert.notEqual(home.bind?.create_host_path, true);
   });
 }

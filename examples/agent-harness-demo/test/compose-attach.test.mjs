@@ -30,11 +30,14 @@ function renderConfig(profile, env, { files = [] } = {}) {
 }
 
 // Every long-form host bind sets create_host_path:false — a missing source fails
-// closed rather than auto-creating a root-owned host dir.
+// closed rather than auto-creating a root-owned host dir. Whether `config` echoes
+// a false-valued field varies by compose version, so the render assert only
+// rejects an explicit true; the false DECLARATION is enforced at the source level
+// by the 'every long-form bind declares create_host_path: false' test below.
 function assertNoAutoCreate(vols, label) {
   for (const v of vols) {
     if (v.type !== 'bind') continue;
-    assert.equal(v.bind?.create_host_path, false, `${label}: ${v.source} must set create_host_path:false`);
+    assert.notEqual(v.bind?.create_host_path, true, `${label}: ${v.source} must not enable create_host_path`);
   }
 }
 
@@ -57,6 +60,33 @@ function attachEnv() {
     },
   };
 }
+
+// Source-level contract for the fail-closed bind declaration. `docker compose
+// config` output cannot carry it portably (some versions omit false-valued
+// fields), so the declaration is asserted in the YAML itself: every long-form
+// `- type: bind` item must carry `create_host_path: false`. Needs no docker.
+test('every long-form bind declares create_host_path: false in source', () => {
+  for (const file of ['compose.yaml', 'compose.attach.yaml']) {
+    const lines = fs.readFileSync(path.join(DEMO_ROOT, file), 'utf-8').split('\n');
+    let binds = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^(\s*)- type:\s*bind\b/);
+      if (!m) continue;
+      binds++;
+      const itemIndent = m[1].length;
+      let declared = false;
+      for (let j = i + 1; j < lines.length; j++) {
+        const line = lines[j];
+        if (line.trim() === '' || line.trim().startsWith('#')) continue;
+        const indent = line.length - line.trimStart().length;
+        if (indent <= itemIndent) break; // next list item or parent key ends this bind
+        if (/^\s*create_host_path:\s*false\s*(#.*)?$/.test(line)) { declared = true; break; }
+      }
+      assert.ok(declared, `${file}: bind item at line ${i + 1} must declare create_host_path: false`);
+    }
+    assert.ok(binds > 0, `${file}: expected at least one long-form bind (scanner drift?)`);
+  }
+});
 
 test('attach-cli renders exactly the attach mount set and hardened service shape', { skip }, () => {
   const { wt, st, env, cleanup } = attachEnv();
