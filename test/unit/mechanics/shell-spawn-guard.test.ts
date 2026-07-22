@@ -15,7 +15,14 @@ const EXTENSIONS = new Set(['.ts', '.mjs', '.cjs', '.js']);
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'fixtures']);
 
 /** Registered shell adapters (repo-relative, POSIX separators). */
-const ALLOWLIST = new Set(['scripts/lib/spawn.cjs', 'test/helpers/process-probe.ts']);
+const ALLOWLIST = new Set([
+  'scripts/lib/spawn.cjs',
+  'test/helpers/process-probe.ts',
+  // Executes generated hook commands the way the clients themselves do:
+  // Cursor/Codex hook commands are shell strings run through a shell
+  // (/bin/sh -c on POSIX, ComSpec on win32) — faithful contract reproduction.
+  'test/helpers/client-projections.ts',
+]);
 const SELF = 'test/unit/mechanics/shell-spawn-guard.test.ts';
 
 // Patterns run against whole-file content, so multi-line calls

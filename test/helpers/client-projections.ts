@@ -452,6 +452,12 @@ export function mcpHandshake(launch: McpLaunchSpec): Promise<McpHandshakeResult>
     });
     child.stderr.on('data', (d: Buffer) => { stderr += d; });
     child.on('error', reject);
+    // Stream errors are NOT covered by child.on('error'): writing to the stdin
+    // of a child that died at startup raises EPIPE as an 'error' event on the
+    // stream — unhandled, it crashes the jest worker (observed on win32, where
+    // the write loses the race the POSIX pipe buffer usually wins). Swallow it;
+    // the 'close' handler reports the real failure with the child's stderr.
+    child.stdin.on('error', () => {});
     // 'close', not 'exit': stdio can still hold buffered data at 'exit', and the
     // stdout-purity check must see everything written during the shutdown window.
     child.on('close', (code) => {

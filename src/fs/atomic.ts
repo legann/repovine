@@ -82,6 +82,45 @@ function fsyncDirSync(dir: string): void {
   }
 }
 
+// Transient win32 replace-rename failures: NTFS rejects a rename onto a target
+// another handle briefly holds (AV/indexer scan, a concurrent replace of the
+// same file) with EPERM/EACCES/EBUSY. Bounded retry with linear backoff; the
+// codes are confirmed by native CI runs, and EXDEV is deliberately absent —
+// the temp file lives in the target's directory, so cross-device rename
+// cannot occur. On POSIX these codes are real permission errors: no retry.
+const RENAME_RETRY_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
+const RENAME_RETRY_ATTEMPTS = 10;
+const RENAME_RETRY_STEP_MS = 15;
+
+function isTransientRenameError(err: unknown): boolean {
+  return process.platform === 'win32'
+    && RENAME_RETRY_CODES.has((err as NodeJS.ErrnoException).code ?? '');
+}
+
+async function renameWithRetry(tmpPath: string, filePath: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await fsPromises.rename(tmpPath, filePath);
+      return;
+    } catch (err) {
+      if (attempt >= RENAME_RETRY_ATTEMPTS || !isTransientRenameError(err)) throw err;
+      await new Promise(resolve => setTimeout(resolve, RENAME_RETRY_STEP_MS * attempt));
+    }
+  }
+}
+
+function renameWithRetrySync(tmpPath: string, filePath: string): void {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      fs.renameSync(tmpPath, filePath);
+      return;
+    } catch (err) {
+      if (attempt >= RENAME_RETRY_ATTEMPTS || !isTransientRenameError(err)) throw err;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, RENAME_RETRY_STEP_MS * attempt);
+    }
+  }
+}
+
 export async function writeFileAtomic(filePath: string, data: string | Buffer): Promise<void> {
   const dir = path.dirname(filePath);
   await fsPromises.mkdir(dir, { recursive: true });
@@ -93,7 +132,7 @@ export async function writeFileAtomic(filePath: string, data: string | Buffer): 
     await handle.sync();
     await handle.close();
     handle = undefined;
-    await fsPromises.rename(tmpPath, filePath);
+    await renameWithRetry(tmpPath, filePath);
     await fsyncDir(dir);
   } catch (err) {
     if (handle) await handle.close().catch(() => {});
@@ -114,7 +153,7 @@ export function writeFileAtomicSync(filePath: string, data: string | Buffer): vo
     fs.fsyncSync(fd);
     fs.closeSync(fd);
     fd = undefined;
-    fs.renameSync(tmpPath, filePath);
+    renameWithRetrySync(tmpPath, filePath);
     fsyncDirSync(dir);
   } catch (err) {
     if (fd !== undefined) {
