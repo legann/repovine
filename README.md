@@ -1,5 +1,7 @@
 # repovine
 
+[![CI](https://github.com/legann/repovine/actions/workflows/ci.yml/badge.svg)](https://github.com/legann/repovine/actions/workflows/ci.yml)
+
 **Codebase knowledge, conveyed.**
 
 ## The open-source repository knowledge layer for coding agents

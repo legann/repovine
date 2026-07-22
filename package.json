@@ -45,7 +45,9 @@
     "audit:check": "node scripts/audit-gate.mjs",
     "prepack": "npm run build",
     "prepublishOnly": "npm run typecheck && npm run lint && npm test",
-    "cli": "node dist/mcp/index.js"
+    "cli": "node dist/mcp/index.js",
+    "inspector": "npx --yes @modelcontextprotocol/inspector --config mcp-inspector-config.json --server repovine",
+    "inspector:debug": "npx --yes @modelcontextprotocol/inspector --config mcp-inspector-config.json --server repovine-debug"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
