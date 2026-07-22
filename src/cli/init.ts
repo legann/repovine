@@ -16,17 +16,8 @@ import { CONFIG_FILENAME } from '../config.js';
 import type { DomainsAdvisorCliResult } from './domains-advisor.js';
 import {
   CURSOR_HOOKS_SETTINGS,
-  CURSOR_SESSION_MCP_HINT_JS,
-  CURSOR_STALE_GRAPH_NOTICE_JS,
-  CURSOR_BOUNDARY_NOTICE_JS,
   CLAUDE_HOOKS_SETTINGS,
-  CLAUDE_SESSION_MCP_HINT_JS,
-  CLAUDE_STALE_GRAPH_NOTICE_JS,
-  CLAUDE_BOUNDARY_NOTICE_JS,
   CODEX_HOOKS_BLOCK,
-  CODEX_SESSION_MCP_HINT_JS,
-  CODEX_STALE_GRAPH_NOTICE_JS,
-  CODEX_BOUNDARY_NOTICE_JS,
   AGENTS_MD,
   AGENTS_MD_BEGIN_MARKER,
   AGENTS_MD_END_MARKER,
@@ -42,6 +33,12 @@ import {
   buildCodexConfigToml,
   type McpLauncher,
 } from './templates.js';
+import { CLIENT_CAPABILITIES, type ClientId } from './client-capabilities.js';
+import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from './dispatcher/index.js';
+import {
+  isManagedClaudeHook,
+  isManagedCursorHookCommand,
+} from './dispatcher/hook-identity.js';
 import {
   writeMcpJsonConfig,
   writeCodexMcpConfig,
@@ -528,61 +525,36 @@ function writeClaudeSkills(cwd: string, force: boolean): FileResult[] {
   return writeRenderedAssets(cwd, [...COMMANDS, ...CLAUDE_SHARED_SKILLS], INIT_CAPABILITY_MATRIX.claude.skills.target, force);
 }
 
-function writeClaudeHooks(cwd: string, force: boolean): FileResult[] {
-  return [
+/**
+ * Write the client's hooks dir: one managed dispatcher file. Per-event scripts
+ * written by earlier repovine versions are deleted in the same pass — a stale
+ * copy would keep reporting an outdated boundary-index schema through doctor.
+ */
+function writeHookDispatcher(cwd: string, client: ClientId, force: boolean): FileResult[] {
+  const hooksDir = path.join(cwd, ...CLIENT_CAPABILITIES[client].hooks.projectScriptsDir.split('/'));
+  const results: FileResult[] = [
     writeManagedFile(
-      path.join(cwd, '.claude', 'hooks', 'boundary-notice.js'),
-      CLAUDE_BOUNDARY_NOTICE_JS,
-      force,
-      { backup: false },
-    ),
-    writeManagedFile(
-      path.join(cwd, '.claude', 'hooks', 'stale-graph-notice.js'),
-      CLAUDE_STALE_GRAPH_NOTICE_JS,
-      force,
-      { backup: false },
-    ),
-    writeManagedFile(
-      path.join(cwd, '.claude', 'hooks', 'session-mcp-hint.js'),
-      CLAUDE_SESSION_MCP_HINT_JS,
+      path.join(hooksDir, CLIENT_DISPATCHER_FILENAME),
+      readClientDispatcherSource(),
       force,
       { backup: false },
     ),
   ];
+  return results;
 }
 
-function hookCommandSet(hooks: unknown): Set<string> {
-  const commands = new Set<string>();
-  if (!isRecord(hooks)) return commands;
-
-  for (const entries of Object.values(hooks)) {
-    if (!Array.isArray(entries)) continue;
-    for (const entry of entries) {
-      if (!isRecord(entry) || !Array.isArray(entry.hooks)) continue;
-      for (const hook of entry.hooks) {
-        if (isRecord(hook) && typeof hook.command === 'string') {
-          commands.add(hook.command);
-        }
-      }
-    }
-  }
-
-  return commands;
+function writeClaudeHooks(cwd: string, force: boolean): FileResult[] {
+  return writeHookDispatcher(cwd, 'claude', force);
 }
 
-function hookEntryContainsCommand(entry: unknown, commands: Set<string>): boolean {
-  if (!isRecord(entry) || !Array.isArray(entry.hooks)) return false;
-  return entry.hooks.some(hook =>
-    isRecord(hook) &&
-    typeof hook.command === 'string' &&
-    commands.has(hook.command),
-  );
+/** Managed-entry test for Claude settings merge: any hook in the entry is repovine's (dispatcher form). */
+function claudeHookEntryIsManaged(entry: unknown): boolean {
+  return isRecord(entry) && Array.isArray(entry.hooks) && entry.hooks.some(isManagedClaudeHook);
 }
 
 function writeClaudeSettingsHooks(cwd: string): FileResult {
   const filePath = path.join(cwd, '.claude', 'settings.json');
   const desiredHooks = cloneJson(CLAUDE_HOOKS_SETTINGS);
-  const desiredCommands = hookCommandSet(desiredHooks);
 
   let settings: Record<string, unknown> = {};
   const exists = fs.existsSync(filePath);
@@ -617,8 +589,9 @@ function writeClaudeSettingsHooks(cwd: string): FileResult {
   const nextHooks = isRecord(existingHooks) ? { ...existingHooks } : {};
   for (const [eventName, desiredEntries] of Object.entries(desiredHooks)) {
     const currentEntries = nextHooks[eventName];
+    // Re-runs replace repovine's entries instead of duplicating them.
     const keptEntries = Array.isArray(currentEntries)
-      ? currentEntries.filter(entry => !hookEntryContainsCommand(entry, desiredCommands))
+      ? currentEntries.filter(entry => !claudeHookEntryIsManaged(entry))
       : [];
     nextHooks[eventName] = [...keptEntries, ...desiredEntries];
   }
@@ -660,30 +633,9 @@ function writeCursorRules(cwd: string, force: boolean): FileResult[] {
   return writeRenderedAssets(cwd, CURSOR_RULES, INIT_CAPABILITY_MATRIX.cursor.rules.target, force);
 }
 
-function cursorHookCommandSet(hooks: unknown): Set<string> {
-  const commands = new Set<string>();
-  if (!isRecord(hooks)) return commands;
-  for (const entries of Object.values(hooks)) {
-    if (!Array.isArray(entries)) continue;
-    for (const entry of entries) {
-      if (isRecord(entry) && typeof entry.command === 'string') {
-        commands.add(entry.command);
-      }
-    }
-  }
-  return commands;
-}
-
-function cursorHookEntryContainsCommand(entry: unknown, commands: Set<string>): boolean {
-  return isRecord(entry) &&
-    typeof entry.command === 'string' &&
-    commands.has(entry.command);
-}
-
 function writeCursorHooksConfig(cwd: string): FileResult {
   const filePath = path.join(cwd, '.cursor', 'hooks.json');
   const desired = cloneJson(CURSOR_HOOKS_SETTINGS);
-  const desiredCommands = cursorHookCommandSet(desired.hooks);
 
   let config: Record<string, unknown> = {};
   const exists = fs.existsSync(filePath);
@@ -718,8 +670,9 @@ function writeCursorHooksConfig(cwd: string): FileResult {
   const nextHooks = isRecord(existingHooks) ? { ...existingHooks } : {};
   for (const [eventName, desiredEntries] of Object.entries(desired.hooks)) {
     const currentEntries = nextHooks[eventName];
+    // Re-runs replace repovine's entries instead of duplicating them.
     const keptEntries = Array.isArray(currentEntries)
-      ? currentEntries.filter(entry => !cursorHookEntryContainsCommand(entry, desiredCommands))
+      ? currentEntries.filter(entry => !(isRecord(entry) && isManagedCursorHookCommand(entry.command)))
       : [];
     nextHooks[eventName] = [...keptEntries, ...desiredEntries];
   }
@@ -753,49 +706,13 @@ function writeCursorHooksConfig(cwd: string): FileResult {
 
 function writeCursorHooks(cwd: string, force: boolean): FileResult[] {
   return [
-    writeManagedFile(
-      path.join(cwd, '.cursor', 'hooks', 'boundary-notice.js'),
-      CURSOR_BOUNDARY_NOTICE_JS,
-      force,
-      { backup: false },
-    ),
-    writeManagedFile(
-      path.join(cwd, '.cursor', 'hooks', 'stale-graph-notice.js'),
-      CURSOR_STALE_GRAPH_NOTICE_JS,
-      force,
-      { backup: false },
-    ),
-    writeManagedFile(
-      path.join(cwd, '.cursor', 'hooks', 'session-mcp-hint.js'),
-      CURSOR_SESSION_MCP_HINT_JS,
-      force,
-      { backup: false },
-    ),
+    ...writeHookDispatcher(cwd, 'cursor', force),
     writeCursorHooksConfig(cwd),
   ];
 }
 
 function writeCodexHooks(cwd: string, force: boolean): FileResult[] {
-  return [
-    writeManagedFile(
-      path.join(cwd, '.codex', 'hooks', 'boundary-notice.js'),
-      CODEX_BOUNDARY_NOTICE_JS,
-      force,
-      { backup: false },
-    ),
-    writeManagedFile(
-      path.join(cwd, '.codex', 'hooks', 'stale-graph-notice.js'),
-      CODEX_STALE_GRAPH_NOTICE_JS,
-      force,
-      { backup: false },
-    ),
-    writeManagedFile(
-      path.join(cwd, '.codex', 'hooks', 'session-mcp-hint.js'),
-      CODEX_SESSION_MCP_HINT_JS,
-      force,
-      { backup: false },
-    ),
-  ];
+  return writeHookDispatcher(cwd, 'codex', force);
 }
 
 function writeCodexSkills(cwd: string, force: boolean): FileResult[] {

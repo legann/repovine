@@ -3,6 +3,14 @@
 
 import { REPOVINE_MCP_SERVER_NAME } from './merge-config.js';
 import { renderMainAgentProtocolSection, renderContextQualityGuidance } from './agent-projection.js';
+import {
+  CLIENT_CAPABILITIES,
+  hookDispatcherPath,
+  shellHookCommand,
+  type ClientId,
+  type HookAction,
+} from './client-capabilities.js';
+import { CLIENT_DISPATCHER_FILENAME } from './dispatcher/index.js';
 
 /**
  * How a generated MCP config launches the engine.
@@ -19,12 +27,23 @@ export interface McpLauncher {
 /** Default consumer launcher: published package via npx. */
 export const NPX_LAUNCHER: McpLauncher = { command: 'npx', args: ['-y', 'repovine'] };
 
+function buildJsonMcpServer(client: ClientId, launcher: McpLauncher): Record<string, unknown> {
+  const mcp = CLIENT_CAPABILITIES[client].mcp;
+  return {
+    // Emitted first when the client's MCP schema requires it (Cursor).
+    ...(mcp.stdioTypeField === 'required' ? { type: 'stdio' } : {}),
+    command: launcher.command,
+    args: [...launcher.args],
+    env: { REPOVINE_ROOT: mcp.projectRootValue },
+  };
+}
+
 export function buildCursorMcpServer(launcher: McpLauncher = NPX_LAUNCHER): Record<string, unknown> {
-  return { command: launcher.command, args: [...launcher.args], env: { REPOVINE_ROOT: '${workspaceFolder}' } };
+  return buildJsonMcpServer('cursor', launcher);
 }
 
 export function buildClaudeMcpServer(launcher: McpLauncher = NPX_LAUNCHER): Record<string, unknown> {
-  return { command: launcher.command, args: [...launcher.args], env: { REPOVINE_ROOT: '.' } };
+  return buildJsonMcpServer('claude', launcher);
 }
 
 export function buildCursorMcpJson(launcher: McpLauncher = NPX_LAUNCHER): string {
@@ -35,9 +54,7 @@ export function buildClaudeMcpJson(launcher: McpLauncher = NPX_LAUNCHER): string
   return JSON.stringify({ mcpServers: { [REPOVINE_MCP_SERVER_NAME]: buildClaudeMcpServer(launcher) } }, null, 2) + '\n';
 }
 
-// Backward-compatible npx defaults (consumed by clear.ts, plugin-render.ts, and as the setup default).
-export const REPOVINE_MCP_SERVER_CURSOR = buildCursorMcpServer();
-export const REPOVINE_MCP_SERVER_CLAUDE = buildClaudeMcpServer();
+// npx defaults (consumed by clear.ts, plugin-render.ts, and as the setup default).
 export const CURSOR_MCP_JSON = buildCursorMcpJson();
 export const CLAUDE_MCP_JSON = buildClaudeMcpJson();
 
@@ -99,9 +116,6 @@ export const REPOVINE_CONFIG_JSON = JSON.stringify(
   2,
 ) + '\n';
 
-const DOMAINS_ADVISOR_AGENT_CONTRACT =
-  'When get_build_status or refresh_context reports domainsSuggestions.count > 0, call suggest_domains_config; never auto-apply. With user approval, write a repovine.domains.json preview and call refresh_context: accept = write the mergedConfig (exclude), keep = write the keepConfig (committed infra.keep marker — keeps the resource visible and stops the suggestion); for skip/hide, call decline_advisory({ "kind": "domains-config" }) so ids are stored in .repovine/onboarding-state.json.';
-
 /** Starter shape -- customize domains, excludes, and package grouping for your repo. */
 export const REPOVINE_DOMAINS_JSON = JSON.stringify(
   {
@@ -124,7 +138,7 @@ command = ${JSON.stringify(launcher.command)}
 args = [${argsToml}]
 
 [mcp_servers.repovine.env]
-REPOVINE_ROOT = "."
+REPOVINE_ROOT = ${JSON.stringify(CLIENT_CAPABILITIES.codex.mcp.projectRootValue)}
 `;
 }
 
@@ -133,36 +147,73 @@ export const CODEX_MCP_SERVER_BLOCK = buildCodexMcpServerBlock();
 export const CODEX_HOOKS_BEGIN_MARKER = '# BEGIN repovine hooks';
 export const CODEX_HOOKS_END_MARKER = '# END repovine hooks';
 
-export const CODEX_HOOKS_BLOCK = `# repovine hooks (managed by: npx repovine setup codex)
-${CODEX_HOOKS_BEGIN_MARKER}
-[[hooks.PreToolUse]]
-matcher = "Edit|Write|NotebookEdit|apply_patch"
+/** Per-event wiring of the Codex hooks block (rendering data for buildCodexHooksBlock). */
+interface CodexHookRow {
+  event: 'PreToolUse' | 'PostToolUse' | 'SessionStart';
+  matcher: string;
+  action: HookAction;
+  timeout: number;
+  statusMessage: string;
+}
 
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/boundary-notice.js"'
-timeout = 5
-statusMessage = "Checking repovine boundary surface"
+const CODEX_HOOK_ROWS: readonly CodexHookRow[] = [
+  {
+    event: 'PreToolUse',
+    matcher: 'Edit|Write|NotebookEdit|apply_patch',
+    action: 'boundary-notice',
+    timeout: 5,
+    statusMessage: 'Checking repovine boundary surface',
+  },
+  {
+    event: 'PostToolUse',
+    matcher: 'Edit|Write|NotebookEdit|apply_patch|Bash',
+    action: 'stale-graph-notice',
+    timeout: 5,
+    statusMessage: 'Checking repovine graph freshness',
+  },
+  {
+    event: 'SessionStart',
+    matcher: 'startup|resume|clear',
+    action: 'session-mcp-hint',
+    timeout: 5,
+    statusMessage: 'Loading repovine MCP reminder',
+  },
+];
 
-[[hooks.PostToolUse]]
-matcher = "Edit|Write|NotebookEdit|apply_patch|Bash"
+/**
+ * Windows alternate for the project-scope Codex hook command. cmd.exe cannot
+ * evaluate `$(git rev-parse --show-toplevel)`; the dispatcher resolves the repo
+ * root itself by walking up to `.repovine`, so a workspace-relative path
+ * suffices. Verification on a real Windows Codex client is pending.
+ */
+function codexProjectWindowsCommand(action: HookAction): string {
+  return `node "${CLIENT_CAPABILITIES.codex.hooks.projectScriptsDir}/${CLIENT_DISPATCHER_FILENAME}" ${action} codex`;
+}
 
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/stale-graph-notice.js"'
-timeout = 5
-statusMessage = "Checking repovine graph freshness"
+/** TOML literal string (single quotes) — the hook commands contain double quotes. */
+function tomlLiteralString(value: string): string {
+  if (value.includes("'")) {
+    throw new Error(`TOML literal string cannot contain a single quote: ${value}`);
+  }
+  return `'${value}'`;
+}
 
-[[hooks.SessionStart]]
-matcher = "startup|resume|clear"
+export function buildCodexHooksBlock(): string {
+  const stanzas = CODEX_HOOK_ROWS.map(row => [
+    `[[hooks.${row.event}]]`,
+    `matcher = ${JSON.stringify(row.matcher)}`,
+    '',
+    `[[hooks.${row.event}.hooks]]`,
+    'type = "command"',
+    `command = ${tomlLiteralString(shellHookCommand('codex', 'project', row.action))}`,
+    `command_windows = ${tomlLiteralString(codexProjectWindowsCommand(row.action))}`,
+    `timeout = ${row.timeout}`,
+    `statusMessage = ${JSON.stringify(row.statusMessage)}`,
+  ].join('\n'));
+  return `# repovine hooks (managed by: npx repovine setup codex)\n${CODEX_HOOKS_BEGIN_MARKER}\n${stanzas.join('\n\n')}\n${CODEX_HOOKS_END_MARKER}\n`;
+}
 
-[[hooks.SessionStart.hooks]]
-type = "command"
-command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/session-mcp-hint.js"'
-timeout = 5
-statusMessage = "Loading repovine MCP reminder"
-${CODEX_HOOKS_END_MARKER}
-`;
+export const CODEX_HOOKS_BLOCK = buildCodexHooksBlock();
 
 export function buildCodexConfigToml(launcher: McpLauncher = NPX_LAUNCHER): string {
   return `#:schema https://developers.openai.com/codex/config-schema.json
@@ -179,828 +230,80 @@ ${CODEX_HOOKS_BLOCK}`;
 
 export const CODEX_CONFIG_TOML = buildCodexConfigToml();
 
-export const CODEX_STALE_GRAPH_NOTICE_JS = `#!/usr/bin/env node
-// PostToolUse hook for Edit|Write|NotebookEdit/apply_patch/Bash.
-// Reminds the agent that the repovine graph is stale and must be
-// refreshed before structural navigation or annotation writes.
+export type CursorHookEvent = 'preToolUse' | 'afterFileEdit' | 'afterShellExecution' | 'sessionStart';
 
-let raw = '';
-process.stdin.on('data', chunk => { raw += chunk; });
-async function annotationConflictHint() {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
+/** Per-event wiring of the Cursor hooks config (rendering data for buildCursorHooksSettings). */
+const CURSOR_HOOK_ROWS: ReadonlyArray<{ event: CursorHookEvent; action: HookAction }> = [
+  { event: 'preToolUse', action: 'boundary-notice' },
+  { event: 'afterFileEdit', action: 'stale-graph-notice' },
+  { event: 'afterShellExecution', action: 'stale-graph-notice' },
+  { event: 'sessionStart', action: 'session-mcp-hint' },
+];
+
+export interface CursorHooksSettings {
+  version: number;
+  hooks: Record<CursorHookEvent, Array<{ command: string }>>;
+}
+
+/** Cursor `.cursor/hooks.json` shape: shell-string commands, workspace-relative paths. */
+export function buildCursorHooksSettings(): CursorHooksSettings {
+  const hooks = {} as CursorHooksSettings['hooks'];
+  for (const row of CURSOR_HOOK_ROWS) {
+    (hooks[row.event] ??= []).push({ command: shellHookCommand('cursor', 'project', row.action) });
+  }
+  return { version: 1, hooks };
+}
+
+export const CURSOR_HOOKS_SETTINGS = buildCursorHooksSettings();
+
+export type ClaudeHookEvent = 'PreToolUse' | 'PostToolUse' | 'SessionStart';
+
+/** Per-event wiring of the Claude hooks settings (rendering data for buildClaudeHooksSettings). */
+const CLAUDE_HOOK_ROWS: ReadonlyArray<{ event: ClaudeHookEvent; matcher?: string; action: HookAction }> = [
+  { event: 'PreToolUse', matcher: 'Edit|Write|NotebookEdit', action: 'boundary-notice' },
+  { event: 'PostToolUse', matcher: 'Edit|Write|NotebookEdit|Bash', action: 'stale-graph-notice' },
+  { event: 'SessionStart', action: 'session-mcp-hint' },
+];
+
+export interface ClaudeHookExec {
+  type: 'command';
+  command: string;
+  args: string[];
+}
+
+export interface ClaudeHookEntry {
+  matcher?: string;
+  hooks: ClaudeHookExec[];
+}
+
+export type ClaudeHooksSettings = Record<ClaudeHookEvent, ClaudeHookEntry[]>;
+
+/**
+ * Claude hooks settings in exec form: `command: 'node'` plus `args`. Claude
+ * spawns the command directly (no shell) when `args` is present and
+ * substitutes `${VAR}` references in command/args itself, so no `shell` field
+ * is emitted. `scope` selects the root the dispatcher path is anchored to:
+ * `${CLAUDE_PROJECT_DIR}` (project settings) or `${CLAUDE_PLUGIN_ROOT}`
+ * (plugin bundle).
+ */
+export function buildClaudeHooksSettings(scope: 'project' | 'plugin'): ClaudeHooksSettings {
+  const settings = {} as ClaudeHooksSettings;
+  for (const row of CLAUDE_HOOK_ROWS) {
+    const hook: ClaudeHookExec = {
+      type: 'command',
+      command: 'node',
+      args: [hookDispatcherPath('claude', scope), row.action, 'claude'],
     };
-    const root = findRoot(process.env.CLAUDE_PROJECT_DIR || process.cwd());
-    const readAnnotationsRel = rootDir => {
-      try {
-        const envRel = process.env.REPOVINE_ANNOTATIONS_FILE;
-        if (typeof envRel === 'string' && envRel.trim()) return envRel.trim();
-        const cfgPath = join(rootDir, 'repovine.config.json');
-        if (existsSync(cfgPath)) {
-          const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
-          const rel = cfg?.workspace?.annotationsFile;
-          if (typeof rel === 'string' && rel.trim()) return rel.trim();
-        }
-      } catch {}
-      return 'repovine.annots.json';
-    };
-    const rel = readAnnotationsRel(root);
-    const filePath = join(root, rel);
-    const hasMarkers = existsSync(filePath) && /^(<<<<<<<|=======|>>>>>>>) ?/m.test(readFileSync(filePath, 'utf-8'));
-    if (!hasMarkers) return '';
-    return 'repovine: ' + rel + ' contains conflict markers. ' +
-      'Do not resolve the JSON by hand. Call the repovine MCP tools: get_annotation_merge_status, merge_annotations, validate_annotations. ' +
-      'CLI fallback: npx repovine annotations merge && npx repovine annotations validate.';
-  } catch {
-    return '';
+    // `matcher` is absent (not undefined-valued) on SessionStart entries.
+    const entry: ClaudeHookEntry = row.matcher !== undefined
+      ? { matcher: row.matcher, hooks: [hook] }
+      : { hooks: [hook] };
+    (settings[row.event] ??= []).push(entry);
   }
+  return settings;
 }
 
-async function onboardingStateHint() {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
-    };
-    const root = findRoot(process.env.CLAUDE_PROJECT_DIR || process.cwd());
-    const filePath = join(root, '.repovine', 'onboarding-state.json');
-    if (!existsSync(filePath)) return '';
-    const state = JSON.parse(readFileSync(filePath, 'utf-8'));
-    return ' Onboarding state: ' + JSON.stringify({
-      graph: state.graph,
-      onboarding: state.onboarding
-    }) + '.';
-  } catch {
-    return '';
-  }
-}
-
-process.stdin.on('end', async () => {
-  let data;
-  try { data = JSON.parse(raw || '{}'); } catch { process.exit(0); }
-
-  const paths = [];
-  const ti = data && data.tool_input;
-  if (ti && typeof ti.file_path === 'string') paths.push(ti.file_path);
-
-  const patchText = ti && (ti.input || ti.patch || ti.command);
-  if (typeof patchText === 'string') {
-    const re = /^\\*\\*\\* (?:Update|Add|Delete) File:\\s*(.+)$/gm;
-    let m;
-    while ((m = re.exec(patchText)) !== null) paths.push(m[1].trim());
-  }
-
-  const commandText = ti && typeof ti.command === 'string' ? ti.command : '';
-  const isGitMergeCommand = /\\bgit\\s+(merge|pull|rebase|cherry-pick)\\b/.test(commandText);
-  if (isGitMergeCommand) {
-    const hint = await annotationConflictHint();
-    if (hint) {
-      process.stdout.write(JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: 'PostToolUse',
-          additionalContext: hint
-        }
-      }));
-      return;
-    }
-  }
-
-  if (paths.length === 0) process.exit(0);
-
-  const isEngineOwned = p =>
-    /[\\\\/]\\.repovine[\\\\/]/.test(p) ||
-    /(?:^|[\\\\/])\\.repovine\\.[^\\\\/]+$/.test(p) ||
-    /(?:^|[\\\\/])repovine\\.(?:annots|annotations|config|domains)\\.json$/.test(p);
-  const isParsed = p =>
-    /\\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte|tf|ya?ml)$/i.test(p) ||
-    /(^|[\\\\/])Dockerfile[^\\\\/]*$/i.test(p);
-
-  const relevant = paths.some(p => !isEngineOwned(p) && isParsed(p));
-  if (!relevant) process.exit(0);
-
-  const out = {
-    hookSpecificOutput: {
-      hookEventName: 'PostToolUse',
-      additionalContext:
-        'repovine: syntax index is now stale after this edit. ' +
-        'Before the next structural navigation, dependency analysis, or annotation write, ' +
-        'call repovine MCP tool refresh_context. ' +
-        'Reading individual files directly is still fine without refresh.'
-    }
-  };
-  process.stdout.write(JSON.stringify(out));
-});
-`;
-
-export const CODEX_BOUNDARY_NOTICE_JS = `#!/usr/bin/env node
-// PreToolUse hook for Edit|Write|NotebookEdit|apply_patch.
-// Deterministic boundary delivery: resolves the edited file to its node and, when that node carries a
-// scope:"boundary" risk (recorded in .repovine/boundary-index.json by the build), surfaces the
-// off-limits reason as additionalContext. Advisory, never blocking — a boundary surface is sometimes
-// edited legitimately. Standalone: reads the index file, needs no running MCP server.
-
-let raw = '';
-process.stdin.on('data', chunk => { raw += chunk; });
-
-function collectPaths(ti) {
-  const paths = [];
-  if (ti && typeof ti.file_path === 'string') paths.push(ti.file_path);
-  if (ti && typeof ti.notebook_path === 'string') paths.push(ti.notebook_path);
-  const patchText = ti && (ti.input || ti.patch || ti.command);
-  if (typeof patchText === 'string') {
-    const re = /^\\*\\*\\* (?:Update|Add|Delete) File:\\s*(.+)$/gm;
-    let m;
-    while ((m = re.exec(patchText)) !== null) paths.push(m[1].trim());
-  }
-  return paths;
-}
-
-function buildAdvisory(blocks) {
-  const lines = ['repovine boundary advisory — the file(s) you are editing carry scope:"boundary" annotations (off-limits surface: published contract, frozen migration, or structural slot).'];
-  for (const block of blocks) {
-    lines.push(block.relPath + ':');
-    for (const entry of block.entries) {
-      const who = entry.label ? entry.label + ' [' + entry.nodeId + ']' : entry.nodeId;
-      for (const risk of (entry.risks || [])) lines.push('  - ' + who + ': ' + risk);
-    }
-  }
-  lines.push('Editing a boundary surface is legitimate for a real fix in the surface itself. If this change would alter the contract, re-plan to the consumer / write path instead of editing the frozen surface in place.');
-  return lines.join('\\n');
-}
-
-process.stdin.on('end', async () => {
-  let data;
-  try { data = JSON.parse(raw || '{}'); } catch { process.exit(0); }
-
-  const ti = data && data.tool_input;
-  const paths = collectPaths(ti);
-  if (paths.length === 0) process.exit(0);
-
-  const { existsSync, readFileSync } = await import('node:fs');
-  const { dirname, join, resolve, isAbsolute, relative } = await import('node:path');
-
-  const findRoot = start => {
-    let dir = resolve(start || process.cwd());
-    for (;;) {
-      if (existsSync(join(dir, '.repovine'))) return dir;
-      const parent = dirname(dir);
-      if (parent === dir) return resolve(start || process.cwd());
-      dir = parent;
-    }
-  };
-  const startDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-  const root = findRoot(startDir);
-
-  let index;
-  try {
-    const filePath = join(root, '.repovine', 'boundary-index.json');
-    if (!existsSync(filePath)) process.exit(0);
-    index = JSON.parse(readFileSync(filePath, 'utf-8'));
-  } catch { process.exit(0); }
-  if (!index || typeof index !== 'object') process.exit(0);
-  const entriesOk = index.entries && typeof index.entries === 'object';
-  if (index.version !== 1) {
-    // Schema drift: the engine emits a newer index than this installed hook understands. Fail LOUD
-    // (actionable notice) instead of silently disabling the channel. Only when the index is otherwise
-    // well-formed; a corrupt newer index stays silent like any other malformed file.
-    if (entriesOk) {
-      process.stdout.write(JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: 'PreToolUse',
-          additionalContext:
-            'repovine: boundary index schema (v' + index.version + ') is newer than this pre-edit hook; '
-            + 'run "npx repovine setup" to refresh it. Boundary advisories are paused until then.'
-        }
-      }));
-    }
-    process.exit(0);
-  }
-  if (!entriesOk) process.exit(0);
-
-  const toRel = p => relative(root, isAbsolute(p) ? p : resolve(startDir, p)).split('\\\\').join('/');
-
-  const seen = new Set();
-  const blocks = [];
-  for (const p of paths) {
-    const rel = toRel(p);
-    if (seen.has(rel)) continue;
-    seen.add(rel);
-    const entries = index.entries[rel];
-    if (Array.isArray(entries) && entries.length > 0) blocks.push({ relPath: rel, entries });
-  }
-  if (blocks.length === 0) process.exit(0);
-
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      additionalContext: buildAdvisory(blocks)
-    }
-  }));
-});
-`;
-
-export const CODEX_SESSION_MCP_HINT_JS = `#!/usr/bin/env node
-// SessionStart hook. Injects a one-time hint that repovine MCP is
-// available and should be the first call for any non-trivial task.
-
-let raw = '';
-process.stdin.on('data', chunk => { raw += chunk; });
-async function annotationConflictHint() {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
-    };
-    const root = findRoot(process.env.CLAUDE_PROJECT_DIR || process.cwd());
-    const readAnnotationsRel = rootDir => {
-      try {
-        const envRel = process.env.REPOVINE_ANNOTATIONS_FILE;
-        if (typeof envRel === 'string' && envRel.trim()) return envRel.trim();
-        const cfgPath = join(rootDir, 'repovine.config.json');
-        if (existsSync(cfgPath)) {
-          const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
-          const rel = cfg?.workspace?.annotationsFile;
-          if (typeof rel === 'string' && rel.trim()) return rel.trim();
-        }
-      } catch {}
-      return 'repovine.annots.json';
-    };
-    const rel = readAnnotationsRel(root);
-    const filePath = join(root, rel);
-    const hasMarkers = existsSync(filePath) && /^(<<<<<<<|=======|>>>>>>>) ?/m.test(readFileSync(filePath, 'utf-8'));
-    if (!hasMarkers) return '';
-    return ' Annotation maintenance: ' + rel + ' currently contains conflict markers. ' +
-      'Before annotation work, call the repovine MCP tools: get_annotation_merge_status, merge_annotations, validate_annotations. ' +
-      'CLI fallback: npx repovine annotations merge && npx repovine annotations validate.';
-  } catch {
-    return '';
-  }
-}
-
-async function onboardingStateHint() {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
-    };
-    const root = findRoot(process.env.CLAUDE_PROJECT_DIR || process.cwd());
-    const filePath = join(root, '.repovine', 'onboarding-state.json');
-    if (!existsSync(filePath)) return '';
-    const state = JSON.parse(readFileSync(filePath, 'utf-8'));
-    return ' Onboarding state: ' + JSON.stringify({
-      graph: state.graph,
-      onboarding: state.onboarding
-    }) + '.';
-  } catch {
-    return '';
-  }
-}
-
-process.stdin.on('end', async () => {
-  let data;
-  try { data = JSON.parse(raw || '{}'); } catch { data = {}; }
-
-  if (data.source === 'compact') process.exit(0);
-  const conflictHint = await annotationConflictHint();
-  const onboardingHint = await onboardingStateHint();
-
-  const out = {
-    hookSpecificOutput: {
-      hookEventName: 'SessionStart',
-      additionalContext:
-        'repovine MCP is available (server name: repovine). ' +
-        'For any non-trivial task, START with repovine MCP tools search_context or map_context; do not grep or read files first. ' +
-        'The MCP provides structure, annotations, entrypoints, dependency analysis, config surface, and flow tracing. ' +
-        'After editing files, call repovine MCP tool refresh_context to refresh the syntax index before further structural navigation. ' +
-        'Build state: tool calls received before the graph finishes building return a successful response (not an error) with status:"building" and an eta_sec; ' +
-        'do not retry in a loop — call get_build_status with waitSec (e.g. { waitSec: 45 }) to long-poll until the build settles, respect retry_after_sec, and fall back to direct file reads when eta_sec >= 60. ' +
-        ${JSON.stringify(DOMAINS_ADVISOR_AGENT_CONTRACT)} +
-        onboardingHint +
-        conflictHint
-    }
-  };
-  process.stdout.write(JSON.stringify(out));
-});
-`;
-
-export const CLAUDE_STALE_GRAPH_NOTICE_JS = CODEX_STALE_GRAPH_NOTICE_JS;
-export const CLAUDE_SESSION_MCP_HINT_JS = CODEX_SESSION_MCP_HINT_JS;
-export const CLAUDE_BOUNDARY_NOTICE_JS = CODEX_BOUNDARY_NOTICE_JS;
-
-export const CURSOR_STALE_GRAPH_NOTICE_JS = `#!/usr/bin/env node
-// Cursor project hook for afterFileEdit / afterShellExecution.
-// Reminds the agent that the repovine graph is stale after graph-relevant
-// edits, and detects annotation conflict markers after pull/merge/rebase commands.
-
-let raw = '';
-process.stdin.on('data', chunk => { raw += chunk; });
-
-function firstString(...values) {
-  return values.find(value => typeof value === 'string' && value.length > 0) || '';
-}
-
-function resolveRoot(data) {
-  const workspaceRoots = Array.isArray(data.workspace_roots) ? data.workspace_roots : data.workspaceRoots;
-  return firstString(
-    process.env.CURSOR_WORKSPACE_ROOT,
-    process.env.CLAUDE_PROJECT_DIR,
-    Array.isArray(workspaceRoots) ? workspaceRoots[0] : '',
-    data.workspace_root,
-    data.workspaceRoot,
-    data.cwd,
-    process.cwd(),
-  );
-}
-
-async function annotationConflictHint(data) {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
-    };
-    const root = findRoot(resolveRoot(data));
-    const readAnnotationsRel = rootDir => {
-      try {
-        const envRel = process.env.REPOVINE_ANNOTATIONS_FILE;
-        if (typeof envRel === 'string' && envRel.trim()) return envRel.trim();
-        const cfgPath = join(rootDir, 'repovine.config.json');
-        if (existsSync(cfgPath)) {
-          const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
-          const rel = cfg?.workspace?.annotationsFile;
-          if (typeof rel === 'string' && rel.trim()) return rel.trim();
-        }
-      } catch {}
-      return 'repovine.annots.json';
-    };
-    const rel = readAnnotationsRel(root);
-    const filePath = join(root, rel);
-    const hasMarkers = existsSync(filePath) && /^(<<<<<<<|=======|>>>>>>>) ?/m.test(readFileSync(filePath, 'utf-8'));
-    if (!hasMarkers) return '';
-    return 'repovine: ' + rel + ' contains conflict markers. ' +
-      'Do not resolve the JSON by hand. Call the repovine MCP tools: get_annotation_merge_status, merge_annotations, validate_annotations. ' +
-      'CLI fallback: npx repovine annotations merge && npx repovine annotations validate.';
-  } catch {
-    return '';
-  }
-}
-
-async function onboardingStateHint(data) {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
-    };
-    const root = findRoot(resolveRoot(data));
-    const filePath = join(root, '.repovine', 'onboarding-state.json');
-    if (!existsSync(filePath)) return '';
-    const state = JSON.parse(readFileSync(filePath, 'utf-8'));
-    return ' Onboarding state: ' + JSON.stringify({
-      graph: state.graph,
-      onboarding: state.onboarding
-    }) + '.';
-  } catch {
-    return '';
-  }
-}
-
-function emit(eventName, message) {
-  process.stdout.write(JSON.stringify({
-    additional_context: message,
-    hookSpecificOutput: {
-      hookEventName: eventName,
-      additionalContext: message
-    }
-  }));
-}
-
-function collectPaths(data) {
-  const paths = [];
-  const ti = data && data.tool_input;
-  for (const source of [data, ti]) {
-    if (!source || typeof source !== 'object') continue;
-    if (typeof source.file_path === 'string') paths.push(source.file_path);
-    if (typeof source.filePath === 'string') paths.push(source.filePath);
-    if (typeof source.path === 'string') paths.push(source.path);
-    for (const key of ['files', 'paths', 'changedFiles']) {
-      const value = source[key];
-      if (!Array.isArray(value)) continue;
-      for (const item of value) {
-        if (typeof item === 'string') paths.push(item);
-        else if (item && typeof item.path === 'string') paths.push(item.path);
-        else if (item && typeof item.file_path === 'string') paths.push(item.file_path);
-      }
-    }
-  }
-
-  const patchText = firstString(
-    ti && ti.input,
-    ti && ti.patch,
-    ti && ti.command,
-    data && data.input,
-    data && data.patch,
-    data && data.command,
-  );
-  if (patchText) {
-    const re = /^\\*\\*\\* (?:Update|Add|Delete) File:\\s*(.+)$/gm;
-    let m;
-    while ((m = re.exec(patchText)) !== null) paths.push(m[1].trim());
-  }
-  return paths;
-}
-
-process.stdin.on('end', async () => {
-  let data;
-  try { data = JSON.parse(raw || '{}'); } catch { process.exit(0); }
-
-  const ti = data && data.tool_input;
-  const commandText = firstString(
-    data && data.command,
-    data && data.shell_command,
-    ti && ti.command,
-  );
-  const isGitMergeCommand = /\\bgit\\s+(merge|pull|rebase|cherry-pick)\\b/.test(commandText);
-  if (isGitMergeCommand) {
-    const hint = await annotationConflictHint(data);
-    if (hint) {
-      emit('afterShellExecution', hint);
-      return;
-    }
-  }
-
-  const paths = collectPaths(data);
-  if (paths.length === 0) process.exit(0);
-
-  const isEngineOwned = p =>
-    /[\\\\/]\\.repovine[\\\\/]/.test(p) ||
-    /(?:^|[\\\\/])\\.repovine\\.[^\\\\/]+$/.test(p) ||
-    /(?:^|[\\\\/])repovine\\.(?:annots|annotations|config|domains)\\.json$/.test(p);
-  const isParsed = p =>
-    /\\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte|tf|ya?ml)$/i.test(p) ||
-    /(^|[\\\\/])Dockerfile[^\\\\/]*$/i.test(p);
-
-  const relevant = paths.some(p => !isEngineOwned(p) && isParsed(p));
-  if (!relevant) process.exit(0);
-
-  emit(
-    'afterFileEdit',
-    'repovine: syntax index is now stale after this edit. ' +
-      'Before the next structural navigation, dependency analysis, or annotation write, ' +
-      'call repovine MCP tool refresh_context. ' +
-      'Reading individual files directly is still fine without refresh.'
-  );
-});
-`;
-
-export const CURSOR_SESSION_MCP_HINT_JS = `#!/usr/bin/env node
-// Cursor project hook for sessionStart. Injects a one-time reminder that the
-// repovine MCP should be the first call for non-trivial tasks.
-
-let raw = '';
-process.stdin.on('data', chunk => { raw += chunk; });
-
-function firstString(...values) {
-  return values.find(value => typeof value === 'string' && value.length > 0) || '';
-}
-
-function resolveRoot(data) {
-  const workspaceRoots = Array.isArray(data.workspace_roots) ? data.workspace_roots : data.workspaceRoots;
-  return firstString(
-    process.env.CURSOR_WORKSPACE_ROOT,
-    process.env.CLAUDE_PROJECT_DIR,
-    Array.isArray(workspaceRoots) ? workspaceRoots[0] : '',
-    data.workspace_root,
-    data.workspaceRoot,
-    data.cwd,
-    process.cwd(),
-  );
-}
-
-async function annotationConflictHint(data) {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
-    };
-    const root = findRoot(resolveRoot(data));
-    const readAnnotationsRel = rootDir => {
-      try {
-        const envRel = process.env.REPOVINE_ANNOTATIONS_FILE;
-        if (typeof envRel === 'string' && envRel.trim()) return envRel.trim();
-        const cfgPath = join(rootDir, 'repovine.config.json');
-        if (existsSync(cfgPath)) {
-          const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
-          const rel = cfg?.workspace?.annotationsFile;
-          if (typeof rel === 'string' && rel.trim()) return rel.trim();
-        }
-      } catch {}
-      return 'repovine.annots.json';
-    };
-    const rel = readAnnotationsRel(root);
-    const filePath = join(root, rel);
-    const hasMarkers = existsSync(filePath) && /^(<<<<<<<|=======|>>>>>>>) ?/m.test(readFileSync(filePath, 'utf-8'));
-    if (!hasMarkers) return '';
-    return ' Annotation maintenance: ' + rel + ' currently contains conflict markers. ' +
-      'Before annotation work, call the repovine MCP tools: get_annotation_merge_status, merge_annotations, validate_annotations. ' +
-      'CLI fallback: npx repovine annotations merge && npx repovine annotations validate.';
-  } catch {
-    return '';
-  }
-}
-
-async function onboardingStateHint(data) {
-  try {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const { dirname, join, resolve } = await import('node:path');
-    const findRoot = start => {
-      let dir = resolve(start || process.cwd());
-      for (;;) {
-        if (existsSync(join(dir, '.repovine'))) return dir;
-        const parent = dirname(dir);
-        if (parent === dir) return resolve(start || process.cwd());
-        dir = parent;
-      }
-    };
-    const root = findRoot(resolveRoot(data));
-    const filePath = join(root, '.repovine', 'onboarding-state.json');
-    if (!existsSync(filePath)) return '';
-    const state = JSON.parse(readFileSync(filePath, 'utf-8'));
-    return ' Onboarding state: ' + JSON.stringify({
-      graph: state.graph,
-      onboarding: state.onboarding
-    }) + '.';
-  } catch {
-    return '';
-  }
-}
-
-function emit(message) {
-  process.stdout.write(JSON.stringify({
-    additional_context: message,
-    hookSpecificOutput: {
-      hookEventName: 'sessionStart',
-      additionalContext: message
-    }
-  }));
-}
-
-process.stdin.on('end', async () => {
-  let data;
-  try { data = JSON.parse(raw || '{}'); } catch { data = {}; }
-
-  if (data.source === 'compact') process.exit(0);
-  const conflictHint = await annotationConflictHint(data);
-  const onboardingHint = await onboardingStateHint(data);
-  emit(
-    'repovine MCP is available (server name: repovine). ' +
-      'For any non-trivial task, START with repovine MCP tools search_context or map_context; do not grep or read files first. ' +
-      'The MCP provides structure, annotations, entrypoints, dependency analysis, config surface, and flow tracing. ' +
-      'After editing files, call repovine MCP tool refresh_context to refresh the syntax index before further structural navigation. ' +
-      'Build state: tool calls received before the graph finishes building return a successful response (not an error) with status:"building" and an eta_sec; ' +
-      'do not retry in a loop — call get_build_status with waitSec (e.g. { waitSec: 45 }) to long-poll until the build settles, respect retry_after_sec, and fall back to direct file reads when eta_sec >= 60. ' +
-      ${JSON.stringify(DOMAINS_ADVISOR_AGENT_CONTRACT)} +
-      onboardingHint +
-      conflictHint
-  );
-});
-`;
-
-export const CURSOR_BOUNDARY_NOTICE_JS = `#!/usr/bin/env node
-// Cursor project hook for preToolUse (Edit|Write|apply_patch tools).
-// Deterministic boundary delivery: resolves the edited file to its node and, when that node carries a
-// scope:"boundary" risk (recorded in .repovine/boundary-index.json by the build), surfaces the
-// off-limits reason as additional_context. Advisory, never blocking. Standalone — no running server.
-
-let raw = '';
-process.stdin.on('data', chunk => { raw += chunk; });
-
-function firstString(...values) {
-  return values.find(value => typeof value === 'string' && value.length > 0) || '';
-}
-
-function resolveRoot(data) {
-  const workspaceRoots = Array.isArray(data.workspace_roots) ? data.workspace_roots : data.workspaceRoots;
-  return firstString(
-    process.env.CURSOR_WORKSPACE_ROOT,
-    process.env.CLAUDE_PROJECT_DIR,
-    Array.isArray(workspaceRoots) ? workspaceRoots[0] : '',
-    data.workspace_root,
-    data.workspaceRoot,
-    data.cwd,
-    process.cwd(),
-  );
-}
-
-function collectPaths(data) {
-  const paths = [];
-  const ti = data && data.tool_input;
-  for (const source of [data, ti]) {
-    if (!source || typeof source !== 'object') continue;
-    if (typeof source.file_path === 'string') paths.push(source.file_path);
-    if (typeof source.filePath === 'string') paths.push(source.filePath);
-    if (typeof source.path === 'string') paths.push(source.path);
-    if (typeof source.notebook_path === 'string') paths.push(source.notebook_path);
-  }
-  const patchText = firstString(
-    ti && ti.input, ti && ti.patch, ti && ti.command,
-    data && data.input, data && data.patch, data && data.command,
-  );
-  if (patchText) {
-    const re = /^\\*\\*\\* (?:Update|Add|Delete) File:\\s*(.+)$/gm;
-    let m;
-    while ((m = re.exec(patchText)) !== null) paths.push(m[1].trim());
-  }
-  return paths;
-}
-
-function buildAdvisory(blocks) {
-  const lines = ['repovine boundary advisory — the file(s) you are editing carry scope:"boundary" annotations (off-limits surface: published contract, frozen migration, or structural slot).'];
-  for (const block of blocks) {
-    lines.push(block.relPath + ':');
-    for (const entry of block.entries) {
-      const who = entry.label ? entry.label + ' [' + entry.nodeId + ']' : entry.nodeId;
-      for (const risk of (entry.risks || [])) lines.push('  - ' + who + ': ' + risk);
-    }
-  }
-  lines.push('Editing a boundary surface is legitimate for a real fix in the surface itself. If this change would alter the contract, re-plan to the consumer / write path instead of editing the frozen surface in place.');
-  return lines.join('\\n');
-}
-
-process.stdin.on('end', async () => {
-  let data;
-  try { data = JSON.parse(raw || '{}'); } catch { process.exit(0); }
-
-  const paths = collectPaths(data);
-  if (paths.length === 0) process.exit(0);
-
-  const { existsSync, readFileSync } = await import('node:fs');
-  const { dirname, join, resolve, isAbsolute, relative } = await import('node:path');
-
-  const findRoot = start => {
-    let dir = resolve(start || process.cwd());
-    for (;;) {
-      if (existsSync(join(dir, '.repovine'))) return dir;
-      const parent = dirname(dir);
-      if (parent === dir) return resolve(start || process.cwd());
-      dir = parent;
-    }
-  };
-  const startDir = resolveRoot(data);
-  const root = findRoot(startDir);
-
-  let index;
-  try {
-    const filePath = join(root, '.repovine', 'boundary-index.json');
-    if (!existsSync(filePath)) process.exit(0);
-    index = JSON.parse(readFileSync(filePath, 'utf-8'));
-  } catch { process.exit(0); }
-  if (!index || typeof index !== 'object') process.exit(0);
-  const entriesOk = index.entries && typeof index.entries === 'object';
-  if (index.version !== 1) {
-    // Schema drift: fail LOUD (actionable notice) instead of silently disabling the channel; only
-    // when the index is otherwise well-formed. Cursor dual-key payload.
-    if (entriesOk) {
-      const notice = 'repovine: boundary index schema (v' + index.version + ') is newer than this pre-edit hook; run "npx repovine setup" to refresh it. Boundary advisories are paused until then.';
-      process.stdout.write(JSON.stringify({ additional_context: notice, hookSpecificOutput: { hookEventName: 'preToolUse', additionalContext: notice } }));
-    }
-    process.exit(0);
-  }
-  if (!entriesOk) process.exit(0);
-
-  const toRel = p => relative(root, isAbsolute(p) ? p : resolve(startDir, p)).split('\\\\').join('/');
-
-  const seen = new Set();
-  const blocks = [];
-  for (const p of paths) {
-    const rel = toRel(p);
-    if (seen.has(rel)) continue;
-    seen.add(rel);
-    const entries = index.entries[rel];
-    if (Array.isArray(entries) && entries.length > 0) blocks.push({ relPath: rel, entries });
-  }
-  if (blocks.length === 0) process.exit(0);
-
-  const message = buildAdvisory(blocks);
-  process.stdout.write(JSON.stringify({
-    additional_context: message,
-    hookSpecificOutput: {
-      hookEventName: 'preToolUse',
-      additionalContext: message
-    }
-  }));
-});
-`;
-
-export const CURSOR_HOOKS_SETTINGS = {
-  version: 1,
-  hooks: {
-    preToolUse: [
-      {
-        command: 'node ".cursor/hooks/boundary-notice.js"',
-      },
-    ],
-    afterFileEdit: [
-      {
-        command: 'node ".cursor/hooks/stale-graph-notice.js"',
-      },
-    ],
-    afterShellExecution: [
-      {
-        command: 'node ".cursor/hooks/stale-graph-notice.js"',
-      },
-    ],
-    sessionStart: [
-      {
-        command: 'node ".cursor/hooks/session-mcp-hint.js"',
-      },
-    ],
-  },
-} as const;
-
-export const CLAUDE_HOOKS_SETTINGS = {
-  PreToolUse: [
-    {
-      matcher: 'Edit|Write|NotebookEdit',
-      hooks: [
-        {
-          type: 'command',
-          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/boundary-notice.js"',
-        },
-      ],
-    },
-  ],
-  PostToolUse: [
-    {
-      matcher: 'Edit|Write|NotebookEdit|Bash',
-      hooks: [
-        {
-          type: 'command',
-          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stale-graph-notice.js"',
-        },
-      ],
-    },
-  ],
-  SessionStart: [
-    {
-      hooks: [
-        {
-          type: 'command',
-          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/session-mcp-hint.js"',
-        },
-      ],
-    },
-  ],
-} as const;
+export const CLAUDE_HOOKS_SETTINGS = buildClaudeHooksSettings('project');
 
 export const AGENTS_MD_BEGIN_MARKER = '<!-- repovine:agents-md:begin -->';
 export const AGENTS_MD_END_MARKER = '<!-- repovine:agents-md:end -->';

@@ -36,22 +36,18 @@ import {
   type OnboardingAsset,
 } from './onboarding-assets.js';
 import {
-  CLAUDE_HOOKS_SETTINGS,
+  buildClaudeHooksSettings,
   CLAUDE_MCP_JSON,
-  CLAUDE_SESSION_MCP_HINT_JS,
-  CLAUDE_STALE_GRAPH_NOTICE_JS,
-  CLAUDE_BOUNDARY_NOTICE_JS,
   CLAUDE_MD,
   CODEX_CONFIG_TOML,
-  CODEX_SESSION_MCP_HINT_JS,
-  CODEX_STALE_GRAPH_NOTICE_JS,
-  CODEX_BOUNDARY_NOTICE_JS,
   CURSOR_HOOKS_SETTINGS,
   CURSOR_MCP_JSON,
-  CURSOR_SESSION_MCP_HINT_JS,
-  CURSOR_STALE_GRAPH_NOTICE_JS,
-  CURSOR_BOUNDARY_NOTICE_JS,
 } from './templates.js';
+import {
+  CLIENT_CAPABILITIES,
+  CODEX_WINDOWS_PLUGIN_ROOT_REF,
+} from './client-capabilities.js';
+import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from './dispatcher/index.js';
 import { REPOVINE_MCP_SERVER_NAME } from './merge-config.js';
 
 export type PluginClient = 'cursor' | 'claude' | 'codex';
@@ -265,32 +261,36 @@ function pinCodexConfigToml(toml: string, version: string): string {
   );
 }
 
-function claudePluginHooksSettings(): Record<string, unknown> {
-  const hooks = JSON.parse(JSON.stringify(CLAUDE_HOOKS_SETTINGS)) as {
-    PreToolUse?: Array<{ hooks?: Array<{ command?: string }> }>;
-    PostToolUse?: Array<{ hooks?: Array<{ command?: string }> }>;
-    SessionStart?: Array<{ hooks?: Array<{ command?: string }> }>;
-  };
-  const replacements: Record<string, string> = {
-    'node "$CLAUDE_PROJECT_DIR/.claude/hooks/boundary-notice.js"':
-      'node "${CLAUDE_PLUGIN_ROOT}/hooks/boundary-notice.js"',
-    'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stale-graph-notice.js"':
-      'node "${CLAUDE_PLUGIN_ROOT}/hooks/stale-graph-notice.js"',
-    'node "$CLAUDE_PROJECT_DIR/.claude/hooks/session-mcp-hint.js"':
-      'node "${CLAUDE_PLUGIN_ROOT}/hooks/session-mcp-hint.js"',
-  };
-  for (const entries of [hooks.PreToolUse, hooks.PostToolUse, hooks.SessionStart]) {
-    if (!Array.isArray(entries)) continue;
-    for (const entry of entries) {
-      if (!Array.isArray(entry.hooks)) continue;
-      for (const hook of entry.hooks) {
-        if (hook.command && replacements[hook.command]) {
-          hook.command = replacements[hook.command];
-        }
+/**
+ * Codex bundle projection of the managed config: pin the MCP launcher version,
+ * then re-address hook commands from the project root to the plugin root
+ * ($PLUGIN_ROOT; command_windows uses the cmd-style reference). Line-anchored
+ * replacement over the managed hooks block, same trust model as
+ * pinCodexConfigToml: only full quoted hook-command lines are rewritten, so
+ * MCP args lines are never touched.
+ */
+function codexPluginConfigToml(toml: string, version: string): string {
+  const codexHooks = CLIENT_CAPABILITIES.codex.hooks;
+  const projectCommandPrefix = `command = 'node "${codexHooks.projectRootExpr}/${codexHooks.projectScriptsDir}/`;
+  const windowsCommandPrefix = `command_windows = 'node "${codexHooks.projectScriptsDir}/`;
+  return pinCodexConfigToml(toml, version)
+    .split('\n')
+    .map(line => {
+      if (line.startsWith(projectCommandPrefix)) {
+        return line.replace(
+          `"${codexHooks.projectRootExpr}/${codexHooks.projectScriptsDir}/`,
+          `"${codexHooks.pluginRootExpr}/${codexHooks.pluginScriptsDir}/`,
+        );
       }
-    }
-  }
-  return hooks as Record<string, unknown>;
+      if (line.startsWith(windowsCommandPrefix)) {
+        return line.replace(
+          `"${codexHooks.projectScriptsDir}/`,
+          `"${CODEX_WINDOWS_PLUGIN_ROOT_REF}/${codexHooks.pluginScriptsDir}/`,
+        );
+      }
+      return line;
+    })
+    .join('\n');
 }
 
 function resolveLogoRelative(outRoot: string): string | undefined {
@@ -381,10 +381,11 @@ function renderCursorBundle(
     written,
   );
   writeUtf8(path.join(bundleRoot, '.cursor', 'mcp.json'), pinMcpJson(CURSOR_MCP_JSON, version), written);
+  // Cursor resolves hook commands against the workspace root and defines no
+  // plugin-install-root variable, so the bundle ships the same workspace-relative
+  // hooks.json as project setup.
   writeJson(path.join(bundleRoot, '.cursor', 'hooks.json'), CURSOR_HOOKS_SETTINGS, written);
-  writeUtf8(path.join(bundleRoot, '.cursor', 'hooks', 'boundary-notice.js'), CURSOR_BOUNDARY_NOTICE_JS, written);
-  writeUtf8(path.join(bundleRoot, '.cursor', 'hooks', 'stale-graph-notice.js'), CURSOR_STALE_GRAPH_NOTICE_JS, written);
-  writeUtf8(path.join(bundleRoot, '.cursor', 'hooks', 'session-mcp-hint.js'), CURSOR_SESSION_MCP_HINT_JS, written);
+  writeUtf8(path.join(bundleRoot, '.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME), readClientDispatcherSource(), written);
 
   writeRenderedAssets(bundleRoot, AGENTS, CLIENT_ASSET_TARGETS.cursorAgents, written);
   // Cursor gets the build/lifecycle workflows as skills (no .cursor/commands surface).
@@ -413,10 +414,8 @@ function renderClaudeBundle(bundleRoot: string, outRoot: string, version: string
     written,
   );
   writeUtf8(path.join(bundleRoot, '.mcp.json'), pinMcpJson(CLAUDE_MCP_JSON, version), written);
-  writeJson(path.join(bundleRoot, 'hooks', 'hooks.json'), claudePluginHooksSettings(), written);
-  writeUtf8(path.join(bundleRoot, 'hooks', 'boundary-notice.js'), CLAUDE_BOUNDARY_NOTICE_JS, written);
-  writeUtf8(path.join(bundleRoot, 'hooks', 'stale-graph-notice.js'), CLAUDE_STALE_GRAPH_NOTICE_JS, written);
-  writeUtf8(path.join(bundleRoot, 'hooks', 'session-mcp-hint.js'), CLAUDE_SESSION_MCP_HINT_JS, written);
+  writeJson(path.join(bundleRoot, 'hooks', 'hooks.json'), buildClaudeHooksSettings('plugin'), written);
+  writeUtf8(path.join(bundleRoot, 'hooks', CLIENT_DISPATCHER_FILENAME), readClientDispatcherSource(), written);
   writeUtf8(path.join(bundleRoot, 'CLAUDE.md'), CLAUDE_MD, written);
 
   writeRenderedAssets(bundleRoot, AGENTS, CLIENT_ASSET_TARGETS.claudePluginAgents, written);
@@ -451,12 +450,10 @@ function renderCodexBundle(bundleRoot: string, outRoot: string, version: string,
   writeUtf8(path.join(bundleRoot, '.mcp.json'), pinMcpJson(CLAUDE_MCP_JSON, version), written);
   writeUtf8(
     path.join(bundleRoot, '.codex', 'config.toml'),
-    pinCodexConfigToml(CODEX_CONFIG_TOML, version),
+    codexPluginConfigToml(CODEX_CONFIG_TOML, version),
     written,
   );
-  writeUtf8(path.join(bundleRoot, '.codex', 'hooks', 'boundary-notice.js'), CODEX_BOUNDARY_NOTICE_JS, written);
-  writeUtf8(path.join(bundleRoot, '.codex', 'hooks', 'stale-graph-notice.js'), CODEX_STALE_GRAPH_NOTICE_JS, written);
-  writeUtf8(path.join(bundleRoot, '.codex', 'hooks', 'session-mcp-hint.js'), CODEX_SESSION_MCP_HINT_JS, written);
+  writeUtf8(path.join(bundleRoot, '.codex', 'hooks', CLIENT_DISPATCHER_FILENAME), readClientDispatcherSource(), written);
 
   writeRenderedAssets(bundleRoot, AGENTS, CLIENT_ASSET_TARGETS.codexAgents, written);
   writeRenderedAssets(

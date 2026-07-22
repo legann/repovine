@@ -31,6 +31,11 @@ import {
   CURSOR_HOOKS_SETTINGS,
   CURSOR_MCP_JSON,
 } from './templates.js';
+import { CLIENT_DISPATCHER_FILENAME } from './dispatcher/index.js';
+import {
+  isManagedClaudeHook,
+  isManagedCursorHookCommand,
+} from './dispatcher/hook-identity.js';
 import {
   AGENTS,
   SHARED_SKILLS,
@@ -286,16 +291,6 @@ function removeMcpJsonServer(
   return writeOrRemoveText(cwd, relativePath, nextContent, opts, 'remove repovine MCP server and preserve other settings', true, eol);
 }
 
-function cursorHookCommandSet(): Set<string> {
-  const commands = new Set<string>();
-  for (const entries of Object.values(CURSOR_HOOKS_SETTINGS.hooks)) {
-    for (const entry of entries) {
-      commands.add(entry.command);
-    }
-  }
-  return commands;
-}
-
 function removeCursorHooksJson(cwd: string, opts: ClearOptions): ClearResult {
   const relativePath = path.join('.cursor', 'hooks.json');
   const filePath = resultPath(cwd, relativePath);
@@ -307,8 +302,10 @@ function removeCursorHooksJson(cwd: string, opts: ClearOptions): ClearResult {
   // Mixed-EOL files compare byte-exact and are rewritten as LF JSON verbatim.
   const uniform = isUniformEol(current);
   const eol = uniform ? detectEol(current) : null;
-  const generated = `${JSON.stringify(CURSOR_HOOKS_SETTINGS, null, 2)}\n`;
-  const matchesGenerated = uniform ? normalizeEol(current) === generated : current === generated;
+  // Pristine generated files are removed whole; anything else takes the entry-level path.
+  const generatedForms = [`${JSON.stringify(CURSOR_HOOKS_SETTINGS, null, 2)}\n`];
+  const matchesGenerated = generatedForms.some(generated =>
+    uniform ? normalizeEol(current) === generated : current === generated);
   if (matchesGenerated) {
     return removePath(cwd, relativePath, opts, 'remove generated Cursor hooks config');
   }
@@ -329,7 +326,6 @@ function removeCursorHooksJson(cwd: string, opts: ClearOptions): ClearResult {
     return { path: filePath, status: 'skipped', message: 'Cursor hooks object not present' };
   }
 
-  const commands = cursorHookCommandSet();
   const nextHooks: Record<string, unknown> = {};
   let changed = false;
   for (const [eventName, entries] of Object.entries(hooks)) {
@@ -338,7 +334,7 @@ function removeCursorHooksJson(cwd: string, opts: ClearOptions): ClearResult {
       continue;
     }
     const kept = entries.filter(entry =>
-      !(isRecord(entry) && typeof entry.command === 'string' && commands.has(entry.command)));
+      !(isRecord(entry) && isManagedCursorHookCommand(entry.command)));
     if (kept.length !== entries.length) changed = true;
     if (kept.length > 0) nextHooks[eventName] = kept;
   }
@@ -360,18 +356,6 @@ function removeCursorHooksJson(cwd: string, opts: ClearOptions): ClearResult {
   return writeOrRemoveText(cwd, relativePath, nextContent, opts, 'remove repovine Cursor hooks and preserve unrelated hooks/settings', true, eol);
 }
 
-function claudeHookCommandSet(): Set<string> {
-  const commands = new Set<string>();
-  for (const entries of Object.values(CLAUDE_HOOKS_SETTINGS)) {
-    for (const entry of entries) {
-      for (const hook of entry.hooks) {
-        commands.add(hook.command);
-      }
-    }
-  }
-  return commands;
-}
-
 function removeClaudeSettingsJson(cwd: string, opts: ClearOptions): ClearResult {
   const relativePath = path.join('.claude', 'settings.json');
   const filePath = resultPath(cwd, relativePath);
@@ -383,8 +367,11 @@ function removeClaudeSettingsJson(cwd: string, opts: ClearOptions): ClearResult 
   // Mixed-EOL files compare byte-exact and are rewritten as LF JSON verbatim.
   const uniform = isUniformEol(current);
   const eol = uniform ? detectEol(current) : null;
-  const generated = `${JSON.stringify({ hooks: CLAUDE_HOOKS_SETTINGS }, null, 2)}\n`;
-  const matchesGenerated = uniform ? normalizeEol(current) === generated : current === generated;
+  // Pristine generated files reduce to an empty settings object; anything else
+  // takes the hook-level path.
+  const generatedForms = [`${JSON.stringify({ hooks: CLAUDE_HOOKS_SETTINGS }, null, 2)}\n`];
+  const matchesGenerated = generatedForms.some(generated =>
+    uniform ? normalizeEol(current) === generated : current === generated);
   if (matchesGenerated) {
     return writeOrRemoveText(
       cwd,
@@ -413,7 +400,6 @@ function removeClaudeSettingsJson(cwd: string, opts: ClearOptions): ClearResult 
     return { path: filePath, status: 'skipped', message: 'Claude hooks object not present' };
   }
 
-  const commands = claudeHookCommandSet();
   const nextHooks: Record<string, unknown> = {};
   let changed = false;
   for (const [eventName, entries] of Object.entries(hooks)) {
@@ -424,8 +410,7 @@ function removeClaudeSettingsJson(cwd: string, opts: ClearOptions): ClearResult 
     const keptEntries = entries
       .map(entry => {
         if (!isRecord(entry) || !Array.isArray(entry.hooks)) return entry;
-        const keptHooks = entry.hooks.filter(hook =>
-          !(isRecord(hook) && typeof hook.command === 'string' && commands.has(hook.command)));
+        const keptHooks = entry.hooks.filter(hook => !isManagedClaudeHook(hook));
         if (keptHooks.length !== entry.hooks.length) changed = true;
         return keptHooks.length > 0 ? { ...entry, hooks: keptHooks } : undefined;
       })
@@ -731,6 +716,18 @@ export function clearWorkspace(cwd: string, options: ClearOptions): ClearResult[
   results.push(removeGitignoreBlock(cwd, opts));
 
   const generatedFiles = generatedAssetFiles();
+  // Current hook layout: one dispatcher per client. The per-event script paths
+  // below stay listed so clear also removes installs written by earlier
+  // repovine versions.
+  generatedFiles.set(path.join('.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME), {
+    relativePath: path.join('.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME),
+  });
+  generatedFiles.set(path.join('.claude', 'hooks', CLIENT_DISPATCHER_FILENAME), {
+    relativePath: path.join('.claude', 'hooks', CLIENT_DISPATCHER_FILENAME),
+  });
+  generatedFiles.set(path.join('.codex', 'hooks', CLIENT_DISPATCHER_FILENAME), {
+    relativePath: path.join('.codex', 'hooks', CLIENT_DISPATCHER_FILENAME),
+  });
   generatedFiles.set(path.join('.cursor', 'hooks', 'boundary-notice.js'), {
     relativePath: path.join('.cursor', 'hooks', 'boundary-notice.js'),
   });

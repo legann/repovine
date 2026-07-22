@@ -53,14 +53,44 @@ describe('validate-client-plugins', () => {
     expect(result.code).toBe(0);
   });
 
-  it('fails when a hook script a hooks file calls is missing', () => {
+  it('fails when the dispatcher a hooks file calls is missing', () => {
     const outRoot = render();
-    fs.rmSync(path.join(outRoot, 'repovine-plugins', 'claude', 'hooks', 'boundary-notice.js'));
+    fs.rmSync(path.join(outRoot, 'repovine-plugins', 'claude', 'hooks', 'repovine-client-dispatcher.mjs'));
 
     const result = validate(outRoot);
 
     expect(result.code).toBe(1);
-    expect(result.output).toContain('boundary-notice.js');
+    expect(result.output).toContain('repovine-client-dispatcher.mjs');
+  });
+
+  it('fails when the cursor MCP server drops the required type "stdio"', () => {
+    const outRoot = render();
+    const mcpPath = path.join(outRoot, 'repovine-plugins', 'cursor', '.cursor', 'mcp.json');
+    const mcp = JSON.parse(fs.readFileSync(mcpPath, 'utf-8')) as {
+      mcpServers: Record<string, { type?: string }>;
+    };
+    delete mcp.mcpServers.repovine.type;
+    fs.writeFileSync(mcpPath, `${JSON.stringify(mcp, null, 2)}\n`, 'utf-8');
+
+    const result = validate(outRoot);
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('type "stdio"');
+  });
+
+  it('fails when a codex hook command loses its command_windows sibling', () => {
+    const outRoot = render();
+    const tomlPath = path.join(outRoot, 'repovine-plugins', 'codex', '.codex', 'config.toml');
+    const toml = fs.readFileSync(tomlPath, 'utf-8')
+      .split('\n')
+      .filter(line => !line.startsWith('command_windows = '))
+      .join('\n');
+    fs.writeFileSync(tomlPath, toml, 'utf-8');
+
+    const result = validate(outRoot);
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('command_windows');
   });
 
   it('fails when an MCP config pins a version the manifests do not carry', () => {

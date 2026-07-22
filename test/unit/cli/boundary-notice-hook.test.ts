@@ -3,18 +3,19 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { CLAUDE_BOUNDARY_NOTICE_JS, CURSOR_BOUNDARY_NOTICE_JS } from '../../../src/cli/templates.js';
+import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from '../../../src/cli/dispatcher/index.js';
 
 /**
- * End-to-end smoke for the generated boundary-notice hook (plan step 4): write the script into an
- * ESM project (package.json type:module — the strict case where a `require` in the hook would crash),
- * feed it a tool_input over stdin, and assert the advisory it prints. Validates ESM compatibility,
- * the file→relPath normalization, and the additionalContext JSON shape against the on-disk index.
+ * End-to-end smoke for the boundary-notice action of the client hook dispatcher: write the
+ * dispatcher into an ESM project (package.json type:module — the strict case where a `require`
+ * in the hook would crash), feed it a tool_input over stdin, and assert the advisory it prints.
+ * Validates ESM compatibility, the file→relPath normalization, and the additionalContext JSON
+ * shape against the on-disk index.
  */
-function runHook(script: string, projectDir: string, payload: unknown, env: Record<string, string>) {
-  const hookPath = path.join(projectDir, 'boundary-notice.js');
-  fs.writeFileSync(hookPath, script, 'utf-8');
-  const res = spawnSync(process.execPath, [hookPath], {
+function runHook(client: 'claude' | 'cursor', projectDir: string, payload: unknown, env: Record<string, string>) {
+  const hookPath = path.join(projectDir, CLIENT_DISPATCHER_FILENAME);
+  fs.writeFileSync(hookPath, readClientDispatcherSource(), 'utf-8');
+  const res = spawnSync(process.execPath, [hookPath, 'boundary-notice', client], {
     input: JSON.stringify(payload),
     encoding: 'utf-8',
     env: { ...process.env, ...env },
@@ -32,7 +33,7 @@ function writeIndex(projectDir: string, entries: Record<string, unknown>) {
   );
 }
 
-describe('generated boundary-notice hook', () => {
+describe('dispatcher boundary-notice action', () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -51,7 +52,7 @@ describe('generated boundary-notice hook', () => {
       ],
     });
     const res = runHook(
-      CLAUDE_BOUNDARY_NOTICE_JS,
+      'claude',
       tmpDir,
       { tool_input: { file_path: path.join(tmpDir, 'src/contracts/order-dto.ts') } },
       { CLAUDE_PROJECT_DIR: tmpDir },
@@ -61,6 +62,8 @@ describe('generated boundary-notice hook', () => {
     expect(out.hookSpecificOutput.hookEventName).toBe('PreToolUse');
     expect(out.hookSpecificOutput.additionalContext).toContain('published DTO — do not rename fields');
     expect(out.hookSpecificOutput.additionalContext).toContain('src/contracts/order-dto.ts');
+    // Claude/Codex shape carries hookSpecificOutput only.
+    expect(out.additional_context).toBeUndefined();
   });
 
   it('stays silent (no output) when the edited file is not a boundary surface', () => {
@@ -68,7 +71,7 @@ describe('generated boundary-notice hook', () => {
       'src/contracts/order-dto.ts': [{ nodeId: 'mod:x', risks: ['frozen'] }],
     });
     const res = runHook(
-      CLAUDE_BOUNDARY_NOTICE_JS,
+      'claude',
       tmpDir,
       { tool_input: { file_path: path.join(tmpDir, 'src/services/unrelated.ts') } },
       { CLAUDE_PROJECT_DIR: tmpDir },
@@ -79,7 +82,7 @@ describe('generated boundary-notice hook', () => {
 
   it('stays silent when no boundary index exists', () => {
     const res = runHook(
-      CLAUDE_BOUNDARY_NOTICE_JS,
+      'claude',
       tmpDir,
       { tool_input: { file_path: path.join(tmpDir, 'src/x.ts') } },
       { CLAUDE_PROJECT_DIR: tmpDir },
@@ -94,7 +97,7 @@ describe('generated boundary-notice hook', () => {
     });
     const patch = '*** Begin Patch\n*** Update File: src/contracts/order-dto.ts\n@@\n-old\n+new\n*** End Patch';
     const res = runHook(
-      CLAUDE_BOUNDARY_NOTICE_JS,
+      'claude',
       tmpDir,
       { tool_input: { input: patch } },
       { CLAUDE_PROJECT_DIR: tmpDir },
@@ -109,7 +112,7 @@ describe('generated boundary-notice hook', () => {
       'src/contracts/order-dto.ts': [{ nodeId: 'mod:app/src/contracts/order-dto', risks: ['frozen'] }],
     });
     const res = runHook(
-      CURSOR_BOUNDARY_NOTICE_JS,
+      'cursor',
       tmpDir,
       { tool_input: { file_path: path.join(tmpDir, 'src/contracts/order-dto.ts') } },
       { CURSOR_WORKSPACE_ROOT: tmpDir },
@@ -127,7 +130,7 @@ describe('generated boundary-notice hook', () => {
       ],
     });
     const res = runHook(
-      CLAUDE_BOUNDARY_NOTICE_JS,
+      'claude',
       tmpDir,
       { tool_input: { notebook_path: path.join(tmpDir, 'notebooks/analysis.ipynb') } },
       { CLAUDE_PROJECT_DIR: tmpDir },
@@ -146,7 +149,7 @@ describe('generated boundary-notice hook', () => {
       'utf-8',
     );
     const res = runHook(
-      CLAUDE_BOUNDARY_NOTICE_JS,
+      'claude',
       tmpDir,
       { tool_input: { file_path: path.join(tmpDir, 'src/x.ts') } },
       { CLAUDE_PROJECT_DIR: tmpDir },
@@ -162,7 +165,7 @@ describe('generated boundary-notice hook', () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'boundary-index.json'), JSON.stringify({ version: 2 }), 'utf-8');
     const res = runHook(
-      CLAUDE_BOUNDARY_NOTICE_JS,
+      'claude',
       tmpDir,
       { tool_input: { file_path: path.join(tmpDir, 'src/x.ts') } },
       { CLAUDE_PROJECT_DIR: tmpDir },

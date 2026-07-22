@@ -25,8 +25,11 @@ const root = path.resolve(
   flagValue(process.argv.slice(2), '--out') ?? path.join(engineRoot, '..', 'repovine-client-plugins'),
 );
 
-/** Hook scripts every client bundle wires: pre-edit boundary, post-edit staleness, session MCP hint. */
-const REQUIRED_HOOK_SCRIPTS = ['boundary-notice.js', 'stale-graph-notice.js', 'session-mcp-hint.js'];
+/** Hook files every client bundle wires: the single client dispatcher. */
+const REQUIRED_HOOK_SCRIPTS = ['repovine-client-dispatcher.mjs'];
+
+/** Dispatcher actions every client must wire: pre-edit boundary, post-edit staleness, session MCP hint. */
+const REQUIRED_HOOK_ACTIONS = ['boundary-notice', 'stale-graph-notice', 'session-mcp-hint'];
 
 /**
  * Per-client layout. `hookFiles` are scanned for `hooks/<name>.js` references;
@@ -111,12 +114,18 @@ function checkMarketplace(client, { marketplace, bundle }) {
   return plugin.version;
 }
 
-/** Every `hooks/<name>.js` a hook command references must exist in the bundle, and the three required ones must be wired. */
+/**
+ * Every `hooks/<name>.js|.mjs` a hook command references must exist in the
+ * bundle, the dispatcher must be wired, every dispatcher action must be
+ * dispatched at least once.
+ */
 function checkHooks(client, { bundle, hookFiles, hooksDir }) {
   const referenced = new Set();
+  const texts = [];
   for (const rel of hookFiles) {
     const text = readText(`${bundle}/${rel}`);
-    for (const match of text.matchAll(/hooks\/([\w.-]+\.js)/g)) referenced.add(match[1]);
+    texts.push(text);
+    for (const match of text.matchAll(/hooks\/([\w.-]+\.m?js)/g)) referenced.add(match[1]);
   }
   for (const script of referenced) {
     const scriptRel = `${bundle}/${hooksDir}/${script}`;
@@ -126,6 +135,12 @@ function checkHooks(client, { bundle, hookFiles, hooksDir }) {
   }
   for (const script of REQUIRED_HOOK_SCRIPTS) {
     if (!referenced.has(script)) fail(`${client} hooks must wire ${script} (${hookFiles.join(', ')})`);
+  }
+  const combined = texts.join('\n');
+  for (const action of REQUIRED_HOOK_ACTIONS) {
+    if (!combined.includes(action)) {
+      fail(`${client} hooks must dispatch the ${action} action (${hookFiles.join(', ')})`);
+    }
   }
 }
 
@@ -195,24 +210,64 @@ if (fs.existsSync(path.join(root, 'repovine-plugins/claude/.claude/settings.json
   fail('Claude plugin bundle must not rely on project-scoped .claude/settings.json');
 }
 
+// Claude plugin hooks are exec-form: command `node` plus args, args[0] the
+// dispatcher at ${CLAUDE_PLUGIN_ROOT}, the action among the remaining args.
 const claudeHooks = readJson('repovine-plugins/claude/hooks/hooks.json');
-const claudeHookCommands = [];
+const claudeHookEntries = [];
 for (const entries of Object.values(claudeHooks)) {
   if (!Array.isArray(entries)) continue;
   for (const entry of entries) {
     if (!entry || !Array.isArray(entry.hooks)) continue;
     for (const hook of entry.hooks) {
-      if (hook && typeof hook.command === 'string') claudeHookCommands.push(hook.command);
+      if (hook && typeof hook.command === 'string') {
+        claudeHookEntries.push({ command: hook.command, args: Array.isArray(hook.args) ? hook.args : [] });
+      }
     }
   }
 }
-for (const script of REQUIRED_HOOK_SCRIPTS) {
-  if (!claudeHookCommands.some((c) => c.includes(`\${CLAUDE_PLUGIN_ROOT}/hooks/${script}`))) {
-    fail(`Claude hooks must call ${script} from \${CLAUDE_PLUGIN_ROOT}`);
+const claudeDispatcherRef = '${CLAUDE_PLUGIN_ROOT}/hooks/repovine-client-dispatcher.mjs';
+for (const action of REQUIRED_HOOK_ACTIONS) {
+  const wired = claudeHookEntries.some(
+    (hook) => hook.command === 'node' && hook.args[0] === claudeDispatcherRef && hook.args.includes(action),
+  );
+  if (!wired) {
+    fail(`Claude hooks must run ${action} through exec-form node + ${claudeDispatcherRef}`);
   }
 }
-if (claudeHookCommands.some((c) => c.includes('$CLAUDE_PROJECT_DIR/.claude/hooks'))) {
-  fail('Claude plugin hooks must not point at project-scoped .claude/hooks');
+for (const hook of claudeHookEntries) {
+  const joined = [hook.command, ...hook.args].join(' ');
+  if (joined.includes('$CLAUDE_PROJECT_DIR/.claude/hooks')) {
+    fail('Claude plugin hooks must not point at project-scoped .claude/hooks');
+  }
+  if (hook.args.length === 0 && /hooks\/[\w.-]+\.js\b/.test(hook.command)) {
+    fail(`Claude plugin hooks must not use shell-string per-hook scripts: ${hook.command}`);
+  }
+}
+
+// Cursor MCP schema requires type:"stdio" on every stdio server entry.
+const cursorMcp = readJson('repovine-plugins/cursor/.cursor/mcp.json');
+for (const [name, server] of Object.entries(cursorMcp.mcpServers ?? {})) {
+  if (!server || server.type !== 'stdio') {
+    fail(`repovine-plugins/cursor/.cursor/mcp.json server "${name}" must declare type "stdio"`);
+  }
+}
+
+// Codex plugin hooks address the plugin root and carry a Windows sibling:
+// every hook command references $PLUGIN_ROOT and is followed by command_windows.
+const codexTomlLines = readText('repovine-plugins/codex/.codex/config.toml').split('\n');
+for (let i = 0; i < codexTomlLines.length; i++) {
+  const line = codexTomlLines[i];
+  if (!line.startsWith('command = ') || !line.includes('hooks/')) continue;
+  if (line.includes('$(git rev-parse')) {
+    fail(`codex plugin hook command must not resolve the project root via git: ${line}`);
+  }
+  if (!line.includes('$PLUGIN_ROOT/')) {
+    fail(`codex plugin hook command must reference $PLUGIN_ROOT: ${line}`);
+  }
+  const next = codexTomlLines[i + 1] ?? '';
+  if (!next.startsWith('command_windows = ')) {
+    fail(`codex plugin hook command lacks a command_windows sibling: ${line}`);
+  }
 }
 
 if (errors.length > 0) {

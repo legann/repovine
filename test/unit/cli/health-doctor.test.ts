@@ -206,7 +206,7 @@ describe('runDoctorCli client scope', () => {
     writeBoundaryIndexFile(1);
     fs.mkdirSync(path.join(repoRoot, '.cursor', 'hooks'), { recursive: true });
     fs.writeFileSync(
-      path.join(repoRoot, '.cursor', 'hooks', 'boundary-notice.js'),
+      path.join(repoRoot, '.cursor', 'hooks', 'repovine-client-dispatcher.mjs'),
       'if (index.version !== 2) process.exit(0);',
     );
     expect(await runDoctorCli(['--json'], env)).toBe(0);
@@ -216,6 +216,33 @@ describe('runDoctorCli client scope', () => {
     );
     expect(finding).toBeDefined();
     expect(finding!.message).toContain('v2');
+  });
+
+  it('reads the accepted schema version from the installed dispatcher', async () => {
+    writeCursorMcp();
+    writeBoundaryIndexFile(1);
+    fs.mkdirSync(path.join(repoRoot, '.cursor', 'hooks'), { recursive: true });
+    // Current-version dispatcher: no version-drift warning.
+    fs.writeFileSync(
+      path.join(repoRoot, '.cursor', 'hooks', 'repovine-client-dispatcher.mjs'),
+      'if (index.version !== 1) process.exit(0);',
+    );
+    expect(await runDoctorCli(['--json'], env)).toBe(0);
+    expect(lastJson().findings.some(
+      f => f.area === 'boundary push channel' && f.message.includes('Installed Cursor'),
+    )).toBe(false);
+
+    // Drifted dispatcher: version warning fires.
+    fs.writeFileSync(
+      path.join(repoRoot, '.cursor', 'hooks', 'repovine-client-dispatcher.mjs'),
+      'if (index.version !== 2) process.exit(0);',
+    );
+    expect(await runDoctorCli(['--json'], env)).toBe(0);
+    const drift = lastJson().findings.find(
+      f => f.area === 'boundary push channel' && f.message.includes('Installed Cursor'),
+    );
+    expect(drift).toBeDefined();
+    expect(drift!.message).toContain('v2');
   });
 });
 

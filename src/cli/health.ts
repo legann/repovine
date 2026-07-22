@@ -26,6 +26,8 @@ import {
   scopeUsesAgentsMd,
 } from './client-scope.js';
 import { AGENTS_MD_BEGIN_MARKER, AGENTS_MD_END_MARKER } from './templates.js';
+import { CLIENT_CAPABILITIES, type ClientId } from './client-capabilities.js';
+import { CLIENT_DISPATCHER_FILENAME } from './dispatcher/index.js';
 import {
   formatModuleCoverageLine,
 } from './human-output.js';
@@ -527,38 +529,44 @@ function annotationFindings(env: HealthCliEnv): HealthFinding[] {
   }];
 }
 
-const BOUNDARY_HOOK_CLIENT_PATHS: ReadonlyArray<readonly [string, string]> = [
-  ['Claude', path.join('.claude', 'hooks', 'boundary-notice.js')],
-  ['Codex', path.join('.codex', 'hooks', 'boundary-notice.js')],
-  ['Cursor', path.join('.cursor', 'hooks', 'boundary-notice.js')],
-];
+/** Fixed client order keeps finding order stable across runs. */
+const BOUNDARY_HOOK_CLIENT_ORDER: readonly ClientId[] = ['claude', 'codex', 'cursor'];
+
+function clientHooksDir(env: HealthCliEnv, client: ClientId): string {
+  return path.join(env.repoRoot, ...CLIENT_CAPABILITIES[client].hooks.projectScriptsDir.split('/'));
+}
 
 /**
  * Diagnose the pre-edit boundary push channel — the delivery path the pre-edit hook depends on:
  * the on-disk `.repovine/boundary-index.json` (presence, schema version, freshness) and every
- * installed hook's accepted schema version. Fail-loud only; nothing here auto-repairs.
+ * installed dispatcher's accepted schema version. Fail-loud only; nothing here
+ * auto-repairs.
  */
 function boundaryPushChannelFindings(env: HealthCliEnv): HealthFinding[] {
   const area = 'boundary push channel';
   const findings: HealthFinding[] = [boundaryIndexFinding(env, area)];
 
-  for (const [client, rel] of BOUNDARY_HOOK_CLIENT_PATHS) {
-    const hookPath = path.join(env.repoRoot, rel);
-    if (!fs.existsSync(hookPath)) continue;
-    let accepted: number | undefined;
-    try {
-      const m = fs.readFileSync(hookPath, 'utf-8').match(/index\.version !== (\d+)/);
-      accepted = m ? Number(m[1]) : undefined;
-    } catch {
-      accepted = undefined;
-    }
-    if (accepted !== undefined && accepted !== BOUNDARY_INDEX_VERSION) {
-      findings.push({
-        area,
-        severity: 'warning',
-        message: `Installed ${client} boundary hook accepts index v${accepted}, but this engine emits v${BOUNDARY_INDEX_VERSION}.`,
-        action: 'Run npx repovine setup to refresh the pre-edit hook; boundary advisories are paused until then.',
-      });
+  for (const client of BOUNDARY_HOOK_CLIENT_ORDER) {
+    const label = DOCTOR_CLIENT_MCP_LABEL[client];
+    const hooksDir = clientHooksDir(env, client);
+    for (const filename of [CLIENT_DISPATCHER_FILENAME]) {
+      const hookPath = path.join(hooksDir, filename);
+      if (!fs.existsSync(hookPath)) continue;
+      let accepted: number | undefined;
+      try {
+        const m = fs.readFileSync(hookPath, 'utf-8').match(/index\.version !== (\d+)/);
+        accepted = m ? Number(m[1]) : undefined;
+      } catch {
+        accepted = undefined;
+      }
+      if (accepted !== undefined && accepted !== BOUNDARY_INDEX_VERSION) {
+        findings.push({
+          area,
+          severity: 'warning',
+          message: `Installed ${label} boundary hook accepts index v${accepted}, but this engine emits v${BOUNDARY_INDEX_VERSION}.`,
+          action: 'Run npx repovine setup to refresh the pre-edit hook; boundary advisories are paused until then.',
+        });
+      }
     }
   }
   return findings;

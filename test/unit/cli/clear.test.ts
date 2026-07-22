@@ -17,6 +17,9 @@ import {
   REPOVINE_GITIGNORE_ENTRY,
   REPOVINE_GITIGNORE_HEADER,
 } from '../../../src/cli/repovine-gitignore.js';
+import { CLIENT_DISPATCHER_FILENAME } from '../../../src/cli/dispatcher/index.js';
+import {
+} from '../../../src/cli/dispatcher/hook-identity.js';
 import { ANNOTATIONS_FILENAME, ARTIFACTS_DIR_NAME, DOMAINS_CONFIG_FILENAME } from '../../../src/paths.js';
 import { BUILD_CALIBRATION_FILENAME } from '../../../src/stage1/calibration.js';
 import { CONFIG_FILENAME } from '../../../src/config.js';
@@ -181,7 +184,9 @@ describe('clearWorkspace', () => {
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'repovine-annotations', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'repovine-review', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'repovine-workflow', 'SKILL.md'))).toBe(false);
-    expect(fs.existsSync(path.join(tmpDir, '.codex', 'hooks', 'stale-graph-notice.js'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, '.codex', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.agents', 'skills', 'repovine-annotations', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.agents', 'skills', 'repovine-review', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.agents', 'skills', 'repovine-workflow', 'SKILL.md'))).toBe(false);

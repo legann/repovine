@@ -22,17 +22,16 @@ import {
 import { stripAnsi } from '../../../src/cli/ui.js';
 import {
   AGENTS_MD,
-  CLAUDE_SESSION_MCP_HINT_JS,
   CODEX_HOOKS_BEGIN_MARKER,
-  CODEX_SESSION_MCP_HINT_JS,
-  CURSOR_SESSION_MCP_HINT_JS,
   REPOVINE_CONFIG_JSON,
   REPOVINE_DOMAINS_JSON,
 } from '../../../src/cli/templates.js';
+import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from '../../../src/cli/dispatcher/index.js';
 import { loadConfig } from '../../../src/config.js';
 import { loadDomainsConfig } from '../../../src/stage2/domains.js';
 
 const EXPECTED_CURSOR_MCP_SERVER = {
+  type: 'stdio',
   command: 'npx',
   args: ['-y', 'repovine'],
   env: { REPOVINE_ROOT: '${workspaceFolder}' },
@@ -155,23 +154,15 @@ describe('ensureWorkspaceBootstrap', () => {
     fs.rmSync(templateDir, { recursive: true, force: true });
   });
 
-  it('keeps the domains advisor contract aligned across client session hints', () => {
-    const hints = [
-      CODEX_SESSION_MCP_HINT_JS,
-      CLAUDE_SESSION_MCP_HINT_JS,
-      CURSOR_SESSION_MCP_HINT_JS,
-    ];
-
-    for (const hint of hints) {
-      expect(hint).toContain('never auto-apply');
-      // The contract string is embedded via JSON.stringify, so inner quotes are escaped in the
-      // hook JS — pin quote-free fragments.
-      expect(hint).toContain('for skip/hide, call decline_advisory');
-      expect(hint).toContain('domains-config');
-      expect(hint).toContain('.repovine/onboarding-state.json');
-      expect(hint).not.toContain('present the additive diff');
-      expect(hint).not.toContain('record declined items');
-    }
+  it('keeps the domains advisor contract in the shared session hint (dispatcher source)', () => {
+    // One dispatcher serves every client, so the contract text lives once.
+    const hint = readClientDispatcherSource();
+    expect(hint).toContain('never auto-apply');
+    expect(hint).toContain('for skip/hide, call decline_advisory');
+    expect(hint).toContain('domains-config');
+    expect(hint).toContain('.repovine/onboarding-state.json');
+    expect(hint).not.toContain('present the additive diff');
+    expect(hint).not.toContain('record declined items');
   });
 
   it('skips existing files without force', () => {
@@ -349,7 +340,7 @@ describe('initCursor', () => {
     expect(fs.existsSync(path.join(tmpDir, '.agents', 'skills', 'repovine-backend-development', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', 'repovine-explore', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'rules', 'repovine-policy.mdc'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'hooks', 'stale-graph-notice.js'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'hooks.json'))).toBe(true);
   });
 
@@ -362,7 +353,7 @@ describe('initCursor', () => {
     expect(hooks.hooks.afterFileEdit).toHaveLength(1);
     expect(hooks.hooks.afterShellExecution).toHaveLength(1);
     expect(hooks.hooks.sessionStart).toHaveLength(1);
-    expect(hooks.hooks.afterFileEdit[0].command).toContain('hooks/stale-graph-notice.js');
+    expect(hooks.hooks.afterFileEdit[0].command).toContain('hooks/repovine-client-dispatcher.mjs" stale-graph-notice cursor');
   });
 
 });
@@ -469,16 +460,23 @@ describe('initClaude', () => {
   it('writes Claude hooks into .claude/settings.json and .claude/hooks', () => {
     initClaude(tmpDir, { forceBootstrap: false, replaceMcp: false });
 
-    expect(fs.existsSync(path.join(tmpDir, '.claude', 'hooks', 'stale-graph-notice.js'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.claude', 'hooks', 'session-mcp-hint.js'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(true);
 
     const settings = JSON.parse(
       fs.readFileSync(path.join(tmpDir, '.claude', 'settings.json'), 'utf-8'),
     );
     expect(settings.hooks.PostToolUse).toHaveLength(1);
-    expect(settings.hooks.PostToolUse[0].hooks[0].command).toContain('.claude/hooks/stale-graph-notice.js');
+    // Exec form: command + args, no shell field.
+    expect(settings.hooks.PostToolUse[0].hooks[0]).toEqual({
+      type: 'command',
+      command: 'node',
+      args: ['${CLAUDE_PROJECT_DIR}/.claude/hooks/repovine-client-dispatcher.mjs', 'stale-graph-notice', 'claude'],
+    });
     expect(settings.hooks.SessionStart).toHaveLength(1);
-    expect(settings.hooks.SessionStart[0].hooks[0].command).toContain('.claude/hooks/session-mcp-hint.js');
+    expect(settings.hooks.SessionStart[0].hooks[0].args).toEqual(
+      ['${CLAUDE_PROJECT_DIR}/.claude/hooks/repovine-client-dispatcher.mjs', 'session-mcp-hint', 'claude'],
+    );
+    expect(settings.hooks.SessionStart[0].hooks[0].shell).toBeUndefined();
     expect(settings.permissions).toBeUndefined();
   });
 
@@ -509,11 +507,13 @@ describe('initClaude', () => {
     expect(JSON.stringify(settings.permissions)).not.toContain('repovine');
     expect(settings.hooks.PostToolUse).toHaveLength(1);
     expect(settings.hooks.SessionStart).toHaveLength(2);
-    const commands = settings.hooks.SessionStart.flatMap((entry: { hooks: Array<{ command: string }> }) =>
-      entry.hooks.map(hook => hook.command),
+    const sessionHooks = settings.hooks.SessionStart.flatMap(
+      (entry: { hooks: Array<{ command: string; args?: string[] }> }) => entry.hooks,
     );
-    expect(commands.filter((command: string) => command.includes('.claude/hooks/session-mcp-hint.js'))).toHaveLength(1);
-    expect(commands).toContain('node ./other-hook.js');
+    expect(sessionHooks.filter(
+      (hook: { args?: string[] }) => hook.args?.[0]?.includes('repovine-client-dispatcher.mjs'),
+    )).toHaveLength(1);
+    expect(sessionHooks.some((hook: { command: string }) => hook.command === 'node ./other-hook.js')).toBe(true);
   });
 });
 
@@ -538,8 +538,7 @@ describe('initCodex', () => {
     expect(agents).not.toContain('Context budget');
     expect(agents).not.toContain('## Annotation onboarding');
     expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.codex', 'hooks', 'stale-graph-notice.js'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.codex', 'hooks', 'session-mcp-hint.js'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.codex', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.codex', 'agents', 'repovine-annotation-writer.toml'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.codex', 'agents', 'repovine-repo-explorer.toml'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.codex', 'agents', 'repovine-architecture-auditor.toml'))).toBe(true);
@@ -613,8 +612,9 @@ describe('initCodex', () => {
     const config = fs.readFileSync(path.join(tmpDir, '.codex', 'config.toml'), 'utf-8');
     const markerCount = config.split(CODEX_HOOKS_BEGIN_MARKER).length - 1;
     expect(markerCount).toBe(1);
-    expect(config).toContain('.codex/hooks/stale-graph-notice.js');
-    expect(config).toContain('.codex/hooks/session-mcp-hint.js');
+    expect(config).toContain('.codex/hooks/repovine-client-dispatcher.mjs" stale-graph-notice codex');
+    expect(config).toContain('.codex/hooks/repovine-client-dispatcher.mjs" session-mcp-hint codex');
+    expect(config).toContain('command_windows = ');
   });
 
   it('adds Codex hooks when MCP already exists without duplicating the MCP section', () => {
@@ -911,7 +911,7 @@ describe('initCursor — onboarding distribution', () => {
     expect(fs.existsSync(`${orchestrationPath}.bak`)).toBe(false);
     expect(fs.readFileSync(orchestrationPath, 'utf-8')).toContain('@project-subagent-sample');
 
-    const hookPath = path.join(tmpDir, '.cursor', 'hooks', 'session-mcp-hint.js');
+    const hookPath = path.join(tmpDir, '.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME);
     fs.writeFileSync(hookPath, '// stale hook\n', 'utf-8');
     initCursor(tmpDir, { forceBootstrap: false, replaceMcp: false });
     expect(fs.existsSync(`${hookPath}.bak`)).toBe(false);
@@ -985,7 +985,7 @@ describe('initCursor — onboarding distribution', () => {
     expect(workflowRule).not.toContain('AGENTS.md may mirror');
 
     const hooks = JSON.parse(fs.readFileSync(path.join(tmpDir, '.cursor', 'hooks.json'), 'utf-8'));
-    expect(hooks.hooks.sessionStart[0].command).toContain('hooks/session-mcp-hint.js');
+    expect(hooks.hooks.sessionStart[0].command).toContain('hooks/repovine-client-dispatcher.mjs" session-mcp-hint cursor');
   });
 });
 
@@ -1012,7 +1012,7 @@ describe('initAll', () => {
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'rules', 'repovine-workflow.mdc'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.mcp.json'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.codex', 'hooks', 'stale-graph-notice.js'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.codex', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.codex', 'agents', 'repovine-annotation-writer.toml'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.codex', 'agents', 'repovine-code-reviewer.toml'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.agents', 'skills', 'repovine-annotations', 'SKILL.md'))).toBe(true);
@@ -1026,6 +1026,6 @@ describe('initAll', () => {
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'repovine-workflow', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.agents', 'skills', 'repovine-iac-development', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'settings.json'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.claude', 'hooks', 'stale-graph-notice.js'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(true);
   });
 });

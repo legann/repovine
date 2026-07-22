@@ -50,8 +50,10 @@ describe('renderPluginRepo', () => {
 
     const cursorMcp = JSON.parse(
       fs.readFileSync(path.join(outRoot, 'repovine-plugins', 'cursor', '.cursor', 'mcp.json'), 'utf-8'),
-    ) as { mcpServers: Record<string, { args: string[] }> };
+    ) as { mcpServers: Record<string, { type?: string; args: string[] }> };
     expect(cursorMcp.mcpServers.repovine.args).toEqual(['-y', 'repovine@0.1.0-test']);
+    // Cursor's MCP schema requires type:"stdio"; the Claude config carries no type key.
+    expect(cursorMcp.mcpServers.repovine.type).toBe('stdio');
     expect(fs.existsSync(path.join(outRoot, 'repovine-plugins', 'cursor', '.cursor', 'agents', 'repovine-architecture-auditor.md'))).toBe(true);
     expect(fs.existsSync(path.join(outRoot, 'repovine-plugins', 'cursor', '.cursor', 'agents', 'repovine-code-reviewer.md'))).toBe(true);
     expect(fs.existsSync(path.join(outRoot, 'repovine-plugins', 'cursor', '.agents', 'skills', 'repovine-review', 'SKILL.md'))).toBe(true);
@@ -68,17 +70,39 @@ describe('renderPluginRepo', () => {
     expect(claudePlugin.skills).toBeUndefined();
     expect(claudePlugin.hooks).toBeUndefined();
 
+    const claudeMcp = JSON.parse(
+      fs.readFileSync(path.join(outRoot, 'repovine-plugins', 'claude', '.mcp.json'), 'utf-8'),
+    ) as { mcpServers: Record<string, { type?: string }> };
+    expect(claudeMcp.mcpServers.repovine.type).toBeUndefined();
+
     const claudeHooks = JSON.parse(
       fs.readFileSync(path.join(outRoot, 'repovine-plugins', 'claude', 'hooks', 'hooks.json'), 'utf-8'),
     ) as {
-      PreToolUse: Array<{ hooks: Array<{ command: string }> }>;
-      PostToolUse: Array<{ hooks: Array<{ command: string }> }>;
-      SessionStart: Array<{ hooks: Array<{ command: string }> }>;
+      PreToolUse: Array<{ hooks: Array<{ command: string; args?: string[] }> }>;
+      PostToolUse: Array<{ hooks: Array<{ command: string; args?: string[] }> }>;
+      SessionStart: Array<{ hooks: Array<{ command: string; args?: string[] }> }>;
     };
-    expect(claudeHooks.PreToolUse[0]?.hooks[0]?.command).toContain('${CLAUDE_PLUGIN_ROOT}/hooks/boundary-notice.js');
-    expect(claudeHooks.PostToolUse[0]?.hooks[0]?.command).toContain('${CLAUDE_PLUGIN_ROOT}/hooks/stale-graph-notice.js');
-    expect(claudeHooks.SessionStart[0]?.hooks[0]?.command).toContain('${CLAUDE_PLUGIN_ROOT}/hooks/session-mcp-hint.js');
+    // Exec form: node + plugin-root dispatcher args; no project-scoped remnants.
+    expect(claudeHooks.PreToolUse[0]?.hooks[0]?.command).toBe('node');
+    expect(claudeHooks.PreToolUse[0]?.hooks[0]?.args).toEqual(
+      ['${CLAUDE_PLUGIN_ROOT}/hooks/repovine-client-dispatcher.mjs', 'boundary-notice', 'claude'],
+    );
+    expect(claudeHooks.PostToolUse[0]?.hooks[0]?.args).toEqual(
+      ['${CLAUDE_PLUGIN_ROOT}/hooks/repovine-client-dispatcher.mjs', 'stale-graph-notice', 'claude'],
+    );
+    expect(claudeHooks.SessionStart[0]?.hooks[0]?.args).toEqual(
+      ['${CLAUDE_PLUGIN_ROOT}/hooks/repovine-client-dispatcher.mjs', 'session-mcp-hint', 'claude'],
+    );
+    expect(JSON.stringify(claudeHooks)).not.toContain('$CLAUDE_PROJECT_DIR');
     expect(fs.existsSync(path.join(outRoot, 'repovine-plugins', 'claude', '.claude', 'settings.json'))).toBe(false);
+
+    // Each bundle ships exactly one hook file: the dispatcher.
+    expect(fs.readdirSync(path.join(outRoot, 'repovine-plugins', 'cursor', '.cursor', 'hooks')))
+      .toEqual(['repovine-client-dispatcher.mjs']);
+    expect(fs.readdirSync(path.join(outRoot, 'repovine-plugins', 'claude', 'hooks')).sort())
+      .toEqual(['hooks.json', 'repovine-client-dispatcher.mjs']);
+    expect(fs.readdirSync(path.join(outRoot, 'repovine-plugins', 'codex', '.codex', 'hooks')))
+      .toEqual(['repovine-client-dispatcher.mjs']);
 
     const codexMarketplace = JSON.parse(
       fs.readFileSync(path.join(outRoot, '.agents', 'plugins', 'marketplace.json'), 'utf-8'),
@@ -101,6 +125,16 @@ describe('renderPluginRepo', () => {
     );
     expect(codexConfigToml).toContain('args = ["-y", "repovine@0.1.0-test"]');
     expect(codexConfigToml).not.toContain('args = ["-y", "repovine"]');
+    // Plugin hooks address the plugin root; every command carries a Windows sibling.
+    expect(codexConfigToml).toContain(
+      `command = 'node "$PLUGIN_ROOT/.codex/hooks/repovine-client-dispatcher.mjs" boundary-notice codex'`,
+    );
+    expect(codexConfigToml).toContain(
+      `command_windows = 'node "%PLUGIN_ROOT%/.codex/hooks/repovine-client-dispatcher.mjs" boundary-notice codex'`,
+    );
+    expect(codexConfigToml).not.toContain('$(git rev-parse');
+    expect(codexConfigToml.match(/^command = /gm)?.length).toBe(4); // 1 MCP + 3 hooks
+    expect(codexConfigToml.match(/^command_windows = /gm)?.length).toBe(3);
 
     const readme = fs.readFileSync(path.join(outRoot, 'README.md'), 'utf-8');
     expect(readme).toContain(`npx repovine@0.1.0-test setup`);

@@ -18,7 +18,7 @@ import type {
 } from '../../../src/types.js';
 import type { AnnotationStore } from '../../../src/annotations/store.js';
 import type { RepovineState } from '../../../src/mcp/types.js';
-import { CLAUDE_BOUNDARY_NOTICE_JS, CURSOR_BOUNDARY_NOTICE_JS } from '../../../src/cli/templates.js';
+import { readClientDispatcherSource } from '../../../src/cli/dispatcher/index.js';
 
 /** Minimal StoredAnnotation with the given risks; only fields buildBoundaryIndex reads matter here. */
 function ann(nodeId: string, nodeType: StoredAnnotation['nodeType'], risks: RiskEntry[]): StoredAnnotation {
@@ -199,11 +199,10 @@ describe('buildBoundaryIndex', () => {
 
   it('locks the hook version guard to the writer version literal (drift lock)', () => {
     const writerVersion = buildBoundaryIndex(makeState({})).version;
-    for (const script of [CLAUDE_BOUNDARY_NOTICE_JS, CURSOR_BOUNDARY_NOTICE_JS]) {
-      const m = script.match(/index\.version !== (\d+)/);
-      expect(m).not.toBeNull();
-      expect(Number(m![1])).toBe(writerVersion);
-    }
+    const source = readClientDispatcherSource();
+    const m = source.match(/index\.version !== (\d+)/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBe(writerVersion);
   });
 });
 
