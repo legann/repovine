@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import {
   PreflightError,
   parseMountinfo,
+  parseWorktreeList,
   mountsBelow,
   pathContains,
   prepareLaunch,
@@ -86,25 +87,45 @@ const rejects = (fn, re) =>
 
 // ── Pure check functions ───────────────────────────────────────────────────────
 
-test('parseMountinfo: extracts mount points and decodes octal escapes', () => {
-  const text = `${miLine('/a/b')}\n${miLine('/c\\040d')}\nshort line\n`;
-  assert.deepEqual(parseMountinfo(text), ['/a/b', '/c d']);
+test('parseMountinfo: extracts mount points + fs types, decodes octal escapes', () => {
+  const text = `${miLine('/a/b')}\n${miLine('/c\\040d')}\n`;
+  assert.deepEqual(parseMountinfo(text), [
+    { mountPoint: '/a/b', fsType: 'ext4' },
+    { mountPoint: '/c d', fsType: 'ext4' },
+  ]);
+  // Blank lines are skipped; any other unparseable line poisons the table.
+  assert.deepEqual(parseMountinfo(`${miLine('/a/b')}\n\n  \n`), [{ mountPoint: '/a/b', fsType: 'ext4' }]);
+  assert.throws(() => parseMountinfo(`${miLine('/a/b')}\nshort\n`), /fewer than 5 fields/);
 });
 
 test('mountsBelow: strictly-below only (root itself and sibling prefixes pass)', () => {
   const roots = ['/x/wt', '/x/state'];
-  assert.deepEqual(mountsBelow(CLEAN_MOUNTINFO, roots), []);
-  assert.deepEqual(mountsBelow(`${miLine('/x/wt')}\n`, roots), []);
-  assert.deepEqual(mountsBelow(`${miLine('/x/wtother')}\n`, roots), []);
-  assert.deepEqual(mountsBelow(`${miLine('/x/wt/nested')}\n`, roots), ['/x/wt/nested']);
-  assert.deepEqual(mountsBelow(`${miLine('/x/state/runtime/home')}\n`, roots), ['/x/state/runtime/home']);
+  const points = (text) => parseMountinfo(text).map((m) => m.mountPoint);
+  assert.deepEqual(mountsBelow(points(CLEAN_MOUNTINFO), roots), []);
+  assert.deepEqual(mountsBelow(points(`${miLine('/x/wt')}\n`), roots), []);
+  assert.deepEqual(mountsBelow(points(`${miLine('/x/wtother')}\n`), roots), []);
+  assert.deepEqual(mountsBelow(points(`${miLine('/x/wt/nested')}\n`), roots), ['/x/wt/nested']);
+  assert.deepEqual(mountsBelow(points(`${miLine('/x/state/runtime/home')}\n`), roots), ['/x/state/runtime/home']);
 });
 
-test('pathContains: equality and descent, no sibling-prefix false positives', () => {
+test('pathContains: equality and descent, no sibling-prefix false positives, case-sensitive', () => {
   assert.equal(pathContains('/a', '/a'), true);
   assert.equal(pathContains('/a', '/a/b/c'), true);
   assert.equal(pathContains('/a/b', '/a'), false);
   assert.equal(pathContains('/a', '/ab'), false);
+  assert.equal(pathContains('/x/Repo', '/x/repo/f'), false, 'byte-exact comparison, no case-folding');
+});
+
+test('parseWorktreeList: byte-exact paths — a trailing \\r is path data, not a line ending', () => {
+  const lf = 'worktree /a/src\nHEAD abc\nbranch refs/heads/main\n\nworktree /a/wt\nHEAD def\ndetached\n\nworktree /a/bare\nbare\n';
+  assert.deepEqual(parseWorktreeList(lf), [
+    { path: '/a/src', bare: false },
+    { path: '/a/wt', bare: false },
+    { path: '/a/bare', bare: true },
+  ]);
+  // Git porcelain is LF-delimited on supported hosts; a \r before the LF is a
+  // legal byte of the path and must survive parsing.
+  assert.deepEqual(parseWorktreeList('worktree /a/wt\r\nbare\n'), [{ path: '/a/wt\r', bare: true }]);
 });
 
 test('walkWorktree: rejects hardlinked regular files, allows symlinks unfollowed', () => {
@@ -649,6 +670,104 @@ test('preflight: rejects a mount point below the worktree or state dir', { skip 
     );
     // Mount AT the worktree root is fine.
     const ctx = preflight(envFor(f), { mountinfoText: `${CLEAN_MOUNTINFO}${miLine(wtReal)}\n` });
+    assert.equal(ctx.worktree, wtReal);
+  } finally {
+    fs.rmSync(f.base, { recursive: true, force: true });
+  }
+});
+
+test('preflight: WSL branch enforces ext4 on the worktree mount (seam-injected)', { skip }, () => {
+  const typedLine = (mp, fsType) => `36 35 98:0 / ${mp} rw shared:1 - ${fsType} /dev/sda1 rw`;
+  const f = fixture();
+  try {
+    const wtReal = fs.realpathSync(f.wt);
+    // Worktree on its own btrfs mount: fine on plain Linux, rejected under WSL.
+    const btrfsTable = `${CLEAN_MOUNTINFO}${typedLine(wtReal, 'btrfs')}\n`;
+    const ctx = preflight(envFor(f), { mountinfoText: btrfsTable, wslHost: false });
+    assert.equal(ctx.worktree, wtReal);
+    rejects(
+      () => preflight(envFor(f), { mountinfoText: btrfsTable, wslHost: true }),
+      /fs-type.*ext4/,
+    );
+    // Same shape with ext4 passes under WSL — the type decides, not the path.
+    const ext4Table = `${CLEAN_MOUNTINFO}${typedLine(wtReal, 'ext4')}\n`;
+    const ok = preflight(envFor(f), { mountinfoText: ext4Table, wslHost: true });
+    assert.equal(ok.worktree, wtReal);
+  } finally {
+    fs.rmSync(f.base, { recursive: true, force: true });
+  }
+});
+
+test('preflight: fs-type is proven for the state dir too, and docker stays unreached', { skip }, () => {
+  const typedLine = (mp, fsType) => `36 35 98:0 / ${mp} rw shared:1 - ${fsType} /dev/sda1 rw`;
+  const f = fixture();
+  try {
+    const stReal = fs.realpathSync(f.state);
+    const table = `${CLEAN_MOUNTINFO}${typedLine(stReal, '9p')}\n`;
+    rejects(() => preflight(envFor(f), { mountinfoText: table }), /fs-type.*9p/);
+    const calls = [];
+    rejects(
+      () => runLaunch('cli', [], envFor(f), { execCompose: (a) => { calls.push(a); return { status: 0 }; }, mountinfoText: table }),
+      /fs-type/,
+    );
+    assert.equal(calls.length, 0, 'docker must not run when a bind source sits on an unprovable filesystem');
+  } finally {
+    fs.rmSync(f.base, { recursive: true, force: true });
+  }
+});
+
+test('preflight: a mount table that cannot be enumerated forbids docker', { skip }, () => {
+  const f = fixture();
+  try {
+    // Empty table reads as cannot-enumerate, never as "no mounts to check".
+    rejects(() => preflight(envFor(f), { mountinfoText: '' }), /mount-table/);
+    // One malformed line (mandatory fields but no '-' separator) poisons the
+    // whole table — skipping it could hide exactly the mount that matters.
+    const malformed = `${CLEAN_MOUNTINFO}37 35 98:0 / /somewhere rw\n`;
+    rejects(() => preflight(envFor(f), { mountinfoText: malformed }), /mount-table/);
+    // runLaunch with the same tables: the compose seam is NEVER reached.
+    for (const mountinfoText of ['', malformed]) {
+      const calls = [];
+      rejects(
+        () => runLaunch('cli', [], envFor(f), { mountinfoText, execCompose: (c) => (calls.push(c), 0) }),
+        /mount-table/,
+      );
+      assert.equal(calls.length, 0, 'docker never invoked when mounts cannot be enumerated');
+    }
+    assert.deepEqual(fs.readdirSync(f.state), [], 'no state created on mount-table failure');
+  } finally {
+    fs.rmSync(f.base, { recursive: true, force: true });
+  }
+});
+
+test('preflight: rejects a worktree on a projection filesystem (type decides, not path)', { skip }, () => {
+  const f = fixture();
+  try {
+    const wtReal = fs.realpathSync(f.wt);
+    // Native-looking path, projection fs-type: a mount AT the worktree root
+    // passes mountsBelow, so the rejection is purely the 9p type.
+    const table = `${CLEAN_MOUNTINFO}40 35 98:0 / ${wtReal} rw shared:1 - 9p tank rw\n`;
+    const calls = [];
+    rejects(
+      () => runLaunch('cli', [], envFor(f), { mountinfoText: table, execCompose: (c) => (calls.push(c), 0) }),
+      /fs-type/,
+    );
+    assert.equal(calls.length, 0, 'docker never invoked on an unprovable filesystem');
+  } finally {
+    fs.rmSync(f.base, { recursive: true, force: true });
+  }
+});
+
+test('preflight: case-variant sibling paths are distinct strings (no case-folding)', { skip }, () => {
+  const f = fixture();
+  try {
+    const wtReal = fs.realpathSync(f.wt);
+    // A mount below a case-variant of the worktree path is a different
+    // directory on a case-sensitive filesystem; identity checks compare exact
+    // bytes, so it is neither the worktree nor below it.
+    const variant = path.join(path.dirname(wtReal), path.basename(wtReal).toUpperCase());
+    assert.notEqual(variant, wtReal);
+    const ctx = preflight(envFor(f), { mountinfoText: `${CLEAN_MOUNTINFO}${miLine(path.join(variant, 'nested'))}\n` });
     assert.equal(ctx.worktree, wtReal);
   } finally {
     fs.rmSync(f.base, { recursive: true, force: true });

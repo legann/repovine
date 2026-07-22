@@ -37,6 +37,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadEnvFile } from '../lib/env-file.mjs';
 import { ATTACH_BASELINE_REF, ATTACH_GIT_POINTER_CONTENT } from '../lib/attach-guard.mjs';
+import {
+  PreflightError,
+  assertProvableFsType,
+  isWslHost,
+  parseMountinfo,
+  pathContains,
+  readHostMountTable,
+} from './attach-host-adapter.mjs';
+
+// Mount-table primitives live in the adapter; re-exported here because the
+// launcher is the module boundary callers and tests import from.
+export { PreflightError, parseMountinfo, pathContains };
 
 const DEMO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -50,13 +62,6 @@ const ATTACH_TARGETS = {
   http: { profile: 'attach-http', service: 'http-attach', compose: ['up', '-d', '--build'] },
   'tg-bot': { profile: 'attach-tg-bot', service: 'tg-bot-attach', compose: ['up', '-d', '--build'] },
 };
-
-export class PreflightError extends Error {
-  constructor(check, detail) {
-    super(`attach ${check}: ${detail}`);
-    this.check = check;
-  }
-}
 
 const fail = (check, detail) => {
   throw new PreflightError(check, detail);
@@ -84,31 +89,12 @@ function git(args, opts = {}) {
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
 }
 
-// True when `p` equals `parent` or lives under it. Both paths must already be
-// canonical (realpath) — string containment only, no filesystem access.
-export function pathContains(parent, p) {
-  const rel = path.relative(parent, p);
-  return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
-}
-
-// Mount points (field 5 of /proc/self/mountinfo) with octal escapes decoded
-// (\040 space, \011 tab, \012 newline, \134 backslash).
-export function parseMountinfo(text) {
-  const points = [];
-  for (const line of String(text).split('\n')) {
-    const fields = line.split(' ');
-    if (fields.length < 5) continue;
-    points.push(fields[4].replace(/\\([0-7]{3})/g, (_, o) => String.fromCharCode(parseInt(o, 8))));
-  }
-  return points;
-}
-
 // Mount points STRICTLY below any of `roots`. A mount AT a root is fine (a
 // worktree on its own partition/bind); one below it would shadow or leak
 // through the container bind.
-export function mountsBelow(mountinfoText, roots) {
+export function mountsBelow(mountPoints, roots) {
   const offending = [];
-  for (const mp of parseMountinfo(mountinfoText)) {
+  for (const mp of mountPoints) {
     if (roots.some((root) => mp !== root && pathContains(root, mp))) offending.push(mp);
   }
   return offending;
@@ -137,15 +123,10 @@ export function walkWorktree(root) {
   return { ok: true };
 }
 
-function readMountinfo() {
-  try {
-    return fs.readFileSync('/proc/self/mountinfo', 'utf-8');
-  } catch (err) {
-    fail('mount-table', `cannot read /proc/self/mountinfo (${err.code || err.message}); attach requires a Linux host`);
-  }
-}
-
-function parseWorktreeList(out) {
+// Git porcelain output is LF-delimited on every supported host (Linux and
+// WSL); splitting on \r\n as well would strip a legal trailing \r byte from a
+// path and break the byte-exact handling the boundary depends on.
+export function parseWorktreeList(out) {
   return String(out)
     .split(/\n\s*\n/)
     .map((b) => b.trim())
@@ -197,7 +178,7 @@ export function resolveLaunchEnv(env = process.env) {
 // directory or file is ever created here. `cmd` is set for `run` (adds the
 // mode/profile check); `mountinfoText` is a test seam for the mount-table scan.
 // Missing inputs resolve from the `prepare` launch pointer via resolveLaunchEnv.
-export function preflight(env, { cmd, mountinfoText, existingState = false } = {}) {
+export function preflight(env, { cmd, mountinfoText, existingState = false, wslHost } = {}) {
   // 0. Host platform gate (see assertLinuxHost).
   assertLinuxHost();
   env = resolveLaunchEnv(env);
@@ -349,9 +330,25 @@ export function preflight(env, { cmd, mountinfoText, existingState = false } = {
     }
   }
 
-  // 3. No host mount point strictly below the worktree or the state dir.
-  const offending = mountsBelow(mountinfoText !== undefined ? mountinfoText : readMountinfo(), [worktree, stateDir]);
-  if (offending.length > 0) fail('mount-table', `mount point below worktree/state dir: ${offending[0]}`);
+  // 3. Host mount table, fail-closed: a table that cannot be enumerated
+  // (unreadable, empty, malformed) throws inside readHostMountTable — an
+  // unproven topology never reaches docker. Then two mount checks: no host
+  // mount point strictly below the worktree or the state dir, and a provable
+  // filesystem type under every bind source (ext4-only on WSL).
+  const { mounts } = readHostMountTable({ mountinfoText });
+  // agentsDir is always a live bind source (compose defaults it to ./lib/agents
+  // when HARNESS_AGENTS_HOST_DIR is unset), so it gets the same mount and
+  // fs-type proof as the worktree and state dir.
+  const bindSources = [worktree, stateDir, agentsDir];
+  const offending = mountsBelow(mounts.map((m) => m.mountPoint), bindSources);
+  if (offending.length > 0) fail('mount-table', `mount point below a bind source: ${offending[0]}`);
+  assertProvableFsType(
+    mounts,
+    bindSources,
+    // wslHost is an injection seam (tests exercise the ext4-only branch on any
+    // host); real runs detect WSL from /proc/version + WSL_DISTRO_NAME.
+    { wsl: wslHost ?? isWslHost({ env }) },
+  );
 
   // 4. Complete lstat walk (the .git pointer file is a regular file — fine).
   const walk = walkWorktree(worktree);
