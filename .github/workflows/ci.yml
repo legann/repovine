@@ -1,10 +1,12 @@
 name: CI
 
-# TEMPORARY (projections-debug): push/PR triggers disabled while the Windows
-# native crash in the projections suite is being isolated — every push would
-# burn the full 3-OS matrix. Restore the push/pull_request triggers when the
-# debug workflow goes green.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Manual runs from the Actions tab on any branch — lets the native jobs be
+  # exercised without opening a PR.
   workflow_dispatch:
 
 jobs:
