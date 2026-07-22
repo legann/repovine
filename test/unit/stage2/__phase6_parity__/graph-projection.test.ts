@@ -155,9 +155,34 @@ describe('phase6 graph projection parity', () => {
       // machine-absolute fixture root is replaced with a placeholder so the golden
       // matches on any checkout location (a contributor's clone, CI, …) instead of
       // baking in where it was frozen.
-      const portable = JSON.parse(
-        JSON.stringify(projection).split(fixtureRoot).join('<FIXTURE>'),
-      );
+      // Scrub on parsed VALUES and KEYS (a JSON-text split would need escaped
+      // needles and still leave native tails): the fixture root is replaced in
+      // native, POSIX, and drive-case-variant forms, then remaining separators
+      // inside `<FIXTURE>` strings normalize to `/` — host fields carry native
+      // tails on win32 while goldens are frozen POSIX. No-op on Linux.
+      const rootForms = [...new Set([
+        fixtureRoot,
+        fixtureRoot.split(path.sep).join('/'),
+        fixtureRoot.charAt(0).toLowerCase() + fixtureRoot.slice(1),
+        (fixtureRoot.charAt(0).toLowerCase() + fixtureRoot.slice(1)).split(path.sep).join('/'),
+      ])];
+      const scrub = (s: string): string => {
+        let out = s;
+        for (const form of rootForms) out = out.split(form).join('<FIXTURE>');
+        return out.includes('<FIXTURE>') ? out.split('\\').join('/') : out;
+      };
+      const walk = (v: unknown): unknown => {
+        if (typeof v === 'string') return scrub(v);
+        if (Array.isArray(v)) return v.map(walk);
+        if (v && typeof v === 'object') {
+          const o: Record<string, unknown> = {};
+          for (const [k, val] of Object.entries(v)) o[scrub(k)] = walk(val);
+          return o;
+        }
+        return v;
+      };
+      // JSON round-trip first: drops undefined-valued keys, matching the golden writer.
+      const portable = walk(JSON.parse(JSON.stringify(projection)));
 
       const goldenPath = path.join(HERE, `${fixtureName}.json`);
       if (UPDATE) {

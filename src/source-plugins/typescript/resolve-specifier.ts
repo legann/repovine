@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import ts from 'typescript';
 import type { PackageInfo } from '@repovine/plugin-sdk';
 import { extractPackageName } from '../../stage1/utils.js';
+import { hostKeyedView, hostPathKey } from '../../platform/paths.js';
 
 /**
  * String-based shortcut for module specifier resolution. Avoids ts-morph's
@@ -72,12 +73,13 @@ const INDEX_SUFFIX_CANDIDATES = [
 ];
 
 function lookupCandidates(basePath: string, absPathToId: Map<string, string>): string | undefined {
+  // absPathToId is the hostKeyedView; candidates mint the same canonical form.
   for (const suffix of FILE_SUFFIX_CANDIDATES) {
-    const id = absPathToId.get(basePath + suffix);
+    const id = absPathToId.get(hostPathKey(basePath + suffix));
     if (id) return id;
   }
   for (const suffix of INDEX_SUFFIX_CANDIDATES) {
-    const id = absPathToId.get(basePath + suffix);
+    const id = absPathToId.get(hostPathKey(basePath + suffix));
     if (id) return id;
   }
   return undefined;
@@ -98,7 +100,7 @@ function moduleIdForResolvedFile(
   absPathToId: Map<string, string>,
 ): string | undefined {
   const abs = path.resolve(resolvedFileName);
-  const direct = absPathToId.get(abs);
+  const direct = absPathToId.get(hostPathKey(abs));
   if (direct) return direct;
 
   const withoutExt = abs.replace(/\.(tsx?|jsx?|mjs|cjs)$/i, '');
@@ -107,7 +109,7 @@ function moduleIdForResolvedFile(
 
   if (abs.endsWith('.d.ts')) {
     const impl = abs.slice(0, -5);
-    return lookupCandidates(impl, absPathToId) ?? absPathToId.get(`${impl}.ts`);
+    return lookupCandidates(impl, absPathToId) ?? absPathToId.get(hostPathKey(`${impl}.ts`));
   }
 
   return undefined;
@@ -137,7 +139,7 @@ function resolveViaTsconfigPaths(
 
 function pathExistsInMap(fileName: string, absPathToId: Map<string, string>): boolean {
   const abs = path.resolve(fileName);
-  if (absPathToId.has(abs)) return true;
+  if (absPathToId.has(hostPathKey(abs))) return true;
   const withoutExt = abs.replace(/\.d\.ts$/i, '').replace(/\.(tsx?|jsx?|mjs|cjs)$/i, '');
   return lookupCandidates(withoutExt, absPathToId) !== undefined;
 }
@@ -181,6 +183,9 @@ export function resolveSpecifierFromMap(
   repoRoot: string,
   pathsContext?: PathsContext,
 ): SpecifierResolution | undefined {
+  // Canonical view (WS-2.1): caller-built maps of any absolute-path shape —
+  // tsconfig forward-slash, native walker, POSIX fixtures — resolve identically.
+  absPathToId = hostKeyedView(absPathToId);
   if (specifier.startsWith('.')) {
     const importerDir = path.dirname(importingFilePath);
     const stripped = stripJsLikeExtension(specifier);

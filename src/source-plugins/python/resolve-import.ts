@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import type { PackageInfo } from '@repovine/plugin-sdk';
+import { hostKeyedView, hostPathKey } from '../../platform/paths.js';
 
 /**
  * Python import resolution (structural graph). Mirror of `typescript/resolve-specifier.ts`:
@@ -34,8 +35,11 @@ const PY_FILE_CANDIDATES = (basePath: string): string[] => [
 ];
 
 function lookupModule(basePath: string, absPathToId: Map<string, string>): string | undefined {
+  // Canonical view + key (WS-2.1): candidates come from native path.join while
+  // map keys may be POSIX-shaped; the WeakMap-memoized view costs O(n) once.
+  const view = hostKeyedView(absPathToId);
   for (const candidate of PY_FILE_CANDIDATES(basePath)) {
-    const id = absPathToId.get(candidate);
+    const id = view.get(hostPathKey(candidate));
     if (id) return id;
   }
   return undefined;

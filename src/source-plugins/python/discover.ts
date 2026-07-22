@@ -55,7 +55,9 @@ export function makePythonModuleId(pkgName: string, relPath: string): string {
 }
 
 function slug(relPath: string): string {
-  const normalized = path.normalize(relPath) || '.';
+  // Input is POSIX-relative by contract (WS-2.1); path.normalize here would
+  // re-introduce win32 backslashes that the '/'-only replace misses.
+  const normalized = relPath || '.';
   if (normalized === '.') return 'root';
   return normalized.replace(/\/+/g, '-').replace(/^\.-/, '') || 'root';
 }
@@ -84,7 +86,9 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
       return;
     }
     if (PYTHON_PACKAGE_MARKERS.some(m => fs.existsSync(path.join(dir, m)))) {
-      const normalized = path.normalize(path.relative(repoRoot, dir)) || '.';
+      // POSIX form: pkg.path is persisted identity (WS-2.1); path.resolve
+      // consumes forward slashes on every OS.
+      const normalized = (path.relative(repoRoot, dir) || '.').split(path.sep).join('/');
       if (!seen.has(normalized)) {
         seen.add(normalized);
         packages.push({
@@ -131,8 +135,11 @@ function discoverPyFiles(
       if (SKIP_FILE_RE.test(e.name)) continue;
       if (!shouldScanSourcePath(relFromRoot, scanPatterns)) continue;
 
-      const relPath = path.relative(pkgAbs, full);
-      if (relPath.startsWith('..')) continue;
+      const relPathNative = path.relative(pkgAbs, full);
+      if (relPathNative.startsWith('..')) continue;
+      // Persisted repo-relative identity is POSIX-normalized (WS-2.1): relPath
+      // feeds module labels and detector evidence, which must match cross-OS.
+      const relPath = relPathNative.split(path.sep).join('/');
       if (pendingByPath.has(full)) continue;
       pendingByPath.set(full, {
         filePath: full,

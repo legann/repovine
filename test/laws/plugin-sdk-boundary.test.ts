@@ -54,6 +54,9 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
       'stage1/k8s-workload.ts',
       'scan-filters.ts',
       'cli/ui.ts',
+      // Cross-platform path primitives (plan WS-2.1): by design shared by core,
+      // CLI, and source plugins — dependency-free id/path plumbing.
+      'platform/paths.ts',
     ].map(rel => rel.replace(/\//g, path.sep)),
   );
 

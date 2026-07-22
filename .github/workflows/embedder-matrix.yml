@@ -24,13 +24,18 @@ on:
 
 jobs:
   inference:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         # Both ends of the declared peer range. 3.8.1 is the last 3.x; 4.2.0 is the current 4.x.
         transformers: ['3.8.1', '4.2.0']
-    name: transformers@${{ matrix.transformers }}
+        # Native ONNX runtimes differ per OS/arch (plan WS-5). The script's own
+        # process exit doubles as the macOS teardown-SIGABRT smoke.
+        os: [ubuntu-latest, macos-15, windows-latest]
+    name: transformers@${{ matrix.transformers }} (${{ matrix.os }})
+    # Non-Linux legs are advisory until proven green (plan WS-7 staging).
+    continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
 

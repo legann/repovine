@@ -33,7 +33,10 @@ type TransformersModule = {
   pipeline: (
     task: 'feature-extraction',
     model: string,
-    options?: { dtype?: string; session_options?: { logSeverityLevel?: number } },
+    options?: {
+      dtype?: string;
+      session_options?: { logSeverityLevel?: number; intraOpNumThreads?: number; interOpNumThreads?: number };
+    },
   ) => Promise<unknown>;
 };
 
@@ -113,7 +116,15 @@ function loadPipeline(model: string, workspaceRoot: string): Promise<FeatureExtr
       const mod = await importTransformers(workspaceRoot);
       return await mod.pipeline('feature-extraction', model, {
         dtype: PIPELINE_DTYPE,
-        session_options: { logSeverityLevel: 3 },
+        // Single-threaded ORT on darwin: onnxruntime-node 1.21 aborts at
+        // process exit tearing down its intra-op pool (libc++ "mutex lock
+        // failed" → SIGABRT); session dispose alone does not prevent it. With
+        // no pool threads the teardown is trivially clean. Other platforms
+        // keep default threading.
+        session_options: {
+          logSeverityLevel: 3,
+          ...(process.platform === 'darwin' ? { intraOpNumThreads: 1, interOpNumThreads: 1 } : {}),
+        },
       }) as FeatureExtractor;
     })();
     // On load failure drop the memo so a later call retries; guard against clobbering a newer promise.
@@ -124,11 +135,14 @@ function loadPipeline(model: string, workspaceRoot: string): Promise<FeatureExtr
 }
 
 /**
- * Release every loaded ONNX session and clear the pipeline memo. process.exit()
- * during onnxruntime's static teardown aborts on macOS (libc++ "mutex lock
- * failed: Invalid argument" → SIGABRT), so exit paths dispose sessions first.
+ * Release every loaded ONNX session and clear the pipeline memo — exit-path
+ * hygiene (frees native sessions/memory before the process goes down).
  * Serialized behind the embed limiter: an in-flight batch finishes before its
  * session is released. A later embed lazily reloads the pipeline.
+ *
+ * This alone does NOT prevent the macOS exit-teardown SIGABRT (onnxruntime's
+ * global pool aborts in static destructors regardless); the darwin
+ * single-thread session_options in loadPipeline is that mitigation.
  */
 export async function disposeEmbedderPipelines(): Promise<void> {
   const pending = [...pipelineByModel.values()];

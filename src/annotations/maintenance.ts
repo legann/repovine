@@ -309,23 +309,44 @@ function gitRepoContains(cwd: string, filePath: string): boolean {
   if (!top.ok) return false;
   const root = top.out.trim();
   if (!root) return false;
+  // realpathSync.native expands Windows 8.3 short names (GetFinalPathNameByHandleW):
+  // os.tmpdir() can be `C:\Users\RUNNER~1\...` while git prints the long form, and the
+  // plain realpathSync resolves symlinks only, leaving the two forms unequal. Strip the
+  // `\\?\` namespace prefix native can add, and case-fold on win32 (NTFS identity) —
+  // relaxed comparison scoped to this repo-membership check per WS-2.1.
   const real = (p: string): string => {
+    let r = p;
     try {
-      return fs.realpathSync(p);
+      r = fs.realpathSync.native(p);
     } catch {
-      return p;
+      try {
+        r = fs.realpathSync(p);
+      } catch {
+        /* keep the input form */
+      }
     }
+    // Long-path namespace prefixes: `\\?\UNC\server\share` unprefixes to
+    // `\\server\share`; `\\?\C:\x` to `C:\x`.
+    if (r.startsWith('\\\\?\\UNC\\')) r = `\\\\${r.slice(8)}`;
+    else if (r.startsWith('\\\\?\\')) r = r.slice(4);
+    // Separator fold covers git's forward-slash form (`C:/…` from rev-parse)
+    // reaching a compare against a native dirname on the realpath-failure path.
+    return process.platform === 'win32' ? r.split('/').join('\\').toLowerCase() : r;
   };
   const rootReal = real(root);
   const fileReal = real(path.dirname(filePath));
-  return fileReal === rootReal || fileReal.startsWith(rootReal + path.sep);
+  const rootWithSep = rootReal.endsWith(path.sep) ? rootReal : rootReal + path.sep;
+  return fileReal === rootReal || fileReal.startsWith(rootWithSep);
 }
 
 /** True when git reports unmerged index stages for the annotations path. */
 function isIndexUnmerged(filePath: string): boolean {
   const cwd = path.dirname(filePath);
   if (!gitRepoContains(cwd, filePath)) return false;
-  const listing = runGit(cwd, ['ls-files', '-u', '-z', '--', `:(literal)${filePath}`]);
+  // cwd is already dirname(filePath): a basename pathspec lets git resolve the
+  // match against its own prefix, so Node-side path form (8.3 short vs long,
+  // backslash vs slash, drive case) never enters the comparison.
+  const listing = runGit(cwd, ['ls-files', '-u', '-z', '--', `:(literal)${path.basename(filePath)}`]);
   return listing.ok && listing.out.length > 0;
 }
 
@@ -339,7 +360,10 @@ function readGitIndexMergeStages(filePath: string): GitIndexMergeStages | undefi
   if (!gitRepoContains(cwd, filePath)) return undefined;
   // `:(literal)` disables pathspec globbing: an annotations path containing `*`, `?`, or `[…]`
   // otherwise also matches sibling files, whose stages would silently overwrite the target's.
-  const listing = runGit(cwd, ['ls-files', '-u', '-z', '--', `:(literal)${filePath}`]);
+  // cwd is already dirname(filePath): a basename pathspec lets git resolve the
+  // match against its own prefix, so Node-side path form (8.3 short vs long,
+  // backslash vs slash, drive case) never enters the comparison.
+  const listing = runGit(cwd, ['ls-files', '-u', '-z', '--', `:(literal)${path.basename(filePath)}`]);
   if (!listing.ok || listing.out.length === 0) return undefined;
 
   const keyByStage: Record<string, keyof GitIndexMergeStages> = { '1': 'base', '2': 'ours', '3': 'theirs' };
