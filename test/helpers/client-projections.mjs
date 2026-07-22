@@ -314,45 +314,75 @@ function substituteTokens(value, substitutions) {
  * - shell string on win32: `%ComSpec% /d /s /c "<command>"` — `command_windows`
  *   when the entry declares one, else the same string. `/s` plus outer quotes
  *   plus windowsVerbatimArguments survives quoted paths with spaces.
- * @returns {HookRunResult}
+ * @returns {Promise<HookRunResult>}
  */
 export function runDeclaredHook(hook, payload, exec) {
+  // Async spawn with an explicit stdin write ON PURPOSE: spawnSync with the
+  // `input` option fast-fails Node itself on Windows (silent exit
+  // 0xC0000409, STATUS_STACK_BUFFER_OVERRUN — a sync-stdin pipe race). The
+  // async form with a manual stdin write is the model the pack-install smoke
+  // already proves on Windows.
   const input = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const common = { cwd: exec.cwd, env: exec.env, input, encoding: 'utf-8' };
-  let res;
+  const common = { cwd: exec.cwd, env: exec.env };
+  let child;
   if (hook.args) {
     const subs = exec.substitutions ?? {};
     const command = substituteTokens(hook.command, subs);
     const args = hook.args.map(a => substituteTokens(a, subs));
     // The client resolves `node` from PATH; the harness pins it to the running executable.
-    res = spawnSync(command === 'node' ? process.execPath : command, args, common);
+    child = spawn(command === 'node' ? process.execPath : command, args, common);
   } else if (process.platform === 'win32') {
     const command = hook.commandWindows ?? hook.command;
-    res = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${command}"`], {
+    child = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${command}"`], {
       ...common,
       windowsVerbatimArguments: true,
     });
   } else {
-    res = spawnSync('/bin/sh', ['-c', hook.command], common);
+    child = spawn('/bin/sh', ['-c', hook.command], common);
   }
-  if (res.error) throw res.error;
-
-  const stdout = res.stdout ?? '';
-  const stderr = res.stderr ?? '';
-  let message = null;
-  if (stdout !== '') {
-    let parsed;
-    try {
-      parsed = JSON.parse(stdout);
-    } catch {
-      throw new Error(`Hook stdout must be empty or one JSON object, got: ${stdout.slice(0, 400)}`);
-    }
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error(`Hook stdout must be a JSON object, got: ${stdout.slice(0, 400)}`);
-    }
-    message = parsed;
-  }
-  return { status: res.status, stdout, stderr, message };
+  return new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error(`hook did not exit in 30s; stderr: ${stderr.slice(0, 500)}`));
+    }, 30_000);
+    child.stdout.setEncoding('utf-8');
+    child.stderr.setEncoding('utf-8');
+    child.stdout.on('data', d => { stdout += d; });
+    child.stderr.on('data', d => { stderr += d; });
+    // Stream 'error' events are not covered by child.on('error') and would
+    // otherwise kill the test process (stdin EPIPE after early child death).
+    child.stdin.on('error', () => {});
+    child.stdout.on('error', () => {});
+    child.stderr.on('error', () => {});
+    child.on('error', err => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on('close', status => {
+      clearTimeout(timer);
+      try {
+        let message = null;
+        if (stdout !== '') {
+          let parsed;
+          try {
+            parsed = JSON.parse(stdout);
+          } catch {
+            throw new Error(`Hook stdout must be empty or one JSON object, got: ${stdout.slice(0, 400)}`);
+          }
+          if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error(`Hook stdout must be a JSON object, got: ${stdout.slice(0, 400)}`);
+          }
+          message = parsed;
+        }
+        resolve({ status, stdout, stderr, message });
+      } catch (err) {
+        reject(err);
+      }
+    });
+    child.stdin.end(input);
+  });
 }
 
 /**

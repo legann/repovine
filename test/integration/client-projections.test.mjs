@@ -180,25 +180,25 @@ function expectAdvisory(ctx, result, expectedEvent, substrings, label) {
 }
 
 /** Run `fn` with the boundary index temporarily replaced (or removed when content is null). */
-function withBoundaryIndex(root, content, fn) {
+async function withBoundaryIndex(root, content, fn) {
   const indexPath = path.join(root, '.repovine', 'boundary-index.json');
   const original = fs.readFileSync(indexPath, 'utf-8');
   try {
     if (content === null) fs.rmSync(indexPath);
     else fs.writeFileSync(indexPath, content);
-    fn();
+    await fn();
   } finally {
     fs.writeFileSync(indexPath, original);
   }
 }
 
 /** Run `fn` with the workspace annotations file temporarily carrying conflict markers. */
-function withConflictedAnnotations(root, fn) {
+async function withConflictedAnnotations(root, fn) {
   const annotsPath = path.join(root, 'repovine.annots.json');
   const original = fs.existsSync(annotsPath) ? fs.readFileSync(annotsPath, 'utf-8') : null;
   try {
     fs.writeFileSync(annotsPath, CONFLICT_ANNOTATIONS);
-    fn();
+    await fn();
   } finally {
     if (original === null) fs.rmSync(annotsPath, { force: true });
     else fs.writeFileSync(annotsPath, original);
@@ -212,10 +212,10 @@ function withConflictedAnnotations(root, fn) {
  */
 function declareHookBehaviorCases(name, ctx, opts) {
   describe(name, () => {
-    it('delivers the boundary advisory for an indexed file', () => {
+    it('delivers the boundary advisory for an indexed file', async () => {
       const c = ctx();
       const events = eventNames(c.client);
-      const result = runDeclaredHook(
+      const result = await runDeclaredHook(
         hookFor(c, 'boundary-notice'),
         preEditPayload(c, path.join(c.root, 'src', 'app.ts')),
         c.exec,
@@ -223,10 +223,10 @@ function declareHookBehaviorCases(name, ctx, opts) {
       expectAdvisory(c, result, events.boundary, ['repovine boundary advisory', 'src/app.ts', BOUNDARY_RISK], `${name} boundary`);
     });
 
-    it('emits the staleness notice after a parsed-file edit', () => {
+    it('emits the staleness notice after a parsed-file edit', async () => {
       const c = ctx();
       const events = eventNames(c.client);
-      const result = runDeclaredHook(
+      const result = await runDeclaredHook(
         hookFor(c, 'stale-graph-notice', events.stale),
         fileEditPayload(c, 'src/app.ts'),
         c.exec,
@@ -234,18 +234,18 @@ function declareHookBehaviorCases(name, ctx, opts) {
       expectAdvisory(c, result, events.stale, ['syntax index is now stale'], `${name} stale`);
     });
 
-    it('emits the session MCP hint with onboarding state on startup', () => {
+    it('emits the session MCP hint with onboarding state on startup', async () => {
       const c = ctx();
       const events = eventNames(c.client);
-      const result = runDeclaredHook(hookFor(c, 'session-mcp-hint'), sessionPayload(c, 'startup'), c.exec);
+      const result = await runDeclaredHook(hookFor(c, 'session-mcp-hint'), sessionPayload(c, 'startup'), c.exec);
       expectAdvisory(c, result, events.session, ['repovine MCP is available', 'Onboarding state:'], `${name} session`);
     });
 
     if (!opts.full) return;
 
-    it('stays silent for a file absent from the boundary index', () => {
+    it('stays silent for a file absent from the boundary index', async () => {
       const c = ctx();
-      const result = runDeclaredHook(
+      const result = await runDeclaredHook(
         hookFor(c, 'boundary-notice'),
         preEditPayload(c, path.join(c.root, 'src', 'index.ts')),
         c.exec,
@@ -253,11 +253,11 @@ function declareHookBehaviorCases(name, ctx, opts) {
       expectSilent(result, `${name} boundary non-indexed`);
     });
 
-    it('reports paused boundary advisories on a newer index schema', () => {
+    it('reports paused boundary advisories on a newer index schema', async () => {
       const c = ctx();
       const events = eventNames(c.client);
-      withBoundaryIndex(c.root, JSON.stringify({ version: 2, entries: {} }), () => {
-        const result = runDeclaredHook(
+      await withBoundaryIndex(c.root, JSON.stringify({ version: 2, entries: {} }), async () => {
+        const result = await runDeclaredHook(
           hookFor(c, 'boundary-notice'),
           preEditPayload(c, path.join(c.root, 'src', 'app.ts')),
           c.exec,
@@ -266,10 +266,10 @@ function declareHookBehaviorCases(name, ctx, opts) {
       });
     });
 
-    it('stays silent when the boundary index is absent', () => {
+    it('stays silent when the boundary index is absent', async () => {
       const c = ctx();
-      withBoundaryIndex(c.root, null, () => {
-        const result = runDeclaredHook(
+      await withBoundaryIndex(c.root, null, async () => {
+        const result = await runDeclaredHook(
           hookFor(c, 'boundary-notice'),
           preEditPayload(c, path.join(c.root, 'src', 'app.ts')),
           c.exec,
@@ -279,10 +279,10 @@ function declareHookBehaviorCases(name, ctx, opts) {
     });
 
     if (isWin) {
-      it('resolves a native backslash payload path against the boundary index', () => {
+      it('resolves a native backslash payload path against the boundary index', async () => {
         const c = ctx();
         const events = eventNames(c.client);
-        const result = runDeclaredHook(
+        const result = await runDeclaredHook(
           hookFor(c, 'boundary-notice'),
           preEditPayload(c, `${c.root}\\src\\app.ts`),
           c.exec,
@@ -291,9 +291,9 @@ function declareHookBehaviorCases(name, ctx, opts) {
       });
     }
 
-    it('stays silent for an engine-owned path', () => {
+    it('stays silent for an engine-owned path', async () => {
       const c = ctx();
-      const result = runDeclaredHook(
+      const result = await runDeclaredHook(
         hookFor(c, 'stale-graph-notice', eventNames(c.client).stale),
         fileEditPayload(c, 'repovine.annots.json'),
         c.exec,
@@ -301,9 +301,9 @@ function declareHookBehaviorCases(name, ctx, opts) {
       expectSilent(result, `${name} stale engine-owned`);
     });
 
-    it('stays silent for a non-parsed extension', () => {
+    it('stays silent for a non-parsed extension', async () => {
       const c = ctx();
-      const result = runDeclaredHook(
+      const result = await runDeclaredHook(
         hookFor(c, 'stale-graph-notice', eventNames(c.client).stale),
         fileEditPayload(c, 'docs/notes.md'),
         c.exec,
@@ -311,11 +311,11 @@ function declareHookBehaviorCases(name, ctx, opts) {
       expectSilent(result, `${name} stale non-parsed`);
     });
 
-    it('surfaces annotation conflict markers after a git merge command', () => {
+    it('surfaces annotation conflict markers after a git merge command', async () => {
       const c = ctx();
       const events = eventNames(c.client);
-      withConflictedAnnotations(c.root, () => {
-        const result = runDeclaredHook(
+      await withConflictedAnnotations(c.root, async () => {
+        const result = await runDeclaredHook(
           hookFor(c, 'stale-graph-notice', events.conflict),
           shellPayload(c, 'git merge feature'),
           c.exec,
@@ -330,18 +330,18 @@ function declareHookBehaviorCases(name, ctx, opts) {
       });
     });
 
-    it('stays silent on session compact', () => {
+    it('stays silent on session compact', async () => {
       const c = ctx();
-      const result = runDeclaredHook(hookFor(c, 'session-mcp-hint'), sessionPayload(c, 'compact'), c.exec);
+      const result = await runDeclaredHook(hookFor(c, 'session-mcp-hint'), sessionPayload(c, 'compact'), c.exec);
       expectSilent(result, `${name} session compact`);
     });
 
-    it('never crashes on malformed stdin', () => {
+    it('never crashes on malformed stdin', async () => {
       const c = ctx();
-      const boundary = runDeclaredHook(hookFor(c, 'boundary-notice'), 'not-json', c.exec);
+      const boundary = await runDeclaredHook(hookFor(c, 'boundary-notice'), 'not-json', c.exec);
       expectSilent(boundary, `${name} boundary malformed stdin`);
       // The session hint degrades to an empty payload instead of going silent.
-      const session = runDeclaredHook(hookFor(c, 'session-mcp-hint'), 'not-json', c.exec);
+      const session = await runDeclaredHook(hookFor(c, 'session-mcp-hint'), 'not-json', c.exec);
       expectAdvisory(c, session, eventNames(c.client).session, ['repovine MCP is available'], `${name} session malformed stdin`);
     });
   });
@@ -352,7 +352,7 @@ function declareHookBehaviorCases(name, ctx, opts) {
 // ---------------------------------------------------------------------------
 
 describe('project-local setup (CLI blackbox)', () => {
-  it('generates the published npx launcher in every client MCP config', () => {
+  it('generates the published npx launcher in every client MCP config', async () => {
     const cursorMcp = JSON.parse(fs.readFileSync(path.join(projectRepo, '.cursor', 'mcp.json'), 'utf-8'));
     const cursorServer = cursorMcp.mcpServers.repovine;
     // Cursor's MCP schema requires type:"stdio"; it leads the entry.
@@ -375,13 +375,13 @@ describe('project-local setup (CLI blackbox)', () => {
     assert.equal(codexLaunch.root, '.');
   });
 
-  it('ships exactly one hook file per client hooks dir (the dispatcher)', () => {
+  it('ships exactly one hook file per client hooks dir (the dispatcher)', async () => {
     for (const dir of ['.cursor/hooks', '.claude/hooks', '.codex/hooks']) {
       assert.deepEqual(fs.readdirSync(path.join(projectRepo, ...dir.split('/'))), [CLIENT_DISPATCHER_FILENAME]);
     }
   });
 
-  it('wires every dispatcher action in every client wiring file', () => {
+  it('wires every dispatcher action in every client wiring file', async () => {
     const wirings = [
       ['cursor', readCursorHooks(path.join(projectRepo, '.cursor', 'hooks.json'))],
       ['claude', readClaudeHooks(path.join(projectRepo, '.claude', 'settings.json'))],
@@ -395,7 +395,7 @@ describe('project-local setup (CLI blackbox)', () => {
     }
   });
 
-  it('claude hook entries are exec-form; no entry relies on shell $VAR expansion', () => {
+  it('claude hook entries are exec-form; no entry relies on shell $VAR expansion', async () => {
     const hooks = readClaudeHooks(path.join(projectRepo, '.claude', 'settings.json'));
     assert.ok(hooks.length > 0);
     for (const hook of hooks) {
@@ -406,7 +406,7 @@ describe('project-local setup (CLI blackbox)', () => {
     }
   });
 
-  it('cursor hook strings are cross-shell (no substitution syntax, no backslashes)', () => {
+  it('cursor hook strings are cross-shell (no substitution syntax, no backslashes)', async () => {
     const hooks = readCursorHooks(path.join(projectRepo, '.cursor', 'hooks.json'));
     assert.ok(hooks.length > 0);
     for (const hook of hooks) {
@@ -414,7 +414,7 @@ describe('project-local setup (CLI blackbox)', () => {
     }
   });
 
-  it('codex project hooks pair a POSIX command with a full command_windows alternate', () => {
+  it('codex project hooks pair a POSIX command with a full command_windows alternate', async () => {
     const hooks = readCodexHooks(path.join(projectRepo, '.codex', 'config.toml'));
     assert.ok(hooks.length > 0);
     for (const hook of hooks) {
@@ -426,13 +426,13 @@ describe('project-local setup (CLI blackbox)', () => {
     }
   });
 
-  it('codex TOML stays inside the regex-readable subset the engine parses', () => {
+  it('codex TOML stays inside the regex-readable subset the engine parses', async () => {
     const content = fs.readFileSync(path.join(projectRepo, '.codex', 'config.toml'), 'utf-8');
     const fromParser = repovineLaunchFromParsedToml(readCodexConfig(path.join(projectRepo, '.codex', 'config.toml')));
     assert.deepEqual(repovineLaunchFromCodexTomlRegex(content), fromParser);
   });
 
-  it('re-running setup keeps hook wiring free of duplicate entries', () => {
+  it('re-running setup keeps hook wiring free of duplicate entries', async () => {
     for (const client of CLIENTS) setupClient(client);
 
     const cursorHooks = readCursorHooks(path.join(projectRepo, '.cursor', 'hooks.json'));
@@ -503,7 +503,7 @@ declareHookBehaviorCases(
 // ---------------------------------------------------------------------------
 
 describe('marketplace bundles', () => {
-  it('each bundle ships exactly one hook file (the dispatcher)', () => {
+  it('each bundle ships exactly one hook file (the dispatcher)', async () => {
     const hooksDirs = [
       ['cursor', path.join(bundleDir('cursor'), '.cursor', 'hooks')],
       ['claude', path.join(bundleDir('claude'), 'hooks')],
@@ -517,7 +517,7 @@ describe('marketplace bundles', () => {
     }
   });
 
-  it('pins repovine@<version> in every bundle MCP config', () => {
+  it('pins repovine@<version> in every bundle MCP config', async () => {
     const cursorMcp = JSON.parse(fs.readFileSync(path.join(bundleDir('cursor'), '.cursor', 'mcp.json'), 'utf-8'));
     assert.equal(cursorMcp.mcpServers.repovine.type, 'stdio');
     assert.deepEqual(cursorMcp.mcpServers.repovine.args, ['-y', `repovine@${pkgVersion}`]);
@@ -534,7 +534,7 @@ describe('marketplace bundles', () => {
     assert.deepEqual(repovineLaunchFromCodexTomlRegex(fs.readFileSync(codexTomlPath, 'utf-8')), codexLaunch);
   });
 
-  it('claude bundle hooks are exec-form and address ${CLAUDE_PLUGIN_ROOT}', () => {
+  it('claude bundle hooks are exec-form and address ${CLAUDE_PLUGIN_ROOT}', async () => {
     const hooks = readClaudeHooks(path.join(bundleDir('claude'), 'hooks', 'hooks.json'));
     assert.ok(hooks.length > 0);
     for (const hook of hooks) {
@@ -545,7 +545,7 @@ describe('marketplace bundles', () => {
     }
   });
 
-  it('codex bundle hooks address $PLUGIN_ROOT with a %PLUGIN_ROOT% Windows alternate', () => {
+  it('codex bundle hooks address $PLUGIN_ROOT with a %PLUGIN_ROOT% Windows alternate', async () => {
     const hooks = readCodexHooks(path.join(bundleDir('codex'), '.codex', 'config.toml'));
     assert.ok(hooks.length > 0);
     for (const hook of hooks) {
@@ -556,7 +556,7 @@ describe('marketplace bundles', () => {
     }
   });
 
-  it('cursor bundle hook strings are workspace-relative and cross-shell', () => {
+  it('cursor bundle hook strings are workspace-relative and cross-shell', async () => {
     const hooks = readCursorHooks(path.join(bundleDir('cursor'), '.cursor', 'hooks.json'));
     assert.ok(hooks.length > 0);
     for (const hook of hooks) {
