@@ -11,7 +11,7 @@
  * Run: `npm run audit:check`. Exit 0 = only allowlisted advisories present; 1 = a new advisory;
  * 2 = the audit itself could not run.
  */
-import { spawnSync } from 'node:child_process';
+import { runNpm } from './lib/spawn.cjs';
 
 // Keep in sync with SECURITY.md. Each entry is upstream-blocked and unreachable in repovine's usage.
 const ALLOWLIST = {
@@ -21,7 +21,7 @@ const ALLOWLIST = {
     'sharp/libvips image CVEs. Dev-only via optional @huggingface/transformers (text embeddings); image path unused; no transformers release adopts sharp >=0.35.',
 };
 
-const res = spawnSync('npm', ['audit', '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+const res = runNpm(['audit', '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 // npm audit exits non-zero when advisories exist; that is expected — parse stdout regardless.
 if (!res.stdout) {
   console.error('audit-gate: npm audit produced no output.');

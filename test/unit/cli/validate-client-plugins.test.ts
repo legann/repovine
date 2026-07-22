@@ -19,7 +19,7 @@ function resolveEngineRoot(): string {
 function validate(outRoot: string): { code: number; output: string } {
   const script = path.join(resolveEngineRoot(), 'scripts', 'validate-client-plugins.mjs');
   try {
-    const stdout = execFileSync('node', [script, '--out', outRoot], { encoding: 'utf-8', stdio: 'pipe' });
+    const stdout = execFileSync(process.execPath, [script, '--out', outRoot], { encoding: 'utf-8', stdio: 'pipe' });
     return { code: 0, output: stdout };
   } catch (error) {
     const failure = error as { status?: number; stdout?: string; stderr?: string };

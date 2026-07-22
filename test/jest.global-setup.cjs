@@ -1,7 +1,7 @@
-const { spawnSync } = require('node:child_process');
+const { runNpm } = require('../scripts/lib/spawn.cjs');
 
 module.exports = async () => {
-  const build = spawnSync('npm', ['run', 'build'], {
+  const build = runNpm(['run', 'build'], {
     cwd: process.cwd(),
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],

@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual runs from the Actions tab on any branch — lets the advisory native
+  # jobs be exercised without opening a PR.
+  workflow_dispatch:
 
 jobs:
   build:

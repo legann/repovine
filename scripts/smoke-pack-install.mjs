@@ -11,7 +11,7 @@
  *
  * Requires a built dist/ (npm run build) and registry access for third-party deps.
  */
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { nodeOutput, runNode, runNpm, spawnNode } from './lib/spawn.cjs';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -31,13 +31,16 @@ const check = (ok, message) => {
 };
 
 function npm(args, cwd) {
-  return execFileSync('npm', args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const res = runNpm(args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  if (res.error) throw res.error;
+  if (res.status !== 0) throw new Error(`npm ${args.join(' ')} exited ${res.status}\n${res.stderr || ''}`);
+  return res.stdout;
 }
 
 /** Send initialize + tools/list to the packed server over stdio, as an MCP client does. */
 function mcpHandshake(binPath, cwd) {
   return new Promise((resolve, reject) => {
-    const child = spawn('node', [binPath], {
+    const child = spawnNode([binPath], {
       cwd,
       env: { ...process.env, REPOVINE_ROOT: cwd },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -111,7 +114,7 @@ try {
   const bin = path.join(installed, 'dist', 'mcp', 'index.js');
   let version = '';
   try {
-    version = execFileSync('node', [bin, '--version'], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    version = nodeOutput([bin, '--version'], { stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (e) {
     version = `crashed: ${(e.stderr ?? e.message ?? '').toString().split('\n').slice(0, 3).join(' ')}`;
   }
@@ -134,7 +137,7 @@ try {
 
   // Both streams: the build prints its pipeline on stdout and the missing-package warning on stderr.
   const runBuild = () => {
-    const run = spawnSync('node', [bin, 'build'], {
+    const run = runNode([bin, 'build'], {
       cwd: workspace,
       env: { ...process.env, REPOVINE_ROOT: workspace },
       encoding: 'utf-8',

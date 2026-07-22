@@ -1,11 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
-import { execSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createShutdownSequence } from '../../src/mcp/shutdown.js';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { findFixturesRoot } from '../laws/graph-law-helpers.js';
+import { listChildProcesses } from '../helpers/process-probe.js';
 
 // H1 acceptance: aborting a POOLED build mid-python-extraction leaves zero live python children.
 // The pooled path spawns python AST subprocesses inside worker isolates; the abort propagates
@@ -18,12 +19,9 @@ const hasPython = ((): boolean => {
 
 /** Python processes among the direct children of THIS process (worker threads share the pid). */
 function livePythonChildren(): string[] {
-  try {
-    const out = execSync(`ps -o pid=,args= --ppid ${process.pid}`, { encoding: 'utf-8', timeout: 5_000 });
-    return out.split('\n').filter(line => line.includes('python'));
-  } catch {
-    return []; // ps exits 1 when there are no children at all
-  }
+  return listChildProcesses(process.pid)
+    .filter(c => c.command.includes('python'))
+    .map(c => `${c.pid} ${c.command}`);
 }
 
 /** Wait for proof that this test entered the Python extraction phase before cancelling it. */

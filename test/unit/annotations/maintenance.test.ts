@@ -72,8 +72,8 @@ function annotationFile(annotations: Record<string, StoredAnnotation>) {
 // commit templates, or gpgsign cannot perturb the temp-repo merge tests.
 const HERMETIC_GIT_ENV = {
   ...process.env,
-  GIT_CONFIG_GLOBAL: '/dev/null',
-  GIT_CONFIG_SYSTEM: '/dev/null',
+  GIT_CONFIG_GLOBAL: os.devNull,
+  GIT_CONFIG_SYSTEM: os.devNull,
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_AUTHOR_NAME: 'Test User',
   GIT_AUTHOR_EMAIL: 'test@example.com',

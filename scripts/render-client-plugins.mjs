@@ -13,7 +13,7 @@
  * drift between the committed bundles and engine SSoT. It writes nothing to outRoot
  * and skips the published-version guard.
  */
-import { execFileSync } from 'node:child_process';
+import { npmOutput } from './lib/spawn.cjs';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, existsSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -111,10 +111,9 @@ if (!resolvedVersion) {
 if (!allowUnpublished && !check) {
   let publishedVersion = '';
   try {
-    publishedVersion = execFileSync('npm', ['view', `repovine@${resolvedVersion}`, 'version'], {
-      encoding: 'utf-8',
+    publishedVersion = npmOutput(['view', `repovine@${resolvedVersion}`, 'version'], {
       stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
+    });
   } catch {
     publishedVersion = '';
   }

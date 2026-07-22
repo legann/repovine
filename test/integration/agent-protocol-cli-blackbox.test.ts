@@ -30,7 +30,7 @@ function parseJsonObject(text: string): JsonObject | undefined {
 }
 
 function run(command: string[], cwd: string): { status: number | null; stdout: string; stderr: string; json?: JsonObject } {
-  const res = spawnSync('node', [CLI, ...command], {
+  const res = spawnSync(process.execPath, [CLI, ...command], {
     cwd,
     env: { ...process.env, REPOVINE_ROOT: cwd },
     encoding: 'utf-8',
