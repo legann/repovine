@@ -431,33 +431,54 @@ export function mcpHandshake(launch: McpLaunchSpec): Promise<McpHandshakeResult>
     }, 90_000);
 
     child.stdout.on('data', (d: Buffer) => {
-      stdout += d;
-      for (const line of stdout.split('\n')) {
-        let message: { id?: number; result?: { tools?: Array<{ name?: string }> } };
-        try {
-          message = JSON.parse(line) as typeof message;
-        } catch {
-          continue;
+      // Any throw inside a stream 'data' handler is an uncaughtException that
+      // kills the jest worker (exit 1, silent retry loop) — the whole body
+      // stays inside try, and every parse result is object-guarded before
+      // property access (JSON.parse('null') succeeds and then `.id` throws).
+      try {
+        stdout += d;
+        for (const line of stdout.split('\n')) {
+          let message: unknown;
+          try {
+            message = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (
+            message !== null
+            && typeof message === 'object'
+            && (message as { id?: number }).id === 2
+            && tools === undefined
+          ) {
+            clearTimeout(timer);
+            tools = (message as { result?: { tools?: Array<{ name?: string }> } }).result?.tools ?? [];
+            child.stdin.end();
+            // Generous EOF window: the fixture server drains a cold bootstrap
+            // on shutdown, and a slow CI runner must not convert that into a
+            // SIGKILL race. A miss still fails visibly via eofExit: false.
+            eofTimer = setTimeout(() => {
+              eofTimedOut = true;
+              child.kill('SIGKILL');
+            }, 60_000);
+          }
         }
-        if (message.id === 2 && tools === undefined) {
-          clearTimeout(timer);
-          tools = message.result?.tools ?? [];
-          child.stdin.end();
-          eofTimer = setTimeout(() => {
-            eofTimedOut = true;
-            child.kill('SIGKILL');
-          }, 20_000);
-        }
+      } catch (err) {
+        clearTimeout(timer);
+        if (eofTimer) clearTimeout(eofTimer);
+        child.kill('SIGKILL');
+        reject(err as Error);
       }
     });
     child.stderr.on('data', (d: Buffer) => { stderr += d; });
     child.on('error', reject);
-    // Stream errors are NOT covered by child.on('error'): writing to the stdin
-    // of a child that died at startup raises EPIPE as an 'error' event on the
-    // stream — unhandled, it crashes the jest worker (observed on win32, where
-    // the write loses the race the POSIX pipe buffer usually wins). Swallow it;
-    // the 'close' handler reports the real failure with the child's stderr.
+    // Stream errors are NOT covered by child.on('error'): an 'error' event on
+    // any stdio stream (stdin EPIPE after early child death, read-side pipe
+    // errors after a SIGKILL with in-flight I/O) is an uncaughtException that
+    // kills the jest worker. Swallow them on all three streams; the 'close'
+    // handler reports the real failure with the child's stderr.
     child.stdin.on('error', () => {});
+    child.stdout.on('error', () => {});
+    child.stderr.on('error', () => {});
     // 'close', not 'exit': stdio can still hold buffered data at 'exit', and the
     // stdout-purity check must see everything written during the shutdown window.
     child.on('close', (code) => {
