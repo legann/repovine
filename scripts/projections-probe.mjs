@@ -9,7 +9,7 @@ import path from 'node:path';
 const mark = (m) => fs.writeSync(2, `PROBE: ${m}\n`);
 
 mark('imports');
-const { makeFixtureRepo, makeScrubbedEnv, runEngineCli, writeSyntheticEngineState, FIXTURE_PREFIX } =
+const { copyDirSync, makeFixtureRepo, makeScrubbedEnv, runEngineCli, writeSyntheticEngineState, FIXTURE_PREFIX } =
   await import('../test/helpers/client-projections.mjs');
 const { renderPluginRepo } = await import('../dist/cli/plugin-render.js');
 
@@ -44,7 +44,7 @@ const bundleWorkspace = makeFixtureRepo();
 mark('writeSyntheticEngineState(bundleWorkspace)');
 writeSyntheticEngineState(bundleWorkspace);
 
-mark('cpSync bundle .cursor -> workspace');
-fs.cpSync(path.join(bundlesOut, 'repovine-plugins', 'cursor', '.cursor'), path.join(bundleWorkspace, '.cursor'), { recursive: true });
+mark('copyDirSync bundle .cursor -> workspace');
+copyDirSync(path.join(bundlesOut, 'repovine-plugins', 'cursor', '.cursor'), path.join(bundleWorkspace, '.cursor'));
 
 mark('BEFORE() MIRROR COMPLETE');

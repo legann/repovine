@@ -40,6 +40,7 @@ import {
   FIXTURE_PREFIX,
   expectAdvisoryExit,
   expectCliExit0,
+  copyDirSync,
   makeFixtureRepo,
   makeScrubbedEnv,
   mcpHandshake,
@@ -110,7 +111,7 @@ before(() => {
   writeSyntheticEngineState(bundleWorkspace);
   // Cursor defines no plugin-install-root variable; its bundle hooks resolve
   // against the workspace root, so an install materializes .cursor/ there.
-  fs.cpSync(path.join(bundleDir('cursor'), '.cursor'), path.join(bundleWorkspace, '.cursor'), { recursive: true });
+  copyDirSync(path.join(bundleDir('cursor'), '.cursor'), path.join(bundleWorkspace, '.cursor'));
 });
 
 after(() => {

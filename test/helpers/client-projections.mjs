@@ -65,6 +65,22 @@ function git(cwd, args) {
  * to the fixture root. realpathSync keeps later path comparisons stable on
  * platforms where the temp dir is a symlink (macOS /var → /private/var).
  */
+/**
+ * Recursive directory copy via readdir + copyFileSync. `fs.cpSync` is off the
+ * table: on windows-latest it fast-fails the whole Node process
+ * (STATUS_STACK_BUFFER_OVERRUN, no output) when the tree lives under a path
+ * with spaces and non-ASCII segments — exactly this suite's fixture prefix.
+ */
+export function copyDirSync(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, entry.name);
+    const to = path.join(dest, entry.name);
+    if (entry.isDirectory()) copyDirSync(from, to);
+    else fs.copyFileSync(from, to);
+  }
+}
+
 export function makeFixtureRepo() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), FIXTURE_PREFIX)));
   fs.mkdirSync(path.join(root, 'src'), { recursive: true });
