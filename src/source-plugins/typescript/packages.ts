@@ -81,7 +81,10 @@ function readPackageInfoFromDir(pkgDir: string, relativePath: string): PackageIn
 }
 
 function pathToSlug(relativePath: string): string {
-  const normalized = path.normalize(relativePath) || '.';
+  // Input is POSIX-relative by contract (WS-2.1); path.normalize would
+  // re-introduce win32 backslashes past the '/'-only replace (the python
+  // plugin's slug() had the identical defect).
+  const normalized = relativePath || '.';
   if (normalized === '.') return 'root';
   return normalized.replace(/\/+/g, '-').replace(/^\.-/, '') || 'root';
 }
