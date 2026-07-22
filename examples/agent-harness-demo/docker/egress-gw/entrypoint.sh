@@ -2,8 +2,8 @@
 # Transparent egress allow-list for the harness (shared netns).
 #
 #   1. dnsmasq (port 5353) is the only resolver: it forwards ONLY ALLOW_DOMAINS to
-#      UPSTREAM_DNS (tagging the resolved IPs into ipset `allowed`) and sinkholes
-#      every other name to 0.0.0.0 — an unlisted lookup never reaches upstream, so
+#      UPSTREAM_DNS (tagging the resolved IPs into ipset `allowed`) and answers
+#      NXDOMAIN for every other name — an unlisted lookup never reaches upstream, so
 #      a DNS-tunnel query name cannot exfiltrate.
 #   2. iptables redirects all :53 in this netns to dnsmasq (inserted ABOVE Docker's
 #      DOCKER_OUTPUT, which special-cases 127.0.0.11), and default-DENIES egress
@@ -23,8 +23,9 @@ EGRESS_SELF_TEST_BLOCKED_URL="${EGRESS_SELF_TEST_BLOCKED_URL:-https://example.co
 EGRESS_SELF_TEST_ALLOW_URLS="${EGRESS_SELF_TEST_ALLOW_URLS:-}"
 # Static (non-DNS) allow-list: extra IPs/CIDRs the harness may reach, plus an opt-in to
 # auto-allow the host gateway (host.docker.internal) for a host-side local model
-# (LLM_PROVIDER=local). Needed because host.docker.internal resolves via /etc/hosts, not
-# dnsmasq, so its IP never lands in the DNS-driven `allowed` set.
+# (LLM_PROVIDER=local). host.docker.internal resolves via /etc/hosts, not dnsmasq, so its
+# IP never lands in the DNS-driven `allowed` set. The ipset entry authorizes the PROXY's
+# forward leg to the host model; the worker itself only ever dials loopback.
 EGRESS_ALLOW_CIDRS="${EGRESS_ALLOW_CIDRS:-}"
 EGRESS_ALLOW_HOST_DOCKER_INTERNAL="${EGRESS_ALLOW_HOST_DOCKER_INTERNAL:-0}"
 # Telegram egress is off by default; the tg-bot profile sets EGRESS_ALLOW_TELEGRAM=1 to
@@ -109,8 +110,8 @@ ipset create allowed_cidrs hash:net family inet 2>/dev/null || ipset flush allow
 IPSET_ARG="/$(echo "$ALLOW_DOMAINS" | tr ',' '/')/allowed"
 
 # Resolve ONLY the allow-listed domains (and their subdomains) upstream; a matching
-# --server=/dom/ takes precedence over the --address=/#/ sinkhole added at dnsmasq
-# start, so unlisted names answer 0.0.0.0 locally and never forward their query
+# --server=/dom/ takes precedence over the bare --address=/#/ added at dnsmasq
+# start, so unlisted names answer NXDOMAIN locally and never forward their query
 # name upstream (closes the DNS-tunnel exfil channel).
 DNS_SERVER_ARGS=""
 for _d in $(printf '%s' "$ALLOW_DOMAINS" | tr ',' ' '); do
@@ -126,6 +127,7 @@ if [ "$EGRESS_ALLOW_HOST_DOCKER_INTERNAL" = "1" ]; then
   if [ -n "$host_gw_ip" ]; then
     ipset add allowed_cidrs "$host_gw_ip" -exist
     log "allowed host.docker.internal -> $host_gw_ip"
+    log "local model endpoint: 127.0.0.1:${PROXY_LOCAL_PORT:-11434} -> ${LOCAL_UPSTREAM_HOST:-host.docker.internal}:${LOCAL_UPSTREAM_PORT:-11434} (proxy forward; firewall opened for $host_gw_ip)"
   else
     log "warning: EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1 but host.docker.internal is not in /etc/hosts (set compose extra_hosts: \"host.docker.internal:host-gateway\")"
   fi

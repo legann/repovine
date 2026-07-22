@@ -106,10 +106,14 @@ jobs:
       - name: Smoke test packed install
         run: node scripts/smoke-pack-install.mjs
 
+  # Required merge gate (docs/platform-support.md): runs the demo unit+render
+  # suite plus the actual-container egress smoke (allow-list, default-deny rule
+  # order, IPv6 fail-closed drop, worker hardening probes). Add `harness-linux`
+  # (the exact job name below) to branch protection required checks — the old
+  # advisory name `harness-linux (advisory)` was never a required context.
   harness-linux:
-    name: harness-linux (advisory)
+    name: harness-linux
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
 
@@ -129,4 +133,31 @@ jobs:
 
       - name: Demo tests
         run: npm test
+        working-directory: examples/agent-harness-demo
+
+      - name: Docker versions
+        run: docker version && docker compose version
+
+      # The required gate advertises the IPv6 fail-closed drop, so the runner
+      # daemon must be able to create an enable_ipv6 network — enable it and
+      # restart dockerd before the smoke. HARNESS_SMOKE_STRICT then makes an
+      # IPv6 downgrade (or an absent daemon) a hard failure, never a green skip.
+      - name: Enable IPv6 in the Docker daemon
+        run: |
+          sudo mkdir -p /etc/docker
+          echo '{"ipv6": true, "ip6tables": true, "experimental": true, "fixed-cidr-v6": "fd00:dead:beef::/48"}' \
+            | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker network create --ipv6 --subnet fd42:7265:706f:7699::/64 rv-ipv6-probe
+          docker network rm rv-ipv6-probe
+
+      - name: Docker container smokes (egress + local-model forward)
+        run: npm run test:docker-smoke
+        working-directory: examples/agent-harness-demo
+        env:
+          HARNESS_SMOKE_STRICT: '1'
+
+      - name: Compose down
+        if: always()
+        run: docker compose --profile cli down -v --remove-orphans || true
         working-directory: examples/agent-harness-demo

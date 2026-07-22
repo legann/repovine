@@ -284,7 +284,7 @@ export async function startHttp({ graph, port = 8080, host = '0.0.0.0', token = 
       return send(res, 409, {
         ok: false,
         code: ATTACH_RESET_DISABLED,
-        error: 'reset is disabled in attach mode — worktree cleanup is host-side: docker compose --profile attach-* down, then remove the launch state and worktree',
+        error: 'reset is disabled in attach mode — worktree cleanup is host-side: npm run docker:down, then remove the launch state and worktree',
       });
     }
     if (payload?.confirm !== true) {

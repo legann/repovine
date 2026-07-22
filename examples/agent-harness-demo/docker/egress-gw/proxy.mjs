@@ -16,6 +16,7 @@
 // Built-ins only (no npm): the egress-gw image ships nodejs but no node_modules.
 import http from 'node:http';
 import https from 'node:https';
+import net from 'node:net';
 
 const log = (...a) => console.error('egress-proxy:', ...a);
 
@@ -26,6 +27,20 @@ const HEALTH_PORT = Number(process.env.PROXY_HEALTH_PORT || 8790);
 
 const ANTHROPIC_UPSTREAM = process.env.ANTHROPIC_UPSTREAM_HOST || 'api.anthropic.com';
 const TELEGRAM_UPSTREAM = process.env.TELEGRAM_UPSTREAM_HOST || 'api.telegram.org';
+
+// Local-model forward: a raw byte pipe from a fixed loopback address in the shared netns
+// to the host-side OpenAI-compatible server. The service is the constant address
+// 127.0.0.1:LOCAL_FWD_PORT, so LOCAL_BASE_URL is one string on every platform. The name
+// host.docker.internal resolves via /etc/hosts only in this gateway container, so the
+// worker cannot dial it directly. No header rewrite and no custodied secret here — the
+// pipe is protocol-agnostic (SSE and /v1 and non-/v1 paths pass unchanged). The outbound
+// leg still traverses the default-deny OUTPUT chain, so the destination is unreachable
+// until EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1 / EGRESS_ALLOW_CIDRS allow-lists it. The
+// listener is always up (fail-closed comes from the firewall), matching the telegram
+// listener that binds without a token.
+const LOCAL_FWD_PORT = Number(process.env.PROXY_LOCAL_PORT || 11434);
+const LOCAL_UPSTREAM_HOST = process.env.LOCAL_UPSTREAM_HOST || 'host.docker.internal';
+const LOCAL_UPSTREAM_PORT = Number(process.env.LOCAL_UPSTREAM_PORT || 11434);
 
 // Upstream transport. Defaults to HTTPS:443; the *_UPSTREAM_PORT / *_UPSTREAM_INSECURE
 // knobs point at an on-prem/compatible endpoint (and let the proxy be tested against a
@@ -237,6 +252,16 @@ function handleTelegram(req, res) {
 http.createServer(handleAnthropic).listen(ANTHROPIC_PORT, BIND, () => log(`anthropic proxy on ${BIND}:${ANTHROPIC_PORT} → ${ANTHROPIC_UPSTREAM}`));
 http.createServer(handleTelegram).listen(TELEGRAM_PORT, BIND, () => log(`telegram proxy on ${BIND}:${TELEGRAM_PORT} → ${TELEGRAM_UPSTREAM} (${RECIPIENTS.size} recipient(s))`));
 http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('ok'); }).listen(HEALTH_PORT, BIND, () => log(`health on ${BIND}:${HEALTH_PORT}`));
+net.createServer((client) => {
+  const up = net.connect({ host: LOCAL_UPSTREAM_HOST, port: LOCAL_UPSTREAM_PORT });
+  up.setTimeout(5000, () => up.destroy(new Error('connect timeout')));
+  up.on('connect', () => { up.setTimeout(0); client.pipe(up); up.pipe(client); });
+  const drop = () => { client.destroy(); up.destroy(); };
+  client.on('error', drop);
+  up.on('error', drop);
+  client.on('close', () => up.destroy());
+  up.on('close', () => client.destroy());
+}).listen(LOCAL_FWD_PORT, BIND, () => log(`local model forward on ${BIND}:${LOCAL_FWD_PORT} -> ${LOCAL_UPSTREAM_HOST}:${LOCAL_UPSTREAM_PORT}`));
 
 process.on('SIGTERM', () => process.exit(0));
 process.on('SIGINT', () => process.exit(0));

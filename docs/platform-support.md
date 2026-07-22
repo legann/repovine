@@ -36,7 +36,7 @@ Embedder floor on macOS: `@huggingface/transformers` 4.x. The 3.8.1 floor bundle
 | Windows x64 (`windows-latest`) | Required merge gate (`core-windows`): build, full tests, pack-install smoke |
 | macOS arm64 (`macos-15`) | Required merge gate (`core-macos-arm`): same |
 | Embedder (real ONNX inference) | Required: Linux/Windows for the full peer range; macOS for transformers 4.x (3.8.1 excluded — documented ort 1.21 exit defect) |
-| Harness demo (Linux + Docker) | Advisory CI job (flips at the harness-portability stage) |
+| Harness demo (Linux + Docker) | Required merge gate (`harness-linux`): demo unit+render suite, actual-container egress smoke (allow-list, default-deny rule order, IPv6 drop, worker hardening probes) |
 
 Core (package, CLI, stdio MCP, graph/cache/annotations) runs its full suite natively on all three Tier 1 platforms. Client-projection runtime claims stay `pending verification` until per-client behavioral smoke lands. An advisory leg renders a red X in the PR check list; the workflow conclusion stays green.
 
@@ -57,5 +57,5 @@ With `core.autocrlf=true`, a role-brief read from the working tree yields CRLF b
 |---|---|
 | Core Tier 1 on an OS | Green, required native CI job on that OS |
 | Client integration Tier 1 | Run under the client's real shell/cwd/env semantics; GUI-launch minimal-PATH proof recorded as manual evidence |
-| Docker Desktop support | Actual-container smoke on a real macOS / WSL2 machine |
+| Docker Desktop support | Actual-container smoke on a real macOS / WSL2 machine (hosted runners have no Docker there). Record a release-evidence entry per harness-affecting release: {date, host OS + arch, Docker Desktop version, engine/compose versions from `docker compose version`, repo commit SHA, egress-smoke result, IPv6 leg: exercised or named-skip, render-matrix result incl. the drive-letter cell}. macOS is sandbox mode only — attach is Unsupported there, so the entry never implies attach coverage. Windows evidence notes the checkout on WSL2 ext4 and is where the drive-letter cell gets its real-mount verification |
 | Any surface on any OS | An unsupported path fails early with a stable, actionable error |

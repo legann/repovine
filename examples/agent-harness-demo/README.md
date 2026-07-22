@@ -185,8 +185,10 @@ configured acceptance checks, and you can inspect or verify the output on the ho
 | **HTTP** handle | `npm run docker:http` | drive with `curl` from another console |
 | **Telegram** bot | `npm run docker:tg-bot` | chat‑driven, long‑running |
 
-The `docker:*` scripts wrap `docker compose --profile <mode> … --build` (never a
-stale image); `npm run docker:down` stops everything. Compose stays the tool for
+The `docker:*` scripts call `scripts/compose.mjs`, a Node wrapper that passes
+structured argv (no shell globbing) and pre-creates the workspace dir, so they
+work the same on Linux, macOS, and Windows. Each builds `--build` (never a stale
+image); `npm run docker:down` stops every profile. Compose stays the tool for
 `logs`, `ps`, and `exec`.
 
 The **tg-bot** profile additionally needs `EGRESS_ALLOW_TELEGRAM=1` and
@@ -255,7 +257,7 @@ npm run docker:tg-bot
 # other channels: npm run docker:http · npm run docker:cli -- --goal "…"
 
 # Attach — the same bot against an existing repository:
-npm run docker:down                       # profiles are opt-in: plain `docker compose down` stops nothing
+npm run docker:down                       # stops every profile (sandbox + attach), all shells
 npm run attach -- prepare ~/work/myrepo   # [--base <ref>] [--name <run-name>]
 npm run attach -- run tg-bot              # rebuilds the image, preflights, starts
 # other channels: run http · run cli --goal "…" · preflight = validate only
@@ -349,8 +351,8 @@ git -C <worktree> switch -c attach/run-001 && git -C <worktree> add -A \
 git -C <checkout> merge attach/run-001
 ```
 
-Discard instead: `docker compose --profile attach-* down`, remove the state dir, then
-`git -C <checkout> worktree remove --force <worktree>`. Full lifecycle:
+Discard instead: `npm run docker:down` (stacks both compose files), remove the state
+dir, then `git -C <checkout> worktree remove --force <worktree>`. Full lifecycle:
 [usage guide](docs/usage.md#attach-mode-existing-repository-worktree).
 
 ## Documentation

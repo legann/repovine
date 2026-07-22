@@ -14,6 +14,9 @@ COPY packages/plugin-sdk/package.json packages/plugin-sdk/tsconfig.json ./packag
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY packages/plugin-sdk/src ./packages/plugin-sdk/src
 COPY src ./src
+# `npm run build` shells out to Node build scripts (clean, copy-build-assets),
+# so the scripts/ dir must be in the builder stage — a plain `tsc` is not enough.
+COPY scripts ./scripts
 RUN npm run build \
   && test -f dist/mcp/index.js
 
@@ -46,8 +49,9 @@ RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit
 # on the host apply without rebuild; HARNESS_AGENTS_DIR points loaders at that path.
 COPY examples/agent-harness-demo/ ./
 # Mountpoint for the ./.workspace bind mount (compose.yaml). Create it in the image so
-# the path exists; Docker overlays the host dir at runtime and auto-creates a missing
-# host dir as root, so workspace-init chowns it to `node` before the harness starts.
+# the path exists; Docker overlays the host dir at runtime. The bind sets
+# create_host_path:false, so the host dir must exist first — scripts/compose.mjs
+# pre-creates it as the invoking user, then workspace-init normalizes ownership.
 RUN mkdir -p .workspace
 
 ENV REPOVINE_CLI=/app/repovine/dist/mcp/index.js

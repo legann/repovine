@@ -168,8 +168,8 @@ The harness is locked down to **an isolated sandbox that can reach only the LLM 
   and the `./.workspace` bind mount. Non-root `node` user (uid 1000) — so it
   cannot fix bind-mount ownership itself.
 - **`workspace-init` (one-shot, before harness services).** A minimal Alpine
-  sidecar runs as root with only `CHOWN` added back, fixes ownership on
-  `./.workspace` when Docker auto-creates the host path as root, then exits.
+  sidecar runs as root with only `CHOWN` added back, normalizes ownership on
+  `./.workspace` (pre-created by `scripts/compose.mjs` as the invoking user), then exits.
   On an existing workspace already owned by uid 1000 (normal after prior runs),
   init skips recursive `chown` — a blanket `chown -R` would fail under
   `cap_drop:[ALL]+CHOWN` on mode-700 SDK caches such as `.harness-home/.claude`.
@@ -201,9 +201,11 @@ widening the container guards — add domains to `ALLOW_DOMAINS` for egress; see
 worktree of an existing repository (mode matrix and mount table:
 [README → Target modes](../README.md#target-modes)).
 [`scripts/attach-launcher.mjs`](../scripts/attach-launcher.mjs) is the supported
-entrypoint — it preflights and creates the launch state before any docker call; a
-direct `docker compose --profile attach-*` with hand-set env bypasses the
-preflight and is an unsupported operator override.
+entrypoint — it preflights and creates the launch state before any docker call.
+Attach services live in `compose.attach.yaml`, so a bare `docker compose --profile
+attach-*` on the main file alone selects nothing; a stacked `docker compose -f
+compose.yaml -f compose.attach.yaml --profile attach-*` with hand-set env bypasses
+the preflight and is an unsupported operator override.
 
 ```mermaid
 flowchart LR
@@ -272,7 +274,7 @@ git -C ~/workspace/myrepo merge attach/run-001   # or: git cherry-pick <sha>
 
 # 7. Teardown, in this order (fetch before removing the state dir — it holds the
 #    disposable repo):
-docker compose --profile attach-cli down    # attach-http / attach-tg-bot for the daemons
+npm run docker:down                         # stops every profile (attach lives in compose.attach.yaml)
 rm -rf ~/attach-state/run-001
 git -C ~/workspace/myrepo worktree remove ~/worktrees/myrepo-run-001   # --force when discarding
 git -C ~/workspace/myrepo branch -d attach/run-<id>                    # after merge
@@ -456,7 +458,28 @@ each mode carries its own host contract — a status always names a mode.
 | **Host mode** (dev only, below) | Dev only | Dev only: the process reaper reads `/proc` and is a no-op here | Dev only, as Linux | Unsupported: fails at worker dispatch (POSIX `/bin/sh` process model); use WSL2 or the sandbox |
 
 `Expected` reads as: configuration and image support the host; promotion waits
-on an actual-container smoke on that host.
+on an actual-container smoke on that host. Promote an `Expected` cell after
+`HARNESS_DOCKER_SMOKE=1 npm run test:egress-smoke` and `npm test` (the render
+matrix) run green on that host, recording the IPv6 leg's pass-or-named-skip
+status. Hosted CI runners have no Docker on macOS or Windows native, so those
+smokes stay manual on real machines.
+
+### Workspace ownership across hosts
+
+The sandbox container runs as uid 1000 on every host. `scripts/compose.mjs`
+pre-creates `.workspace` as the invoking user; `workspace-init` normalizes
+ownership to `HARNESS_UID`/`HARNESS_GID` (numeric passthrough, default 1000, no
+name mapping). Effect on host-visible ownership depends on the file-sharing layer.
+
+| Host | Ownership model | HARNESS_UID/GID effect |
+|---|---|---|
+| Linux / WSL2 (ext4) | real Unix ownership | container writes land as uid 1000; host-visible uid-1000 files are the sandbox contract |
+| macOS Docker Desktop | VM file sharing (VirtioFS/gRPC-FUSE) emulates ownership | files surface owned by the desktop user; in-container chown does not translate to host ownership |
+| Windows Docker Desktop | NTFS has no Unix ownership | the share presents a fixed emulated uid; chown is a no-op or `EPERM`; the knobs have no host-side effect |
+
+On the emulated shares `workspace-init`'s chown is a no-op; the in-container
+writability probe (`lib/target-repo.mjs`) is the correctness gate and names the
+path and uid on failure.
 
 ## Run (host — dev only)
 
@@ -519,7 +542,7 @@ that leak the call into text), structural file ops (`read_file` / `write_file` /
 
 | Env | Default | Meaning |
 |---|---|---|
-| `LOCAL_BASE_URL` | — (**required**) | OpenAI-compatible base, e.g. `http://localhost:11434/v1` (Ollama). Its presence is the whole "credential" — auth is **not** fail-closed; no remote spend is possible. |
+| `LOCAL_BASE_URL` | — (**required**) | OpenAI-compatible base. Under Docker the fixed `http://127.0.0.1:11434/v1` (gateway forward); on the host `http://localhost:11434/v1` (Ollama). Its presence is the whole "credential" — auth is **not** fail-closed; no remote spend is possible. |
 | `LOCAL_MODEL` | `qwen2.5-coder:32b` | Model id. Switching models needs no code change. |
 | `LOCAL_API_KEY` | — (optional) | Bearer token; most local runtimes ignore it. |
 | `LOCAL_PLANNER_MODEL` / `LOCAL_IMPLEMENTER_MODEL` / `LOCAL_VERIFY_MODEL` / `LOCAL_ASK_MODEL` | `LOCAL_MODEL` | Optional per-role model — let a cheap model plan and a stronger one implement. |
@@ -537,33 +560,36 @@ that leak the call into text), structural file ops (`read_file` / `write_file` /
 OLLAMA_HOST=0.0.0.0:11434 ollama serve &
 ollama pull qwen2.5-coder:32b           # or :7b on CPU-only / modest hardware
 
-# .env: reach the host through the gateway, and allow it through default-deny.
+# .env — the same string on Linux, Docker Desktop (macOS), and WSL2:
 #   LLM_PROVIDER=local
-#   LOCAL_BASE_URL=http://<host-ip>:11434/v1   # raw IP — see below
+#   LOCAL_BASE_URL=http://127.0.0.1:11434/v1
 #   LOCAL_MODEL=qwen2.5-coder:32b
 #   EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1
 docker compose --profile cli run --rm cli --goal "add a GET /health route"
 ```
 
-`compose.yaml` maps `host.docker.internal:host-gateway` on the **gateway only**:
-Docker forbids `extra_hosts` on a `network_mode: service:…` container, and
-`/etc/hosts` stays per-container even in the shared netns, so the name does not
-resolve inside the app. `EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1` still opens the
-firewall (egress-gw resolves the name itself and adds the host IP to the
-allow-list — it can't go through dnsmasq because it lives in `/etc/hosts`, not
-DNS), and `LOCAL_BASE_URL` carries the host's raw IP as seen from containers.
-Take the exact value from the egress-gw startup log — with
-`EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1` it prints `allowed host.docker.internal
--> <ip>` on every start, and that IP is precisely the one on the allow-list
-(Docker Desktop: typically `192.168.65.254`). This route has no runtime smoke
-yet on any platform; a single documented endpoint is planned. A model on a
-*different* host: set `LOCAL_BASE_URL` to its IP and `EGRESS_ALLOW_CIDRS=<ip>/32`.
-Verify from inside the netns:
+The gateway proxy listens on `127.0.0.1:11434` inside the shared netns and forwards to
+`host.docker.internal:11434`, resolved gateway-side via `extra_hosts`. `LOCAL_BASE_URL`
+is the fixed `http://127.0.0.1:11434/v1`. `EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1` opens the
+firewall for the forward leg and allow-lists the whole host interface IP.
+
+Three knobs adjust the forward target; `LOCAL_BASE_URL` stays constant:
+
+| Env | Default | Meaning |
+|---|---|---|
+| `PROXY_LOCAL_PORT` | `11434` | Loopback port the proxy exposes in the shared netns. |
+| `LOCAL_UPSTREAM_HOST` | `host.docker.internal` | Forward target. An IP reaches a model on another machine, paired with `EGRESS_ALLOW_CIDRS=<ip>/32`. |
+| `LOCAL_UPSTREAM_PORT` | `11434` | Forward target port, e.g. `1234` for LM Studio. |
+
+Verify from inside the netns (the forwarder is a byte pipe, so non-`/v1` paths pass too):
 
 ```bash
 docker compose --profile cli run --rm --entrypoint sh cli \
-  -c 'curl -s http://<host-ip>:11434/api/version'
+  -c 'curl -s http://127.0.0.1:11434/api/version'
 ```
+
+`test/local-endpoint.test.mjs` covers the forward: a Tier-1 mock-upstream test always
+runs, and a Docker-gated tier brings the gateway up against a mock model.
 
 *Harness on the host* (`npm run dev:cli` — egress-gw not involved): just
 `LOCAL_BASE_URL=http://localhost:11434/v1`.

@@ -1,20 +1,20 @@
 # Isolated harness sandbox — pick ONE profile (security posture is in this file):
 #   cp .env.example .env   # LLM keys (+ TELEGRAM_* for tg-bot)
 #
-# Build (all services are profile-gated — plain `docker compose build` builds nothing):
-#   docker compose --profile cli --profile http --profile tg-bot build
+# Run via the npm scripts; they call scripts/compose.mjs, which pre-creates the
+# workspace host dir and passes structured argv on every host (Linux, macOS,
+# Windows). Host binds set create_host_path:false, so a raw `docker compose run`
+# on a fresh checkout fails until .workspace exists — the wrapper is the entry.
+#   npm run docker:cli -- --goal "сделай todo app"   # CLI one-shot
+#   npm run docker:http                              # HTTP handle on localhost:8080
+#   npm run docker:tg-bot                            # Telegram bot (long-running)
+#   npm run docker:down                              # stop every profile
 #
-# CLI one-shot:
-#   docker compose --profile cli run --rm cli --goal "сделай todo app"
-#
-# HTTP handle (curl from another console):
-#   docker compose --profile http up -d http
+# HTTP request once the handle is up:
 #   curl -s localhost:8080/goal -H 'content-type: application/json' -d '{"goal":"…"}'
 #
-# Telegram bot (long-running):
-#   docker compose --profile tg-bot up -d tg-bot
-#
-# Plain `docker compose up` starts nothing — every mode is opt-in via profile.
+# Every mode is opt-in via profile; plain `docker compose up` starts nothing.
+# Build alone: `docker compose --profile cli --profile http --profile tg-bot build`.
 # The agent runs WRITE-ONLY in a hardened container; egress is locked down by
 # `egress-gw` (default-deny allow-list). See README.
 #
@@ -90,13 +90,23 @@ x-harness-app: &harness-app
   volumes: &harness-volumes
     # Bind mount (not a named volume) so the sandbox the agent builds is visible on
     # the host for inspection: ./.workspace/sandbox/… (the dir is gitignored). The
-    # container runs as uid 1000 (`node`). Docker auto-creates a missing host path as
-    # root — workspace-init fixes ownership before harness services start (see
-    # docker/init-workspace.sh; skips recursive chown when already uid 1000). Override the
-    # host path with HARNESS_WORKSPACE_DIR.
-    - ${HARNESS_WORKSPACE_DIR:-./.workspace}:/app/repovine/examples/agent-harness-demo/.workspace
+    # container runs as uid 1000 (`node`). Long-form binds with create_host_path:false
+    # never auto-create the source: scripts/compose.mjs pre-creates .workspace as the
+    # invoking user, then workspace-init fixes ownership before harness services start
+    # (see docker/init-workspace.sh; skips recursive chown when already uid 1000).
+    # Override the host path with HARNESS_WORKSPACE_DIR.
+    - type: bind
+      source: ${HARNESS_WORKSPACE_DIR:-./.workspace}
+      target: /app/repovine/examples/agent-harness-demo/.workspace
+      bind:
+        create_host_path: false
     # Role briefs: host lib/agents/ overrides the image COPY — edit markdown without rebuild.
-    - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
+    - type: bind
+      source: ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}
+      target: ${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}
+      read_only: true
+      bind:
+        create_host_path: false
   # Credentials come ONLY from .env (explicit provider keys) — no ambient mounts.
   # ── Defense-in-depth on the harness container ───────────────────────────────
   read_only: true # immutable rootfs; bind mounts (workspace, lib/agents) + tmpfs are writable/readable
@@ -111,11 +121,11 @@ x-harness-app: &harness-app
     # Fallback when HOME is not redirected; SDK caches can be large on multi-agent runs.
     - /home/node:size=${HARNESS_NODE_TMPFS:-512m},uid=1000,gid=1000
   working_dir: /app/repovine/examples/agent-harness-demo
-  # NOTE: this service shares egress-gw's network namespace (below), and Docker forbids
-  # `extra_hosts` on a network_mode:service container. So for a host-side local model the
-  # app must use a RAW IP in LOCAL_BASE_URL (host.docker.internal can't be mapped here).
-  # The host IP is allow-listed on the gateway via EGRESS_ALLOW_CIDRS / the host-gateway
-  # auto-allow (egress-gw resolves host.docker.internal on ITS side).
+  # NOTE: this service shares egress-gw's network namespace (below). A host-side
+  # local model is reached through the gateway's fixed loopback forwarder:
+  # LOCAL_BASE_URL=http://127.0.0.1:11434/v1 is one constant on every platform
+  # (egress-gw forwards 127.0.0.1:PROXY_LOCAL_PORT to LOCAL_UPSTREAM_HOST:PORT and
+  # allow-lists the resolved host IP itself). No per-host raw IP, no extra_hosts.
   # Share the egress gateway's network namespace: ALL harness traffic passes its
   # allow-list (default-deny except anthropic.com; Telegram optional). The harness
   # itself keeps cap_drop:ALL — only the gateway holds NET_ADMIN.
@@ -139,9 +149,24 @@ services:
       - ALL
     cap_add:
       - CHOWN
+    # Ownership target for the workspace chown. Numeric passthrough (no name
+    # mapping); defaults match the image's `node` user. Real on Linux/WSL2; a
+    # no-op on Docker Desktop shares that emulate ownership (macOS/Windows).
+    environment:
+      HARNESS_UID: ${HARNESS_UID:-1000}
+      HARNESS_GID: ${HARNESS_GID:-1000}
     volumes:
-      - ${HARNESS_WORKSPACE_DIR:-./.workspace}:/workspace
-      - ./docker/init-workspace.sh:/init-workspace.sh:ro
+      - type: bind
+        source: ${HARNESS_WORKSPACE_DIR:-./.workspace}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./docker/init-workspace.sh
+        target: /init-workspace.sh
+        read_only: true
+        bind:
+          create_host_path: false
     entrypoint: ["/bin/sh", "/init-workspace.sh"]
     restart: "no"
 
@@ -149,9 +174,10 @@ services:
   # reach is anthropic.com (Telegram optional via EGRESS_ALLOW_TELEGRAM=1); everything else is dropped
   # (fail-closed). Tune the list / upstream resolver in .env.
   egress-gw:
-    # Attach profiles included: harness services depend_on egress-gw, and Compose
-    # hard-errors when depends_on names a profile-excluded service.
-    profiles: ["cli", "http", "tg-bot", "attach-cli", "attach-http", "attach-tg-bot"]
+    # Harness services depend_on egress-gw, and Compose hard-errors when depends_on
+    # names a profile-excluded service. compose.attach.yaml unions the attach-*
+    # profiles onto this service when the overlay is stacked.
+    profiles: ["cli", "http", "tg-bot"]
     build:
       context: docker/egress-gw
     # Least privilege: drop everything, add back only what's needed —
@@ -195,6 +221,14 @@ services:
       PROXY_ANTHROPIC_PORT: ${PROXY_ANTHROPIC_PORT:-8788}
       PROXY_TELEGRAM_PORT: ${PROXY_TELEGRAM_PORT:-8789}
       PROXY_HEALTH_PORT: ${PROXY_HEALTH_PORT:-8790}
+      # Local-model forward (LLM_PROVIDER=local): the proxy exposes 127.0.0.1:11434 in the
+      # shared netns and forwards to the host-side model, so LOCAL_BASE_URL is the fixed
+      # http://127.0.0.1:11434/v1. The forward leg obeys the egress allow-list
+      # (EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1 / EGRESS_ALLOW_CIDRS). Point LOCAL_UPSTREAM_HOST
+      # at another machine's IP for an off-host model; LOCAL_BASE_URL stays constant.
+      PROXY_LOCAL_PORT: ${PROXY_LOCAL_PORT:-11434}
+      LOCAL_UPSTREAM_HOST: ${LOCAL_UPSTREAM_HOST:-host.docker.internal}
+      LOCAL_UPSTREAM_PORT: ${LOCAL_UPSTREAM_PORT:-11434}
     # 128m + a small node proxy: bump headroom so the custody proxy has room next to dnsmasq.
     mem_limit: ${EGRESS_GW_MEM_LIMIT:-192m}
     # The HTTP handle shares this netns, so the published port lives HERE (a
@@ -258,111 +292,16 @@ services:
   # in-compose model service: it would bind :11434 on this host and collide with a real
   # Ollama, and the egress-gw default-deny does not fit an internal service anyway.
 
-  # ── Attach mode ──────────────────────────────────────────────────────────────
-  # Mounts a pre-created host Git worktree at /workspace instead of the managed
-  # sandbox. scripts/attach-launcher.mjs is the supported entrypoint: it runs the
-  # fail-closed preflight and creates the state layout BEFORE any docker call.
-  # A direct `docker compose --profile attach-* up` with hand-set env bypasses
-  # that preflight — a deliberate operator override, unsupported and not
-  # prevented here.
-  #
-  # `${VAR:?}` is forbidden for the attach vars: Compose interpolates the WHOLE
-  # file before profile filtering, so a required-var error would break every
-  # sandbox invocation. The `/dev/null/attach-unset` default keeps unset vars
-  # fail-closed instead: the path sits under a device FILE, so Docker cannot
-  # silently auto-create it as a root-owned host dir and container create errors.
-  #
-  # YAML merge: `<<: *harness-app` plus a local `volumes:` / `depends_on:` /
-  # `environment:` key REPLACES the anchor's value for that key wholesale.
-  # That is the point — attach never mounts .workspace and never waits on
-  # workspace-init (sandbox-only). `environment:` re-merges *harness-env inside
-  # to keep the shared vars.
-  cli-attach:
+  # Never-run skeleton for the attach overlay. Anchors do not cross files, so
+  # compose.attach.yaml reaches the shared hardened shape through
+  # `extends: {file: compose.yaml, service: harness-base}`: it inherits build,
+  # resource ceilings, read_only, cap_drop, tmpfs, and network_mode, while each
+  # overlay service supplies its own volumes/user/entrypoint/environment/depends_on.
+  # The empty volumes/depends_on here keep attach from inheriting the sandbox
+  # workspace mount or the workspace-init gate. The `harness-base` profile is never
+  # requested, so this service is inert.
+  harness-base:
     <<: *harness-app
-    profiles: ["attach-cli"]
-    # Run as the worktree owner so writes land with the operator's uid/gid.
-    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
-    entrypoint: ["node", "scripts/langgraph-cli.mjs"]
-    environment:
-      <<: *harness-env
-      HARNESS_TARGET_MODE: attach
-      HARNESS_REPO_ROOT: /workspace
-      HOME: /state/home
-    volumes:
-      # Worktree at the stable container path; state runtime/ subtrees for HOME,
-      # the run ledger, and the disposable Git repo; the read-only git-guard
-      # shadows the worktree's real `.git` pointer with a VALID pointer into the
-      # disposable repo at /state/git (ro so the agent cannot repoint it; the
-      # repo itself is rw by design — sandbox-parity posture). The state parent
-      # and control/ are never mounted; the source common dir stays unmounted.
-      - ${HARNESS_ATTACH_WORKTREE:-/dev/null/attach-unset}:/workspace:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/home:/state/home:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/harness:/workspace/.harness:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/git:/state/git:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/control/git-guard:/workspace/.git:ro
-      - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
-    depends_on:
-      egress-gw:
-        condition: service_healthy
-
-  http-attach:
-    <<: *harness-app
-    profiles: ["attach-http"]
-    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
-    entrypoint: ["node", "scripts/langgraph-http.mjs"]
-    restart: unless-stopped
-    environment:
-      <<: *harness-env
-      HARNESS_TARGET_MODE: attach
-      HARNESS_REPO_ROOT: /workspace
-      HOME: /state/home
-      PORT: ${HARNESS_HTTP_PORT:-8080}
-      HARNESS_HTTP_TOKEN: ${HARNESS_HTTP_TOKEN:-}
-    volumes:
-      - ${HARNESS_ATTACH_WORKTREE:-/dev/null/attach-unset}:/workspace:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/home:/state/home:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/harness:/workspace/.harness:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/git:/state/git:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/control/git-guard:/workspace/.git:ro
-      - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
-    depends_on:
-      egress-gw:
-        condition: service_healthy
-    healthcheck:
-      test:
-        - "CMD"
-        - "node"
-        - "-e"
-        - "fetch('http://localhost:'+(process.env.PORT||8080)+'/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-
-  tg-bot-attach:
-    <<: *harness-app
-    profiles: ["attach-tg-bot"]
-    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
-    entrypoint: ["node", "scripts/langgraph-tg-bot.mjs"]
-    restart: unless-stopped
-    environment:
-      <<: *harness-env
-      HARNESS_TARGET_MODE: attach
-      HARNESS_REPO_ROOT: /workspace
-      HOME: /state/home
-    volumes:
-      - ${HARNESS_ATTACH_WORKTREE:-/dev/null/attach-unset}:/workspace:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/home:/state/home:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/harness:/workspace/.harness:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/runtime/git:/state/git:rw
-      - ${HARNESS_ATTACH_STATE_DIR:-/dev/null/attach-unset}/control/git-guard:/workspace/.git:ro
-      - ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}:${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}:ro
-    depends_on:
-      egress-gw:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "test $(( $(date +%s) - $(date -r /tmp/harness-tg-bot.alive +%s 2>/dev/null || echo 0) )) -lt 120"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+    profiles: ["harness-base"]
+    volumes: []
+    depends_on: {}

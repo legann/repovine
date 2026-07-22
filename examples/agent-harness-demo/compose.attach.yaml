@@ -1,0 +1,198 @@
+# Attach-mode overlay — stack ON TOP of compose.yaml:
+#   docker compose -f compose.yaml -f compose.attach.yaml --profile attach-cli …
+# scripts/attach-launcher.mjs is the supported entrypoint: it runs the fail-closed
+# preflight, creates the control/runtime state layout, and stacks these two files.
+#
+# Attach mounts a pre-created host Git worktree at /workspace instead of the managed
+# sandbox. The bind sources use required-no-default interpolation (`${VAR:?}`): an
+# unset var fails at compose interpolation, exit 1, before the daemon. Because attach
+# lives in this overlay, the main file alone selects no attach service — a bare
+# `docker compose --profile attach-cli up` in the demo dir starts nothing.
+#
+# `${VAR:?}` cannot live in compose.yaml: compose interpolates the whole model before
+# profile filtering, so a required-var error there would break every sandbox render.
+# The overlay confines it to attach.
+#
+# Each service reaches the hardened shape through `extends` (anchors do not cross
+# files): build, resource ceilings, read_only, cap_drop, tmpfs, network_mode inherited
+# from harness-base; environment maps merge with the local keys winning. The explicit
+# depends_on keeps the service_healthy gate (network_mode auto-synthesis would use
+# service_started). Long-form binds set create_host_path:false so a missing source
+# fails closed instead of auto-creating a root-owned host dir.
+
+services:
+  # Attach services depend_on egress-gw; union the attach-* profiles onto it so it is
+  # selected under an attach profile when this overlay is stacked.
+  egress-gw:
+    profiles: ["attach-cli", "attach-http", "attach-tg-bot"]
+
+  cli-attach:
+    extends:
+      file: compose.yaml
+      service: harness-base
+    profiles: ["attach-cli"]
+    # Run as the worktree owner so writes land with the operator's uid/gid.
+    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
+    entrypoint: ["node", "scripts/langgraph-cli.mjs"]
+    environment:
+      HARNESS_TARGET_MODE: attach
+      HARNESS_REPO_ROOT: /workspace
+      HOME: /state/home
+    volumes:
+      # Worktree at the stable container path; state runtime/ subtrees for HOME,
+      # the run ledger, and the disposable Git repo; the read-only git-guard
+      # shadows the worktree's real `.git` pointer with a VALID pointer into the
+      # disposable repo at /state/git (ro so the agent cannot repoint it; the
+      # repo itself is rw by design — sandbox-parity posture). The state parent
+      # and control/ are never mounted; the source common dir stays unmounted.
+      - type: bind
+        source: ${HARNESS_ATTACH_WORKTREE:?attach vars are set by scripts/attach-launcher.mjs}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/home
+        target: /state/home
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/harness
+        target: /workspace/.harness
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/git
+        target: /state/git
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/control/git-guard
+        target: /workspace/.git
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}
+        target: ${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      egress-gw:
+        condition: service_healthy
+
+  http-attach:
+    extends:
+      file: compose.yaml
+      service: harness-base
+    profiles: ["attach-http"]
+    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
+    entrypoint: ["node", "scripts/langgraph-http.mjs"]
+    restart: unless-stopped
+    environment:
+      HARNESS_TARGET_MODE: attach
+      HARNESS_REPO_ROOT: /workspace
+      HOME: /state/home
+      PORT: ${HARNESS_HTTP_PORT:-8080}
+      HARNESS_HTTP_TOKEN: ${HARNESS_HTTP_TOKEN:-}
+    volumes:
+      - type: bind
+        source: ${HARNESS_ATTACH_WORKTREE:?attach vars are set by scripts/attach-launcher.mjs}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/home
+        target: /state/home
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/harness
+        target: /workspace/.harness
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/git
+        target: /state/git
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/control/git-guard
+        target: /workspace/.git
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}
+        target: ${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      egress-gw:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "fetch('http://localhost:'+(process.env.PORT||8080)+'/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  tg-bot-attach:
+    extends:
+      file: compose.yaml
+      service: harness-base
+    profiles: ["attach-tg-bot"]
+    user: "${HARNESS_HOST_UID:-1000}:${HARNESS_HOST_GID:-1000}"
+    entrypoint: ["node", "scripts/langgraph-tg-bot.mjs"]
+    restart: unless-stopped
+    environment:
+      HARNESS_TARGET_MODE: attach
+      HARNESS_REPO_ROOT: /workspace
+      HOME: /state/home
+    volumes:
+      - type: bind
+        source: ${HARNESS_ATTACH_WORKTREE:?attach vars are set by scripts/attach-launcher.mjs}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/home
+        target: /state/home
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/harness
+        target: /workspace/.harness
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/runtime/git
+        target: /state/git
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_ATTACH_STATE_DIR:?attach vars are set by scripts/attach-launcher.mjs}/control/git-guard
+        target: /workspace/.git
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HARNESS_AGENTS_HOST_DIR:-./lib/agents}
+        target: ${HARNESS_AGENTS_DIR:-/app/repovine/examples/agent-harness-demo/lib/agents}
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      egress-gw:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test $(( $(date +%s) - $(date -r /tmp/harness-tg-bot.alive +%s 2>/dev/null || echo 0) )) -lt 120"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s

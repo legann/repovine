@@ -28,8 +28,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Both ends of the declared peer range. 3.8.1 is the last 3.x; 4.2.0 is the current 4.x.
-        transformers: ['3.8.1', '4.2.0']
+        # Floor and latest-resolvable of each accepted major branch of the peer
+        # range (^3.8.1 || ^4.0.0). 3.x floor == 3.x latest (3.8.1 is the last
+        # 3.x), so one pin covers it; 4.x needs both. '^4' resolves at run time,
+        # so the weekly schedule catches upstream transformers/onnx drift; the
+        # check echoes the exact resolved version as release evidence.
+        transformers: ['3.8.1', '4.0.0', '^4']
         # Native ONNX runtimes differ per OS/arch. The script's own
         # process exit doubles as the macOS teardown-SIGABRT smoke.
         os: [ubuntu-latest, macos-15, windows-latest]

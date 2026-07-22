@@ -22,9 +22,12 @@
 // repository's common dir is still never mounted. Agent commits land in launch
 // state and stay fetchable by the operator after the run.
 //
+// Attach services live in compose.attach.yaml, stacked on compose.yaml; the
+// launcher passes `-f compose.yaml -f compose.attach.yaml` on every compose call.
+//
 // The launcher never removes worktrees, state dirs, branches or refs, and never
 // commits/merges/pushes. Teardown is manual:
-//   docker compose --profile attach-<cmd> down
+//   npm run docker:down    # stacks both files, stops every profile
 //   rm -rf "$HARNESS_ATTACH_STATE_DIR" && git worktree remove <worktree>
 
 import fs from 'node:fs';
@@ -547,7 +550,7 @@ export function runLaunch(cmd, passthroughArgs, env, { execCompose = defaultExec
   });
 
   return execCompose({
-    args: ['compose', '--profile', ctx.profile, ...target.compose, ctx.service, ...passthroughArgs],
+    args: ['compose', '-f', 'compose.yaml', '-f', 'compose.attach.yaml', '--profile', ctx.profile, ...target.compose, ctx.service, ...passthroughArgs],
     env: {
       ...env,
       HARNESS_ATTACH_WORKTREE: ctx.worktree,
@@ -577,7 +580,7 @@ export function restartLaunch(cmd, passthroughArgs, env, { execCompose = default
   const ctx = preflight(env, { cmd, mountinfoText, existingState: true });
   const target = ATTACH_TARGETS[cmd];
   return execCompose({
-    args: ['compose', '--profile', ctx.profile, ...target.compose, ctx.service, ...passthroughArgs],
+    args: ['compose', '-f', 'compose.yaml', '-f', 'compose.attach.yaml', '--profile', ctx.profile, ...target.compose, ctx.service, ...passthroughArgs],
     env: {
       ...env,
       HARNESS_ATTACH_WORKTREE: ctx.worktree,
@@ -671,8 +674,9 @@ state); restart continues the ACTIVE launch on its existing worktree/state
 profile, so restart always targets the current launch. Placement: next to the checkout, or
 under $HARNESS_ATTACH_ROOT/{worktrees,state} when set (.env works). Explicit
 HARNESS_ATTACH_WORKTREE / HARNESS_ATTACH_STATE_DIR override the pointer;
-HARNESS_HOST_UID/GID default to the launcher's own uid/gid. Teardown is manual: docker compose --profile
-attach-<cmd> down, then remove the state dir and the worktree.`;
+HARNESS_HOST_UID/GID default to the launcher's own uid/gid. Teardown is manual:
+npm run docker:down (stacks both compose files), then remove the state dir and
+the worktree.`;
 
 function main() {
   // Demo .env first, mirroring the sandbox entrypoints; inline env wins

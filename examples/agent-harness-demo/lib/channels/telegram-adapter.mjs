@@ -75,7 +75,7 @@ export function telegramResetPlan(policy) {
     action: 'refuse',
     reply:
       '🚫 Reset is disabled in attach mode — the worktree is host-managed.\n' +
-      'Stop the containers with `docker compose --profile attach-* down`; review, promotion, and cleanup happen on the host.',
+      'Stop the containers with `npm run docker:down`; review, promotion, and cleanup happen on the host.',
   };
 }
 

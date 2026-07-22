@@ -15,14 +15,27 @@ const TMP = fs.realpathSync(os.tmpdir());
 const composeOk = spawnSync('docker', ['compose', 'version'], { encoding: 'utf-8' }).status === 0;
 const skip = !composeOk;
 
-function renderConfig(profile, env) {
-  const r = spawnSync('docker', ['compose', '--profile', profile, 'config', '--format', 'json'], {
-    cwd: DEMO_ROOT,
-    encoding: 'utf-8',
-    env,
-  });
+// Attach services live in compose.attach.yaml (overlay); attach profiles render
+// with both files stacked, exactly as scripts/attach-launcher.mjs invokes them.
+const ATTACH_FILES = ['-f', 'compose.yaml', '-f', 'compose.attach.yaml'];
+
+function composeConfig(files, args, env) {
+  return spawnSync('docker', ['compose', ...files, ...args], { cwd: DEMO_ROOT, encoding: 'utf-8', env });
+}
+
+function renderConfig(profile, env, { files = [] } = {}) {
+  const r = composeConfig(files, ['--profile', profile, 'config', '--format', 'json'], env);
   assert.equal(r.status, 0, `docker compose --profile ${profile} config failed: ${r.stderr}`);
   return JSON.parse(r.stdout);
+}
+
+// Every long-form host bind sets create_host_path:false — a missing source fails
+// closed rather than auto-creating a root-owned host dir.
+function assertNoAutoCreate(vols, label) {
+  for (const v of vols) {
+    if (v.type !== 'bind') continue;
+    assert.equal(v.bind?.create_host_path, false, `${label}: ${v.source} must set create_host_path:false`);
+  }
 }
 
 function attachEnv() {
@@ -48,7 +61,7 @@ function attachEnv() {
 test('attach-cli renders exactly the attach mount set and hardened service shape', { skip }, () => {
   const { wt, st, env, cleanup } = attachEnv();
   try {
-    const model = renderConfig('attach-cli', env);
+    const model = renderConfig('attach-cli', env, { files: ATTACH_FILES });
     const services = model.services;
     assert.ok(services['cli-attach'], 'cli-attach selected');
     assert.ok(services['egress-gw'], 'egress-gw selected (depends_on target)');
@@ -76,6 +89,7 @@ test('attach-cli renders exactly the attach mount set and hardened service shape
     const agents = vols.find((v) => String(v.target).endsWith('lib/agents'));
     assert.ok(agents, 'role-briefs mount kept');
     assert.equal(agents.read_only, true);
+    assertNoAutoCreate(vols, 'cli-attach');
 
     // Only the single guard FILE from the state tree; parent/control/attach.json
     // never mounted; no sandbox workspace, docker.sock, SSH or $HOME.
@@ -109,11 +123,12 @@ test('attach-http and attach-tg-bot render their twin services with the same mou
       ['attach-http', 'http-attach'],
       ['attach-tg-bot', 'tg-bot-attach'],
     ]) {
-      const model = renderConfig(profile, env);
+      const model = renderConfig(profile, env, { files: ATTACH_FILES });
       const svc = model.services[name];
       assert.ok(svc, `${name} selected by ${profile}`);
       assert.equal(model.services['workspace-init'], undefined);
       assert.equal(svc.volumes.length, 6);
+      assertNoAutoCreate(svc.volumes, name);
       const gitMount = svc.volumes.find((v) => v.target === '/state/git');
       assert.ok(gitMount, `${name} mounts the disposable repo`);
       assert.equal(gitMount.source, path.join(st, 'runtime/git'));
@@ -125,7 +140,7 @@ test('attach-http and attach-tg-bot render their twin services with the same mou
     // Pin the knob explicitly: `docker compose config` reads the demo .env for
     // unset interpolations, so an operator's local HARNESS_HTTP_PORT must not
     // decide this assertion.
-    const httpModel = renderConfig('attach-http', { ...env, HARNESS_HTTP_PORT: '18099' });
+    const httpModel = renderConfig('attach-http', { ...env, HARNESS_HTTP_PORT: '18099' }, { files: ATTACH_FILES });
     assert.equal(httpModel.services['http-attach'].environment.PORT, '18099');
   } finally {
     cleanup();
@@ -144,10 +159,19 @@ test('sandbox regression: --profile cli renders with NO attach env vars set', { 
   assert.ok(model.services['workspace-init'], 'sandbox init unchanged');
   assert.ok(model.services['egress-gw']);
   assert.equal(model.services['cli-attach'], undefined);
+  assert.equal(model.services['harness-base'], undefined, 'the extends skeleton is never selected');
   assert.ok(
     model.services.cli.volumes.some((v) => String(v.target).endsWith('/.workspace')),
     'sandbox workspace mount intact',
   );
+  assertNoAutoCreate(model.services.cli.volumes, 'cli');
+
+  // workspace-init: the HARNESS_UID/GID knobs are wired (were dead config), and
+  // its own binds also fail closed on a missing source.
+  const init = model.services['workspace-init'];
+  assert.equal(init.environment.HARNESS_UID, '1000');
+  assert.equal(init.environment.HARNESS_GID, '1000');
+  assertNoAutoCreate(init.volumes, 'workspace-init');
   // Content assertions, not presence-only: the attach services merge the shared
   // x-harness-app/x-harness-env anchors, so anchor drift would surface here.
   const cli = model.services.cli;
@@ -160,4 +184,46 @@ test('sandbox regression: --profile cli renders with NO attach env vars set', { 
   assert.equal(cli.environment.REPOVINE_CLI, '/app/repovine/dist/mcp/index.js');
   assert.match(cli.environment.HOME, /\.workspace\/\.harness-home$/);
   assert.equal(cli.environment.REPOVINE_IN_DOCKER, '1');
+});
+
+test('bypass gate: attach profile on the main file alone selects no service', { skip }, () => {
+  // Attach lives only in the overlay, so a bare `--profile attach-cli` (no `-f`
+  // pair) starts nothing — the pre-overlay bypass is structurally impossible.
+  const { env, cleanup } = attachEnv();
+  try {
+    const r = composeConfig([], ['--profile', 'attach-cli', 'config', '--services'], env);
+    assert.equal(r.status, 0, `config failed: ${r.stderr}`);
+    assert.equal(r.stdout.trim(), '', 'no service selected from the main file alone');
+  } finally {
+    cleanup();
+  }
+});
+
+test('fail-closed: stacked attach render without HARNESS_ATTACH_* exits non-zero', { skip }, () => {
+  const env = { ...process.env };
+  delete env.HARNESS_ATTACH_WORKTREE;
+  delete env.HARNESS_ATTACH_STATE_DIR;
+  const r = composeConfig(ATTACH_FILES, ['--profile', 'attach-cli', 'config'], env);
+  assert.notEqual(r.status, 0, 'unset attach vars must fail the render');
+  assert.match(r.stderr, /required variable/, 'compose names the missing required variable');
+});
+
+test('anchor parity: cli-attach inherits the sandbox hardening via extends', { skip }, () => {
+  // The extends restructure must not drift the shared ceilings/hardening. Render
+  // sandbox cli and attach-cli, compare the inherited fields byte-for-byte.
+  const { env, cleanup } = attachEnv();
+  try {
+    const sandbox = renderConfig('cli', env).services.cli;
+    const attach = renderConfig('attach-cli', env, { files: ATTACH_FILES }).services['cli-attach'];
+    assert.equal(attach.mem_limit, sandbox.mem_limit);
+    assert.equal(attach.pids_limit, sandbox.pids_limit);
+    assert.deepEqual(attach.tmpfs, sandbox.tmpfs);
+    assert.deepEqual(attach.security_opt, sandbox.security_opt);
+    assert.deepEqual(attach.cap_drop, sandbox.cap_drop);
+    assert.equal(attach.cap_add, undefined);
+    assert.equal(attach.read_only, sandbox.read_only);
+    assert.equal(attach.network_mode, sandbox.network_mode);
+  } finally {
+    cleanup();
+  }
 });

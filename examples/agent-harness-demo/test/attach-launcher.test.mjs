@@ -213,7 +213,7 @@ test('run cli: exact state layout, modes, pointer bytes, disposable repo, compos
     assert.ok(Number.isFinite(Date.parse(rec.createdAt)), 'createdAt is ISO');
 
     assert.equal(calls.length, 1);
-    assert.deepEqual(calls[0].args, ['compose', '--profile', 'attach-cli', 'run', '--rm', '--build', 'cli-attach', '--task', 'demo']);
+    assert.deepEqual(calls[0].args, ['compose', '-f', 'compose.yaml', '-f', 'compose.attach.yaml', '--profile', 'attach-cli', 'run', '--rm', '--build', 'cli-attach', '--task', 'demo']);
     assert.equal(calls[0].cwd, DEMO_ROOT);
     assert.equal(calls[0].env.HARNESS_TARGET_MODE, 'attach');
     assert.equal(calls[0].env.HARNESS_ATTACH_WORKTREE, fs.realpathSync(f.wt));
@@ -243,7 +243,7 @@ test('restart: reuses the laid-out launch (no re-layout, no baseline rewrite), i
     const calls = [];
     const code = restartLaunch('tg-bot', [], envFor(f), opts({ execCompose: (c) => (calls.push(c), 0) }));
     assert.equal(code, 0);
-    assert.deepEqual(calls[0].args, ['compose', '--profile', 'attach-tg-bot', 'up', '-d', '--build', 'tg-bot-attach']);
+    assert.deepEqual(calls[0].args, ['compose', '-f', 'compose.yaml', '-f', 'compose.attach.yaml', '--profile', 'attach-tg-bot', 'up', '-d', '--build', 'tg-bot-attach']);
     assert.equal(calls[0].env.HARNESS_TARGET_MODE, 'attach');
     // State untouched: guard bytes + record identical, baseline tag still resolves.
     assert.equal(fs.readFileSync(path.join(f.state, 'control', 'git-guard'), 'utf-8'), guard);
@@ -275,7 +275,7 @@ test('run: http and tg-bot map to their profile/service with up -d', { skip }, (
       const calls = [];
       const code = runLaunch(cmd, [], envFor(f), opts({ execCompose: (c) => (calls.push(c), 0) }));
       assert.equal(code, 0);
-      assert.deepEqual(calls[0].args, ['compose', '--profile', profile, 'up', '-d', '--build', service]);
+      assert.deepEqual(calls[0].args, ['compose', '-f', 'compose.yaml', '-f', 'compose.attach.yaml', '--profile', profile, 'up', '-d', '--build', service]);
       const rec = JSON.parse(fs.readFileSync(path.join(f.state, 'control', 'attach.json'), 'utf-8'));
       assert.equal(rec.profile, profile);
       assert.equal(rec.service, service);
