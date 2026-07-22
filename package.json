@@ -35,7 +35,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:projections": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand test/integration/client-projections.test.ts --testPathIgnorePatterns=/node_modules/",
+    "test:projections": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --testPathIgnorePatterns=/node_modules/ --runTestsByPath test/integration/client-projections.test.ts",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "profile": "npm run build && node --expose-gc dist/profile.js",
     "render-client-plugins": "npm run build && node scripts/render-client-plugins.mjs",
