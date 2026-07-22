@@ -159,7 +159,19 @@ test('egress container smoke (actual container)', { skip }, async (t) => {
       assert.equal(probe.status, 0, `worker probe failed:\n${probe.stdout}\n${probe.stderr}`);
     });
   } finally {
+    // Containers write into the workspace bind as uid 1000; on a host whose
+    // user has a different uid (CI runner: 1001) those files are not host-
+    // removable. Empty the bind from inside a container running as their OWNER
+    // uid (the service default, 1000 — root would be weaker here: cap_drop ALL
+    // strips CAP_DAC_OVERRIDE), then remove the host-owned, now-empty dir.
+    // Cleanup must never mask a smoke verdict.
+    dc([...files, 'run', '--rm', '--entrypoint', 'sh', 'cli',
+      '-c', 'find "$0" -mindepth 1 -maxdepth 1 -exec rm -rf {} +', '/app/repovine/examples/agent-harness-demo/.workspace']);
     dc([...files, 'down', '-v', '--remove-orphans']);
-    fs.rmSync(wsDir, { recursive: true, force: true });
+    try {
+      fs.rmSync(wsDir, { recursive: true, force: true });
+    } catch (e) {
+      console.error(`egress-smoke: workspace cleanup left ${wsDir}: ${e.message}`);
+    }
   }
 });
