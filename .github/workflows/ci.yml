@@ -37,6 +37,12 @@ jobs:
       - name: Test
         run: npm test -- --maxWorkers=2
 
+      # In-band on purpose: inside a jest-worker child on Windows this suite
+      # dies with a silent native crash; in the main jest process a real crash
+      # surfaces as this step's own exit code.
+      - name: Client projections suite (in-band)
+        run: npm run test:projections
+
       - name: Verify dist structure
         run: |
           test -f dist/mcp/index.js
@@ -94,6 +100,12 @@ jobs:
 
       - name: Test
         run: npm test -- --maxWorkers=2
+
+      # In-band on purpose: inside a jest-worker child on Windows this suite
+      # dies with a silent native crash; in the main jest process a real crash
+      # surfaces as this step's own exit code.
+      - name: Client projections suite (in-band)
+        run: npm run test:projections
 
       - name: Smoke test packed install
         run: node scripts/smoke-pack-install.mjs
