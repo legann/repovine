@@ -1,0 +1,31 @@
+# TEMPORARY debug workflow: isolates the silent native crash (0xC0000409) of
+# the client-projections suite on windows-latest. Runs the suite DIRECTLY
+# (node:test in-process, no runner child): progress prints as tests complete,
+# so the last printed name localizes the crash. Delete this file and restore
+# the ci.yml/embedder-matrix.yml triggers when green.
+name: Projections debug (windows)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  projections-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Projections suite (direct, in-process)
+        shell: bash
+        run: node test/integration/client-projections.test.mjs
