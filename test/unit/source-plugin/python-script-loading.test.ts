@@ -21,14 +21,16 @@ describe('Python AST script loading and packaging', () => {
     expect(packaged.equals(source)).toBe(true);
   });
 
-  it('does not read at import and caches a missing-script failure as an empty result', async () => {
+  it('does not probe at import and caches a missing-script failure as an empty result', async () => {
     jest.resetModules();
     const missing = Object.assign(new Error('ENOENT: route-ast-script.py'), { code: 'ENOENT' });
-    const readFileSync = jest.fn(() => { throw missing; });
-    jest.unstable_mockModule('node:fs', () => ({ ...actualFs, readFileSync }));
+    // The loader probes the script path with accessSync (the subprocess runs the
+    // file; its content is never read into Node).
+    const accessSync = jest.fn(() => { throw missing; });
+    jest.unstable_mockModule('node:fs', () => ({ ...actualFs, accessSync }));
 
     const imported = await import('../../../src/source-plugins/python/extract.js');
-    expect(readFileSync).not.toHaveBeenCalled();
+    expect(accessSync).not.toHaveBeenCalled();
 
     const pkg: PackageInfo = { name: 'py-pkg', path: '.', sourcePluginId: 'python' };
     const pending: PendingModule = {
@@ -55,7 +57,7 @@ describe('Python AST script loading and packaging', () => {
     try {
       await expect(imported.extractPython(input)).resolves.toEqual({ deltas: [], reused: 0, rescanned: 0 });
       await expect(imported.extractPython(input)).resolves.toEqual({ deltas: [], reused: 0, rescanned: 0 });
-      expect(readFileSync).toHaveBeenCalledTimes(1);
+      expect(accessSync).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('route-ast-script.py'));
     } finally {

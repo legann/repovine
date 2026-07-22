@@ -72,8 +72,11 @@ function annotationFile(annotations: Record<string, StoredAnnotation>) {
 // commit templates, or gpgsign cannot perturb the temp-repo merge tests.
 const HERMETIC_GIT_ENV = {
   ...process.env,
-  GIT_CONFIG_GLOBAL: os.devNull,
-  GIT_CONFIG_SYSTEM: os.devNull,
+  // git-for-windows rejects the device-namespace form ('\\.\nul' from os.devNull)
+  // with "unable to access: Invalid argument"; the classic NUL alias works, and
+  // its msys layer maps it the same way POSIX handles /dev/null.
+  GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : os.devNull,
+  GIT_CONFIG_SYSTEM: process.platform === 'win32' ? 'NUL' : os.devNull,
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_AUTHOR_NAME: 'Test User',
   GIT_AUTHOR_EMAIL: 'test@example.com',

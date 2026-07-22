@@ -20,18 +20,21 @@ import { frameworkHintsFromRaw, type RawFrameworkRoute } from './framework-hints
  * backend API routes (`semanticHints.routes`). See DESIGN.md (source parser architecture). No type inference.
  */
 
-let cachedPyAstScript: string | null | undefined;
+let cachedPyAstScriptPath: string | null | undefined;
 
-/** Load the colocated source/package asset on first extraction only. `null` caches a failed load
- * so a broken installation cannot turn every refresh into repeated synchronous filesystem IO. */
-function loadPyAstScript(): string | undefined {
-  if (cachedPyAstScript !== undefined) return cachedPyAstScript ?? undefined;
+/** Resolve the colocated source/package asset on first extraction only. `null` caches a failed
+ * probe so a broken installation cannot turn every refresh into repeated synchronous filesystem IO.
+ * The subprocess runs the script FILE (`python <path>`): inlining the ~35KB source via `-c` blows
+ * the Windows 32767-char CreateProcess command-line limit (spawn ENAMETOOLONG). */
+function resolvePyAstScriptPath(): string | undefined {
+  if (cachedPyAstScriptPath !== undefined) return cachedPyAstScriptPath ?? undefined;
   const scriptPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'route-ast-script.py');
   try {
-    cachedPyAstScript = fs.readFileSync(scriptPath, 'utf-8');
-    return cachedPyAstScript;
+    fs.accessSync(scriptPath, fs.constants.R_OK);
+    cachedPyAstScriptPath = scriptPath;
+    return scriptPath;
   } catch (e) {
-    cachedPyAstScript = null;
+    cachedPyAstScriptPath = null;
     console.warn(`  ⚠ Python AST extraction unavailable: could not load ${scriptPath}: ${(e as Error).message}`);
     return undefined;
   }
@@ -111,10 +114,10 @@ export const __PY_AST_TIMEOUT_MS_FOR_TEST = PY_AST_TIMEOUT_MS;
 /** Run the stdlib-`ast` script in an async subprocess. Non-blocking: inline extraction on the
  * main thread (single-shard repos, MCP refresh) must not freeze the event loop while Python
  * parses a shard. Rejects on spawn failure, non-zero exit, or output overflow. */
-export function runPythonAst(pythonBin: string, pyAstScript: string, filePaths: string[]): Promise<Map<string, RawModule>> {
+export function runPythonAst(pythonBin: string, pyAstScriptPath: string, filePaths: string[]): Promise<Map<string, RawModule>> {
   if (filePaths.length === 0) return Promise.resolve(new Map());
   return new Promise((resolve, reject) => {
-    const child = spawn(pythonBin, ['-c', pyAstScript], {
+    const child = spawn(pythonBin, [pyAstScriptPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     // Backstop: SIGKILL a runaway parse. A manual unref'd timer — not spawn's `timeout` option, whose
@@ -297,10 +300,10 @@ export async function extractPython(input: SourceExtractInput): Promise<SourceEx
   let subprocessFailed = false;
   const toParse = resolved.filter(r => r.needsParse);
   if (toParse.length > 0) {
-    const pyAstScript = loadPyAstScript();
-    if (!pyAstScript) return { deltas: [], reused: 0, rescanned: 0 };
+    const pyAstScriptPath = resolvePyAstScriptPath();
+    if (!pyAstScriptPath) return { deltas: [], reused: 0, rescanned: 0 };
     try {
-      rawByPath = await runPythonAst(pythonBin, pyAstScript, toParse.map(r => r.pending.filePath));
+      rawByPath = await runPythonAst(pythonBin, pyAstScriptPath, toParse.map(r => r.pending.filePath));
     } catch (e) {
       // A failed subprocess must not crash the build: emit modules with empty imports/exports.
       subprocessFailed = true;

@@ -1,5 +1,6 @@
 # Stdlib ast extractor for repovine Python web framework routes.
-# Invoked as: python3 -c "$(cat route-ast-script.py)"  (file paths on stdin)
+# Invoked as: python3 route-ast-script.py  (file paths on stdin; run as a file,
+# not `-c "$(cat ...)"` — the inlined source exceeds the Windows command-line limit)
 import ast
 import json
 import sys

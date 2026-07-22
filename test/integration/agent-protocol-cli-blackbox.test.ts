@@ -29,7 +29,14 @@ function parseJsonObject(text: string): JsonObject | undefined {
   return undefined;
 }
 
-function run(command: string[], cwd: string): { status: number | null; stdout: string; stderr: string; json?: JsonObject } {
+function run(command: string[], cwd: string): {
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  error?: string;
+  stdout: string;
+  stderr: string;
+  json?: JsonObject;
+} {
   const res = spawnSync(process.execPath, [CLI, ...command], {
     cwd,
     env: { ...process.env, REPOVINE_ROOT: cwd },
@@ -38,7 +45,23 @@ function run(command: string[], cwd: string): { status: number | null; stdout: s
     maxBuffer: 32 * 1024 * 1024,
   });
   const json = parseJsonObject(res.stdout);
-  return { status: res.status, stdout: res.stdout, stderr: res.stderr, ...(json === undefined ? {} : { json }) };
+  return {
+    status: res.status,
+    signal: res.signal,
+    ...(res.error ? { error: res.error.message } : {}),
+    stdout: res.stdout,
+    stderr: res.stderr,
+    ...(json === undefined ? {} : { json }),
+  };
+}
+
+/** Exit-0 assertion whose failure output carries the diagnosis (signal,
+ * spawn error, stderr tail) — a bare status diff from a native CI runner is
+ * undebuggable from the log alone. */
+function expectExit0(r: ReturnType<typeof run>): void {
+  expect({ status: r.status, signal: r.signal, error: r.error, stderr: r.stderr.slice(-800) }).toMatchObject({
+    status: 0,
+  });
 }
 
 function writeJson(dir: string, name: string, value: unknown): string {
@@ -114,7 +137,11 @@ describe('agent protocol CLI black-box harness surface', () => {
 
   it('validates the full harness contract through node dist/mcp/index.js agents ...', () => {
     const protocol = run(['agents', 'protocol', '--schemas'], repoRoot);
-    expect(protocol.status).toBe(0);
+    expectExit0(protocol);
+    // A missing json means stdout was not one complete JSON document; surface its tail.
+    expect({ parsed: protocol.json !== undefined, stdoutTail: protocol.stdout.slice(-300) }).toMatchObject({
+      parsed: true,
+    });
     expect(protocol.json).toHaveProperty('protocol.protocolVersion', PROTOCOL_VERSION);
     expect(protocol.json).toHaveProperty('jsonSchemas.ContextPack');
     expect(protocol.json).toHaveProperty('jsonSchemas.ArchitectureAuditResult');
@@ -261,7 +288,7 @@ describe('agent protocol CLI black-box harness surface', () => {
     for (let attempt = 0; attempt < 3 && (orient.json?.search as JsonObject | undefined)?.nodeCount === 0; attempt++) {
       orient = run(['agents', 'orient', '--query', 'OrderService audit transition'], repoRoot);
     }
-    expect(orient.status).toBe(0);
+    expectExit0(orient);
     expect(orient.json).toMatchObject({
       query: 'OrderService audit transition',
       flowChecked: true,

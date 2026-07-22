@@ -22,14 +22,26 @@ import { cli, logCli, logPipeline, formatPipelineMuted, setPipelineLogSink, setP
 const args = process.argv.slice(2);
 const command = args[0];
 
+/** Hard exit after stdout/stderr drain. process.exit() discards queued pipe
+ * writes past the 64KB pipe buffer, truncating JSON payloads mid-document
+ * (reproducible: `repovine agents protocol --schemas | wc -c` → 65536). An
+ * empty write's callback fires only after the prior write queue has flushed. */
+async function exitAfterFlush(code: number): Promise<never> {
+  await Promise.all([
+    new Promise<void>(resolve => process.stdout.write('', () => resolve())),
+    new Promise<void>(resolve => process.stderr.write('', () => resolve())),
+  ]);
+  process.exit(code);
+}
+
 if (command === '--help' || command === '-h') {
   printUsage();
-  process.exit(0);
+  await exitAfterFlush(0);
 }
 
 if (command === '--version' || command === '-v') {
   printVersion();
-  process.exit(0);
+  await exitAfterFlush(0);
 }
 
 if (command === 'setup') {
@@ -39,11 +51,11 @@ if (command === 'setup') {
   if (unknownSetupFlags.length > 0) {
     console.error(`Unknown setup option(s): ${unknownSetupFlags.join(', ')}`);
     printSetupUsage();
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   if (setupArgs.includes('--help') || setupArgs.includes('-h')) {
     printSetupUsage();
-    process.exit(0);
+    await exitAfterFlush(0);
   }
   let target = setupArgs.find(arg => !arg.startsWith('-')) as ClientTarget | undefined;
   const setupFlags = setupArgs.filter(arg => arg.startsWith('-'));
@@ -60,12 +72,13 @@ if (command === 'setup') {
     if (!noBuild) {
       await runBuild(repoRoot, artifactsDir);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
+    throw new Error('unreachable'); // exitAfterFlush never returns; restores TS narrowing of `target`
   }
 
   if (!['cursor', 'claude', 'codex', 'all'].includes(target)) {
     printSetupUsage();
-    process.exit(1);
+    await exitAfterFlush(1);
   }
 
   // Client given: project that client's assets + workspace config.
@@ -92,7 +105,7 @@ if (command === 'setup') {
     domainsAdvisor = runDomainsAdvisorAfterBuild(repoRoot, ctx.getState(), { interactive });
   }
   printSetupNextSteps(target, { noBuild, domainsAdvisor });
-  process.exit(0);
+  await exitAfterFlush(0);
 }
 
 if (command === 'build') {
@@ -102,10 +115,10 @@ if (command === 'build') {
   if (unknownBuildFlags.length > 0) {
     console.error(`Unknown build option(s): ${unknownBuildFlags.join(', ')}`);
     console.error('Usage: repovine build [--cleanup-orphans]');
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   await runBuild(repoRoot, artifactsDir, { cleanupOrphans: buildFlags.includes('--cleanup-orphans') });
-  process.exit(0);
+  await exitAfterFlush(0);
 }
 
 if (command === 'clear') {
@@ -113,39 +126,39 @@ if (command === 'clear') {
   const allowedClearFlags = new Set(['--dry-run', '--help', '-h']);
   if (clearArgs.includes('--help') || clearArgs.includes('-h')) {
     printClearUsage();
-    process.exit(0);
+    await exitAfterFlush(0);
   }
   const unknownClearFlags = clearArgs.filter(flag => !allowedClearFlags.has(flag));
   if (unknownClearFlags.length > 0) {
     console.error(`Unknown clear option(s): ${unknownClearFlags.join(', ')}`);
     printClearUsage();
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   await runClear(repoRoot, {
     dryRun: clearArgs.includes('--dry-run'),
   }, process.cwd());
-  process.exit(0);
+  await exitAfterFlush(0);
 }
 
 if (command === 'status') {
   const exitCode = await runStatusCli(args.slice(1), { repoRoot, artifactsDir });
-  process.exit(exitCode);
+  await exitAfterFlush(exitCode);
 }
 
 if (command === 'doctor') {
   const exitCode = await runDoctorCli(args.slice(1), { repoRoot, artifactsDir });
-  process.exit(exitCode);
+  await exitAfterFlush(exitCode);
 }
 
 if (command === 'agents') {
   const exitCode = await runAgentsCli(args.slice(1), { repoRoot, artifactsDir });
-  process.exit(exitCode);
+  await exitAfterFlush(exitCode);
 }
 
 if (command) {
   console.error(`Unknown command: ${command}`);
   printUsage();
-  process.exit(1);
+  await exitAfterFlush(1);
 }
 
 function printClearUsage(): void {
