@@ -39,9 +39,16 @@ jobs:
 
       # In-band on purpose: inside a jest-worker child on Windows this suite
       # dies with a silent native crash; in the main jest process a real crash
-      # surfaces as this step's own exit code.
+      # surfaces as this step's own exit code. The ladder isolates which layer
+      # dies when the step fails with no output (observed on windows-latest):
+      # each rung proves the previous layer alive.
       - name: Client projections suite (in-band)
-        run: npm run test:projections
+        shell: bash
+        run: |
+          set -e
+          node --version
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --version
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --testPathIgnorePatterns=/node_modules/ --runTestsByPath test/integration/client-projections.test.ts
 
       - name: Verify dist structure
         run: |
@@ -103,9 +110,16 @@ jobs:
 
       # In-band on purpose: inside a jest-worker child on Windows this suite
       # dies with a silent native crash; in the main jest process a real crash
-      # surfaces as this step's own exit code.
+      # surfaces as this step's own exit code. The ladder isolates which layer
+      # dies when the step fails with no output (observed on windows-latest):
+      # each rung proves the previous layer alive.
       - name: Client projections suite (in-band)
-        run: npm run test:projections
+        shell: bash
+        run: |
+          set -e
+          node --version
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --version
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --testPathIgnorePatterns=/node_modules/ --runTestsByPath test/integration/client-projections.test.ts
 
       - name: Smoke test packed install
         run: node scripts/smoke-pack-install.mjs
