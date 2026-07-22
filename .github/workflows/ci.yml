@@ -50,8 +50,8 @@ jobs:
           node --experimental-vm-modules node_modules/jest/bin/jest.js --version
           # Slash-free ignore pattern on purpose: Git Bash (MSYS) silently
           # rewrites a leading-/ argument into a Windows path.
-          echo "rung3: listTests"
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts --listTests
+          echo "rung3: global-setup direct"
+          node -e "require('./test/jest.global-setup.cjs')().then(() => console.log('setup-ok'), e => { console.error(e); process.exit(1); })"
           echo "rung4: full run"
           node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts
 
@@ -126,8 +126,8 @@ jobs:
           node --experimental-vm-modules node_modules/jest/bin/jest.js --version
           # Slash-free ignore pattern on purpose: Git Bash (MSYS) silently
           # rewrites a leading-/ argument into a Windows path.
-          echo "rung3: listTests"
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts --listTests
+          echo "rung3: global-setup direct"
+          node -e "require('./test/jest.global-setup.cjs')().then(() => console.log('setup-ok'), e => { console.error(e); process.exit(1); })"
           echo "rung4: full run"
           node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts
 
