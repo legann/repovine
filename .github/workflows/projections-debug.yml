@@ -26,6 +26,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Bisect probe (phase markers)
+        shell: bash
+        run: node scripts/projections-probe.mjs
+
       - name: Projections suite (direct, in-process)
         shell: bash
         run: node test/integration/client-projections.test.mjs
