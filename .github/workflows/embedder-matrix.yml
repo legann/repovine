@@ -44,8 +44,6 @@ jobs:
           - os: macos-15
             transformers: '3.8.1'
     name: transformers@${{ matrix.transformers }} (${{ matrix.os }})
-    # Non-Linux legs are advisory until proven green (plan WS-7 staging).
-    continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
 

@@ -65,10 +65,9 @@ jobs:
           node scripts/validate-client-plugins.mjs --out "$RUNNER_TEMP/client-plugins"
           echo "✓ client plugin projection OK"
 
-  # Advisory native jobs (docs/platform-support.md). continue-on-error until the
-  # native suites are green; then each joins branch protection as required
-  # (staging: core jobs at shell-neutral toolchain + runtime hardening, harness
-  # at sandbox portability). A red run here never blocks a merge today.
+  # Native core jobs (docs/platform-support.md): required merge gates since the
+  # 2026-07-22 green run (WS-7 staging — flipped from advisory once the native
+  # suites went green). Add both names to branch protection.
   core-native:
     strategy:
       fail-fast: false
@@ -78,9 +77,8 @@ jobs:
             os: windows-latest
           - name: core-macos-arm
             os: macos-15
-    name: ${{ matrix.name }} (advisory)
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
 

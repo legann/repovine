@@ -28,16 +28,17 @@ Harness demo modes carry separate contracts; see [usage.md, "Platform support"](
 
 Embedder floor on macOS: `@huggingface/transformers` 4.x. The 3.8.1 floor bundles onnxruntime 1.21, whose exit teardown aborts on darwin — inference completes, the exit code is corrupt. The embedder matrix records this as a documented exclusion.
 
-## Current status (2026-07-22)
+## Current status (2026-07-22, post native-green)
 
 | Evidence | State |
 |---|---|
 | Linux x64 (`ubuntu-latest`) | Required merge gate (CI): audit, typecheck, lint, tests, build, pack-install smoke, projection validation |
-| Windows x64 (`windows-latest`) | Advisory CI job; failures do not gate merges yet |
-| macOS arm64 (`macos-15`) | Advisory CI job; failures do not gate merges yet |
-| Harness demo (Linux + Docker) | Advisory CI job |
+| Windows x64 (`windows-latest`) | Required merge gate (`core-windows`): build, full tests, pack-install smoke |
+| macOS arm64 (`macos-15`) | Required merge gate (`core-macos-arm`): same |
+| Embedder (real ONNX inference) | Required: Linux/Windows for the full peer range; macOS for transformers 4.x (3.8.1 excluded — documented ort 1.21 exit defect) |
+| Harness demo (Linux + Docker) | Advisory CI job (flips at the harness-portability stage) |
 
-Linux is the only Tier 1 platform today. Other rows read as `configuration generated; runtime pending verification` until their jobs turn green and required. An advisory leg renders a red X in the PR check list; the workflow conclusion stays green and merges are never blocked by it.
+Core (package, CLI, stdio MCP, graph/cache/annotations) runs its full suite natively on all three Tier 1 platforms. Client-projection runtime claims stay `pending verification` until per-client behavioral smoke lands. An advisory leg renders a red X in the PR check list; the workflow conclusion stays green.
 
 ## Prerequisites
 
