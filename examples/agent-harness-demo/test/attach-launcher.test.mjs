@@ -22,6 +22,14 @@ import {
 } from '../scripts/attach-launcher.mjs';
 import { ATTACH_GIT_POINTER_CONTENT } from '../lib/attach-guard.mjs';
 
+// This suite exercises Linux attach security logic through injected seams
+// (mountinfoText, pinned launch files). Pin the platform gate open so the
+// suite runs on any contributor OS; CI (harness-linux) runs it on real Linux,
+// and the gate itself is covered by platform-gates.test.mjs.
+if (process.platform !== 'linux') {
+  Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+}
+
 const DEMO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LAUNCHER = path.join(DEMO_ROOT, 'scripts', 'attach-launcher.mjs');
 const TMP = fs.realpathSync(os.tmpdir());

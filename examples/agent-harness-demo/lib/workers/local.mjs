@@ -806,6 +806,14 @@ export function synthResult({ assignment, ctx, finalText, stopReason, summaryOve
  * task.task anyway). opts.capture.usage is filled from summed per-turn usage.
  */
 export async function runAgent(task, assignment, repoRoot, opts = {}) {
+  // Host-mode gate: run_shell is built on /bin/sh (execRunShell). Fail at run
+  // start with the supported route, ahead of a mid-run spawn ENOENT.
+  if (process.platform === 'win32') {
+    throw new Error(
+      'local worker host mode is unsupported on native Windows: run_shell requires /bin/sh. ' +
+        'Use WSL2 or the Docker sandbox (docs/usage.md, "Platform support").',
+    );
+  }
   const auth = resolveAuth('local');
   if (!auth.ok) return blockedResult(assignment, authBlockedReason('local', auth));
   const baseUrl = localBaseUrl();

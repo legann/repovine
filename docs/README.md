@@ -10,6 +10,7 @@ and benchmark results. Use this index for detailed guides and references.
 | Use the CLI and distinguish public commands from package-development scripts | [CLI and setup](scripts.md) |
 | Integrate a coding-agent harness or CI gate | [Agent Protocol](agent-protocol.md) |
 | Measure the repository context collected during an agent session | [Context Session Quality](context-quality.md) |
+| Check per-surface OS support, prerequisites, and promotion rules | [Platform support](platform-support.md) |
 | Extend source-language or IaC fact extraction | [Plugin authoring](plugin-authoring.md) |
 
 ## Project documentation

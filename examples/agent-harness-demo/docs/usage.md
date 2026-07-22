@@ -444,16 +444,19 @@ setup — just Docker + Compose.
 
 ## Platform support
 
-The product surface is the Linux container; every supported OS is just a host
-shell around the same multi-arch image (amd64 + arm64/Apple Silicon build natively).
+This is the maintained reference-example runtime surface (the engine/package
+surface has its own contract: `docs/platform-support.md` in the repo root). The
+runtime is the Linux container (multi-arch: amd64 + arm64/Apple Silicon), and
+each mode carries its own host contract — a status always names a mode.
 
-| Host | Status | Notes |
-|---|---|---|
-| **Linux** | Reference | Native. |
-| **macOS** (Docker Desktop) | Supported | LinuxKit VM ships `ip_set`, so egress-gw works. |
-| **Windows** (WSL2) | Supported | Treat as Linux: run from the WSL **ext4** filesystem (`~/…`), not `/mnt/c`, for speed and uid sanity. Docker Desktop's WSL2 backend has `ip_set`. |
-| **Windows** (native / PowerShell) | Not supported | egress-gw is built on Linux netfilter/ipset — there is no native-Windows-container path. Use WSL2. |
-| **Host mode** (below) | Dev only | The process reaper is Linux-only (reads `/proc`); a no-op elsewhere. |
+| Mode | Linux | macOS (Docker Desktop) | Windows WSL2 | Windows native |
+|---|---|---|---|---|
+| **Sandbox** (default) | Reference | Expected: LinuxKit VM ships `ip_set`; runtime smoke pending | Expected: run from the WSL **ext4** filesystem (`~/…`), not `/mnt/c`; the WSL2 backend has `ip_set`; runtime smoke pending | Expected: Docker Desktop with Linux containers; PowerShell/path smoke pending. Native Windows containers are out of scope |
+| **Attach** | Reference | Unsupported: trust checks read `/proc` mount topology; pending a separate security design | Expected: ext4 checkout only; fail-closed hardening pending | Unsupported: use WSL2 (prepare and preflight fail early) |
+| **Host mode** (dev only, below) | Dev only | Dev only: the process reaper reads `/proc` and is a no-op here | Dev only, as Linux | Unsupported: fails at worker dispatch (POSIX `/bin/sh` process model); use WSL2 or the sandbox |
+
+`Expected` reads as: configuration and image support the host; promotion waits
+on an actual-container smoke on that host.
 
 ## Run (host — dev only)
 
@@ -536,22 +539,30 @@ ollama pull qwen2.5-coder:32b           # or :7b on CPU-only / modest hardware
 
 # .env: reach the host through the gateway, and allow it through default-deny.
 #   LLM_PROVIDER=local
-#   LOCAL_BASE_URL=http://host.docker.internal:11434/v1
+#   LOCAL_BASE_URL=http://<host-ip>:11434/v1   # raw IP — see below
 #   LOCAL_MODEL=qwen2.5-coder:32b
 #   EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1
 docker compose --profile cli run --rm cli --goal "add a GET /health route"
 ```
 
-`compose.yaml` already maps `host.docker.internal:host-gateway` on **both** the app and
-the gateway (their `/etc/hosts` is per-container even with the shared netns), and
-`EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1` makes `egress-gw` resolve that name and add the
-host IP to the allow-list — it can't go through dnsmasq because it lives in `/etc/hosts`,
-not DNS. A model on a *different* host: set `LOCAL_BASE_URL` to its IP and
-`EGRESS_ALLOW_CIDRS=<ip>/32`. Verify from inside the netns:
+`compose.yaml` maps `host.docker.internal:host-gateway` on the **gateway only**:
+Docker forbids `extra_hosts` on a `network_mode: service:…` container, and
+`/etc/hosts` stays per-container even in the shared netns, so the name does not
+resolve inside the app. `EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1` still opens the
+firewall (egress-gw resolves the name itself and adds the host IP to the
+allow-list — it can't go through dnsmasq because it lives in `/etc/hosts`, not
+DNS), and `LOCAL_BASE_URL` carries the host's raw IP as seen from containers.
+Take the exact value from the egress-gw startup log — with
+`EGRESS_ALLOW_HOST_DOCKER_INTERNAL=1` it prints `allowed host.docker.internal
+-> <ip>` on every start, and that IP is precisely the one on the allow-list
+(Docker Desktop: typically `192.168.65.254`). This route has no runtime smoke
+yet on any platform; a single documented endpoint is planned. A model on a
+*different* host: set `LOCAL_BASE_URL` to its IP and `EGRESS_ALLOW_CIDRS=<ip>/32`.
+Verify from inside the netns:
 
 ```bash
 docker compose --profile cli run --rm --entrypoint sh cli \
-  -c 'curl -s http://host.docker.internal:11434/api/version'
+  -c 'curl -s http://<host-ip>:11434/api/version'
 ```
 
 *Harness on the host* (`npm run dev:cli` — egress-gw not involved): just

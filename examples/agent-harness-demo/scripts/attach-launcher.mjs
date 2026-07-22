@@ -59,6 +59,20 @@ const fail = (check, detail) => {
   throw new PreflightError(check, detail);
 };
 
+// Attach trust checks are built on /proc mount topology and Unix identity.
+// Every attach entry point (prepare, preflight, run, restart) fails here on
+// other hosts, before any env/git/docker work; WSL2 reports 'linux' and passes.
+const assertLinuxHost = () => {
+  if (process.platform !== 'linux') {
+    fail(
+      'platform',
+      `attach requires a Linux or WSL2 host (host platform: ${process.platform}). ` +
+        'Native Windows: use WSL2 with an ext4 checkout. macOS attach is unsupported ' +
+        'pending a separate security design (docs/usage.md, "Platform support").',
+    );
+  }
+};
+
 const firstLine = (s) => String(s || '').split('\n')[0];
 
 function git(args, opts = {}) {
@@ -181,6 +195,8 @@ export function resolveLaunchEnv(env = process.env) {
 // mode/profile check); `mountinfoText` is a test seam for the mount-table scan.
 // Missing inputs resolve from the `prepare` launch pointer via resolveLaunchEnv.
 export function preflight(env, { cmd, mountinfoText, existingState = false } = {}) {
+  // 0. Host platform gate (see assertLinuxHost).
+  assertLinuxHost();
   env = resolveLaunchEnv(env);
   // 1. Env paths: set, absolute, canonical (realpath — symlinked input accepted,
   // the canonical path is what Compose receives), distinct directories.
@@ -584,6 +600,7 @@ export function restartLaunch(cmd, passthroughArgs, env, { execCompose = default
  * a manual operator action, same as before.
  */
 export function prepareLaunch(checkoutPath, { base = 'HEAD', name } = {}, env = process.env) {
+  assertLinuxHost();
   if (!checkoutPath) fail('prepare', 'checkout path is required: npm run attach -- prepare <checkout> [--base <ref>] [--name <run-name>]');
   let checkout;
   try {

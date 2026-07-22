@@ -23,6 +23,15 @@ export function isSupportedProvider(provider) {
 
 /** Dynamic-import the adapter module for `provider`. Lazy so unused SDKs/CLIs never load. */
 export function getWorker(provider = resolveProvider()) {
+  // Host-mode gate: dev-only host mode targets POSIX hosts; inside the Docker
+  // sandbox this is always 'linux'. Fail at dispatch with the supported route
+  // (docs/usage.md, "Platform support").
+  if (process.platform === 'win32') {
+    throw new Error(
+      'host mode is unsupported on native Windows. Use WSL2 or the Docker sandbox ' +
+        '(docs/usage.md, "Platform support").',
+    );
+  }
   switch (provider) {
     case 'local':
       return import('./local.mjs');

@@ -61,3 +61,63 @@ jobs:
           node scripts/render-client-plugins.mjs --out "$RUNNER_TEMP/client-plugins" --allow-unpublished
           node scripts/validate-client-plugins.mjs --out "$RUNNER_TEMP/client-plugins"
           echo "✓ client plugin projection OK"
+
+  # Advisory native jobs (docs/platform-support.md). continue-on-error until the
+  # native suites are green; then each joins branch protection as required
+  # (staging: core jobs at shell-neutral toolchain + runtime hardening, harness
+  # at sandbox portability). A red run here never blocks a merge today.
+  core-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: core-windows
+            os: windows-latest
+          - name: core-macos-arm
+            os: macos-15
+    name: ${{ matrix.name }} (advisory)
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --maxWorkers=2
+
+      - name: Smoke test packed install
+        run: node scripts/smoke-pack-install.mjs
+
+  harness-linux:
+    name: harness-linux (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install engine dependencies
+        run: npm ci
+
+      - name: Build engine
+        run: npm run build
+
+      - name: Install demo dependencies
+        run: npm ci
+        working-directory: examples/agent-harness-demo
+
+      - name: Demo tests
+        run: npm test
+        working-directory: examples/agent-harness-demo
