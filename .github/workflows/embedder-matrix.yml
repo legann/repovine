@@ -3,23 +3,21 @@ name: Embedder compatibility
 # Guards the @huggingface/transformers peer range (^3.8.1 || ^4.0.0) with real ONNX inference
 # through repovine's own createEmbedder. Heavy (pulls the ONNX runtime + a model), so it runs only
 # when embedder-relevant files change, on demand, and weekly to catch upstream transformers/onnx drift.
-# TEMPORARY: push/PR triggers off while the harness-linux failure is debugged
-# (harness-debug.yml carries the push trigger) — restore together with ci.yml.
 on:
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - 'src/semantic/**'
-  #     - 'scripts/check-embedder.mjs'
-  #     - 'package.json'
-  #     - '.github/workflows/embedder-matrix.yml'
-  # pull_request:
-  #   branches: [main]
-  #   paths:
-  #     - 'src/semantic/**'
-  #     - 'scripts/check-embedder.mjs'
-  #     - 'package.json'
-  #     - '.github/workflows/embedder-matrix.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/semantic/**'
+      - 'scripts/check-embedder.mjs'
+      - 'package.json'
+      - '.github/workflows/embedder-matrix.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/semantic/**'
+      - 'scripts/check-embedder.mjs'
+      - 'package.json'
+      - '.github/workflows/embedder-matrix.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 6 * * 1'
