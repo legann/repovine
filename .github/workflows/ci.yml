@@ -48,7 +48,12 @@ jobs:
           set -e
           node --version
           node --experimental-vm-modules node_modules/jest/bin/jest.js --version
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --testPathIgnorePatterns=/node_modules/ --runTestsByPath test/integration/client-projections.test.ts
+          # Slash-free ignore pattern on purpose: Git Bash (MSYS) silently
+          # rewrites a leading-/ argument into a Windows path.
+          echo "rung3: listTests"
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts --listTests
+          echo "rung4: full run"
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts
 
       - name: Verify dist structure
         run: |
@@ -119,7 +124,12 @@ jobs:
           set -e
           node --version
           node --experimental-vm-modules node_modules/jest/bin/jest.js --version
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --testPathIgnorePatterns=/node_modules/ --runTestsByPath test/integration/client-projections.test.ts
+          # Slash-free ignore pattern on purpose: Git Bash (MSYS) silently
+          # rewrites a leading-/ argument into a Windows path.
+          echo "rung3: listTests"
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts --listTests
+          echo "rung4: full run"
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts
 
       - name: Smoke test packed install
         run: node scripts/smoke-pack-install.mjs
