@@ -30,6 +30,29 @@ jobs:
         shell: bash
         run: node scripts/projections-probe.mjs
 
+      # Section bisect: 0xC0000409 discards buffered stdout, so a monolithic
+      # run dies silently mid-file. Each top-level section runs as its own
+      # step; continue-on-error lets every section report in one round.
+      - name: 'Section: project-local setup'
+        continue-on-error: true
+        shell: bash
+        run: node --test --test-name-pattern "project-local setup" test/integration/client-projections.test.mjs
+
+      - name: 'Section: hook behavior (project scope)'
+        continue-on-error: true
+        shell: bash
+        run: node --test --test-name-pattern "project hooks" test/integration/client-projections.test.mjs
+
+      - name: 'Section: marketplace bundles'
+        continue-on-error: true
+        shell: bash
+        run: node --test --test-name-pattern "marketplace" test/integration/client-projections.test.mjs
+
+      - name: 'Section: MCP handshake'
+        continue-on-error: true
+        shell: bash
+        run: node --test --test-name-pattern "MCP handshake" test/integration/client-projections.test.mjs
+
       - name: Projections suite (direct, in-process)
         shell: bash
         run: node test/integration/client-projections.test.mjs
