@@ -1,5 +1,5 @@
-# Bench archestra-correctness-web-crawler-url-identity — Repovine run 4 — model: fable-5 — effort: max (ultracode)
-# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max (ultracode). Agent 24ba601c0b064405.
+# Bench archestra-correctness-web-crawler-url-identity — Repovine run 4 — model: fable-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max. Agent 24ba601c0b064405.
 # Gate: pass — identity-reconciliation gate (G1); scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

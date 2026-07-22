@@ -1,5 +1,5 @@
-# Bench archestra-restraint-tool-slug — Repovine run 9 — model: sonnet-5 — effort: max (ultracode)
-# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-sonnet-5; effort: max (ultracode). Agent a4d066c236684c15.
+# Bench archestra-restraint-tool-slug — Repovine run 9 — model: sonnet-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-sonnet-5; effort: max. Agent a4d066c236684c15.
 # Gate: pass — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

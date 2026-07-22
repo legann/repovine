@@ -3,7 +3,7 @@
 A migration normalizes a rule's `params.severity` value. The same value is stored in the searchable `mapped_params` projection used by the rule-find route. A transform that updates only `params.severity` leaves `mapped_params.severity` stale. Find, sort, and filter operations then use the stale value.
 
 - Repository: `elastic/kibana` — a large monorepo (~90k TS/TSX files, ~1,400 plugins). Pinned `68df830b2849a4b8e53114d621906b81fdbca99f` (`origin/main`, 2026-06-21).
-- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max (ultracode)** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
+- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
 - Scoring: correctness gate over the final diff — severity normalization (C1) and recomputation of the stored projection (G1).
 - Terms (arm, gate, DQ, C1, G1, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native skills: kibana's own `.claude/skills/*` — ~30 skills (`encrypted-saved-objects`, `task-manager-registration`, `api-authz`, `scout-*`, …) plus AGENTS.md/CLAUDE.md; only repovine is withheld. No native skill documents the `mapped_params` projection.

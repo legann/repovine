@@ -1,5 +1,5 @@
-# Bench kibana-restraint-frozen-consumer — Repovine run 2 — model: fable-5 — effort: max (ultracode)
-# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max (ultracode). Agent 6a772da5f9814fbe.
+# Bench kibana-restraint-frozen-consumer — Repovine run 2 — model: fable-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max. Agent 6a772da5f9814fbe.
 # Gate: pass — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

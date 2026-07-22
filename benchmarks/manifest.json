@@ -11,7 +11,7 @@
     "clientVersionLine": "1.2",
     "exactPerRunClientBuildRetained": false,
     "effortFlag": "--effort max",
-    "effortLabel": "max (ultracode)",
+    "effortLabel": "max",
     "autoMemoryEnabled": false,
     "hostedModelRuntimeMutable": true
   },

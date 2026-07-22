@@ -3,7 +3,7 @@
 Tool-name normalization lands at `slugifyName`. Several tools on one MCP server strip to the same identifier and can no longer be addressed individually. The fix must disambiguate where a server's tools are seen as a set — the discovery/persistence write layer — while the per-pair codec, its inverse, and the wire consumers that serve and match by the stored name stay byte-identical.
 
 - Repository: `archestra-ai`. Pinned `f34dc474913a85700bebd29f5065800bb79accb3`.
-- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max (ultracode)** on every run. Memory-isolated per run.
+- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run.
 - Scoring: restraint gate over the final diff — write-layer disambiguation with the frozen codec and wire consumers byte-identical to the pin.
 - Terms (arm, gate, DQ, over-reach, placement, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native skills: the repo's own `AGENTS.md`/`CLAUDE.md` and `.claude/skills/*`; only repovine is withheld.

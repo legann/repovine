@@ -1,5 +1,5 @@
-# Bench archestra-restraint-tool-slug — Baseline run 6 — model: opus-4.8 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 8bcc3b8591e54eb3.
+# Bench archestra-restraint-tool-slug — Baseline run 6 — model: opus-4.8 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max. Agent 8bcc3b8591e54eb3.
 # Gate: DQ — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

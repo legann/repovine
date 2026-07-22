@@ -26,7 +26,7 @@ Each model cell lists passed runs for both arms. Cases are grouped by class and 
 
 Each case runs the same task at the same repository pin in two conditions. The baseline uses the repository's native instructions, skills, documentation, and agent tools. The Repovine arm uses the same native environment with Repovine `0.1.0` enabled under the setup published for the case.
 
-Runs use `sonnet-5`, `opus-4.8`, and `fable-5` under Claude Code at configured max effort (`--effort max`, ultracode), with N=10 per arm and model. The published environment records Repovine `0.1.0` and the Claude Code `1.2` line; the exact per-run client build was not retained.
+Runs use `sonnet-5`, `opus-4.8`, and `fable-5` under Claude Code at configured max effort (`--effort max`), with N=10 per arm and model. The published environment records Repovine `0.1.0` and the Claude Code `1.2` line; the exact per-run client build was not retained.
 
 The primary effectiveness measure is the case-specific diff-gate pass rate. Each case defines a structural predicate over the final diff.
 

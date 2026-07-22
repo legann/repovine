@@ -1,5 +1,5 @@
-# Bench kibana-restraint-frozen-consumer — Repovine run 6 — model: sonnet-5 — effort: max (ultracode)
-# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-sonnet-5; effort: max (ultracode). Agent 140845b6479647e2.
+# Bench kibana-restraint-frozen-consumer — Repovine run 6 — model: sonnet-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-sonnet-5; effort: max. Agent 140845b6479647e2.
 # Gate: pass — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

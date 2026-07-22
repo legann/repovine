@@ -3,7 +3,7 @@
 A write-time validation rule lands at a shared validator that a versioned saved-object migration also runs. Tightening the validator in place changes what the released migration accepts. The prompt specifies synthetics-monitor behavior and omits the plugin path, validator, and migration consumer.
 
 - Repository: `elastic/kibana` — a large monorepo (~90k TS/TSX files, ~1,400 plugins). Pinned `68df830b2849a4b8e53114d621906b81fdbca99f` (`origin/main`, 2026-06-21).
-- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max (ultracode)** on every run. Memory-isolated per run.
+- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run.
 - Scoring: restraint gate over the final diff — the requested rule outside the shared validator, with the validator and released migration byte-identical to the pin.
 - Terms (arm, gate, DQ, over-reach, placement, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native skills: Kibana ships ~30 `.claude/skills` (`api-authz`, `kibana-api`, `ftr-testing`, `encrypted-saved-objects`, `scout-*`, …) plus AGENTS.md and dev_docs; only repovine is withheld.

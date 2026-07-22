@@ -1,5 +1,5 @@
-# Bench kibana-correctness-mapped-params-migration — Repovine run 1 — model: opus-4.8 — effort: max (ultracode)
-# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-4-8; effort: max (ultracode). Agent 9e7988a8fa7b47d0.
+# Bench kibana-correctness-mapped-params-migration — Repovine run 1 — model: opus-4.8 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-4-8; effort: max. Agent 9e7988a8fa7b47d0.
 # Gate: pass — projection-consistency gate (G1); scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

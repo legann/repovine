@@ -1,5 +1,5 @@
-# Bench kibana-correctness-mapped-params-migration — Repovine run 1 — model: fable-5 — effort: max (ultracode)
-# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max (ultracode). Agent ca4c5838f64041a5.
+# Bench kibana-correctness-mapped-params-migration — Repovine run 1 — model: fable-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-fable-5; effort: max. Agent ca4c5838f64041a5.
 # Gate: pass — projection-consistency gate (G1); scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

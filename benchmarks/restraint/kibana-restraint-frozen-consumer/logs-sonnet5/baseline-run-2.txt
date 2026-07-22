@@ -1,5 +1,5 @@
-# Bench kibana-restraint-frozen-consumer — Baseline run 2 — model: sonnet-5 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max (ultracode). Agent c32094e2f8d44b2e.
+# Bench kibana-restraint-frozen-consumer — Baseline run 2 — model: sonnet-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max. Agent c32094e2f8d44b2e.
 # Gate: pass — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

@@ -1,5 +1,5 @@
-# Bench archestra-correctness-web-crawler-url-identity — Baseline run 1 — model: sonnet-5 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max (ultracode). Agent fe079af0a371445d.
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 1 — model: sonnet-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max. Agent fe079af0a371445d.
 # Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

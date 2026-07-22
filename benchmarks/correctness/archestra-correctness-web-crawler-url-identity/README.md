@@ -3,7 +3,7 @@
 The web crawler connector derives each document's identity from its normalized URL. That identity is persisted as `kb_documents.source_id` and is the key incremental sync matches on. A task that strengthens URL normalization changes the identity computed for already-crawled pages; connector-sync re-ingests them under new `source_id`s while the old rows persist (there is no prune), so search returns duplicates.
 
 - Repository: `archestra-ai`. Pinned `f34dc474913a85700bebd29f5065800bb79accb3`.
-- Model: `opus-4.8` (primary), `sonnet-5`, `fable-5` — N=10 per arm, all three models. Effort **max (ultracode)** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
+- Model: `opus-4.8` (primary), `sonnet-5`, `fable-5` — N=10 per arm, all three models. Effort **max** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
 - Scoring: correctness gate over the final diff — URL normalization (C1) and reconciliation of existing stored identities (G1).
 - Terms (arm, gate, DQ, C1, G1, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native context: the repo's own `platform/CLAUDE.md` and the eight `.claude/skills/archestra-dev-*` skills — byte-identical in both arms. Only repovine is withheld; the root `AGENTS.md`/`CLAUDE.md` at the pin are repovine's own bootstrap (archestra has no root ones of its own — repovine created them) and are absent from the baseline arm by design. No native skill documents the connector-sync identity coupling.

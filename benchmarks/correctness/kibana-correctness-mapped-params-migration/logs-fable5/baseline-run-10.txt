@@ -1,5 +1,5 @@
-# Bench kibana-correctness-mapped-params-migration — Baseline run 10 — model: fable-5 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max (ultracode). Agent 9b9c3215edd04e29.
+# Bench kibana-correctness-mapped-params-migration — Baseline run 10 — model: fable-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max. Agent 9b9c3215edd04e29.
 # Gate: DQ — projection-consistency gate (G1); scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

@@ -11,7 +11,7 @@ The machine-readable corpus inventory is [`manifest.json`](manifest.json).
 | Repovine | `0.1.0` |
 | Agent client | Claude Code `1.2` line; the exact per-run patch build was not retained |
 | Models | `claude-sonnet-5`, `claude-opus-4-8`, `claude-fable-5` |
-| Effort | Claude Code `--effort max` (`max (ultracode)`) |
+| Effort | Claude Code `--effort max` |
 | Sessions | one fresh session per run; `autoMemoryEnabled: false` |
 | Runs | N=10 per model–case–arm cell |
 | Repository pins | recorded in each case README and `manifest.json` |
@@ -26,6 +26,39 @@ The machine-readable corpus inventory is [`manifest.json`](manifest.json).
 6. Allow one autonomous prompt-to-diff session. Exclude evaluator feedback and post-run diff repair.
 7. Preserve the complete final local diff, including untracked files, and score it against the case's published predicate.
 8. Record the actual Claude Code build, model identifier, timestamps, tool configuration, timeout status, and the scorer output for the new run.
+
+## Run command
+
+Both arms invoke Claude Code headless with the published task prompt. The baseline arm adds `--strict-mcp-config`, which restricts MCP to the (empty) command-line config, so no Repovine context reaches the agent. The Repovine arm warms the graph, then runs with the case's MCP config, annotations, and bootstrap files resident in the worktree.
+
+Baseline arm:
+
+```bash
+claude -p "<task prompt>" \
+  --model <claude-opus-4-8 | claude-sonnet-5 | claude-fable-5> \
+  --effort max \
+  --strict-mcp-config \
+  --dangerously-skip-permissions \
+  --settings '{"autoMemoryEnabled": false}' \
+  --session-id <fresh-per-run-id> \
+  --output-format json
+```
+
+Repovine arm — the worktree holds `.mcp.json`, `.claude/`, `repovine.annots.json`, and the `.repovine` graph cache:
+
+```bash
+REPOVINE_ROOT="<worktree>" node <repovine>/dist/mcp/index.js status   # warm the graph
+sleep 45
+claude -p "<task prompt>" \
+  --model <claude-opus-4-8 | claude-sonnet-5 | claude-fable-5> \
+  --effort max \
+  --dangerously-skip-permissions \
+  --settings '{"autoMemoryEnabled": false}' \
+  --session-id <fresh-per-run-id> \
+  --output-format json
+```
+
+`<task prompt>` is the exact case prompt from the README. `<fresh-per-run-id>` is a new session id per run; a session id reused from an errored run is rejected as already in use. The two commands differ only by `--strict-mcp-config`.
 
 ## Published evidence and reruns
 

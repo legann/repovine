@@ -1,5 +1,5 @@
-# Bench archestra-restraint-tool-slug — Baseline run 10 — model: sonnet-5 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max (ultracode). Agent e1835cd6af7c46e8.
+# Bench archestra-restraint-tool-slug — Baseline run 10 — model: sonnet-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max. Agent e1835cd6af7c46e8.
 # Gate: pass — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

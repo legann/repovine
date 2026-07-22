@@ -1,5 +1,5 @@
-# Bench kibana-correctness-mapped-params-migration — Baseline run 5 — model: opus-4.8 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent a146ab3eb0a84ae1.
+# Bench kibana-correctness-mapped-params-migration — Baseline run 5 — model: opus-4.8 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max. Agent a146ab3eb0a84ae1.
 # Gate: DQ — projection-consistency gate (G1); scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

@@ -1,5 +1,5 @@
-# Bench kibana-restraint-frozen-consumer — Baseline run 1 — model: fable-5 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max (ultracode). Agent a10a37e6eb674eec.
+# Bench kibana-restraint-frozen-consumer — Baseline run 1 — model: fable-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max. Agent a10a37e6eb674eec.
 # Gate: DQ — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================

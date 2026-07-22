@@ -1,5 +1,5 @@
-# Bench kibana-restraint-frozen-consumer — Baseline run 10 — model: opus-4.8 — effort: max (ultracode)
-# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max (ultracode). Agent 0c2a8f4efe0441cc.
+# Bench kibana-restraint-frozen-consumer — Baseline run 10 — model: opus-4.8 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max. Agent 0c2a8f4efe0441cc.
 # Gate: DQ — frozen-surface gate; scored from the final diff.
 # FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
 ================================================================================================
