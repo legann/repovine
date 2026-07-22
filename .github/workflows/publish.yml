@@ -44,6 +44,36 @@ jobs:
             exit 1
           fi
 
+      # A publish never outruns the platform contract: every Tier-1 merge gate
+      # must have completed green on the exact commit being published. Missing
+      # or failed check-runs fail the publish — absence of evidence is failure.
+      - name: Verify Tier-1 gates are green on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          required="build core-windows core-macos-arm harness-linux"
+          sha="$(git rev-parse HEAD)"
+          runs="$(curl -sf -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs?per_page=100")"
+          fail=0
+          for name in $required; do
+            conclusion="$(printf '%s' "$runs" | node -e '
+              const chunks = [];
+              process.stdin.on("data", (c) => chunks.push(c));
+              process.stdin.on("end", () => {
+                const { check_runs = [] } = JSON.parse(Buffer.concat(chunks).toString());
+                const run = check_runs.find((r) => r.name === process.argv[1]);
+                console.log(run ? `${run.status}/${run.conclusion}` : "absent");
+              });
+            ' "$name")"
+            if [ "$conclusion" != "completed/success" ]; then
+              echo "::error::Tier-1 gate '$name' is not green on ${sha}: $conclusion"
+              fail=1
+            fi
+          done
+          exit $fail
+
       - name: Install dependencies
         run: npm ci
 

@@ -454,7 +454,7 @@ each mode carries its own host contract — a status always names a mode.
 | Mode | Linux | macOS (Docker Desktop) | Windows WSL2 | Windows native |
 |---|---|---|---|---|
 | **Sandbox** (default) | Reference | Expected: LinuxKit VM ships `ip_set`; runtime smoke pending | Expected: run from the WSL **ext4** filesystem (`~/…`), not `/mnt/c`; the WSL2 backend has `ip_set`; runtime smoke pending | Expected: Docker Desktop with Linux containers; PowerShell/path smoke pending. Native Windows containers are out of scope |
-| **Attach** | Reference | Unsupported: trust checks read `/proc` mount topology; pending a separate security design | Expected: ext4 checkout only; fail-closed hardening pending | Unsupported: use WSL2 (prepare and preflight fail early) |
+| **Attach** | Reference | Unsupported: trust checks read `/proc` mount topology. The lifting design is [ADR 0001](adr/0001-macos-attach-mount-topology.md), status Proposed; attach refuses until it is accepted, implemented, and proven on real hardware | Expected: ext4 checkout only, enforced by fs-type from the mount table (9p/drvfs/virtiofs refuse; the path string is irrelevant); runtime smoke on a real WSL2 host pending | Unsupported: use WSL2 (prepare and preflight fail early) |
 | **Host mode** (dev only, below) | Dev only | Dev only: the process reaper reads `/proc` and is a no-op here | Dev only, as Linux | Unsupported: fails at worker dispatch (POSIX `/bin/sh` process model); use WSL2 or the sandbox |
 
 `Expected` reads as: configuration and image support the host; promotion waits
