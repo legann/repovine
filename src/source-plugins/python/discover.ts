@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import type { PackageInfo, PendingModule } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
+import { hostPathKey } from '../../platform/paths.js';
 
 /**
  * Python discovery (Pass 1). Finds Python packages (`pyproject.toml` / `setup.py`) and their
@@ -140,8 +141,10 @@ function discoverPyFiles(
       // Persisted repo-relative identity is POSIX-normalized (WS-2.1): relPath
       // feeds module labels and detector evidence, which must match cross-OS.
       const relPath = relPathNative.split(path.sep).join('/');
-      if (pendingByPath.has(full)) continue;
-      pendingByPath.set(full, {
+      // Canonical key (WS-2.1) — uniform with the TS plugin so the stage-1
+      // cross-plugin merge dedupes on one key form.
+      if (pendingByPath.has(hostPathKey(full))) continue;
+      pendingByPath.set(hostPathKey(full), {
         filePath: full,
         pkg,
         relPath,

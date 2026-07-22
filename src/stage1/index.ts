@@ -493,7 +493,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
     for (const [filePath, pending] of pendingByPath) {
       const existing = mergedPendingByPath.get(filePath);
       if (existing) {
-        logPipelineWarn(`  ⚠ File claimed by multiple source plugins (${existing.sourcePluginId} kept over ${pending.sourcePluginId}): ${filePath}`);
+        logPipelineWarn(`  ⚠ File claimed by multiple source plugins (${existing.sourcePluginId} kept over ${pending.sourcePluginId}): ${pending.filePath}`);
         continue;
       }
       mergedPendingByPath.set(filePath, pending);

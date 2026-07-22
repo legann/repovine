@@ -11,8 +11,10 @@ export function discoverPackages(repoRoot: string): PackageInfo[] {
   const seen = new Set<string>();
 
   for (const dir of tsconfigDirs) {
+    // POSIX form: pkg.path is persisted identity (WS-2.1) and is minted into
+    // module ids; path.normalize would keep win32 backslashes.
     const relPath = path.relative(repoRoot, dir);
-    const normalized = path.normalize(relPath) || '.';
+    const normalized = (relPath || '.').split(path.sep).join('/');
     if (seen.has(normalized)) continue;
     seen.add(normalized);
 

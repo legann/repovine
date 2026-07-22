@@ -4,6 +4,7 @@ import type ts from 'typescript';
 import type { PackageInfo, PendingModule } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
+import { hostPathKey } from '../../platform/paths.js';
 import { logPipelineWarn } from '../../cli/ui.js';
 import { makeModuleId, pathPrefixLength } from '../../stage1/utils.js';
 import { discoverPackages } from './packages.js';
@@ -56,9 +57,13 @@ function registerPendingModule(
   entry: PendingModule,
   relFromRoot: string,
 ): void {
-  const existing = pendingByPath.get(filePath);
+  // Canonical key (WS-2.1): tsconfig enumeration, SFC discovery, and the tree
+  // walk emit different absolute-path forms for one file on win32; a raw key
+  // would miss the dedupe and register the file twice under two module ids.
+  const key = hostPathKey(filePath);
+  const existing = pendingByPath.get(key);
   if (!existing || pathPrefixLength(entry.pkg.path, relFromRoot) > pathPrefixLength(existing.pkg.path, relFromRoot)) {
-    pendingByPath.set(filePath, entry);
+    pendingByPath.set(key, entry);
   }
 }
 
