@@ -15,6 +15,7 @@ import {
   runStatusCli,
 } from '../cli/health.js';
 import { promptLineSync } from '../cli/prompt.js';
+import { disposeEmbedderPipelines } from '../semantic/embedder.js';
 import { cli, logCli, logPipeline, formatPipelineMuted, setPipelineLogSink, setProgressInPlace } from '../cli/ui.js';
 
 // ── CLI dispatch ──
@@ -22,11 +23,18 @@ import { cli, logCli, logPipeline, formatPipelineMuted, setPipelineLogSink, setP
 const args = process.argv.slice(2);
 const command = args[0];
 
-/** Hard exit after stdout/stderr drain. process.exit() discards queued pipe
- * writes past the 64KB pipe buffer, truncating JSON payloads mid-document
- * (reproducible: `repovine agents protocol --schemas | wc -c` → 65536). An
- * empty write's callback fires only after the prior write queue has flushed. */
+/** Hard exit after ONNX teardown and stdout/stderr drain. process.exit() (a)
+ * during onnxruntime's static teardown SIGABRTs on macOS (libc++ "mutex lock
+ * failed"), so loaded embedder sessions are released first (2s cap — a wedged
+ * runtime must not hang the exit); (b) discards queued pipe writes past the
+ * 64KB pipe buffer, truncating JSON payloads mid-document (reproducible:
+ * `repovine agents protocol --schemas | wc -c` → 65536), so both streams are
+ * flushed via an empty write whose callback fires after the prior queue. */
 async function exitAfterFlush(code: number): Promise<never> {
+  await Promise.race([
+    disposeEmbedderPipelines().catch(() => undefined),
+    new Promise<void>(resolve => setTimeout(resolve, 2_000).unref()),
+  ]);
   await Promise.all([
     new Promise<void>(resolve => process.stdout.write('', () => resolve())),
     new Promise<void>(resolve => process.stderr.write('', () => resolve())),
@@ -652,7 +660,15 @@ function createShutdownHandler(
     },
     afterFlushHooks,
     closeTransport: options.closeTransport,
-    exit: code => process.exit(code),
+    // Release ONNX sessions before the hard exit — same macOS SIGABRT teardown
+    // hazard as the CLI paths (see exitAfterFlush); capped so a wedged runtime
+    // cannot outlive the shutdown deadline.
+    exit: code => {
+      void Promise.race([
+        disposeEmbedderPipelines().catch(() => undefined),
+        new Promise<void>(resolve => setTimeout(resolve, 2_000).unref()),
+      ]).finally(() => process.exit(code));
+    },
     log: msg => console.log(msg),
     logError: msg => console.error(msg),
     deadlineMs: SHUTDOWN_DEADLINE_MS,

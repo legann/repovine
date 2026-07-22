@@ -123,6 +123,29 @@ function loadPipeline(model: string, workspaceRoot: string): Promise<FeatureExtr
   return promise;
 }
 
+/**
+ * Release every loaded ONNX session and clear the pipeline memo. process.exit()
+ * during onnxruntime's static teardown aborts on macOS (libc++ "mutex lock
+ * failed: Invalid argument" → SIGABRT), so exit paths dispose sessions first.
+ * Serialized behind the embed limiter: an in-flight batch finishes before its
+ * session is released. A later embed lazily reloads the pipeline.
+ */
+export async function disposeEmbedderPipelines(): Promise<void> {
+  const pending = [...pipelineByModel.values()];
+  if (pending.length === 0) return;
+  pipelineByModel.clear();
+  await embedSerialize(async () => {
+    for (const p of pending) {
+      try {
+        const pipe = (await p) as unknown as { dispose?: () => Promise<void> };
+        await pipe.dispose?.();
+      } catch {
+        /* pipeline load failed — nothing to release */
+      }
+    }
+  });
+}
+
 class LocalTransformersEmbedder implements Embedder {
   readonly id: string;
   private readonly model: string;
