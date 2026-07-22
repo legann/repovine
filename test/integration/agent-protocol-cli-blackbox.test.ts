@@ -55,13 +55,18 @@ function run(command: string[], cwd: string): {
   };
 }
 
-/** Exit-0 assertion whose failure output carries the diagnosis (signal,
- * spawn error, stderr tail) — a bare status diff from a native CI runner is
- * undebuggable from the log alone. */
+/** Exit-0 assertion whose failure output carries the diagnosis (signal, spawn
+ * error, stderr tail) — a bare status diff from a native CI runner is
+ * undebuggable from the log alone. Throws (rather than expect-diffs): jest's
+ * toMatchObject diff elides the non-compared keys, hiding exactly the fields
+ * that carry the diagnosis. */
 function expectExit0(r: ReturnType<typeof run>): void {
-  expect({ status: r.status, signal: r.signal, error: r.error, stderr: r.stderr.slice(-800) }).toMatchObject({
-    status: 0,
-  });
+  if (r.status === 0) return;
+  throw new Error(
+    `CLI exited status=${r.status} signal=${r.signal} spawnError=${r.error ?? 'none'}\n` +
+      `stdout bytes=${r.stdout.length} stderr bytes=${r.stderr.length}\n` +
+      `stderr tail:\n${r.stderr.slice(-1200)}`,
+  );
 }
 
 function writeJson(dir: string, name: string, value: unknown): string {
@@ -149,11 +154,11 @@ describe('agent protocol CLI black-box harness surface', () => {
     expect(protocol.json).toHaveProperty('jsonSchemas.ReviewInput');
 
     const codeReviewer = run(['agents', 'manifests', '--role', 'code-reviewer'], repoRoot);
-    expect(codeReviewer.status).toBe(0);
+    expectExit0(codeReviewer);
     expect(codeReviewer.json).toHaveProperty('manifests.0.name', 'repovine-code-reviewer');
 
     const architectureAuditor = run(['agents', 'manifests', '--role', 'architecture-auditor'], repoRoot);
-    expect(architectureAuditor.status).toBe(0);
+    expectExit0(architectureAuditor);
     expect(architectureAuditor.json).toHaveProperty('manifests.0.name', 'repovine-architecture-auditor');
 
     const cases = [
@@ -167,7 +172,7 @@ describe('agent protocol CLI black-box harness surface', () => {
       const resultFile = writeJson(repoRoot, `${label.replace(/\s+/g, '-')}-result.json`, fixture[resultKey]);
 
       const assignment = run(['agents', 'validate-assignment', assignmentFile], repoRoot);
-      expect(assignment.status).toBe(0);
+      expectExit0(assignment);
       expect(assignment.json).toHaveProperty('valid', true);
 
       // validate-result is schema-only (structural) — no compliance report.
@@ -176,7 +181,7 @@ describe('agent protocol CLI black-box harness surface', () => {
         'validate-result',
         resultFile,
       ], repoRoot);
-      expect(validateResult.status).toBe(0);
+      expectExit0(validateResult);
       expect(validateResult.json).toHaveProperty('valid', true);
 
       const compliance = run([
@@ -188,7 +193,7 @@ describe('agent protocol CLI black-box harness surface', () => {
         '--manifest',
         manifest,
       ], repoRoot);
-      expect(compliance.status).toBe(0);
+      expectExit0(compliance);
       expect(compliance.json).toHaveProperty('report.valid', true);
       expect(compliance.json).toHaveProperty('report.errors', []);
     }
@@ -198,7 +203,7 @@ describe('agent protocol CLI black-box harness surface', () => {
     const reviewInput = fixture.reviewInput as JsonObject;
     const validFile = writeJson(repoRoot, 'review-input.json', reviewInput);
     const valid = run(['agents', 'validate-review-input', validFile], repoRoot);
-    expect(valid.status).toBe(0);
+    expectExit0(valid);
     expect(valid.json).toHaveProperty('valid', true);
     expect(valid.json).toHaveProperty('errors', []);
 
