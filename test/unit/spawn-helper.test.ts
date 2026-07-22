@@ -13,6 +13,7 @@ const spawnLib = require_('../../scripts/lib/spawn.cjs') as {
   assertComSpecSafe: (args: string[]) => void;
   resolveNpmCli: () => string | null;
   runNode: (args: string[], options?: object) => { status: number | null; stdout: string };
+  runBinShim: (shimPath: string, args: string[], options?: object) => { status: number | null; stdout: string };
 };
 
 describe('assertComSpecSafe', () => {
@@ -58,4 +59,29 @@ test('runNode executes the current Node with argv array', () => {
   const r = spawnLib.runNode(['-e', 'console.log(7 * 6)'], { encoding: 'utf-8' });
   expect(r.status).toBe(0);
   expect(String(r.stdout).trim()).toBe('42');
+});
+
+describe('runBinShim', () => {
+  test('runs a bin shim from a path with spaces and passes args', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'spawn helper shim '));
+    try {
+      let shim: string;
+      if (process.platform === 'win32') {
+        shim = path.join(dir, 'tool.cmd');
+        fs.writeFileSync(shim, '@echo shim-ok %1\r\n');
+      } else {
+        shim = path.join(dir, 'tool');
+        fs.writeFileSync(shim, '#!/bin/sh\necho "shim-ok $1"\n', { mode: 0o755 });
+      }
+      const r = spawnLib.runBinShim(shim, ['--help'], { encoding: 'utf-8' });
+      expect(r.status).toBe(0);
+      expect(String(r.stdout)).toContain('shim-ok --help');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  (process.platform === 'win32' ? test : test.skip)('rejects cmd-metacharacter args on the ComSpec path', () => {
+    expect(() => spawnLib.runBinShim('C:\\shim.cmd', ['a&b'], {})).toThrow(/cmd metacharacters/);
+  });
 });

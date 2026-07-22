@@ -11,7 +11,7 @@
  *
  * Requires a built dist/ (npm run build) and registry access for third-party deps.
  */
-import { nodeOutput, runNode, runNpm, spawnNode } from './lib/spawn.cjs';
+import { nodeOutput, runBinShim, runNode, runNpm, spawnNode } from './lib/spawn.cjs';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -37,7 +37,8 @@ function npm(args, cwd) {
   return res.stdout;
 }
 
-/** Send initialize + tools/list to the packed server over stdio, as an MCP client does. */
+/** Send initialize + tools/list to the packed server over stdio, as an MCP client
+ * does, then close stdin and require a clean exit — the host-disconnect lifecycle. */
 function mcpHandshake(binPath, cwd) {
   return new Promise((resolve, reject) => {
     const child = spawnNode([binPath], {
@@ -47,6 +48,9 @@ function mcpHandshake(binPath, cwd) {
     });
     let stdout = '';
     let stderr = '';
+    let tools;
+    let eofTimedOut = false;
+    let eofTimer;
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
       reject(new Error(`MCP server did not answer in 90s. stderr: ${stderr.slice(0, 500)}`));
@@ -57,18 +61,26 @@ function mcpHandshake(binPath, cwd) {
       for (const line of stdout.split('\n')) {
         let message;
         try { message = JSON.parse(line); } catch { continue; }
-        if (message.id === 2) {
+        if (message.id === 2 && tools === undefined) {
           clearTimeout(timer);
-          child.kill('SIGTERM');
-          resolve({ tools: message.result?.tools ?? [], stderr });
+          tools = message.result?.tools ?? [];
+          child.stdin.end();
+          eofTimer = setTimeout(() => {
+            eofTimedOut = true;
+            child.kill('SIGKILL');
+          }, 20_000);
         }
       }
     });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);
-    child.on('exit', (code) => {
+    // 'close', not 'exit': stdio can still hold buffered data at 'exit', and the
+    // stdout-purity check must see everything written during the shutdown window.
+    child.on('close', (code) => {
       clearTimeout(timer);
-      if (code !== 0 && code !== null) reject(new Error(`MCP server exited with ${code}. stderr: ${stderr.slice(0, 500)}`));
+      clearTimeout(eofTimer);
+      if (tools !== undefined) resolve({ tools, stderr, stdout, eofExit: !eofTimedOut && code === 0 });
+      else reject(new Error(`MCP server exited with ${code} before tools/list. stderr: ${stderr.slice(0, 500)}`));
     });
 
     for (const request of [
@@ -81,7 +93,9 @@ function mcpHandshake(binPath, cwd) {
   });
 }
 
-const workRoot = mkdtempSync(path.join(os.tmpdir(), 'repovine-smoke-'));
+// Spaces + non-ASCII in every path the install and the server touch. The prefix
+// avoids cmd metacharacters so the ComSpec adapter paths stay valid.
+const workRoot = mkdtempSync(path.join(os.tmpdir(), 'repovine smoke ünï-'));
 const consumer = path.join(workRoot, 'consumer');
 
 try {
@@ -110,6 +124,10 @@ try {
   for (const doc of ['docs/agent-protocol.md', 'docs/context-quality.md']) {
     check(existsSync(path.join(installed, doc)), `${doc} ships in the package (AGENTS.md points agents at it)`);
   }
+  check(
+    existsSync(path.join(installed, 'dist', 'source-plugins', 'python', 'route-ast-script.py')),
+    'bundled Python AST asset ships in dist',
+  );
 
   const bin = path.join(installed, 'dist', 'mcp', 'index.js');
   let version = '';
@@ -120,10 +138,42 @@ try {
   }
   check(version === pkg.version, `bin starts from a clean install and reports ${pkg.version} (got: ${version})`);
 
-  const { tools, stderr } = await mcpHandshake(bin, consumer);
+  // The OS-generated bin shim, run as a user would (`repovine --help`).
+  const shim = path.join(consumer, 'node_modules', '.bin', process.platform === 'win32' ? 'repovine.cmd' : 'repovine');
+  check(existsSync(shim), 'npm generates the repovine bin shim');
+  const shimHelp = runBinShim(shim, ['--help'], { cwd: consumer, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  check(
+    shimHelp.status === 0 && /repovine/i.test(String(shimHelp.stdout)),
+    'bin shim runs as a user (repovine --help)',
+  );
+  const execHelp = runNpm(['exec', '--', 'repovine', '--help'], { cwd: consumer, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  check(
+    execHelp.status === 0 && /repovine/i.test(String(execHelp.stdout)),
+    'npm exec -- repovine --help resolves the installed bin',
+  );
+
+  const { tools, stderr, stdout: mcpStdout, eofExit } = await mcpHandshake(bin, consumer);
   check(tools.length >= MIN_TOOLS, `MCP handshake lists ${MIN_TOOLS}+ tools (got ${tools.length})`);
   const crashed = /ERR_MODULE_NOT_FOUND|Cannot find package/.test(stderr);
   check(!crashed, 'no unresolved runtime import on the MCP path');
+  check(eofExit, 'server exits cleanly on stdin EOF (host-disconnect lifecycle)');
+  // stdout carries JSON-RPC frames only. pop() drops a possibly-partial trailing
+  // fragment; JSON.parse tolerates a trailing \r on CRLF frames.
+  const frames = mcpStdout.split('\n');
+  frames.pop();
+  const nonRpc = frames
+    .filter((l) => l.trim() !== '')
+    .filter((l) => {
+      try { return JSON.parse(l).jsonrpc !== '2.0'; } catch { return true; }
+    });
+  check(
+    nonRpc.length === 0,
+    `stdout carries only JSON-RPC frames${nonRpc[0] ? ` (bad: ${JSON.stringify(nonRpc[0].slice(0, 80))})` : ''}`,
+  );
+  check(
+    existsSync(path.join(consumer, 'repovine.annots.json')) && existsSync(path.join(consumer, '.repovine')),
+    'MCP start bootstraps workspace artifacts (annots + .repovine) in the spaced+Unicode consumer',
+  );
 
   // The npx layout: repovine runs from its own tree (here: the consumer install) against a
   // separate workspace. A bare specifier cannot see the workspace's node_modules, so embeddings
@@ -170,6 +220,10 @@ try {
   check(
     /embedded/.test(withPackage) && !/opt-in peer dependency/.test(withPackage),
     'installed in the workspace: embeddings run even though repovine resolves from its own tree (npx path)',
+  );
+  check(
+    existsSync(path.join(workspace, '.repovine', '.cache')),
+    'one-shot build writes the graph cache under .repovine/.cache',
   );
 } finally {
   if (keep) console.log(`\nKept: ${workRoot}`);

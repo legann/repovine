@@ -57,7 +57,7 @@ function registerPendingModule(
   entry: PendingModule,
   relFromRoot: string,
 ): void {
-  // Canonical key (WS-2.1): tsconfig enumeration, SFC discovery, and the tree
+  // Canonical key: tsconfig enumeration, SFC discovery, and the tree
   // walk emit different absolute-path forms for one file on win32; a raw key
   // would miss the dedupe and register the file twice under two module ids.
   const key = hostPathKey(filePath);

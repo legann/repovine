@@ -108,4 +108,26 @@ function spawnNode(args, options = {}) {
   return spawn(process.execPath, args, options);
 }
 
-module.exports = { resolveNpmCli, assertComSpecSafe, runNpm, npmOutput, runNode, nodeOutput, spawnNode };
+/** spawnSync an npm-generated bin shim as a user would. POSIX shims are
+ * executable scripts and run directly; Windows shims are `.cmd` files, which
+ * Node 22 refuses under `shell:false`, so the ComSpec adapter runs them.
+ * `/s` + outer quotes + windowsVerbatimArguments is the cmd form that
+ * survives a shim path with spaces. Args must be simple tokens (joined with
+ * spaces, no per-arg quoting on the cmd line). */
+function runBinShim(shimPath, args, options = {}) {
+  if (process.platform !== 'win32') return spawnSync(shimPath, args, options);
+  assertComSpecSafe([shimPath, ...args]);
+  // Args sit unquoted after cmd's /s strips the outer quotes: a space would
+  // silently split a token, `!` text-expands under delayed expansion. The
+  // shim PATH may contain spaces (it is inside the outer quotes); args may not.
+  for (const a of args) {
+    if (/[\s!]/.test(String(a))) throw new Error(`runBinShim refuses argument with spaces or '!': ${a}`);
+  }
+  const cmdLine = `""${shimPath}" ${args.join(' ')}"`;
+  return spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', cmdLine], {
+    ...options,
+    windowsVerbatimArguments: true,
+  });
+}
+
+module.exports = { resolveNpmCli, assertComSpecSafe, runNpm, npmOutput, runNode, nodeOutput, spawnNode, runBinShim };

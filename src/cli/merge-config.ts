@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { applyEol, detectEol, isUniformEol, normalizeEol } from './eol.js';
 
 export const REPOVINE_MCP_SERVER_NAME = 'repovine';
 
@@ -211,6 +212,7 @@ function backupFileIfNeeded(filePath: string): string {
   return backupPath;
 }
 
+// Operates in LF space; the write path owns EOL restoration.
 function normalizeTomlAppend(content: string, block: string): string {
   const separator = content.endsWith('\n') ? '\n' : '\n\n';
   return `${content}${separator}${block.trim()}\n`;
@@ -326,9 +328,13 @@ function applyMcpJsonPlan(
     return { path: filePath, status: 'created' };
   }
 
+  const rawText = fs.readFileSync(filePath, 'utf-8');
+  // Uniform-EOL files get their EOL restored on write; mixed-EOL files keep
+  // the LF JSON serialization, since no single EOL represents them.
+  const eol = isUniformEol(rawText) ? detectEol(rawText) : '\n';
   let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+    parsed = JSON.parse(rawText) as Record<string, unknown>;
   } catch (e) {
     return {
       path: filePath,
@@ -369,7 +375,7 @@ function applyMcpJsonPlan(
   }
   const backupPath = backupFile(filePath);
   serversObj[REPOVINE_MCP_SERVER_NAME] = serverEntry;
-  fs.writeFileSync(filePath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
+  fs.writeFileSync(filePath, applyEol(`${JSON.stringify(parsed, null, 2)}\n`, eol), 'utf-8');
   return { path: filePath, status: 'merged', backupPath };
 }
 
@@ -385,8 +391,12 @@ function applyCodexPlan(
 
   if (plan === 'skip') {
     if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const managed = reconcileCodexManagedBlocks(content, hooksBlock);
+      const rawContent = fs.readFileSync(filePath, 'utf-8');
+      // Reconcile in LF space; the write restores the file's EOL. Mixed-EOL
+      // files reconcile the raw bytes and are written verbatim, so newlines
+      // outside the managed blocks survive.
+      const uniform = isUniformEol(rawContent);
+      const managed = reconcileCodexManagedBlocks(uniform ? normalizeEol(rawContent) : rawContent, hooksBlock);
       if (managed.changed) {
         if (confirmExistingWrite && !confirmExistingWrite({
           path: filePath,
@@ -397,7 +407,11 @@ function applyCodexPlan(
           return { path: filePath, status: 'skipped', message: 'declined by interactive prompt: update Codex managed blocks' };
         }
         const backupPath = backupFileIfNeeded(filePath);
-        fs.writeFileSync(filePath, managed.content, 'utf-8');
+        fs.writeFileSync(
+          filePath,
+          uniform ? applyEol(managed.content, detectEol(rawContent)) : managed.content,
+          'utf-8',
+        );
         return {
           path: filePath,
           status: 'merged',
@@ -438,7 +452,12 @@ function applyCodexPlan(
     return { path: filePath, status: 'created' };
   }
 
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const rawContent = fs.readFileSync(filePath, 'utf-8');
+  // Append/reconcile in LF space; the write restores the file's EOL. Mixed-EOL
+  // files keep their raw bytes and are written verbatim: the appended blocks
+  // are LF, and newlines outside them survive.
+  const uniform = isUniformEol(rawContent);
+  const content = uniform ? normalizeEol(rawContent) : rawContent;
   if (content.includes(CODEX_SERVER_MARKER)) {
     return {
       path: filePath,
@@ -458,7 +477,11 @@ function applyCodexPlan(
   const backupPath = backupFile(filePath);
   const withServer = normalizeTomlAppend(content, serverBlock);
   const managed = reconcileCodexManagedBlocks(withServer, hooksBlock);
-  fs.writeFileSync(filePath, managed.content, 'utf-8');
+  fs.writeFileSync(
+    filePath,
+    uniform ? applyEol(managed.content, detectEol(rawContent)) : managed.content,
+    'utf-8',
+  );
   return {
     path: filePath,
     status: 'merged',

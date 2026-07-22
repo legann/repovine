@@ -11,7 +11,7 @@ export function discoverPackages(repoRoot: string): PackageInfo[] {
   const seen = new Set<string>();
 
   for (const dir of tsconfigDirs) {
-    // POSIX form: pkg.path is persisted identity (WS-2.1) and is minted into
+    // POSIX form: pkg.path is persisted identity and is minted into
     // module ids; path.normalize would keep win32 backslashes.
     const relPath = path.relative(repoRoot, dir);
     const normalized = (relPath || '.').split(path.sep).join('/');
@@ -81,7 +81,7 @@ function readPackageInfoFromDir(pkgDir: string, relativePath: string): PackageIn
 }
 
 function pathToSlug(relativePath: string): string {
-  // Input is POSIX-relative by contract (WS-2.1); path.normalize would
+  // Input is POSIX-relative by contract; path.normalize would
   // re-introduce win32 backslashes past the '/'-only replace (the python
   // plugin's slug() had the identical defect).
   const normalized = relativePath || '.';

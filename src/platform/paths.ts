@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 
 /**
- * Host-path key contract (plan WS-2.1).
+ * Host-path key contract.
  *
  * Persisted repo-relative identity is POSIX-normalized at its producers. In-memory
  * maps keyed by ABSOLUTE host paths canonicalize through `hostPathKey`: producers
@@ -12,7 +12,7 @@ import * as path from 'node:path';
  *
  * Scope: resolver/map identity only. Security-sensitive containment (harness attach
  * path-overlap) keeps its own strict case-sensitive comparison and must not adopt this
- * relaxed form (plan WS-6B.7).
+ * relaxed form.
  */
 export function hostPathKey(p: string): string {
   const resolved = path.resolve(p);
@@ -31,7 +31,7 @@ const hostKeyedViewSizes = new WeakMap<Map<string, string>, number>();
  * A fold collision between DIFFERENT module ids (two committed paths differing
  * only by case/separators) keeps the first entry and warns: that repo builds
  * different graphs on case-sensitive vs case-insensitive filesystems, and the
- * scanner-level case-collision diagnostic (WS-2.1) is the durable answer.
+ * scanner-level case-collision diagnostic is the durable answer.
  */
 export function hostKeyedView(m: Map<string, string>): Map<string, string> {
   let view = hostKeyedViews.get(m);

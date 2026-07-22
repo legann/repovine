@@ -34,7 +34,10 @@ export function detectPython(): string | null {
   if (cachedPythonBin !== undefined) return cachedPythonBin;
   for (const bin of ['python3', 'python']) {
     try {
-      execFileSync(bin, ['-c', 'import ast, sys'], { stdio: 'ignore' });
+      // timeout: a wedged interpreter shim (network-FS pyenv, stale WSL stub)
+      // must not hang the scanner or `doctor`; windowsHide keeps the probe from
+      // flashing a console window.
+      execFileSync(bin, ['-c', 'import ast, sys'], { stdio: 'ignore', timeout: 3_000, windowsHide: true });
       cachedPythonBin = bin;
       return bin;
     } catch { /* try next candidate */ }
@@ -56,7 +59,7 @@ export function makePythonModuleId(pkgName: string, relPath: string): string {
 }
 
 function slug(relPath: string): string {
-  // Input is POSIX-relative by contract (WS-2.1); path.normalize here would
+  // Input is POSIX-relative by contract; path.normalize here would
   // re-introduce win32 backslashes that the '/'-only replace misses.
   const normalized = relPath || '.';
   if (normalized === '.') return 'root';
@@ -87,7 +90,7 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
       return;
     }
     if (PYTHON_PACKAGE_MARKERS.some(m => fs.existsSync(path.join(dir, m)))) {
-      // POSIX form: pkg.path is persisted identity (WS-2.1); path.resolve
+      // POSIX form: pkg.path is persisted identity; path.resolve
       // consumes forward slashes on every OS.
       const normalized = (path.relative(repoRoot, dir) || '.').split(path.sep).join('/');
       if (!seen.has(normalized)) {
@@ -138,10 +141,10 @@ function discoverPyFiles(
 
       const relPathNative = path.relative(pkgAbs, full);
       if (relPathNative.startsWith('..')) continue;
-      // Persisted repo-relative identity is POSIX-normalized (WS-2.1): relPath
+      // Persisted repo-relative identity is POSIX-normalized: relPath
       // feeds module labels and detector evidence, which must match cross-OS.
       const relPath = relPathNative.split(path.sep).join('/');
-      // Canonical key (WS-2.1) — uniform with the TS plugin so the stage-1
+      // Canonical key — uniform with the TS plugin so the stage-1
       // cross-plugin merge dedupes on one key form.
       if (pendingByPath.has(hostPathKey(full))) continue;
       pendingByPath.set(hostPathKey(full), {

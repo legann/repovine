@@ -35,7 +35,7 @@ const PY_FILE_CANDIDATES = (basePath: string): string[] => [
 ];
 
 function lookupModule(basePath: string, absPathToId: Map<string, string>): string | undefined {
-  // Canonical view + key (WS-2.1): candidates come from native path.join while
+  // Canonical view + key: candidates come from native path.join while
   // map keys may be POSIX-shaped; the WeakMap-memoized view costs O(n) once.
   const view = hostKeyedView(absPathToId);
   for (const candidate of PY_FILE_CANDIDATES(basePath)) {

@@ -313,7 +313,7 @@ function gitRepoContains(cwd: string, filePath: string): boolean {
   // os.tmpdir() can be `C:\Users\RUNNER~1\...` while git prints the long form, and the
   // plain realpathSync resolves symlinks only, leaving the two forms unequal. Strip the
   // `\\?\` namespace prefix native can add, and case-fold on win32 (NTFS identity) —
-  // relaxed comparison scoped to this repo-membership check per WS-2.1.
+  // relaxed comparison scoped to this repo-membership check.
   const real = (p: string): string => {
     let r = p;
     try {

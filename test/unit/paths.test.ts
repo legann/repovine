@@ -120,7 +120,9 @@ describe('upward workspace discovery', () => {
     const { root } = repo(true);
     const worktree = path.join(root, '.worktrees', 'backend');
     fs.mkdirSync(worktree, { recursive: true });
-    fs.writeFileSync(path.join(worktree, '.git'), `gitdir: ${path.join(root, '.git', 'worktrees', 'backend')}\n`);
+    // CRLF pointer content on purpose: Git for Windows checkouts can carry it,
+    // and repo-root detection must not depend on the pointer's line ending.
+    fs.writeFileSync(path.join(worktree, '.git'), `gitdir: ${path.join(root, '.git', 'worktrees', 'backend')}\r\n`);
     expect(resolveWorkspaceRoot(worktree, '/unused')).toBe(worktree);
   });
 });

@@ -84,7 +84,7 @@ function createMiniRepo(): string {
   fs.writeFileSync(path.join(repoRoot, 'repovine.annots.json'), '{"version":1,"annotations":{}}\n');
   // This suite tests the agent-protocol contract, not inference: embeddings add
   // a model download per CLI subprocess and hit onnxruntime's macOS exit-teardown
-  // SIGABRT. The real-inference surface lives in the embedder matrix (WS-5).
+  // SIGABRT. The real-inference surface lives in the embedder matrix workflow.
   fs.writeFileSync(path.join(repoRoot, 'repovine.config.json'), '{"semantic_search_embeddings": false}\n');
   fs.writeFileSync(path.join(pkgRoot, 'package.json'), JSON.stringify({ name: 'orders', version: '0.0.0' }, null, 2));
   fs.writeFileSync(path.join(pkgRoot, 'tsconfig.json'), JSON.stringify({

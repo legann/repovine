@@ -11,6 +11,8 @@
  */
 
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DEFAULT_EMBEDDING_MODEL } from '../config.js';
@@ -30,6 +32,7 @@ type FeatureExtractor = (
 ) => Promise<{ tolist(): number[][] }>;
 
 type TransformersModule = {
+  env?: { cacheDir?: string };
   pipeline: (
     task: 'feature-extraction',
     model: string,
@@ -77,6 +80,61 @@ export function resolveTransformersFromWorkspace(workspaceRoot: string): string 
   }
 }
 
+export interface TransformersInstallInfo {
+  resolved: boolean;
+  source?: 'repovine' | 'workspace';
+  entryPath?: string;
+  version?: string;
+}
+
+/**
+ * Diagnostic view of which transformers install the runtime would load, mirroring
+ * the `importTransformers` order: next to repovine first, workspace second.
+ * Resolution and fs reads only — the module is never imported (its ONNX runtime
+ * init weighs ~700MB). `createRequire` resolution can differ from ESM `import()`
+ * conditions in exotic setups; acceptable for a diagnostic.
+ */
+export function describeTransformersInstall(workspaceRoot: string): TransformersInstallInfo {
+  let bare: string | undefined;
+  try {
+    bare = createRequire(import.meta.url).resolve(TRANSFORMERS_PACKAGE);
+  } catch {
+    bare = undefined;
+  }
+  if (bare) {
+    return { resolved: true, source: 'repovine', entryPath: bare, version: readTransformersVersion(bare) };
+  }
+  const fromWorkspace = resolveTransformersFromWorkspace(workspaceRoot);
+  if (fromWorkspace) {
+    return { resolved: true, source: 'workspace', entryPath: fromWorkspace, version: readTransformersVersion(fromWorkspace) };
+  }
+  return { resolved: false };
+}
+
+/**
+ * Package version read by walking up from the resolved entry path. The package's
+ * exports map does not expose `./package.json` (ERR_PACKAGE_PATH_NOT_EXPORTED),
+ * so `require.resolve('@huggingface/transformers/package.json')` is not an option.
+ */
+function readTransformersVersion(entryPath: string): string | undefined {
+  let dir = path.dirname(entryPath);
+  for (let i = 0; i < 6; i++) {
+    try {
+      const raw = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8');
+      const parsed = JSON.parse(raw) as { name?: unknown; version?: unknown };
+      if (parsed.name === TRANSFORMERS_PACKAGE) {
+        return typeof parsed.version === 'string' ? parsed.version : undefined;
+      }
+    } catch {
+      /* no readable package.json at this level — keep walking up */
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return undefined;
+}
+
 /** Load the transformers module from the workspace, or undefined when it is not installed there. */
 export async function importTransformersFromWorkspace(workspaceRoot: string): Promise<TransformersModule | undefined> {
   const resolved = resolveTransformersFromWorkspace(workspaceRoot);
@@ -107,6 +165,37 @@ async function importTransformers(workspaceRoot: string): Promise<TransformersMo
   );
 }
 
+/**
+ * Stable per-user model cache. transformers.js defaults `env.cacheDir`
+ * INSIDE its own install dir (`node_modules/@huggingface/transformers/.cache`):
+ * ephemeral/read-only under the npx cache, long-path-exposed on Windows, and
+ * re-downloaded per install. `REPOVINE_MODEL_CACHE` overrides; otherwise the
+ * platform cache convention applies.
+ */
+export function resolveModelCacheDir(): string {
+  const override = process.env.REPOVINE_MODEL_CACHE;
+  if (override) return path.resolve(override);
+  const home = os.homedir();
+  if (process.platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local'), 'repovine', 'models');
+  }
+  if (process.platform === 'darwin') {
+    return path.join(home, 'Library', 'Caches', 'repovine', 'models');
+  }
+  return path.join(process.env.XDG_CACHE_HOME ?? path.join(home, '.cache'), 'repovine', 'models');
+}
+
+function applyModelCache(mod: TransformersModule): void {
+  if (!mod.env) return; // test fakes and exotic builds without an env surface
+  const dir = resolveModelCacheDir();
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    /* unwritable — transformers will surface the download/cache error itself */
+  }
+  mod.env.cacheDir = dir;
+}
+
 function loadPipeline(model: string, workspaceRoot: string): Promise<FeatureExtractor> {
   // Resolution depends on the workspace, so the memo key does too.
   const key = `${workspaceRoot}::${model}`;
@@ -114,6 +203,7 @@ function loadPipeline(model: string, workspaceRoot: string): Promise<FeatureExtr
   if (!promise) {
     promise = (async () => {
       const mod = await importTransformers(workspaceRoot);
+      applyModelCache(mod);
       return await mod.pipeline('feature-extraction', model, {
         dtype: PIPELINE_DTYPE,
         // Single-threaded ORT on darwin: onnxruntime-node 1.21 aborts at

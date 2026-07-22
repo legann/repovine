@@ -49,6 +49,8 @@ Core (package, CLI, stdio MCP, graph/cache/annotations) runs its full suite nati
 | Python 3 | optional | Python source plugin (skipped when absent) |
 | Docker + Compose | optional | agent-harness demo only |
 
+With `core.autocrlf=true`, a role-brief read from the working tree yields CRLF bytes while `--at <rev>` yields the LF blob, so `ProjectRole.hash` differs between the two modes; a root `.gitattributes` pinning LF removes the divergence.
+
 ## Promotion rules
 
 | Claim | Required evidence |

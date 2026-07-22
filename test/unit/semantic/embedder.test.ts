@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import {
   createEmbedder,
   importTransformersFromWorkspace,
+  resolveModelCacheDir,
   resolveTransformersFromWorkspace,
   __setTransformersModuleForTest,
 } from '../../../src/semantic/embedder.js';
@@ -133,5 +134,39 @@ describe('resolveTransformersFromWorkspace', () => {
 
     expect(creations).toBe(2);
     __setTransformersModuleForTest(undefined);
+  });
+});
+
+describe('model cache pinning', () => {
+  const savedOverride = process.env.REPOVINE_MODEL_CACHE;
+  afterEach(() => {
+    if (savedOverride === undefined) delete process.env.REPOVINE_MODEL_CACHE;
+    else process.env.REPOVINE_MODEL_CACHE = savedOverride;
+    __setTransformersModuleForTest(undefined);
+  });
+
+  it('resolveModelCacheDir honors REPOVINE_MODEL_CACHE and defaults to a per-user path', () => {
+    process.env.REPOVINE_MODEL_CACHE = path.join(os.tmpdir(), 'repovine-model-cache-test');
+    expect(resolveModelCacheDir()).toBe(path.resolve(path.join(os.tmpdir(), 'repovine-model-cache-test')));
+
+    delete process.env.REPOVINE_MODEL_CACHE;
+    const fallback = resolveModelCacheDir();
+    // Stable per-user location outside any node_modules; exact root is per-OS.
+    expect(path.isAbsolute(fallback)).toBe(true);
+    expect(fallback).not.toContain('node_modules');
+    expect(fallback.split(path.sep)).toEqual(expect.arrayContaining(['repovine', 'models']));
+  });
+
+  it('pins env.cacheDir on the transformers module before creating a pipeline', async () => {
+    const cacheTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-cache-pin-'));
+    process.env.REPOVINE_MODEL_CACHE = cacheTarget;
+    const fakeEnv: { cacheDir?: string } = {};
+    __setTransformersModuleForTest({
+      env: fakeEnv,
+      pipeline: async () => async (texts: string[]) => ({ tolist: () => texts.map(() => [0.1]) }),
+    } as unknown as Parameters<typeof __setTransformersModuleForTest>[0]);
+
+    await createEmbedder(true, '/workspace/cache-pin')!.embed(['x']);
+    expect(fakeEnv.cacheDir).toBe(path.resolve(cacheTarget));
   });
 });

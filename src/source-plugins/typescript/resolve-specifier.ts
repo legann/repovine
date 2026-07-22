@@ -183,7 +183,7 @@ export function resolveSpecifierFromMap(
   repoRoot: string,
   pathsContext?: PathsContext,
 ): SpecifierResolution | undefined {
-  // Canonical view (WS-2.1): caller-built maps of any absolute-path shape —
+  // Canonical view: caller-built maps of any absolute-path shape —
   // tsconfig forward-slash, native walker, POSIX fixtures — resolve identically.
   absPathToId = hostKeyedView(absPathToId);
   if (specifier.startsWith('.')) {

@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
-import { runDoctorCli } from '../../../src/cli/health.js';
+import { darwinTransformersFloorWarning, detectFsCase, runDoctorCli } from '../../../src/cli/health.js';
 import { CURSOR_RULES } from '../../../src/cli/onboarding-assets.js';
 import { renderAgentAssets } from '../../../src/cli/agent-render.js';
 
@@ -44,6 +44,25 @@ describe('runDoctorCli client scope', () => {
     findings: Array<{ area: string; message: string; severity: string }>;
     clientScope: { clients: string[]; description: string };
     agentAssets: { clients: string[]; ok: boolean };
+    platform: {
+      os: string;
+      arch: string;
+      node: string;
+      execPath: string;
+      entrypoint: string | null;
+      git: { version: string | null };
+      python: { interpreter: string | null; version: string | null };
+      fsCase: string;
+      embedder: {
+        enabled: boolean;
+        model: string;
+        transformers: { resolved: boolean; source: string | null; entryPath: string | null; version: string | null };
+        modelCacheDir: string | null;
+        modelCacheDirExists: boolean;
+        darwinFloorWarning: string | null;
+      };
+      supportDoc: string;
+    };
   } {
     const calls = outSpy.mock.calls;
     return JSON.parse(String(calls[calls.length - 1][0]));
@@ -124,6 +143,35 @@ describe('runDoctorCli client scope', () => {
     expect(last.message).toContain('No user-scope repovine MCP servers detected');
   });
 
+  it('includes a platform report in --json output', async () => {
+    writeCursorMcp();
+
+    expect(await runDoctorCli(['--json'], env)).toBe(0);
+    const result = lastJson();
+    const platform = result.platform;
+    expect(platform).toBeDefined();
+    expect(platform.os).toBe(process.platform);
+    expect(platform.arch).toBe(process.arch);
+    expect(platform.node).toBe(process.version);
+    expect(platform.execPath).toBe(process.execPath);
+    expect(['known-sensitive', 'known-insensitive', 'unknown']).toContain(platform.fsCase);
+    // git is present on every CI runner; python may legitimately be absent.
+    // string on any machine with git (all CI runners); null tolerated on a dev box without it
+    expect(typeof platform.git.version === 'string' || platform.git.version === null).toBe(true);
+    expect(typeof platform.python.interpreter === 'string' || platform.python.interpreter === null).toBe(true);
+    expect(platform.embedder.model).toBe('Xenova/all-MiniLM-L6-v2');
+    expect(typeof platform.embedder.transformers.resolved).toBe('boolean');
+    expect(typeof platform.embedder.modelCacheDir).toBe('string');
+    expect(typeof platform.embedder.modelCacheDirExists).toBe('boolean');
+    expect(platform.supportDoc).toBe('docs/platform-support.md');
+    // Tripwire: the report must carry no env var dumps.
+    expect(JSON.stringify(platform)).not.toContain('API_KEY');
+
+    // Platform findings are present and never displace Global MCP from last place.
+    expect(result.findings.some(f => f.area === 'platform')).toBe(true);
+    expect(result.findings[result.findings.length - 1]!.area).toBe('Global MCP');
+  });
+
   function writeBoundaryIndexFile(version: number): void {
     fs.mkdirSync(path.join(repoRoot, '.repovine'), { recursive: true });
     fs.writeFileSync(
@@ -168,5 +216,61 @@ describe('runDoctorCli client scope', () => {
     );
     expect(finding).toBeDefined();
     expect(finding!.message).toContain('v2');
+  });
+});
+
+describe('detectFsCase', () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-case-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('classifies a dir containing package.json', () => {
+    fs.writeFileSync(path.join(dir, 'package.json'), '{}');
+    const verdict = detectFsCase(dir);
+    expect(verdict).not.toBe('unknown');
+    if (process.platform === 'linux') {
+      expect(verdict).toBe('known-sensitive');
+    }
+  });
+
+  it('returns unknown for an empty dir', () => {
+    expect(detectFsCase(dir)).toBe('unknown');
+  });
+
+  it('skips a candidate whose case-inverted twin really exists', () => {
+    fs.writeFileSync(path.join(dir, 'package.json'), '{}');
+    fs.writeFileSync(path.join(dir, 'PACKAGE.JSON'), '{}');
+    // On a case-insensitive FS the second write aliases the first; the twin
+    // scenario only exists when both names are distinct directory entries.
+    if (fs.readdirSync(dir).length === 2) {
+      expect(detectFsCase(dir)).toBe('unknown');
+    }
+  });
+});
+
+describe('darwinTransformersFloorWarning', () => {
+  it('warns for transformers < 4 on darwin', () => {
+    const warning = darwinTransformersFloorWarning('darwin', '3.8.1');
+    expect(warning).not.toBeNull();
+    expect(warning).toContain('4');
+    expect(warning).toContain('docs/platform-support.md');
+  });
+
+  it('is null for transformers >= 4 on darwin', () => {
+    expect(darwinTransformersFloorWarning('darwin', '4.2.0')).toBeNull();
+  });
+
+  it('is null on other platforms', () => {
+    expect(darwinTransformersFloorWarning('linux', '3.8.1')).toBeNull();
+  });
+
+  it('is null without a version', () => {
+    expect(darwinTransformersFloorWarning('darwin', undefined)).toBeNull();
   });
 });

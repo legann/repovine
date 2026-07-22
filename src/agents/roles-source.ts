@@ -75,7 +75,7 @@ function readTreeFile(repoRoot: string, at: string, rel: string): ReadResult {
   });
   if (r.error) return { ok: false, error: `git show failed for ${rel}: ${String(r.error.message)}` };
   if (r.status !== 0) {
-    const firstErr = (r.stderr || '').split('\n')[0];
+    const firstErr = (r.stderr || '').split(/\r?\n/)[0]; // Git for Windows can emit CRLF stderr
     return { ok: false, error: `"${at}:${rel}" is not readable from the tree: ${firstErr}` };
   }
   return { ok: true, content: r.stdout };

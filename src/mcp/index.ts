@@ -131,7 +131,7 @@ if (command === 'build') {
 
 if (command === 'clear') {
   const clearArgs = args.slice(1);
-  const allowedClearFlags = new Set(['--dry-run', '--help', '-h']);
+  const allowedClearFlags = new Set(['--dry-run', '--yes', '-y', '--help', '-h']);
   if (clearArgs.includes('--help') || clearArgs.includes('-h')) {
     printClearUsage();
     await exitAfterFlush(0);
@@ -144,6 +144,7 @@ if (command === 'clear') {
   }
   await runClear(repoRoot, {
     dryRun: clearArgs.includes('--dry-run'),
+    yes: clearArgs.includes('--yes') || clearArgs.includes('-y'),
   }, process.cwd());
   await exitAfterFlush(0);
 }
@@ -170,8 +171,9 @@ if (command) {
 }
 
 function printClearUsage(): void {
-  console.error('Usage: repovine clear [--dry-run]');
+  console.error('Usage: repovine clear [--dry-run] [--yes]');
   console.error('  Prints the plan, then asks for y/N before removing generated setup.');
+  console.error('  --yes applies without the y/N prompt (for CI/non-interactive shells).');
   console.error('  Preserves repovine.annots.json, repovine.config.json, repovine.domains.json, and unrelated merged settings.');
 }
 
@@ -242,6 +244,7 @@ ${cli.bold('Setup options:')}
 
 ${cli.bold('Other options:')}
   --dry-run   Preview \`repovine clear\` without prompting
+  --yes       Apply \`repovine clear\` without the y/N prompt
   --help      Show this help
   --version   Show version
 `);
@@ -695,6 +698,11 @@ function registerStdioDisconnectShutdown(requestShutdown: (reason: string) => Pr
   });
   stdin.on('error', () => {
     void requestShutdown('stdin-error');
+  });
+  // A stream destroyed without 'end' (abrupt host pipe teardown) still emits
+  // 'close'; the shutdown sequence is reentrancy-guarded, duplicates no-op.
+  stdin.on('close', () => {
+    void requestShutdown('stdin-closed');
   });
 }
 

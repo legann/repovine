@@ -1,7 +1,10 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { loadConfig } from '../config.js';
+import { DEFAULT_EMBEDDING_MODEL, loadConfig } from '../config.js';
+import { describeTransformersInstall, resolveModelCacheDir } from '../semantic/embedder.js';
+import { detectPython } from '../source-plugins/python/discover.js';
 import { graphStats } from '../graph/index.js';
 import { RepovineRuntime } from '../mcp/context.js';
 import { toolDefs } from '../mcp/tool-defs.js';
@@ -83,6 +86,40 @@ function rel(env: HealthCliEnv, filePath: string): string {
 
 function snapshotCachePath(env: HealthCliEnv): string {
   return path.join(env.artifactsDir, '.cache', 'repository-facts-snapshot.json');
+}
+
+/** Guarded version probe: trimmed stdout, or null when the command is absent or fails. */
+function probeVersion(cmd: string, args: string[]): string | null {
+  try {
+    const out = execFileSync(cmd, args, {
+      encoding: 'utf-8',
+      timeout: 3000,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+let cachedGitVersion: string | null | undefined;
+
+function gitVersion(): string | null {
+  if (cachedGitVersion !== undefined) return cachedGitVersion;
+  const out = probeVersion('git', ['--version']);
+  // `.trim()` above already strips the Git-for-Windows CRLF tail.
+  cachedGitVersion = out === null ? null : (/git version (\S+)/.exec(out)?.[1] ?? out.split('\n')[0]!.trim());
+  return cachedGitVersion;
+}
+
+/** Plain descriptor so a later change of detectPython's shape touches only this mapping. */
+function pythonDescriptor(): { interpreter: string | null; version: string | null } {
+  const interpreter = detectPython();
+  if (interpreter === null) return { interpreter: null, version: null };
+  const out = probeVersion(interpreter, ['--version']);
+  const version = out === null ? null : (/(\d+\.\d+\.\d+)/.exec(out)?.[1] ?? null);
+  return { interpreter, version };
 }
 
 function inspectJsonMcpConfig(client: 'Cursor' | 'Claude', filePath: string): McpConfigCheck {
@@ -347,6 +384,37 @@ function agentsMdFinding(env: HealthCliEnv, clients: DoctorClient[]): HealthFind
   };
 }
 
+function invertNameCase(name: string): string {
+  return name.replace(/[a-zA-Z]/g, ch => (ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase()));
+}
+
+/**
+ * Case sensitivity of the filesystem holding the repo, from reads only — no temp
+ * writes. An existing repo file is looked up under a case-inverted name; the
+ * readdir guard skips candidates with a real distinct case-variant twin, where
+ * an insensitivity verdict would be wrong. Probing the repo path matters: the
+ * volume under process.execPath can behave differently.
+ */
+export function detectFsCase(repoRoot: string): 'known-sensitive' | 'known-insensitive' | 'unknown' {
+  const candidates = ['package.json', 'AGENTS.md', 'repovine.config.json', path.join('.git', 'HEAD')];
+  for (const candidate of candidates) {
+    const abs = path.join(repoRoot, candidate);
+    if (!fs.existsSync(abs)) continue;
+    const base = path.basename(abs);
+    const variant = invertNameCase(base);
+    if (variant === base) continue; // no letters to invert
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(path.dirname(abs));
+    } catch {
+      continue;
+    }
+    if (entries.includes(variant)) continue; // real case-variant twin — ambiguous candidate
+    return fs.existsSync(path.join(path.dirname(abs), variant)) ? 'known-insensitive' : 'known-sensitive';
+  }
+  return 'unknown';
+}
+
 function cacheFinding(env: HealthCliEnv): HealthFinding & { cachePath: string; mtime?: string; bytes?: number } {
   const filePath = snapshotCachePath(env);
   if (!fs.existsSync(filePath)) {
@@ -607,6 +675,119 @@ function compactCoverage(stats: AnnotationCoverageSummary & {
   };
 }
 
+export interface PlatformReport {
+  os: NodeJS.Platform;
+  arch: string;
+  node: string;
+  execPath: string;
+  entrypoint: string | null;
+  git: { version: string | null };
+  python: { interpreter: string | null; version: string | null };
+  fsCase: 'known-sensitive' | 'known-insensitive' | 'unknown';
+  embedder: {
+    enabled: boolean;
+    model: string;
+    transformers: {
+      resolved: boolean;
+      source: 'repovine' | 'workspace' | null;
+      entryPath: string | null;
+      version: string | null;
+    };
+    modelCacheDir: string | null;
+    modelCacheDirExists: boolean;
+    darwinFloorWarning: string | null;
+  };
+  supportDoc: 'docs/platform-support.md';
+}
+
+/**
+ * The darwin embedder floor (docs/platform-support.md): transformers < 4 bundles
+ * onnxruntime 1.21, whose exit teardown aborts on macOS. Null on other platforms,
+ * on versions >= 4, and when no version is known.
+ */
+export function darwinTransformersFloorWarning(platform: NodeJS.Platform, version: string | undefined): string | null {
+  if (platform !== 'darwin' || version === undefined) return null;
+  const major = parseInt(version.split('.')[0]!, 10);
+  if (!(major < 4)) return null; // NaN falls through to null
+  return `@huggingface/transformers ${version} on macOS bundles onnxruntime 1.21, `
+    + 'which aborts at process exit after inference; install @huggingface/transformers@^4 '
+    + '(see docs/platform-support.md).';
+}
+
+/** Local paths, version strings, and enums only — never secret-bearing env values
+ * (the resolved model-cache path may originate from REPOVINE_MODEL_CACHE). */
+function buildPlatformReport(env: HealthCliEnv): PlatformReport {
+  let enabled = true;
+  try {
+    enabled = loadConfig(env.repoRoot).semanticSearchEmbeddings;
+  } catch {
+    /* bad config must not break the platform block; true matches the config default */
+  }
+  const transformers = describeTransformersInstall(env.repoRoot);
+  let modelCacheDir: string | null;
+  try {
+    modelCacheDir = resolveModelCacheDir();
+  } catch {
+    modelCacheDir = null;
+  }
+  return {
+    os: process.platform,
+    arch: process.arch,
+    node: process.version,
+    execPath: process.execPath,
+    entrypoint: process.argv[1] ?? null,
+    git: { version: gitVersion() },
+    python: pythonDescriptor(),
+    fsCase: detectFsCase(env.repoRoot),
+    embedder: {
+      enabled,
+      model: DEFAULT_EMBEDDING_MODEL,
+      transformers: {
+        resolved: transformers.resolved,
+        source: transformers.source ?? null,
+        entryPath: transformers.entryPath ?? null,
+        version: transformers.version ?? null,
+      },
+      modelCacheDir,
+      // Read-only: doctor never creates the cache dir.
+      modelCacheDirExists: modelCacheDir !== null && fs.existsSync(modelCacheDir),
+      darwinFloorWarning: darwinTransformersFloorWarning(process.platform, transformers.version),
+    },
+    supportDoc: 'docs/platform-support.md',
+  };
+}
+
+// Never 'error' severity here: a missing git/python must not flip doctor's ok/exit code.
+function platformFindings(report: PlatformReport): HealthFinding[] {
+  const gitPart = report.git.version === null ? 'git missing' : `git ${report.git.version}`;
+  const pythonPart = report.python.interpreter === null
+    ? 'python missing'
+    : `python ${report.python.interpreter}${report.python.version === null ? '' : ` ${report.python.version}`}`;
+  const findings: HealthFinding[] = [{
+    area: 'platform',
+    severity: 'ok',
+    message: `${report.os} ${report.arch}, node ${report.node}, ${gitPart}, ${pythonPart}, `
+      + `fs case ${report.fsCase} — support matrix: ${report.supportDoc}`,
+  }];
+  if (report.git.version === null) {
+    findings.push({
+      area: 'platform',
+      severity: 'warning',
+      message: 'Git not found on PATH; graph freshness and annotation provenance need it.',
+      action: 'Install git and make sure it is on PATH.',
+    });
+  }
+  const { darwinFloorWarning, enabled, transformers } = report.embedder;
+  if (darwinFloorWarning !== null && enabled && transformers.resolved) {
+    findings.push({
+      area: 'embedder',
+      severity: 'warning',
+      message: darwinFloorWarning,
+    });
+  }
+  return findings;
+}
+
 export async function runDoctorCli(argv: string[], env: HealthCliEnv): Promise<number> {
   setPipelineLogSink('silent');
   if (argv.includes('--help') || argv.includes('-h')) {
@@ -627,6 +808,7 @@ export async function runDoctorCli(argv: string[], env: HealthCliEnv): Promise<n
   const checks = inspectMcpConfigs(env);
 
   const globalChecks = inspectGlobalMcpConfigs(clientScope.clients);
+  const platformReport = buildPlatformReport(env);
   const findings = [
     clientScopeFinding(clientScope),
     ...mcpConfigFindings(env, checks, clientScope.clients),
@@ -636,6 +818,8 @@ export async function runDoctorCli(argv: string[], env: HealthCliEnv): Promise<n
     ...boundaryPushChannelFindings(env),
     ...agentAssetDoctorCliFindings(agentReport),
     serverFinding(),
+    // Platform findings sit before the global MCP sweep: Global MCP stays last.
+    ...platformFindings(platformReport),
     ...globalMcpFindings(globalChecks, projectRepovineLaunches(env)),
   ];
   const result = {
@@ -654,6 +838,7 @@ export async function runDoctorCli(argv: string[], env: HealthCliEnv): Promise<n
     agentAssets: agentReport,
     checks: mcpChecksForClients(checks, clientScope.clients),
     globalMcp: globalChecks,
+    platform: platformReport,
     findings,
   };
 
