@@ -21,7 +21,7 @@ const ALLOWLIST = new Set([
   // Executes generated hook commands the way the clients themselves do:
   // Cursor/Codex hook commands are shell strings run through a shell
   // (/bin/sh -c on POSIX, ComSpec on win32) — faithful contract reproduction.
-  'test/helpers/client-projections.ts',
+  'test/helpers/client-projections.mjs',
 ]);
 const SELF = 'test/unit/mechanics/shell-spawn-guard.test.ts';
 

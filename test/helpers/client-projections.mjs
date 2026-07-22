@@ -1,19 +1,23 @@
 /**
  * Helpers for the behavioral client-projection suite
- * (test/integration/client-projections.test.ts).
+ * (test/integration/client-projections.test.mjs).
  *
  * Hook execution is config-driven: the suite parses the generated wiring files
  * (.cursor/hooks.json, .claude/settings.json or plugin hooks/hooks.json,
  * .codex/config.toml) and executes every hook entry they declare, using each
  * client's own launch contract (exec-form spawn, POSIX shell string, or
  * cmd.exe string). Nothing here names a concrete hook script file.
+ *
+ * Plain-JS ESM on purpose: the suite runs under node:test, so engine code is
+ * imported from the built dist/ output (built by the invoking script), never
+ * from src/ through a transform.
  */
-import { spawn, spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parse as parseToml } from 'smol-toml';
-import { HOOK_ACTIONS, type HookAction } from '../../src/cli/client-capabilities.js';
+import { HOOK_ACTIONS } from '../../dist/cli/client-capabilities.js';
 
 // ---------------------------------------------------------------------------
 // Environment scrubbing
@@ -28,8 +32,8 @@ import { HOOK_ACTIONS, type HookAction } from '../../src/cli/client-capabilities
  */
 const SCRUBBED_ENV_KEY = /^(claude_|cursor_|repovine_|plugin_root$)/i;
 
-export function makeScrubbedEnv(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
+export function makeScrubbedEnv() {
+  const env = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (SCRUBBED_ENV_KEY.test(key)) continue;
     env[key] = value;
@@ -48,7 +52,7 @@ export function makeScrubbedEnv(): NodeJS.ProcessEnv {
  */
 export const FIXTURE_PREFIX = 'repovine proj ünï-';
 
-function git(cwd: string, args: string[]): void {
+function git(cwd, args) {
   const res = spawnSync('git', args, { cwd, encoding: 'utf-8' });
   if (res.status !== 0) {
     throw new Error(`git ${args.join(' ')} failed (status ${res.status}): ${res.stderr}`);
@@ -61,7 +65,7 @@ function git(cwd: string, args: string[]): void {
  * to the fixture root. realpathSync keeps later path comparisons stable on
  * platforms where the temp dir is a symlink (macOS /var → /private/var).
  */
-export function makeFixtureRepo(): string {
+export function makeFixtureRepo() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), FIXTURE_PREFIX)));
   fs.mkdirSync(path.join(root, 'src'), { recursive: true });
   fs.writeFileSync(path.join(root, 'package.json'), '{"name":"client-projections-fixture","version":"1.0.0"}\n');
@@ -86,7 +90,7 @@ export const BOUNDARY_RISK = 'published contract';
  * src/app.ts and an onboarding-state snapshot for the session hint. Hooks need
  * no built graph — these files are their entire input surface.
  */
-export function writeSyntheticEngineState(root: string): void {
+export function writeSyntheticEngineState(root) {
   const dir = path.join(root, '.repovine');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(
@@ -118,36 +122,35 @@ export const CONFLICT_ANNOTATIONS = [
 // Wiring-file parsing
 // ---------------------------------------------------------------------------
 
-/** One hook entry as a client wiring file declares it. */
-export interface DeclaredHook {
-  /** Event key the entry is registered under (client-native casing). */
-  event: string;
-  /** Dispatcher action the entry invokes. */
-  action: HookAction;
-  /** Shell string, or the exec-form command when `args` is present. */
-  command: string;
-  /** Exec-form argument vector (Claude entries). */
-  args?: string[];
-  /** Full alternate Windows command (Codex `command_windows`). */
-  commandWindows?: string;
-}
+/**
+ * One hook entry as a client wiring file declares it.
+ * @typedef {object} DeclaredHook
+ * @property {string} event Event key the entry is registered under (client-native casing).
+ * @property {string} action Dispatcher action the entry invokes.
+ * @property {string} command Shell string, or the exec-form command when `args` is present.
+ * @property {string[]} [args] Exec-form argument vector (Claude entries).
+ * @property {string} [commandWindows] Full alternate Windows command (Codex `command_windows`).
+ */
 
 /** The single dispatcher action a hook entry invokes; ambiguity is a wiring bug. */
-export function hookActionOf(text: string): HookAction {
+export function hookActionOf(text) {
   const found = HOOK_ACTIONS.filter(action => text.includes(action));
   if (found.length !== 1) {
     throw new Error(`Expected exactly one dispatcher action in hook entry, found [${found.join(', ')}]: ${text}`);
   }
-  return found[0]!;
+  return found[0];
 }
 
-/** Parse `.cursor/hooks.json`: `{ version, hooks: { <event>: [{ command }] } }`. */
-export function readCursorHooks(filePath: string): DeclaredHook[] {
-  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as { hooks?: Record<string, unknown> };
-  const out: DeclaredHook[] = [];
+/**
+ * Parse `.cursor/hooks.json`: `{ version, hooks: { <event>: [{ command }] } }`.
+ * @returns {DeclaredHook[]}
+ */
+export function readCursorHooks(filePath) {
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const out = [];
   for (const [event, entries] of Object.entries(parsed.hooks ?? {})) {
     if (!Array.isArray(entries)) continue;
-    for (const entry of entries as Array<{ command?: unknown }>) {
+    for (const entry of entries) {
       if (typeof entry.command !== 'string') {
         throw new Error(`Cursor hook entry under ${event} has no string command: ${JSON.stringify(entry)}`);
       }
@@ -161,18 +164,18 @@ export function readCursorHooks(filePath: string): DeclaredHook[] {
  * Parse Claude hook wiring. Project settings nest the event map under a
  * `hooks` key (`.claude/settings.json`); the plugin `hooks/hooks.json` is the
  * event map itself.
+ * @returns {DeclaredHook[]}
  */
-export function readClaudeHooks(filePath: string): DeclaredHook[] {
-  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
-  const events = (
-    parsed.hooks && typeof parsed.hooks === 'object' && !Array.isArray(parsed.hooks) ? parsed.hooks : parsed
-  ) as Record<string, unknown>;
-  const out: DeclaredHook[] = [];
+export function readClaudeHooks(filePath) {
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const events =
+    parsed.hooks && typeof parsed.hooks === 'object' && !Array.isArray(parsed.hooks) ? parsed.hooks : parsed;
+  const out = [];
   for (const [event, entries] of Object.entries(events)) {
     if (!Array.isArray(entries)) continue;
-    for (const entry of entries as Array<{ hooks?: unknown }>) {
+    for (const entry of entries) {
       if (!Array.isArray(entry.hooks)) continue;
-      for (const hook of entry.hooks as Array<{ command?: unknown; args?: unknown }>) {
+      for (const hook of entry.hooks) {
         if (typeof hook.command !== 'string') {
           throw new Error(`Claude hook under ${event} has no string command: ${JSON.stringify(hook)}`);
         }
@@ -190,23 +193,26 @@ export function readClaudeHooks(filePath: string): DeclaredHook[] {
 }
 
 /** Parse a Codex `config.toml` into a plain record (real TOML parse). */
-export function readCodexConfig(filePath: string): Record<string, unknown> {
-  return parseToml(fs.readFileSync(filePath, 'utf-8')) as unknown as Record<string, unknown>;
+export function readCodexConfig(filePath) {
+  return parseToml(fs.readFileSync(filePath, 'utf-8'));
 }
 
-/** Parse `[[hooks.<Event>]]` / `[[hooks.<Event>.hooks]]` tables from Codex config. */
-export function readCodexHooks(filePath: string): DeclaredHook[] {
+/**
+ * Parse `[[hooks.<Event>]]` / `[[hooks.<Event>.hooks]]` tables from Codex config.
+ * @returns {DeclaredHook[]}
+ */
+export function readCodexHooks(filePath) {
   const parsed = readCodexConfig(filePath);
   const hooksTable = parsed.hooks;
   if (!hooksTable || typeof hooksTable !== 'object') {
     throw new Error(`${filePath} declares no [[hooks.*]] tables`);
   }
-  const out: DeclaredHook[] = [];
-  for (const [event, entries] of Object.entries(hooksTable as Record<string, unknown>)) {
+  const out = [];
+  for (const [event, entries] of Object.entries(hooksTable)) {
     if (!Array.isArray(entries)) continue;
-    for (const entry of entries as Array<{ hooks?: unknown }>) {
+    for (const entry of entries) {
       if (!Array.isArray(entry.hooks)) continue;
-      for (const hook of entry.hooks as Array<Record<string, unknown>>) {
+      for (const hook of entry.hooks) {
         if (typeof hook.command !== 'string') {
           throw new Error(`Codex hook under ${event} has no string command: ${JSON.stringify(hook)}`);
         }
@@ -226,21 +232,24 @@ export function readCodexHooks(filePath: string): DeclaredHook[] {
 // Codex MCP launch extraction (real parse + regex mirror)
 // ---------------------------------------------------------------------------
 
-export interface RepovineLaunch {
-  command?: string;
-  args?: string[];
-  root?: string;
-}
+/**
+ * @typedef {object} RepovineLaunch
+ * @property {string} [command]
+ * @property {string[]} [args]
+ * @property {string} [root]
+ */
 
-/** `mcp_servers.repovine` launch fields from a real TOML parse. */
-export function repovineLaunchFromParsedToml(parsed: Record<string, unknown>): RepovineLaunch {
-  const servers = parsed.mcp_servers as Record<string, unknown> | undefined;
-  const entry = servers?.repovine as Record<string, unknown> | undefined;
+/**
+ * `mcp_servers.repovine` launch fields from a real TOML parse.
+ * @returns {RepovineLaunch}
+ */
+export function repovineLaunchFromParsedToml(parsed) {
+  const entry = parsed.mcp_servers?.repovine;
   if (!entry) return {};
-  const env = entry.env as Record<string, unknown> | undefined;
+  const env = entry.env;
   return {
     ...(typeof entry.command === 'string' ? { command: entry.command } : {}),
-    ...(Array.isArray(entry.args) ? { args: entry.args.filter((a): a is string => typeof a === 'string') } : {}),
+    ...(Array.isArray(entry.args) ? { args: entry.args.filter(a => typeof a === 'string') } : {}),
     ...(env && typeof env.REPOVINE_ROOT === 'string' ? { root: env.REPOVINE_ROOT } : {}),
   };
 }
@@ -251,13 +260,14 @@ export function repovineLaunchFromParsedToml(parsed: Record<string, unknown>): R
  * and a single-line args array. This mirror extracts with the same patterns;
  * agreement with the real TOML parse pins the generated config inside that
  * regex-readable subset.
+ * @returns {RepovineLaunch}
  */
-export function repovineLaunchFromCodexTomlRegex(content: string): RepovineLaunch {
+export function repovineLaunchFromCodexTomlRegex(content) {
   const block = /\[mcp_servers\.repovine\]([\s\S]*?)(?=\n\[|$)/.exec(content);
   if (!block) return {};
   const command = /command\s*=\s*"([^"]+)"/.exec(block[1] ?? '')?.[1];
   const argsRaw = /args\s*=\s*\[([^\]]*)\]/.exec(block[1] ?? '')?.[1] ?? '';
-  const args = [...argsRaw.matchAll(/"([^"]+)"/g)].map(m => m[1]!);
+  const args = [...argsRaw.matchAll(/"([^"]+)"/g)].map(m => m[1]);
   const envBlock = /\[mcp_servers\.repovine\.env\]([\s\S]*?)(?=\n\[|$)/.exec(content);
   const root = envBlock ? /REPOVINE_ROOT\s*=\s*"([^"]+)"/.exec(envBlock[1] ?? '')?.[1] : undefined;
   return {
@@ -271,24 +281,22 @@ export function repovineLaunchFromCodexTomlRegex(content: string): RepovineLaunc
 // Hook execution
 // ---------------------------------------------------------------------------
 
-export interface HookExecution {
-  /** Project/workspace root the hook acts on; always the child cwd. */
-  cwd: string;
-  /** Full child environment (scrubbed base + the client's documented variables). */
-  env: NodeJS.ProcessEnv;
-  /** `${VAR}` values substituted into exec-form command/args, as the client substitutes them. */
-  substitutions?: Record<string, string>;
-}
+/**
+ * @typedef {object} HookExecution
+ * @property {string} cwd Project/workspace root the hook acts on; always the child cwd.
+ * @property {object} env Full child environment (scrubbed base + the client's documented variables).
+ * @property {Record<string, string>} [substitutions] `${VAR}` values substituted into exec-form command/args, as the client substitutes them.
+ */
 
-export interface HookRunResult {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-  /** Parsed stdout object, or null when the hook stayed silent. */
-  message: Record<string, unknown> | null;
-}
+/**
+ * @typedef {object} HookRunResult
+ * @property {number | null} status
+ * @property {string} stdout
+ * @property {string} stderr
+ * @property {Record<string, unknown> | null} message Parsed stdout object, or null when the hook stayed silent.
+ */
 
-function substituteTokens(value: string, substitutions: Record<string, string>): string {
+function substituteTokens(value, substitutions) {
   let out = value;
   for (const [token, replacement] of Object.entries(substitutions)) {
     out = out.split(token).join(replacement);
@@ -306,11 +314,12 @@ function substituteTokens(value: string, substitutions: Record<string, string>):
  * - shell string on win32: `%ComSpec% /d /s /c "<command>"` — `command_windows`
  *   when the entry declares one, else the same string. `/s` plus outer quotes
  *   plus windowsVerbatimArguments survives quoted paths with spaces.
+ * @returns {HookRunResult}
  */
-export function runDeclaredHook(hook: DeclaredHook, payload: unknown, exec: HookExecution): HookRunResult {
+export function runDeclaredHook(hook, payload, exec) {
   const input = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const common = { cwd: exec.cwd, env: exec.env, input, encoding: 'utf-8' as const };
-  let res: SpawnSyncReturns<string>;
+  const common = { cwd: exec.cwd, env: exec.env, input, encoding: 'utf-8' };
+  let res;
   if (hook.args) {
     const subs = exec.substitutions ?? {};
     const command = substituteTokens(hook.command, subs);
@@ -330,9 +339,9 @@ export function runDeclaredHook(hook: DeclaredHook, payload: unknown, exec: Hook
 
   const stdout = res.stdout ?? '';
   const stderr = res.stderr ?? '';
-  let message: Record<string, unknown> | null = null;
+  let message = null;
   if (stdout !== '') {
-    let parsed: unknown;
+    let parsed;
     try {
       parsed = JSON.parse(stdout);
     } catch {
@@ -341,7 +350,7 @@ export function runDeclaredHook(hook: DeclaredHook, payload: unknown, exec: Hook
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(`Hook stdout must be a JSON object, got: ${stdout.slice(0, 400)}`);
     }
-    message = parsed as Record<string, unknown>;
+    message = parsed;
   }
   return { status: res.status, stdout, stderr, message };
 }
@@ -351,7 +360,7 @@ export function runDeclaredHook(hook: DeclaredHook, payload: unknown, exec: Hook
  * stderr. Throws with the full diagnosis; a bare status diff from a CI runner
  * is undebuggable from the log alone.
  */
-export function expectAdvisoryExit(result: HookRunResult, label: string): void {
+export function expectAdvisoryExit(result, label) {
   if (result.status === 0 && result.stderr === '') return;
   throw new Error(
     `${label}: expected exit 0 with empty stderr, got status=${result.status}\n` +
@@ -365,12 +374,7 @@ export function expectAdvisoryExit(result: HookRunResult, label: string): void {
 // ---------------------------------------------------------------------------
 
 /** Spawn the built engine CLI (dist/mcp/index.js) against a workspace root. */
-export function runEngineCli(
-  engineCli: string,
-  argv: string[],
-  cwd: string,
-  env: NodeJS.ProcessEnv,
-): SpawnSyncReturns<string> {
+export function runEngineCli(engineCli, argv, cwd, env) {
   return spawnSync(process.execPath, [engineCli, ...argv], {
     cwd,
     env,
@@ -381,7 +385,7 @@ export function runEngineCli(
 }
 
 /** Exit-0 assertion carrying the diagnosis (signal, spawn error, stderr tail). */
-export function expectCliExit0(res: SpawnSyncReturns<string>, label: string): void {
+export function expectCliExit0(res, label) {
   if (res.status === 0) return;
   throw new Error(
     `${label}: exited status=${res.status} signal=${res.signal} spawnError=${res.error?.message ?? 'none'}\n` +
@@ -393,27 +397,30 @@ export function expectCliExit0(res: SpawnSyncReturns<string>, label: string): vo
 // MCP handshake
 // ---------------------------------------------------------------------------
 
-export interface McpLaunchSpec {
-  command: string;
-  args: string[];
-  cwd: string;
-  env: NodeJS.ProcessEnv;
-}
+/**
+ * @typedef {object} McpLaunchSpec
+ * @property {string} command
+ * @property {string[]} args
+ * @property {string} cwd
+ * @property {object} env
+ */
 
-export interface McpHandshakeResult {
-  tools: Array<{ name?: string }>;
-  stdout: string;
-  stderr: string;
-  /** True when the server exited 0 on its own after stdin EOF (host-disconnect lifecycle). */
-  eofExit: boolean;
-}
+/**
+ * @typedef {object} McpHandshakeResult
+ * @property {Array<{ name?: string }>} tools
+ * @property {string} stdout
+ * @property {string} stderr
+ * @property {boolean} eofExit True when the server exited 0 on its own after stdin EOF (host-disconnect lifecycle).
+ */
 
 /**
  * Drive one MCP session over stdio exactly as a client does: initialize →
  * notifications/initialized → tools/list, then close stdin and wait for a
  * clean exit. Launches the config's own command verbatim.
+ * @param {McpLaunchSpec} launch
+ * @returns {Promise<McpHandshakeResult>}
  */
-export function mcpHandshake(launch: McpLaunchSpec): Promise<McpHandshakeResult> {
+export function mcpHandshake(launch) {
   return new Promise((resolve, reject) => {
     const child = spawn(launch.command, launch.args, {
       cwd: launch.cwd,
@@ -422,23 +429,23 @@ export function mcpHandshake(launch: McpLaunchSpec): Promise<McpHandshakeResult>
     });
     let stdout = '';
     let stderr = '';
-    let tools: Array<{ name?: string }> | undefined;
+    let tools;
     let eofTimedOut = false;
-    let eofTimer: NodeJS.Timeout | undefined;
+    let eofTimer;
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
       reject(new Error(`MCP server did not answer in 90s. stderr: ${stderr.slice(0, 500)}`));
     }, 90_000);
 
-    child.stdout.on('data', (d: Buffer) => {
+    child.stdout.on('data', (d) => {
       // Any throw inside a stream 'data' handler is an uncaughtException that
-      // kills the jest worker (exit 1, silent retry loop) — the whole body
+      // kills the test process before the failure is reported — the whole body
       // stays inside try, and every parse result is object-guarded before
       // property access (JSON.parse('null') succeeds and then `.id` throws).
       try {
         stdout += d;
         for (const line of stdout.split('\n')) {
-          let message: unknown;
+          let message;
           try {
             message = JSON.parse(line);
           } catch {
@@ -447,11 +454,11 @@ export function mcpHandshake(launch: McpLaunchSpec): Promise<McpHandshakeResult>
           if (
             message !== null
             && typeof message === 'object'
-            && (message as { id?: number }).id === 2
+            && message.id === 2
             && tools === undefined
           ) {
             clearTimeout(timer);
-            tools = (message as { result?: { tools?: Array<{ name?: string }> } }).result?.tools ?? [];
+            tools = message.result?.tools ?? [];
             child.stdin.end();
             // Generous EOF window: the fixture server drains a cold bootstrap
             // on shutdown, and a slow CI runner must not convert that into a
@@ -466,15 +473,15 @@ export function mcpHandshake(launch: McpLaunchSpec): Promise<McpHandshakeResult>
         clearTimeout(timer);
         if (eofTimer) clearTimeout(eofTimer);
         child.kill('SIGKILL');
-        reject(err as Error);
+        reject(err);
       }
     });
-    child.stderr.on('data', (d: Buffer) => { stderr += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);
     // Stream errors are NOT covered by child.on('error'): an 'error' event on
     // any stdio stream (stdin EPIPE after early child death, read-side pipe
     // errors after a SIGKILL with in-flight I/O) is an uncaughtException that
-    // kills the jest worker. Swallow them on all three streams; the 'close'
+    // kills the test process. Swallow them on all three streams; the 'close'
     // handler reports the real failure with the child's stderr.
     child.stdin.on('error', () => {});
     child.stdout.on('error', () => {});
@@ -506,14 +513,14 @@ export function mcpHandshake(launch: McpLaunchSpec): Promise<McpHandshakeResult>
  * possibly-partial trailing fragment; JSON.parse tolerates a trailing \r on
  * CRLF frames.
  */
-export function nonJsonRpcFrames(stdout: string): string[] {
+export function nonJsonRpcFrames(stdout) {
   const frames = stdout.split('\n');
   frames.pop();
   return frames
     .filter(line => line.trim() !== '')
     .filter(line => {
       try {
-        return (JSON.parse(line) as { jsonrpc?: string }).jsonrpc !== '2.0';
+        return JSON.parse(line).jsonrpc !== '2.0';
       } catch {
         return true;
       }

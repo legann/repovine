@@ -11,13 +11,6 @@ module.exports = {
     '^.+\\.tsx?$': ['ts-jest', { useESM: true, tsconfig: { isolatedModules: true } }],
   },
   testMatch: ['<rootDir>/test/**/*.test.ts'],
-  // The client-projections integration harness runs as its own in-band jest
-  // invocation (`npm run test:projections`): inside a jest-worker child on
-  // Windows it dies with a silent native crash (no JS stack ever reaches the
-  // log; every async surface in the suite is exception-guarded). In-band there
-  // is no worker child to kill, and a real crash would surface as the step's
-  // own native exit code.
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/test/integration/client-projections.test.ts'],
   globalSetup: '<rootDir>/test/jest.global-setup.cjs',
   setupFiles: ['<rootDir>/test/jest.setup.ts'],
   testTimeout: 120000,

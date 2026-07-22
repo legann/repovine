@@ -37,23 +37,9 @@ jobs:
       - name: Test
         run: npm test -- --maxWorkers=2
 
-      # In-band on purpose: inside a jest-worker child on Windows this suite
-      # dies with a silent native crash; in the main jest process a real crash
-      # surfaces as this step's own exit code. The ladder isolates which layer
-      # dies when the step fails with no output (observed on windows-latest):
-      # each rung proves the previous layer alive.
-      - name: Client projections suite (in-band)
+      - name: Client projections suite (node:test)
         shell: bash
-        run: |
-          set -e
-          node --version
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --version
-          # Slash-free ignore pattern on purpose: Git Bash (MSYS) silently
-          # rewrites a leading-/ argument into a Windows path.
-          echo "rung3: global-setup direct"
-          node -e "require('./test/jest.global-setup.cjs')().then(() => console.log('setup-ok'), e => { console.error(e); process.exit(1); })"
-          echo "rung4: full run"
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts
+        run: node --test test/integration/client-projections.test.mjs
 
       - name: Verify dist structure
         run: |
@@ -113,23 +99,9 @@ jobs:
       - name: Test
         run: npm test -- --maxWorkers=2
 
-      # In-band on purpose: inside a jest-worker child on Windows this suite
-      # dies with a silent native crash; in the main jest process a real crash
-      # surfaces as this step's own exit code. The ladder isolates which layer
-      # dies when the step fails with no output (observed on windows-latest):
-      # each rung proves the previous layer alive.
-      - name: Client projections suite (in-band)
+      - name: Client projections suite (node:test)
         shell: bash
-        run: |
-          set -e
-          node --version
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --version
-          # Slash-free ignore pattern on purpose: Git Bash (MSYS) silently
-          # rewrites a leading-/ argument into a Windows path.
-          echo "rung3: global-setup direct"
-          node -e "require('./test/jest.global-setup.cjs')().then(() => console.log('setup-ok'), e => { console.error(e); process.exit(1); })"
-          echo "rung4: full run"
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns=node_modules --runInBand --runTestsByPath test/integration/client-projections.test.ts
+        run: node --test test/integration/client-projections.test.mjs
 
       - name: Smoke test packed install
         run: node scripts/smoke-pack-install.mjs

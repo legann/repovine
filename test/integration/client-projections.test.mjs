@@ -14,23 +14,30 @@
  *
  * Hook execution is config-driven: entries come from parsing the wiring files,
  * never from hardcoded script filenames.
+ *
+ * Runner: node:test, not jest. Executing this suite inside jest on
+ * windows-latest dies silently — exit 127 with no output — even with
+ * --runInBand, while every other layer was proven alive in isolation (node
+ * itself, the jest CLI, jest config plus module resolution, the global setup).
+ * node:test is the execution model the pack-install smoke test and the agent
+ * harness demo already run reliably on Windows, so the suite runs there. It
+ * imports the built engine from dist/; the invoking flow builds first
+ * (`npm run test:projections`, or CI's Build step).
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import { initClaude, initCodex, initCursor, type InitOptions } from '../../src/cli/init.js';
-import { renderPluginRepo } from '../../src/cli/plugin-render.js';
-import { CLIENT_DISPATCHER_FILENAME } from '../../src/cli/dispatcher/index.js';
-import { HOOK_ACTIONS, type HookAction } from '../../src/cli/client-capabilities.js';
-import { CODEX_HOOKS_BEGIN_MARKER } from '../../src/cli/templates.js';
+import { after, before, describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { initClaude, initCodex, initCursor } from '../../dist/cli/init.js';
+import { renderPluginRepo } from '../../dist/cli/plugin-render.js';
+import { CLIENT_DISPATCHER_FILENAME } from '../../dist/cli/dispatcher/index.js';
+import { HOOK_ACTIONS } from '../../dist/cli/client-capabilities.js';
+import { CODEX_HOOKS_BEGIN_MARKER } from '../../dist/cli/templates.js';
 import {
   BOUNDARY_RISK,
   CONFLICT_ANNOTATIONS,
   FIXTURE_PREFIX,
-  type DeclaredHook,
-  type HookExecution,
-  type HookRunResult,
   expectAdvisoryExit,
   expectCliExit0,
   makeFixtureRepo,
@@ -46,47 +53,38 @@ import {
   runDeclaredHook,
   runEngineCli,
   writeSyntheticEngineState,
-} from '../helpers/client-projections.js';
+} from '../helpers/client-projections.mjs';
 
 const engineRoot = process.cwd();
 const engineCli = path.join(engineRoot, 'dist', 'mcp', 'index.js');
-const pkgVersion = (JSON.parse(fs.readFileSync(path.join(engineRoot, 'package.json'), 'utf-8')) as { version: string }).version;
+const pkgVersion = JSON.parse(fs.readFileSync(path.join(engineRoot, 'package.json'), 'utf-8')).version;
 const isWin = process.platform === 'win32';
 const scrub = makeScrubbedEnv();
 
-const CLIENTS = ['cursor', 'claude', 'codex'] as const;
-type ClientId = (typeof CLIENTS)[number];
+const CLIENTS = ['cursor', 'claude', 'codex'];
 
 /** Event names each emit channel uses, in the client's casing. */
-const EVENT_NAMES: Record<'cursor' | 'default', Record<'boundary' | 'stale' | 'conflict' | 'session', string>> = {
+const EVENT_NAMES = {
   cursor: { boundary: 'preToolUse', stale: 'afterFileEdit', conflict: 'afterShellExecution', session: 'sessionStart' },
   default: { boundary: 'PreToolUse', stale: 'PostToolUse', conflict: 'PostToolUse', session: 'SessionStart' },
 };
 
-interface ClientRunContext {
-  client: ClientId;
-  /** Project/workspace root the hooks act on. */
-  root: string;
-  hooks: DeclaredHook[];
-  exec: HookExecution;
-}
-
-const cleanupDirs: string[] = [];
+const cleanupDirs = [];
 
 /** Fixture set up by the blackbox CLI `setup <client>` runs; hooks execute here. */
-let projectRepo: string;
+let projectRepo;
 /** Fixture with in-process local-launcher configs; MCP handshakes launch from here. */
-let launchRepo: string;
+let launchRepo;
 /** Rendered plugin-repo root (marketplaces + bundles). */
-let bundlesOut: string;
+let bundlesOut;
 /** Workspace root the plugin-scope hooks act on. */
-let bundleWorkspace: string;
+let bundleWorkspace;
 
-function bundleDir(client: ClientId): string {
+function bundleDir(client) {
   return path.join(bundlesOut, 'repovine-plugins', client);
 }
 
-function setupClient(client: ClientId): void {
+function setupClient(client) {
   const res = runEngineCli(
     engineCli,
     ['setup', client, '--no-build', '--force'],
@@ -96,7 +94,7 @@ function setupClient(client: ClientId): void {
   expectCliExit0(res, `setup ${client}`);
 }
 
-beforeAll(() => {
+before(() => {
   projectRepo = makeFixtureRepo();
   cleanupDirs.push(projectRepo);
   for (const client of CLIENTS) setupClient(client);
@@ -115,7 +113,7 @@ beforeAll(() => {
   fs.cpSync(path.join(bundleDir('cursor'), '.cursor'), path.join(bundleWorkspace, '.cursor'), { recursive: true });
 });
 
-afterAll(() => {
+after(() => {
   for (const dir of cleanupDirs) fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -123,26 +121,26 @@ afterAll(() => {
 // Payload builders (minimal shapes each client sends)
 // ---------------------------------------------------------------------------
 
-function fileEditPayload(ctx: ClientRunContext, filePath: string): unknown {
+function fileEditPayload(ctx, filePath) {
   // Cursor sends top-level fields plus workspace_roots; Claude/Codex nest tool_input.
   return ctx.client === 'cursor'
     ? { file_path: filePath, workspace_roots: [ctx.root] }
     : { tool_input: { file_path: filePath } };
 }
 
-function preEditPayload(ctx: ClientRunContext, filePath: string): unknown {
+function preEditPayload(ctx, filePath) {
   return ctx.client === 'cursor'
     ? { tool_input: { file_path: filePath }, workspace_roots: [ctx.root] }
     : { tool_input: { file_path: filePath } };
 }
 
-function shellPayload(ctx: ClientRunContext, command: string): unknown {
+function shellPayload(ctx, command) {
   return ctx.client === 'cursor'
     ? { command, workspace_roots: [ctx.root] }
     : { tool_input: { command } };
 }
 
-function sessionPayload(ctx: ClientRunContext, source: string): unknown {
+function sessionPayload(ctx, source) {
   return ctx.client === 'cursor' ? { source, workspace_roots: [ctx.root] } : { source };
 }
 
@@ -150,46 +148,39 @@ function sessionPayload(ctx: ClientRunContext, source: string): unknown {
 // Hook selection and result assertions
 // ---------------------------------------------------------------------------
 
-function eventNames(client: ClientId): Record<'boundary' | 'stale' | 'conflict' | 'session', string> {
+function eventNames(client) {
   return client === 'cursor' ? EVENT_NAMES.cursor : EVENT_NAMES.default;
 }
 
-function hookFor(ctx: ClientRunContext, action: HookAction, event?: string): DeclaredHook {
+function hookFor(ctx, action, event) {
   const candidates = ctx.hooks.filter(h => h.action === action);
-  expect(candidates.length).toBeGreaterThan(0);
-  return (event !== undefined && candidates.find(h => h.event === event)) || candidates[0]!;
+  assert.ok(candidates.length > 0, `no hook declares the ${action} action`);
+  return (event !== undefined && candidates.find(h => h.event === event)) || candidates[0];
 }
 
-function expectSilent(result: HookRunResult, label: string): void {
+function expectSilent(result, label) {
   expectAdvisoryExit(result, label);
-  expect(result.stdout).toBe('');
+  assert.equal(result.stdout, '', `${label}: expected silent stdout`);
 }
 
-function expectAdvisory(
-  ctx: ClientRunContext,
-  result: HookRunResult,
-  expectedEvent: string,
-  substrings: string[],
-  label: string,
-): void {
+function expectAdvisory(ctx, result, expectedEvent, substrings, label) {
   expectAdvisoryExit(result, label);
-  expect(result.message).not.toBeNull();
-  const hso = (result.message as Record<string, unknown>).hookSpecificOutput as {
-    hookEventName?: string;
-    additionalContext?: string;
-  };
-  expect(hso.hookEventName).toBe(expectedEvent);
-  for (const s of substrings) expect(hso.additionalContext).toContain(s);
+  assert.notEqual(result.message, null, `${label}: expected an advisory message on stdout`);
+  const hso = result.message.hookSpecificOutput;
+  assert.equal(hso.hookEventName, expectedEvent, `${label}: hookEventName`);
+  for (const s of substrings) {
+    assert.ok(hso.additionalContext.includes(s), `${label}: additionalContext lacks ${JSON.stringify(s)}`);
+  }
   if (ctx.client === 'cursor') {
     // Cursor's dual-key contract: top-level additional_context equals hookSpecificOutput.additionalContext.
-    expect((result.message as Record<string, unknown>).additional_context).toBe(hso.additionalContext);
+    assert.equal(result.message.additional_context, hso.additionalContext, `${label}: cursor dual-key`);
   } else {
-    expect(result.message).not.toHaveProperty('additional_context');
+    assert.ok(!('additional_context' in result.message), `${label}: unexpected top-level additional_context`);
   }
 }
 
 /** Run `fn` with the boundary index temporarily replaced (or removed when content is null). */
-function withBoundaryIndex(root: string, content: string | null, fn: () => void): void {
+function withBoundaryIndex(root, content, fn) {
   const indexPath = path.join(root, '.repovine', 'boundary-index.json');
   const original = fs.readFileSync(indexPath, 'utf-8');
   try {
@@ -202,7 +193,7 @@ function withBoundaryIndex(root: string, content: string | null, fn: () => void)
 }
 
 /** Run `fn` with the workspace annotations file temporarily carrying conflict markers. */
-function withConflictedAnnotations(root: string, fn: () => void): void {
+function withConflictedAnnotations(root, fn) {
   const annotsPath = path.join(root, 'repovine.annots.json');
   const original = fs.existsSync(annotsPath) ? fs.readFileSync(annotsPath, 'utf-8') : null;
   try {
@@ -219,7 +210,7 @@ function withConflictedAnnotations(root: string, fn: () => void): void {
  * stdin/assertion matrix (project scope); plugin scope runs the positive case
  * per action, which proves the bundle's dispatcher addressing end to end.
  */
-function declareHookBehaviorCases(name: string, ctx: () => ClientRunContext, opts: { full: boolean }): void {
+function declareHookBehaviorCases(name, ctx, opts) {
   describe(name, () => {
     it('delivers the boundary advisory for an indexed file', () => {
       const c = ctx();
@@ -362,40 +353,36 @@ function declareHookBehaviorCases(name: string, ctx: () => ClientRunContext, opt
 
 describe('project-local setup (CLI blackbox)', () => {
   it('generates the published npx launcher in every client MCP config', () => {
-    const cursorMcp = JSON.parse(fs.readFileSync(path.join(projectRepo, '.cursor', 'mcp.json'), 'utf-8')) as {
-      mcpServers: Record<string, { type?: string; command: string; args: string[]; env: Record<string, string> }>;
-    };
-    const cursorServer = cursorMcp.mcpServers.repovine!;
+    const cursorMcp = JSON.parse(fs.readFileSync(path.join(projectRepo, '.cursor', 'mcp.json'), 'utf-8'));
+    const cursorServer = cursorMcp.mcpServers.repovine;
     // Cursor's MCP schema requires type:"stdio"; it leads the entry.
-    expect(Object.keys(cursorServer)[0]).toBe('type');
-    expect(cursorServer.type).toBe('stdio');
-    expect(cursorServer.command).toBe('npx');
-    expect(cursorServer.args).toEqual(['-y', 'repovine']);
-    expect(cursorServer.env.REPOVINE_ROOT).toBe('${workspaceFolder}');
+    assert.equal(Object.keys(cursorServer)[0], 'type');
+    assert.equal(cursorServer.type, 'stdio');
+    assert.equal(cursorServer.command, 'npx');
+    assert.deepEqual(cursorServer.args, ['-y', 'repovine']);
+    assert.equal(cursorServer.env.REPOVINE_ROOT, '${workspaceFolder}');
 
-    const claudeMcp = JSON.parse(fs.readFileSync(path.join(projectRepo, '.mcp.json'), 'utf-8')) as {
-      mcpServers: Record<string, { type?: string; command: string; args: string[]; env: Record<string, string> }>;
-    };
-    const claudeServer = claudeMcp.mcpServers.repovine!;
-    expect(claudeServer).not.toHaveProperty('type');
-    expect(claudeServer.command).toBe('npx');
-    expect(claudeServer.args).toEqual(['-y', 'repovine']);
-    expect(claudeServer.env.REPOVINE_ROOT).toBe('.');
+    const claudeMcp = JSON.parse(fs.readFileSync(path.join(projectRepo, '.mcp.json'), 'utf-8'));
+    const claudeServer = claudeMcp.mcpServers.repovine;
+    assert.ok(!('type' in claudeServer), 'claude MCP entry must not carry a type field');
+    assert.equal(claudeServer.command, 'npx');
+    assert.deepEqual(claudeServer.args, ['-y', 'repovine']);
+    assert.equal(claudeServer.env.REPOVINE_ROOT, '.');
 
     const codexLaunch = repovineLaunchFromParsedToml(readCodexConfig(path.join(projectRepo, '.codex', 'config.toml')));
-    expect(codexLaunch.command).toBe('npx');
-    expect(codexLaunch.args).toEqual(['-y', 'repovine']);
-    expect(codexLaunch.root).toBe('.');
+    assert.equal(codexLaunch.command, 'npx');
+    assert.deepEqual(codexLaunch.args, ['-y', 'repovine']);
+    assert.equal(codexLaunch.root, '.');
   });
 
   it('ships exactly one hook file per client hooks dir (the dispatcher)', () => {
     for (const dir of ['.cursor/hooks', '.claude/hooks', '.codex/hooks']) {
-      expect(fs.readdirSync(path.join(projectRepo, ...dir.split('/')))).toEqual([CLIENT_DISPATCHER_FILENAME]);
+      assert.deepEqual(fs.readdirSync(path.join(projectRepo, ...dir.split('/'))), [CLIENT_DISPATCHER_FILENAME]);
     }
   });
 
   it('wires every dispatcher action in every client wiring file', () => {
-    const wirings: Array<[string, DeclaredHook[]]> = [
+    const wirings = [
       ['cursor', readCursorHooks(path.join(projectRepo, '.cursor', 'hooks.json'))],
       ['claude', readClaudeHooks(path.join(projectRepo, '.claude', 'settings.json'))],
       ['codex', readCodexHooks(path.join(projectRepo, '.codex', 'config.toml'))],
@@ -410,61 +397,59 @@ describe('project-local setup (CLI blackbox)', () => {
 
   it('claude hook entries are exec-form; no entry relies on shell $VAR expansion', () => {
     const hooks = readClaudeHooks(path.join(projectRepo, '.claude', 'settings.json'));
-    expect(hooks.length).toBeGreaterThan(0);
+    assert.ok(hooks.length > 0);
     for (const hook of hooks) {
-      expect(hook.command).toBe('node');
-      expect(hook.args).toBeDefined();
+      assert.equal(hook.command, 'node');
+      assert.ok(hook.args !== undefined, 'claude hook entry must be exec-form (args present)');
       // A string-only entry carrying $VAR would need a POSIX shell and break on win32.
-      expect(hook.args!.length).toBeGreaterThan(0);
+      assert.ok(hook.args.length > 0);
     }
   });
 
   it('cursor hook strings are cross-shell (no substitution syntax, no backslashes)', () => {
     const hooks = readCursorHooks(path.join(projectRepo, '.cursor', 'hooks.json'));
-    expect(hooks.length).toBeGreaterThan(0);
+    assert.ok(hooks.length > 0);
     for (const hook of hooks) {
-      expect(hook.command).not.toMatch(/[$\\]/);
+      assert.doesNotMatch(hook.command, /[$\\]/);
     }
   });
 
   it('codex project hooks pair a POSIX command with a full command_windows alternate', () => {
     const hooks = readCodexHooks(path.join(projectRepo, '.codex', 'config.toml'));
-    expect(hooks.length).toBeGreaterThan(0);
+    assert.ok(hooks.length > 0);
     for (const hook of hooks) {
-      expect(hook.command).toContain('$(git rev-parse --show-toplevel)');
+      assert.ok(hook.command.includes('$(git rev-parse --show-toplevel)'), `POSIX command resolves the root via git: ${hook.command}`);
       // cmd.exe cannot evaluate $(...); the alternate is workspace-relative.
-      expect(hook.commandWindows).toBeDefined();
-      expect(hook.commandWindows).not.toMatch(/[$\\]/);
-      expect(hook.commandWindows).toContain(hook.action);
+      assert.ok(hook.commandWindows !== undefined, 'codex hook entry must declare command_windows');
+      assert.doesNotMatch(hook.commandWindows, /[$\\]/);
+      assert.ok(hook.commandWindows.includes(hook.action), `command_windows carries the ${hook.action} action`);
     }
   });
 
   it('codex TOML stays inside the regex-readable subset the engine parses', () => {
     const content = fs.readFileSync(path.join(projectRepo, '.codex', 'config.toml'), 'utf-8');
     const fromParser = repovineLaunchFromParsedToml(readCodexConfig(path.join(projectRepo, '.codex', 'config.toml')));
-    expect(repovineLaunchFromCodexTomlRegex(content)).toEqual(fromParser);
+    assert.deepEqual(repovineLaunchFromCodexTomlRegex(content), fromParser);
   });
 
   it('re-running setup keeps hook wiring free of duplicate entries', () => {
     for (const client of CLIENTS) setupClient(client);
 
     const cursorHooks = readCursorHooks(path.join(projectRepo, '.cursor', 'hooks.json'));
-    const cursorByEvent = new Map<string, number>();
+    const cursorByEvent = new Map();
     for (const hook of cursorHooks) cursorByEvent.set(hook.event, (cursorByEvent.get(hook.event) ?? 0) + 1);
     for (const [event, count] of cursorByEvent) {
       if (count !== 1) throw new Error(`cursor event ${event} carries ${count} entries after re-run`);
     }
 
-    const claudeSettings = JSON.parse(fs.readFileSync(path.join(projectRepo, '.claude', 'settings.json'), 'utf-8')) as {
-      hooks: Record<string, unknown[]>;
-    };
+    const claudeSettings = JSON.parse(fs.readFileSync(path.join(projectRepo, '.claude', 'settings.json'), 'utf-8'));
     for (const [event, entries] of Object.entries(claudeSettings.hooks)) {
       if (entries.length !== 1) throw new Error(`claude event ${event} carries ${entries.length} entries after re-run`);
     }
 
     const codexToml = fs.readFileSync(path.join(projectRepo, '.codex', 'config.toml'), 'utf-8');
-    expect(codexToml.split(CODEX_HOOKS_BEGIN_MARKER).length - 1).toBe(1);
-    expect(codexToml.split('[mcp_servers.repovine]').length - 1).toBe(1);
+    assert.equal(codexToml.split(CODEX_HOOKS_BEGIN_MARKER).length - 1, 1);
+    assert.equal(codexToml.split('[mcp_servers.repovine]').length - 1, 1);
   });
 });
 
@@ -519,7 +504,7 @@ declareHookBehaviorCases(
 
 describe('marketplace bundles', () => {
   it('each bundle ships exactly one hook file (the dispatcher)', () => {
-    const hooksDirs: Array<[ClientId, string]> = [
+    const hooksDirs = [
       ['cursor', path.join(bundleDir('cursor'), '.cursor', 'hooks')],
       ['claude', path.join(bundleDir('claude'), 'hooks')],
       ['codex', path.join(bundleDir('codex'), '.codex', 'hooks')],
@@ -533,53 +518,49 @@ describe('marketplace bundles', () => {
   });
 
   it('pins repovine@<version> in every bundle MCP config', () => {
-    const cursorMcp = JSON.parse(fs.readFileSync(path.join(bundleDir('cursor'), '.cursor', 'mcp.json'), 'utf-8')) as {
-      mcpServers: Record<string, { type?: string; args: string[] }>;
-    };
-    expect(cursorMcp.mcpServers.repovine!.type).toBe('stdio');
-    expect(cursorMcp.mcpServers.repovine!.args).toEqual(['-y', `repovine@${pkgVersion}`]);
+    const cursorMcp = JSON.parse(fs.readFileSync(path.join(bundleDir('cursor'), '.cursor', 'mcp.json'), 'utf-8'));
+    assert.equal(cursorMcp.mcpServers.repovine.type, 'stdio');
+    assert.deepEqual(cursorMcp.mcpServers.repovine.args, ['-y', `repovine@${pkgVersion}`]);
 
-    const claudeMcp = JSON.parse(fs.readFileSync(path.join(bundleDir('claude'), '.mcp.json'), 'utf-8')) as {
-      mcpServers: Record<string, { type?: string; args: string[] }>;
-    };
-    expect(claudeMcp.mcpServers.repovine!).not.toHaveProperty('type');
-    expect(claudeMcp.mcpServers.repovine!.args).toEqual(['-y', `repovine@${pkgVersion}`]);
+    const claudeMcp = JSON.parse(fs.readFileSync(path.join(bundleDir('claude'), '.mcp.json'), 'utf-8'));
+    assert.ok(!('type' in claudeMcp.mcpServers.repovine), 'claude bundle MCP entry must not carry a type field');
+    assert.deepEqual(claudeMcp.mcpServers.repovine.args, ['-y', `repovine@${pkgVersion}`]);
 
     const codexTomlPath = path.join(bundleDir('codex'), '.codex', 'config.toml');
     const codexLaunch = repovineLaunchFromParsedToml(readCodexConfig(codexTomlPath));
-    expect(codexLaunch.command).toBe('npx');
-    expect(codexLaunch.args).toEqual(['-y', `repovine@${pkgVersion}`]);
+    assert.equal(codexLaunch.command, 'npx');
+    assert.deepEqual(codexLaunch.args, ['-y', `repovine@${pkgVersion}`]);
     // The regex readers must agree with the real parse on the pinned launch.
-    expect(repovineLaunchFromCodexTomlRegex(fs.readFileSync(codexTomlPath, 'utf-8'))).toEqual(codexLaunch);
+    assert.deepEqual(repovineLaunchFromCodexTomlRegex(fs.readFileSync(codexTomlPath, 'utf-8')), codexLaunch);
   });
 
   it('claude bundle hooks are exec-form and address ${CLAUDE_PLUGIN_ROOT}', () => {
     const hooks = readClaudeHooks(path.join(bundleDir('claude'), 'hooks', 'hooks.json'));
-    expect(hooks.length).toBeGreaterThan(0);
+    assert.ok(hooks.length > 0);
     for (const hook of hooks) {
-      expect(hook.command).toBe('node');
-      expect(hook.args![0]).toBe(`\${CLAUDE_PLUGIN_ROOT}/hooks/${CLIENT_DISPATCHER_FILENAME}`);
-      expect(hook.args).toContain(hook.action);
-      expect([hook.command, ...hook.args!].join(' ')).not.toContain('CLAUDE_PROJECT_DIR');
+      assert.equal(hook.command, 'node');
+      assert.equal(hook.args[0], `\${CLAUDE_PLUGIN_ROOT}/hooks/${CLIENT_DISPATCHER_FILENAME}`);
+      assert.ok(hook.args.includes(hook.action), `args carry the ${hook.action} action`);
+      assert.ok(![hook.command, ...hook.args].join(' ').includes('CLAUDE_PROJECT_DIR'), 'bundle entry must not address CLAUDE_PROJECT_DIR');
     }
   });
 
   it('codex bundle hooks address $PLUGIN_ROOT with a %PLUGIN_ROOT% Windows alternate', () => {
     const hooks = readCodexHooks(path.join(bundleDir('codex'), '.codex', 'config.toml'));
-    expect(hooks.length).toBeGreaterThan(0);
+    assert.ok(hooks.length > 0);
     for (const hook of hooks) {
-      expect(hook.command).toContain('$PLUGIN_ROOT/');
-      expect(hook.command).not.toContain('$(git rev-parse');
-      expect(hook.commandWindows).toBeDefined();
-      expect(hook.commandWindows).toContain('%PLUGIN_ROOT%/');
+      assert.ok(hook.command.includes('$PLUGIN_ROOT/'), `command addresses $PLUGIN_ROOT: ${hook.command}`);
+      assert.ok(!hook.command.includes('$(git rev-parse'), 'bundle command must not resolve the root via git');
+      assert.ok(hook.commandWindows !== undefined, 'codex bundle hook must declare command_windows');
+      assert.ok(hook.commandWindows.includes('%PLUGIN_ROOT%/'), `command_windows addresses %PLUGIN_ROOT%: ${hook.commandWindows}`);
     }
   });
 
   it('cursor bundle hook strings are workspace-relative and cross-shell', () => {
     const hooks = readCursorHooks(path.join(bundleDir('cursor'), '.cursor', 'hooks.json'));
-    expect(hooks.length).toBeGreaterThan(0);
+    assert.ok(hooks.length > 0);
     for (const hook of hooks) {
-      expect(hook.command).not.toMatch(/[$\\]/);
+      assert.doesNotMatch(hook.command, /[$\\]/);
     }
   });
 
@@ -632,12 +613,12 @@ describe('marketplace bundles', () => {
 // ---------------------------------------------------------------------------
 
 describe('MCP handshake on generated project configs', () => {
-  beforeAll(() => {
+  before(() => {
     launchRepo = makeFixtureRepo();
     cleanupDirs.push(launchRepo);
     // The local-launcher form a source-checkout setup emits: configs launch the
     // built dist entry verbatim, so the handshake runs exactly what they say.
-    const opts: InitOptions = {
+    const opts = {
       forceBootstrap: true,
       replaceMcp: false,
       autoBuild: false,
@@ -650,7 +631,7 @@ describe('MCP handshake on generated project configs', () => {
     // Graph inference is not this suite's surface; the token index keeps the
     // handshake's cold build bounded to seconds.
     const cfgPath = path.join(launchRepo, 'repovine.config.json');
-    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8')) as Record<string, unknown>;
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
     cfg.semantic_search_embeddings = false;
     fs.writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`);
 
@@ -660,21 +641,17 @@ describe('MCP handshake on generated project configs', () => {
     fs.rmSync(path.join(launchRepo, 'repovine.annots.json'), { force: true });
   });
 
-  async function handshakeAndAssert(
-    server: { command: string; args: string[] },
-    rootValue: string,
-    label: string,
-  ): Promise<void> {
+  async function handshakeAndAssert(server, rootValue, label) {
     const res = await mcpHandshake({
       command: server.command,
       args: server.args,
       cwd: launchRepo,
       env: { ...scrub, REPOVINE_ROOT: rootValue },
     });
-    expect(res.tools.length).toBeGreaterThanOrEqual(18);
-    expect(res.eofExit).toBe(true);
-    expect(/ERR_MODULE_NOT_FOUND|Cannot find package/.test(res.stderr)).toBe(false);
-    expect(nonJsonRpcFrames(res.stdout)).toEqual([]);
+    assert.ok(res.tools.length >= 18, `${label}: expected >= 18 tools, got ${res.tools.length}`);
+    assert.equal(res.eofExit, true, `${label}: server must exit 0 on its own after stdin EOF`);
+    assert.doesNotMatch(res.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/, `${label}: module resolution failed`);
+    assert.deepEqual(nonJsonRpcFrames(res.stdout), [], `${label}: stdout must carry only JSON-RPC frames`);
     // Root-resolution proof under the spaced + non-ASCII path.
     if (!fs.existsSync(path.join(launchRepo, 'repovine.annots.json')) || !fs.existsSync(path.join(launchRepo, '.repovine'))) {
       throw new Error(`${label}: MCP start did not bootstrap workspace artifacts in ${launchRepo}`);
@@ -682,25 +659,21 @@ describe('MCP handshake on generated project configs', () => {
   }
 
   it('cursor config launches and bootstraps the workspace (type:"stdio", ${workspaceFolder} root)', async () => {
-    const mcp = JSON.parse(fs.readFileSync(path.join(launchRepo, '.cursor', 'mcp.json'), 'utf-8')) as {
-      mcpServers: Record<string, { type?: string; command: string; args: string[]; env: Record<string, string> }>;
-    };
-    const server = mcp.mcpServers.repovine!;
-    expect(server.type).toBe('stdio');
-    expect(server.command).toBe(process.execPath);
+    const mcp = JSON.parse(fs.readFileSync(path.join(launchRepo, '.cursor', 'mcp.json'), 'utf-8'));
+    const server = mcp.mcpServers.repovine;
+    assert.equal(server.type, 'stdio');
+    assert.equal(server.command, process.execPath);
     // The client substitutes ${workspaceFolder}; the harness does the same before launch.
     const rootValue = server.env.REPOVINE_ROOT.replace('${workspaceFolder}', launchRepo);
-    expect(rootValue).toBe(launchRepo);
+    assert.equal(rootValue, launchRepo);
     await handshakeAndAssert(server, rootValue, 'cursor handshake');
   });
 
   it('claude config launches with REPOVINE_ROOT "." resolved against the workspace cwd', async () => {
-    const mcp = JSON.parse(fs.readFileSync(path.join(launchRepo, '.mcp.json'), 'utf-8')) as {
-      mcpServers: Record<string, { type?: string; command: string; args: string[]; env: Record<string, string> }>;
-    };
-    const server = mcp.mcpServers.repovine!;
-    expect(server).not.toHaveProperty('type');
-    expect(server.command).toBe(process.execPath);
+    const mcp = JSON.parse(fs.readFileSync(path.join(launchRepo, '.mcp.json'), 'utf-8'));
+    const server = mcp.mcpServers.repovine;
+    assert.ok(!('type' in server), 'claude MCP entry must not carry a type field');
+    assert.equal(server.command, process.execPath);
     await handshakeAndAssert(server, server.env.REPOVINE_ROOT, 'claude handshake');
   });
 
@@ -709,13 +682,13 @@ describe('MCP handshake on generated project configs', () => {
     const launch = repovineLaunchFromParsedToml(readCodexConfig(tomlPath));
     // TOML basic-string escaping must round-trip the executable path exactly;
     // on win32 that path carries backslashes (and typically spaces).
-    expect(launch.command).toBe(process.execPath);
-    expect(launch.args).toEqual([engineCli]);
+    assert.equal(launch.command, process.execPath);
+    assert.deepEqual(launch.args, [engineCli]);
     if (!isWin) {
       // The regex readers keep escape sequences verbatim, so agreement with the
       // real parse holds only for escape-free paths (any POSIX executable path).
-      expect(repovineLaunchFromCodexTomlRegex(fs.readFileSync(tomlPath, 'utf-8'))).toEqual(launch);
+      assert.deepEqual(repovineLaunchFromCodexTomlRegex(fs.readFileSync(tomlPath, 'utf-8')), launch);
     }
-    await handshakeAndAssert({ command: launch.command!, args: launch.args! }, launch.root!, 'codex handshake');
+    await handshakeAndAssert({ command: launch.command, args: launch.args }, launch.root, 'codex handshake');
   });
 });
