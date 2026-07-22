@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/legann/repovine/actions/workflows/ci.yml/badge.svg)](https://github.com/legann/repovine/actions/workflows/ci.yml)
 
-**Codebase knowledge, conveyed.**
+**Intent-driven, context-compiled, contract-verified development.**
+
+*Codebase knowledge, conveyed at the moment of decision.*
 
 ## The open-source repository knowledge layer for coding agents
 
@@ -12,9 +14,11 @@
 
 **Versioned knowledge with explicit ownership.** Version-controlled **annotations** evolve with the repository and form the durable layer for authored repository knowledge. They attach intent, invariants, risks, and operational constraints to graph nodes. Through MCP, coding agents query bounded graph and annotation context while they work. repovine validates the parts of graph and annotation claims that can be compared with repository state. Coding agents own task interpretation, implementation, and behavioral verification. Developers and harnesses own execution policy and final acceptance.
 
+Together, these layers support **intent-driven, context-compiled, contract-verified development**. The agent brings task intent; MCP assembles current repository context; repovine checks observable repository claims. On greenfield work, the client creates the first scaffold and enters the context loop after refresh.
+
 > **Benchmarked on real repositories.** The benchmark covers two task classes: **correctness (change completeness)**, where the requested behavior and its required related updates must be present; and **restraint (scope control)**, where the requested change must land while protected surfaces remain unchanged. Across both classes, **90% of Repovine runs** passed their case-specific diff gate, compared with **12.5% of baseline runs**. [Explore the results](benchmarks/README.md).
 
-**Checkout-local by design.** repovine runs as a stdio MCP server inside each checkout, so its graph reflects the working tree being changed. Derived graph and cache state stay local. Configuration, domain layout, and annotations live in Git and provide shared repository context across developers, agents, worktrees, and CI.
+**Checkout-local by design.** repovine runs as a stdio MCP server inside each checkout, so its graph reflects the working tree being changed. The live graph and indexes run in memory. No database is required. Configuration, domain layout, and annotations live in Git and provide shared repository context across developers, agents, worktrees, and CI.
 
 Start in an existing repository:
 
@@ -144,6 +148,8 @@ STDIO is the only supported MCP transport in v1. For remote, devcontainer, WSL, 
 | Hooks | SessionStart nudges: MCP first, refresh after edits |
 | Instructions | `AGENTS.md` (Cursor uses `.cursor/rules`) |
 
+Projects can add specialists from the generated client templates; `setup` preserves them.
+
 ## Supported stacks
 
 | Area | Support |
@@ -214,6 +220,7 @@ Guide: [docs/agent-protocol.md](docs/agent-protocol.md).
 ## Learn more
 
 - [Documentation](docs/README.md): guides, references, and the TODO app walkthrough
+- [Platform support](docs/platform-support.md): per-surface OS tiers, prerequisites, and promotion rules
 - [DESIGN.md](DESIGN.md): system boundaries, graph contract, trust model, and limitations
 - [CONTRIBUTING.md](CONTRIBUTING.md): dev setup, quality gates
 - [examples](examples/README.md): runnable plugins and Agent Protocol harnesses

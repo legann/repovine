@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
-import { darwinTransformersFloorWarning, detectFsCase, runDoctorCli } from '../../../src/cli/health.js';
+import { darwinTransformersFloorWarning, detectFsCase, parseLongPathsRegOutput, runDoctorCli } from '../../../src/cli/health.js';
 import { CURSOR_RULES } from '../../../src/cli/onboarding-assets.js';
 import { renderAgentAssets } from '../../../src/cli/agent-render.js';
 
@@ -299,5 +299,32 @@ describe('darwinTransformersFloorWarning', () => {
 
   it('is null without a version', () => {
     expect(darwinTransformersFloorWarning('darwin', undefined)).toBeNull();
+  });
+});
+
+describe('parseLongPathsRegOutput', () => {
+  const regQueryOutput = (dword: string): string =>
+    '\r\nHKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\FileSystem\r\n'
+    + `    LongPathsEnabled    REG_DWORD    ${dword}\r\n\r\n`;
+
+  it('reads 0x1 as enabled', () => {
+    expect(parseLongPathsRegOutput(regQueryOutput('0x1'))).toBe('enabled');
+  });
+
+  it('reads 0x0 as disabled', () => {
+    expect(parseLongPathsRegOutput(regQueryOutput('0x0'))).toBe('disabled');
+  });
+
+  it('is unknown when the value line is absent', () => {
+    const keyOnly = '\r\nHKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\FileSystem\r\n\r\n';
+    expect(parseLongPathsRegOutput(keyOnly)).toBe('unknown');
+  });
+
+  it('is unknown on garbage output', () => {
+    expect(parseLongPathsRegOutput('ERROR: The system was unable to find the specified registry key or value.')).toBe('unknown');
+  });
+
+  it('is unknown on empty output', () => {
+    expect(parseLongPathsRegOutput('')).toBe('unknown');
   });
 });

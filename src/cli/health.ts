@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -417,6 +417,42 @@ export function detectFsCase(repoRoot: string): 'known-sensitive' | 'known-insen
   return 'unknown';
 }
 
+export type LongPathsVerdict = 'enabled' | 'disabled' | 'unknown';
+
+/**
+ * Parses `reg.exe query HKLM\...\FileSystem /v LongPathsEnabled` output.
+ * REG_DWORD 0x0 is 'disabled', any other parsed dword is 'enabled'; output
+ * without a parseable value line is 'unknown'.
+ */
+export function parseLongPathsRegOutput(output: string): LongPathsVerdict {
+  const match = /LongPathsEnabled\s+REG_DWORD\s+(0x[0-9a-fA-F]+)/.exec(output);
+  if (match === null) return 'unknown';
+  return Number.parseInt(match[1]!, 16) === 0 ? 'disabled' : 'enabled';
+}
+
+/**
+ * Windows fails fs ops on paths over 260 chars unless the LongPathsEnabled
+ * registry value is 1; Node's manifest opts in, the registry gate is the OS
+ * half. Guarded read-only reg.exe query: null off win32, 'unknown' when the
+ * probe errors, times out, or exits non-zero.
+ */
+function detectLongPaths(): LongPathsVerdict | null {
+  if (process.platform !== 'win32') return null;
+  try {
+    // Absolute path: the probe must not depend on System32 being on PATH.
+    const regExe = process.env.WINDIR ? path.join(process.env.WINDIR, 'System32', 'reg.exe') : 'reg.exe';
+    const out = spawnSync(
+      regExe,
+      ['query', 'HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem', '/v', 'LongPathsEnabled'],
+      { encoding: 'utf-8', timeout: 3000, windowsHide: true },
+    );
+    if (out.error !== undefined || out.status !== 0 || typeof out.stdout !== 'string') return 'unknown';
+    return parseLongPathsRegOutput(out.stdout);
+  } catch {
+    return 'unknown';
+  }
+}
+
 function cacheFinding(env: HealthCliEnv): HealthFinding & { cachePath: string; mtime?: string; bytes?: number } {
   const filePath = snapshotCachePath(env);
   if (!fs.existsSync(filePath)) {
@@ -692,6 +728,7 @@ export interface PlatformReport {
   git: { version: string | null };
   python: { interpreter: string | null; version: string | null };
   fsCase: 'known-sensitive' | 'known-insensitive' | 'unknown';
+  longPaths: LongPathsVerdict | null;
   embedder: {
     enabled: boolean;
     model: string;
@@ -747,6 +784,7 @@ function buildPlatformReport(env: HealthCliEnv): PlatformReport {
     git: { version: gitVersion() },
     python: pythonDescriptor(),
     fsCase: detectFsCase(env.repoRoot),
+    longPaths: detectLongPaths(),
     embedder: {
       enabled,
       model: DEFAULT_EMBEDDING_MODEL,
@@ -783,6 +821,14 @@ function platformFindings(report: PlatformReport): HealthFinding[] {
       severity: 'warning',
       message: 'Git not found on PATH; graph freshness and annotation provenance need it.',
       action: 'Install git and make sure it is on PATH.',
+    });
+  }
+  if (report.longPaths === 'disabled') {
+    findings.push({
+      area: 'platform',
+      severity: 'warning',
+      message: 'Windows long paths are disabled; fs operations fail on repository paths over 260 characters.',
+      action: 'Set HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem\\LongPathsEnabled to 1 and restart.',
     });
   }
   const { darwinFloorWarning, enabled, transformers } = report.embedder;

@@ -32,7 +32,7 @@ Embedder floor on macOS: `@huggingface/transformers` 4.x. The 3.8.1 floor bundle
 
 | Evidence | State |
 |---|---|
-| Linux x64 (`ubuntu-latest`) | Required merge gate (CI): audit, typecheck, lint, tests, build, pack-install smoke, projection validation |
+| Linux x64 (`ubuntu-latest`) | Required merge gate (`core-linux`): audit, typecheck, lint, tests, build, pack-install smoke, projection validation |
 | Windows x64 (`windows-latest`) | Required merge gate (`core-windows`): build, full tests, pack-install smoke |
 | macOS arm64 (`macos-15`) | Required merge gate (`core-macos-arm`): same |
 | Embedder (real ONNX inference) | Required: Linux/Windows for the full peer range; macOS for transformers 4.x (3.8.1 excluded — documented ort 1.21 exit defect) |
@@ -48,6 +48,8 @@ Core (package, CLI, stdio MCP, graph/cache/annotations) runs its full suite nati
 | Git | any recent | Agent Protocol roles at a revision, annotation merge repair, harness attach/worktrees. Graph builds locate the repo root via the `.git` entry and run without the git executable |
 | Python 3 | optional | Python source plugin (skipped when absent) |
 | Docker + Compose | optional | agent-harness demo only |
+
+Windows repos with paths beyond 260 characters require the OS `LongPathsEnabled` registry value; `doctor --json` reports the state as `platform.longPaths`.
 
 With `core.autocrlf=true`, a role-brief read from the working tree yields CRLF bytes while `--at <rev>` yields the LF blob, so `ProjectRole.hash` differs between the two modes; a root `.gitattributes` pinning LF removes the divergence.
 

@@ -33,6 +33,7 @@ import {
   buildCodexConfigToml,
   type McpLauncher,
 } from './templates.js';
+import { applyEol, detectEol, isUniformEol, normalizeEol } from './eol.js';
 import { CLIENT_CAPABILITIES, type ClientId } from './client-capabilities.js';
 import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from './dispatcher/index.js';
 import {
@@ -460,7 +461,12 @@ function writeAgentsMd(cwd: string, force: boolean): FileResult {
     return writeFileIfNotExists(filePath, AGENTS_MD, force);
   }
 
-  const current = fs.readFileSync(filePath, 'utf-8');
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  // Merge in LF space; the write restores the file's EOL. Mixed-EOL files merge
+  // on the raw bytes and are written verbatim, so newlines outside the managed
+  // section survive.
+  const uniform = isUniformEol(raw);
+  const current = uniform ? normalizeEol(raw) : raw;
   if (current === AGENTS_MD && !force) {
     return { path: filePath, status: 'skipped' };
   }
@@ -487,7 +493,7 @@ function writeAgentsMd(cwd: string, force: boolean): FileResult {
     return skippedByPrompt(filePath, message);
   }
   fs.copyFileSync(filePath, backupPath);
-  fs.writeFileSync(filePath, nextContent, 'utf-8');
+  fs.writeFileSync(filePath, uniform ? applyEol(nextContent, detectEol(raw)) : nextContent, 'utf-8');
   return {
     path: filePath,
     status: force ? 'overwritten' : 'merged',
@@ -558,9 +564,10 @@ function writeClaudeSettingsHooks(cwd: string): FileResult {
 
   let settings: Record<string, unknown> = {};
   const exists = fs.existsSync(filePath);
+  const previousContent = exists ? fs.readFileSync(filePath, 'utf-8') : '';
   if (exists) {
     try {
-      settings = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+      settings = JSON.parse(previousContent) as Record<string, unknown>;
     } catch (e) {
       return {
         path: filePath,
@@ -597,8 +604,10 @@ function writeClaudeSettingsHooks(cwd: string): FileResult {
   }
 
   const nextSettings = { ...settings, hooks: nextHooks };
-  const nextContent = `${JSON.stringify(nextSettings, null, 2)}\n`;
-  const previousContent = exists ? fs.readFileSync(filePath, 'utf-8') : '';
+  // Uniform-EOL files get their EOL restored on write; mixed-EOL files keep
+  // the LF JSON serialization, since no single EOL represents them.
+  const eol = isUniformEol(previousContent) ? detectEol(previousContent) : '\n';
+  const nextContent = applyEol(`${JSON.stringify(nextSettings, null, 2)}\n`, eol);
   if (exists && previousContent === nextContent) {
     return { path: filePath, status: 'skipped', message: 'Claude hooks already present' };
   }
@@ -639,9 +648,10 @@ function writeCursorHooksConfig(cwd: string): FileResult {
 
   let config: Record<string, unknown> = {};
   const exists = fs.existsSync(filePath);
+  const previousContent = exists ? fs.readFileSync(filePath, 'utf-8') : '';
   if (exists) {
     try {
-      config = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+      config = JSON.parse(previousContent) as Record<string, unknown>;
     } catch (e) {
       return {
         path: filePath,
@@ -678,8 +688,10 @@ function writeCursorHooksConfig(cwd: string): FileResult {
   }
 
   const nextConfig = { version: desired.version, ...config, hooks: nextHooks };
-  const nextContent = `${JSON.stringify(nextConfig, null, 2)}\n`;
-  const previousContent = exists ? fs.readFileSync(filePath, 'utf-8') : '';
+  // Uniform-EOL files get their EOL restored on write; mixed-EOL files keep
+  // the LF JSON serialization, since no single EOL represents them.
+  const eol = isUniformEol(previousContent) ? detectEol(previousContent) : '\n';
+  const nextContent = applyEol(`${JSON.stringify(nextConfig, null, 2)}\n`, eol);
   if (exists && previousContent === nextContent) {
     return { path: filePath, status: 'skipped', message: 'Cursor hooks already present' };
   }
@@ -738,7 +750,10 @@ function ensureGitignoreEntries(cwd: string): void {
 
   if (content.includes(REPOVINE_GITIGNORE_ENTRY)) return;
 
-  fs.appendFileSync(gitignorePath, formatRepovineGitignoreBlock(), 'utf-8');
+  // Uniform-EOL files get the block appended in their EOL; mixed-EOL files get
+  // the LF block, since no single EOL represents them.
+  const eol = isUniformEol(content) ? detectEol(content) : '\n';
+  fs.appendFileSync(gitignorePath, applyEol(formatRepovineGitignoreBlock(), eol), 'utf-8');
   console.log(formatFileLine('updated', '.gitignore', { note: 'repovine cache entries' }));
 }
 

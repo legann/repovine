@@ -10,7 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  # The Linux leg of the core gate carries the repo-wide checks (audit, lint,
+  # typecheck, dist shape) on top of the same build+test+smoke the native legs
+  # run — one OS runs them, every OS shares the verdict.
+  core-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
