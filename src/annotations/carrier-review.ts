@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { ARTIFACTS_DIR_NAME } from '../paths.js';
 import { writeFileAtomicSync } from '../fs/atomic.js';
+import { serializeKeyedRecordFile } from '../fs/keyed-json.js';
 import type { AnnotationContent, StoredAnnotation } from '../types.js';
 import { normalizeRisks } from './format.js';
 
@@ -64,7 +65,8 @@ export function readCarrierReviewFile(repoRoot: string): CarrierReviewFile {
 }
 
 export function writeCarrierReviewFile(repoRoot: string, file: CarrierReviewFile): void {
-  writeFileAtomicSync(carrierReviewFilePath(repoRoot), `${JSON.stringify(file, null, 2)}\n`);
+  const serialized = serializeKeyedRecordFile({ version: file.version }, 'reviewedTargets', file.reviewedTargets);
+  writeFileAtomicSync(carrierReviewFilePath(repoRoot), serialized);
 }
 
 /** Read-merge-write of reviewed entries. The atomic write prevents torn files; a concurrent

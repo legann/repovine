@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ARTIFACTS_DIR_NAME } from '../paths.js';
+import { serializeKeyedRecordFile } from '../fs/keyed-json.js';
 import { normalizeRisks } from '../annotations/format.js';
 import { parentModuleId } from './scope/resolve.js';
 import type { RepovineState } from './types.js';
@@ -122,7 +123,9 @@ export function writeBoundaryIndex(repoRoot: string, state: RepovineState): void
   try {
     const filePath = boundaryIndexFilePath(repoRoot);
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, `${JSON.stringify(buildBoundaryIndex(state), null, 2)}\n`, 'utf-8');
+    const index = buildBoundaryIndex(state);
+    const serialized = serializeKeyedRecordFile({ version: index.version, builtAt: index.builtAt }, 'entries', index.entries);
+    fs.writeFileSync(filePath, serialized, 'utf-8');
   } catch (err) {
     console.error(`[WARN] Failed to write repovine boundary index: ${(err as Error).message}`);
   }
