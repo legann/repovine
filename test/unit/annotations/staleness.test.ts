@@ -13,6 +13,11 @@ import {
   classifyStale,
   isPropagationStaleItem,
 } from '../../../src/annotations/store.js';
+import {
+  buildRuntimeResourceContentHashLookup,
+  getResourceContentHashForServiceId,
+  resolveServiceResourceContentHash,
+} from '../../../src/annotations/service-resource-hash.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../../src/config.js';
 import type {
   RepositoryGraph,
@@ -326,5 +331,68 @@ describe('domain content-hash two-scope policy (characterization)', () => {
     const g = packageOnlyGraph();
     expect(resolveDomainContentHash(g, pkgSnap(), 'domain:pkgdom', { ...DEFAULT_PROPAGATION_CONFIG, domainStalePolicy: 'path-only' }))
       .toEqual(computeDomainContentHash(g, pkgSnap(), 'domain:pkgdom'));
+  });
+});
+
+describe('runtime-resource multi-declaration set-hash', () => {
+  const runtimeId = 'resource:aws-lambda:Gateway';
+  function makeInfra(id: string, fileHash: string, resourceHash: string): InfraModuleInfo {
+    return {
+      id,
+      kind: 'sam',
+      filePath: `/abs/${id}.yaml`,
+      relativeFilePath: `${id}.yaml`,
+      contentHash: fileHash,
+      resources: [{
+        id: 'Gateway',
+        kind: 'lambda',
+        provider: 'aws',
+        contentHash: resourceHash,
+        attributes: { handler: 'src/gateway.handler' },
+      }],
+    };
+  }
+  const declA = makeInfra('infra:sam:stack-a.yaml', 'file-a', 'decl-a');
+  const declB = makeInfra('infra:sam:stack-b.yaml', 'file-b', 'decl-b');
+
+  it('resolver value is order-independent and identical with and without the lookup', () => {
+    const forward = makeSnapshot([], { infraModules: [declA, declB] });
+    const reversed = makeSnapshot([], { infraModules: [declB, declA] });
+
+    const scanForward = getResourceContentHashForServiceId(forward, runtimeId);
+    expect(scanForward).toBeDefined();
+    expect(getResourceContentHashForServiceId(reversed, runtimeId)).toBe(scanForward);
+    expect(scanForward).not.toBe('decl-a');
+    expect(scanForward).not.toBe('decl-b');
+
+    for (const snapshot of [forward, reversed]) {
+      const lookup = buildRuntimeResourceContentHashLookup(snapshot);
+      expect(lookup.resourceHashByServiceId.get(runtimeId)).toBe(scanForward);
+    }
+  });
+
+  it('written contentHash compares fresh against the lookup path', () => {
+    const graph = makeGraph(
+      [{ id: runtimeId, type: 'runtime-resource', label: 'Gateway', description: '' }],
+      [],
+    );
+    const snapshot = makeSnapshot([], { infraModules: [declA, declB] });
+    const written = resolveServiceResourceContentHash(graph, snapshot, runtimeId);
+    expect(written).toBeDefined();
+    const lookup = buildRuntimeResourceContentHashLookup(snapshot);
+    expect(resolveServiceResourceContentHash(graph, snapshot, runtimeId, lookup)).toBe(written);
+  });
+
+  it('single declaration returns the member hash verbatim', () => {
+    const snapshot = makeSnapshot([], { infraModules: [declA] });
+    expect(getResourceContentHashForServiceId(snapshot, runtimeId)).toBe('decl-a');
+    expect(buildRuntimeResourceContentHashLookup(snapshot).resourceHashByServiceId.get(runtimeId)).toBe('decl-a');
+  });
+
+  it('identical duplicate declarations reduce to the verbatim hash', () => {
+    const twin = makeInfra('infra:sam:stack-twin.yaml', 'file-twin', 'decl-a');
+    const snapshot = makeSnapshot([], { infraModules: [declA, twin] });
+    expect(getResourceContentHashForServiceId(snapshot, runtimeId)).toBe('decl-a');
+    expect(buildRuntimeResourceContentHashLookup(snapshot).resourceHashByServiceId.get(runtimeId)).toBe('decl-a');
   });
 });

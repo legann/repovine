@@ -28,9 +28,12 @@ import { HOOK_ACTIONS } from '../../dist/cli/client-capabilities.js';
  * variables are added. The machine running the suite may itself be inside a
  * client session; a leaked CLAUDE_PROJECT_DIR or CURSOR_WORKSPACE_ROOT would
  * silently redirect hook root resolution away from the fixture repo.
+ * NODE_OPTIONS is scrubbed because hook children are node processes asserted
+ * on strictly empty stderr; a debugger auto-attach bootloader or
+ * --trace-warnings there writes to stderr and fails every hook case.
  * Case-insensitive: Windows environment variable names are case-insensitive.
  */
-const SCRUBBED_ENV_KEY = /^(claude_|cursor_|repovine_|plugin_root$)/i;
+const SCRUBBED_ENV_KEY = /^(claude_|cursor_|repovine_|node_options$|plugin_root$)/i;
 
 export function makeScrubbedEnv() {
   const env = {};

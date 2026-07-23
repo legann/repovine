@@ -32,7 +32,8 @@ import { collectUiRouteEntrypoints } from '../../../src/interpreters/ui-entrypoi
 import { collectServiceTriggerEntrypoints } from '../../../src/interpreters/infra-runtime-links/entrypoints.js';
 import { rememberInterpreterEntrypoints } from '../../../src/stage2/interpreter/entrypoint-store.js';
 import type { InterpreterEntrypointContext } from '../../../src/interpreter/types.js';
-import type { RepositoryFactsSnapshot, RepositoryGraph, ModuleInfo, StoredAnnotation } from '../../../src/types.js';
+import type { InfraModuleInfo, RepositoryFactsSnapshot, RepositoryGraph, ModuleInfo, StoredAnnotation } from '../../../src/types.js';
+import { buildRuntimeResourceContentHashLookup } from '../../../src/annotations/service-resource-hash.js';
 
 let fsPromises: typeof import('node:fs/promises');
 let toolHandlers: Record<string, (ctx: McpToolRuntime, args: Record<string, unknown>) => unknown | Promise<unknown>>;
@@ -799,6 +800,86 @@ describe('inspect_node domain freshness', () => {
       annotationMeta?: { fresh?: boolean };
     };
     expect(view.annotationMeta!.fresh).toBe(true);
+  });
+});
+
+// ── inspect_node runtime-resource freshness (multi-declaration) ──
+
+describe('inspect_node runtime-resource freshness', () => {
+  // inspect_node resolves the resource hash without the queue's prebuilt lookup; both sides must
+  // agree on an id declared in several infra files. The stored value below is the queue's lookup
+  // value — inspect reporting it fresh is the inspect↔queue agreement the set-hash resolver
+  // guarantees, independent of infra file-scan order.
+  const gatewayId = 'resource:aws-lambda:Gateway';
+  const makeStack = (id: string, fileHash: string, resourceHash: string): InfraModuleInfo => ({
+    id,
+    kind: 'sam',
+    filePath: `/repo/${id}.yaml`,
+    relativeFilePath: `${id}.yaml`,
+    contentHash: fileHash,
+    resources: [{
+      id: 'Gateway',
+      kind: 'lambda',
+      provider: 'aws',
+      contentHash: resourceHash,
+      attributes: { handler: 'src/gateway.handler' },
+    }],
+  });
+  const resourceAnnotations = (storedHash: string) =>
+    ({
+      get: (id: string) =>
+        id === gatewayId
+          ? {
+              nodeId: gatewayId,
+              nodeType: 'runtime-resource',
+              contentHash: storedHash,
+              pass: 1,
+              updatedAt: '2024-01-01',
+              schemaVersion: 1,
+              annotation: { summary: 'Gateway resource' },
+            }
+          : undefined,
+    }) as unknown as RepovineState['annotations'];
+
+  function makeResourceCtx(storedHash: string, infraModules: InfraModuleInfo[]): McpToolRuntime {
+    const { graph, modulesById } = buildFixtureGraph();
+    addNode(graph, {
+      id: gatewayId,
+      type: 'runtime-resource',
+      label: 'Gateway',
+      description: 'Lambda',
+      data: { kind: 'lambda' },
+    });
+    const snapshot = makeSnapshot([...modulesById.values()]);
+    snapshot.infraModules = infraModules;
+    return makeCtx({ graph, modulesById, snapshot, annotations: resourceAnnotations(storedHash) });
+  }
+
+  const stacks = [
+    makeStack('infra:sam:stack-a.yaml', 'file-a', 'decl-a'),
+    makeStack('infra:sam:stack-b.yaml', 'file-b', 'decl-b'),
+  ];
+
+  it('reports fresh:true for a multi-declared resource stored with the queue lookup value, under both scan orders', async () => {
+    const snapshot = makeSnapshot([]);
+    snapshot.infraModules = stacks;
+    const queueValue = buildRuntimeResourceContentHashLookup(snapshot).resourceHashByServiceId.get(gatewayId);
+    expect(queueValue).toBeDefined();
+
+    for (const infraModules of [stacks, [...stacks].reverse()]) {
+      const view = (await buildInspectNodeDetail(makeResourceCtx(queueValue!, infraModules), { nodeId: gatewayId })) as {
+        annotationMeta?: { fresh?: boolean };
+      };
+      expect(view.annotationMeta).toBeDefined();
+      expect(view.annotationMeta!.fresh).toBe(true);
+    }
+  });
+
+  it('reports fresh:false for a stored single-declaration fragment hash', async () => {
+    const view = (await buildInspectNodeDetail(makeResourceCtx('decl-a', stacks), { nodeId: gatewayId })) as {
+      annotationMeta?: { fresh?: boolean };
+    };
+    expect(view.annotationMeta!.fresh).toBe(false);
   });
 });
 

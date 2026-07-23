@@ -56,7 +56,10 @@ describe('resolveNpmCli npm_execpath trust rule', () => {
 });
 
 test('runNode executes the current Node with argv array', () => {
-  const r = spawnLib.runNode(['-e', 'console.log(7 * 6)'], { encoding: 'utf-8' });
+  // The child must print a string: console.log with a number goes through util.inspect,
+  // which ANSI-colorizes even piped output when the inherited env carries FORCE_COLOR
+  // (jest sets it for workers in interactive terminals).
+  const r = spawnLib.runNode(['-e', 'process.stdout.write(String(7 * 6))'], { encoding: 'utf-8' });
   expect(r.status).toBe(0);
   expect(String(r.stdout).trim()).toBe('42');
 });
