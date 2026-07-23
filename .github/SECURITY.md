@@ -40,6 +40,14 @@ Do not run `npm audit fix --force`: it downgrades `@modelcontextprotocol/sdk`
 from 1.29.0 to 1.24.3 — a breaking major downgrade to a release predating the
 SDK's HTTP transport — and does not fix `sharp`.
 
+The agent-harness demo (`examples/agent-harness-demo`) carries its own lockfile
+and is gated by the same script and allowlist: the `harness-linux` CI job runs
+`audit-gate.mjs` in the demo directory. The `@hono/node-server` advisory reaches
+the demo through the same `@modelcontextprotocol/sdk` pin (a peer of
+`@anthropic-ai/claude-agent-sdk`); the harness runtime is a Linux container and
+speaks MCP over stdio, so the Windows `serve-static` path is unreachable there
+too.
+
 | Advisory | Package (path) | Status |
 | --- | --- | --- |
 | [GHSA-frvp-7c67-39w9](https://github.com/advisories/GHSA-frvp-7c67-39w9) | `@hono/node-server` via `@modelcontextprotocol/sdk` | Path traversal in `serve-static` on the HTTP transport (Windows). repovine runs over stdio; the HTTP path is unused. The fix needs `@hono/node-server` >= 2.0.5; the MCP SDK pins `^1.19.9`. Clears when the SDK adopts node-server 2.x. |

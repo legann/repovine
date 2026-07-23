@@ -134,6 +134,10 @@ jobs:
         run: npm ci
         working-directory: examples/agent-harness-demo
 
+      - name: Audit demo dependencies (same allowlist as the engine)
+        run: node ../../scripts/audit-gate.mjs
+        working-directory: examples/agent-harness-demo
+
       - name: Demo tests
         run: npm test
         working-directory: examples/agent-harness-demo
