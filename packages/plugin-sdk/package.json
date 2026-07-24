@@ -2,6 +2,12 @@
   "name": "@repovine/plugin-sdk",
   "version": "0.1.0",
   "description": "Public contract for authoring repovine source and IaC plugins.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/legann/repovine.git",
+    "directory": "packages/plugin-sdk"
+  },
+  "homepage": "https://github.com/legann/repovine#readme",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

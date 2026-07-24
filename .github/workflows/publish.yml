@@ -20,14 +20,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      id-token: write   # mint the OIDC token npm exchanges for a publish credential
     steps:
       - uses: actions/checkout@v5
 
+      # registry-url is intentionally omitted. When set, setup-node writes
+      # //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} into the .npmrc it
+      # manages; with no token that placeholder expands empty, npm treats auth as
+      # already configured, and the OIDC token exchange never runs (ENEEDAUTH/E404).
+      # npm defaults to registry.npmjs.org, so OIDC publishing works without it.
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
+
+      # Node 22 bundles npm 10.x. Staged publishing needs npm >= 11.15.0 (which
+      # also clears the >= 11.5.1 OIDC floor); Node 22.x satisfies the >= 22.14.0
+      # runtime floor. Stay on 11.x via the caret range.
+      - name: Upgrade npm for staged publishing
+        run: |
+          npm install -g 'npm@^11.15.0'
+          npm --version
 
       - name: Read package versions
         run: |
@@ -92,45 +104,76 @@ jobs:
           test -f dist/mcp/index.js
           head -1 dist/mcp/index.js | grep -qx '#!/usr/bin/env node'
 
-      - name: Publish plugin SDK (dry run)
+      # --dry-run packs and validates the tarball locally without contacting the
+      # registry, so it needs no auth and no OIDC. It exercises packaging only.
+      - name: Validate plugin SDK packaging (dry run)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
         run: npm publish -w @repovine/plugin-sdk --dry-run
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish root package (dry run)
+      - name: Validate root package packaging (dry run)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
         run: npm publish --dry-run
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish plugin SDK
+      # Staged publishing: `npm stage publish` uploads the tarball to a stage
+      # queue and authenticates over OIDC (no token). It has full parity with
+      # `npm publish`, so --provenance and --access public are valid and preserved.
+      # The version is NOT live until a maintainer approves it with 2FA.
+      #
+      # Idempotency: skip only when the exact version is already live. `npm view`
+      # of a pinned version is a public, exact-match read — no auth, no substring
+      # ambiguity (0.1.1 never matches 0.1.10). A version that is merely STAGED
+      # (pending approval) is deliberately not re-guarded: re-staging it fails
+      # loudly on the unique-version index, which correctly signals "approve or
+      # reject the pending stage", not "silently re-stage". `npm stage list` is not
+      # used — under a stage-only trusted publisher it may be unauthorized in CI,
+      # and its text output format is unspecified.
+      - name: Stage plugin SDK
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
         run: |
           if npm view "@repovine/plugin-sdk@${SDK_VERSION}" version >/dev/null 2>&1; then
-            echo "@repovine/plugin-sdk@${SDK_VERSION} is already published; skipping"
+            echo "@repovine/plugin-sdk@${SDK_VERSION} is already published (live); skipping stage"
           else
-            npm publish -w @repovine/plugin-sdk --provenance --access public
+            npm stage publish -w @repovine/plugin-sdk --provenance --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish root package
-        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Verify published packages
+      - name: Stage root package
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
         run: |
-          set -o pipefail
-          test "$(npm view "@repovine/plugin-sdk@${SDK_VERSION}" version)" = "${SDK_VERSION}"
-          test "$(npm view "repovine@${ROOT_VERSION}" version)" = "${ROOT_VERSION}"
+          if npm view "repovine@${ROOT_VERSION}" version >/dev/null 2>&1; then
+            echo "repovine@${ROOT_VERSION} is already published (live); skipping stage"
+          else
+            npm stage publish --provenance --access public
+          fi
 
-          smoke_dir="$(mktemp -d)"
-          trap 'rm -rf "$smoke_dir"' EXIT
-          cd "$smoke_dir"
-          NPM_CONFIG_CACHE="$smoke_dir/.npm-cache" npx -y "repovine@${ROOT_VERSION}" --help | grep -q 'repovine'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Staged versions are not on the read path (npm view / npm install 404) until
+      # approved, so live-package verification cannot run in CI. Print what was
+      # staged and the exact manual approval steps instead.
+      - name: Report staged versions for maintainer approval
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+        run: |
+          cat <<EOF
+          ============================================================
+          Packages are STAGED, not live. A maintainer must approve them.
+          ============================================================
+          Staged in this run:
+            @repovine/plugin-sdk@${SDK_VERSION}
+            repovine@${ROOT_VERSION}
+
+          Staged versions are not installable and do not appear in
+          'npm view' until a maintainer approves them.
+
+          Approve from a machine with interactive 2FA (an OIDC/CI token
+          cannot approve a stage):
+
+            npm stage list @repovine/plugin-sdk   # show the pending <stage-id>
+            npm stage view <stage-id>             # inspect tarball + metadata
+            npm stage approve <stage-id>          # publishes live, prompts 2FA
+
+            npm stage list repovine
+            npm stage view <stage-id>
+            npm stage approve <stage-id>
+
+          Discard a stage instead: npm stage reject <stage-id>
+          After approval, confirm live: npm view "repovine@${ROOT_VERSION}" version
+          ============================================================
+          EOF
