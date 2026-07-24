@@ -387,9 +387,9 @@ describe('PackageWorkerPool scheduling', () => {
     expect(workers[0]!.terminateCalls).toBe(1); // no clean exit within grace → force-terminate backstop
   });
 
-  // ── R1: worker-pool crash/hang hardening (reverses the §10.1 deferral) ──
+  // ── crash/hang hardening: a dead or misbehaving worker must never hang a caller promise ──
 
-  it('R1: a worker error rejects only that slot\'s job, not another slot\'s in-flight job', async () => {
+  it('a worker error rejects only that slot\'s job, not another slot\'s in-flight job', async () => {
     const pool = new PackageWorkerPoolCtor(poolOptions(2));
     const a = pool.submit(poolJob('a')); // → slot 0
     const b = pool.submit(poolJob('b')); // → slot 1
@@ -407,7 +407,7 @@ describe('PackageWorkerPool scheduling', () => {
     await pool.destroy();
   });
 
-  it('R1: postMessage failure while dispatching a queued job rejects it instead of hanging it', async () => {
+  it('postMessage failure while dispatching a queued job rejects it instead of hanging it', async () => {
     const pool = new PackageWorkerPoolCtor(poolOptions(1));
     const a = pool.submit(poolJob('a')); // → slot 0
     const b = pool.submit(poolJob('b')); // queued behind slot 0
@@ -424,7 +424,7 @@ describe('PackageWorkerPool scheduling', () => {
     await pool.destroy();
   });
 
-  it('R1: an unexpected worker exit (no preceding error) rejects its in-flight job', async () => {
+  it('an unexpected worker exit (no preceding error) rejects its in-flight job', async () => {
     const pool = new PackageWorkerPoolCtor(poolOptions(1));
     const a = pool.submit(poolJob('a'));
     const aCaught = a.catch(err => err as Error);
@@ -435,7 +435,7 @@ describe('PackageWorkerPool scheduling', () => {
     await pool.destroy();
   });
 
-  it('R1: a messageerror (undeserializable reply) rejects the in-flight job instead of hanging it', async () => {
+  it('a messageerror (undeserializable reply) rejects the in-flight job instead of hanging it', async () => {
     const pool = new PackageWorkerPoolCtor(poolOptions(1));
     const a = pool.submit(poolJob('a'));
     const aCaught = a.catch(err => err as Error);
@@ -446,7 +446,7 @@ describe('PackageWorkerPool scheduling', () => {
     await pool.destroy();
   });
 
-  it('R1: destroy() sweeps still-in-flight jobs so no caller promise hangs after teardown', async () => {
+  it('destroy() sweeps still-in-flight jobs so no caller promise hangs after teardown', async () => {
     const pool = new PackageWorkerPoolCtor(poolOptions(1));
     const a = pool.submit(poolJob('a'));
     const aCaught = a.catch(err => err as Error);
@@ -456,7 +456,7 @@ describe('PackageWorkerPool scheduling', () => {
     expect(await aCaught).toMatchObject({ message: 'worker pool destroyed' });
   });
 
-  it('R1: a stray reply for a non-current jobId does not free a busy slot (one-job-per-slot)', async () => {
+  it('a stray reply for a non-current jobId does not free a busy slot (one-job-per-slot)', async () => {
     const pool = new PackageWorkerPoolCtor(poolOptions(1));
     const a = pool.submit(poolJob('a')); // → slot 0, currentJobId = 'a'
     const b = pool.submit(poolJob('b')); // queued behind slot 0
@@ -476,7 +476,7 @@ describe('PackageWorkerPool scheduling', () => {
     await pool.destroy();
   });
 
-  it('R1: submit() after every worker died rejects instead of queueing a job that can never run', async () => {
+  it('submit() after every worker died rejects instead of queueing a job that can never run', async () => {
     const pool = new PackageWorkerPoolCtor(poolOptions(1));
     const a = pool.submit(poolJob('a'));
     const aCaught = a.catch(err => err as Error);

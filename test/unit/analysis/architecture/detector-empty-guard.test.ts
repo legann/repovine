@@ -1,5 +1,5 @@
 /**
- * WS A (finding F4): the architecture report fails loud on a cold detector registry instead of
+ * The architecture report fails loud on a cold detector registry instead of
  * silently returning zero findings. The guard lives at the shared entry (collectSortedFindings),
  * so both runRefactoringReport and runRefactoringOpportunityDetail are covered.
  */

@@ -1,5 +1,5 @@
 /**
- * WS C (finding F3): a read-only invariant check over the composed stage2 graph.
+ * A read-only invariant check over the composed stage2 graph.
  *
  * `composeRepositoryGraph` mutates one in-memory graph across the interpreter composer, an opt-in
  * inert-resource prune, and the domain passes. Nothing otherwise confirms that every stage1 snapshot

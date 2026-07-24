@@ -1,7 +1,7 @@
 /**
- * Regression locks for the analyze_architecture audit fixes (2026-07-12 plan):
- *  - WS A: graph-edge detectors ignore build-erased `import type` edges (metadata.isTypeOnly).
- *  - WS C: the server-client-boundary storage gate honors allowGenericStorageName under `strict`.
+ * Regression locks for two analyze_architecture detector fixes:
+ *  - graph-edge detectors ignore build-erased `import type` edges (metadata.isTypeOnly);
+ *  - the server-client-boundary storage gate honors allowGenericStorageName under `strict`.
  */
 import { describe, expect, it } from '@jest/globals';
 import { detectBoundary, detectServerClientBoundary } from '../../../../src/analysis/architecture/detectors.js';
@@ -42,7 +42,7 @@ function scopeOf(moduleIds: string[], kind: RefactoringScope['kind'] = 'all'): R
   return { kind, scope: 'all', moduleIds: new Set(moduleIds), serviceIds: new Set(), domainIds: new Set() };
 }
 
-describe('WS A — detectBoundary ignores type-only import edges', () => {
+describe('detectBoundary ignores type-only import edges', () => {
   // pkg:a/importer imports pkg:b/target directly (bypassing pkg:b's index barrel).
   const nodes: GraphNode[] = [
     { id: 'pkg:a', type: 'package', label: 'a', description: '' },
@@ -77,7 +77,7 @@ describe('WS A — detectBoundary ignores type-only import edges', () => {
   });
 });
 
-describe('WS C — server-client-boundary storage gate honors allowGenericStorageName', () => {
+describe('server-client-boundary storage gate honors allowGenericStorageName', () => {
   const strict = { thresholds: { minTargets: 1, allowGenericStorageName: false } };
 
   function run(clientImports: ModuleInfo['imports'], targets: ModuleInfo[]) {

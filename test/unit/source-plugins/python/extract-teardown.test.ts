@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 
-// R4: on failure/overflow the child must be SIGKILLed (uncatchable), not sent a plain SIGTERM a Python
+// On failure/overflow the child must be SIGKILLed (uncatchable), not sent a plain SIGTERM a Python
 // process can ignore — otherwise it survives the reject with the backstop timer already cleared.
 class FakeChild extends EventEmitter {
   stdout = new EventEmitter();
@@ -13,7 +13,7 @@ class FakeChild extends EventEmitter {
   kill(sig?: string): boolean { this.killSignal = sig; return true; }
 }
 
-describe('runPythonAst subprocess teardown (R4)', () => {
+describe('runPythonAst subprocess teardown', () => {
   afterEach(() => {
     jest.unstable_unmockModule('node:child_process');
     jest.resetModules();

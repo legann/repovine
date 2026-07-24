@@ -2,29 +2,29 @@
 
 [![CI](https://github.com/legann/repovine/actions/workflows/ci.yml/badge.svg)](https://github.com/legann/repovine/actions/workflows/ci.yml)
 
-**Intent-driven, context-compiled, contract-verified development.**
+**Repository context assembled and conveyed to coding agents.**
 
-*Codebase knowledge, conveyed at the moment of decision.*
+## The repository knowledge layer
 
-## The open-source repository knowledge layer for coding agents
+**A repository-agnostic core.** repovine normalizes a repository's source code and infrastructure definitions into one deterministic, queryable model.
 
-**A repository-agnostic core.** repovine normalizes a software repository into a queryable context model for coding agents. Its structural layer is a deterministic graph built from source code and infrastructure. TypeScript is first-class; Python currently has partial structural coverage. New languages and infrastructure formats extend through public source and IaC producer contracts; core owns graph identity, ontology, linking, and query semantics.
+**Contract boundaries by design.** The graph connects repository units through shared code, template, and runtime contracts. These boundaries support repository-scale navigation, dependency impact, runtime flow, and configuration.
 
-**Contract boundaries by design.** The graph models cross-unit contract boundaries. The code hierarchy stops at exported symbols; structural relations such as containment, imports, re-exports, `implements`, template composition, and runtime wiring connect those boundaries. This level supports repository-scale navigation, impact, runtime topology, and configuration while source bodies and execution establish implementation behavior.
+**Versioned knowledge with explicit ownership.** Version-controlled annotations attach intent, invariants, risks, and operational knowledge to graph nodes. Agents and developers author them; repovine checks freshness and structural consistency against repository state.
 
-**Versioned knowledge with explicit ownership.** Version-controlled **annotations** evolve with the repository and form the durable layer for authored repository knowledge. They attach intent, invariants, risks, and operational constraints to graph nodes. Through MCP, coding agents query bounded graph and annotation context while they work. repovine validates the parts of graph and annotation claims that can be compared with repository state. Coding agents own task interpretation, implementation, and behavioral verification. Developers and harnesses own execution policy and final acceptance.
+Together, these layers support **intent-driven, context-compiled, contract-verified development**. Task intent guides MCP context assembly, and observable claims are checked against repository state.
 
-Together, these layers support **intent-driven, context-compiled, contract-verified development**. The agent brings task intent; MCP assembles current repository context; repovine checks observable repository claims. On greenfield work, the client creates the first scaffold and enters the context loop after refresh.
+**Checkout-local by design.** The live graph and indexes are built from each checkout's working tree and run in memory. Configuration and authored knowledge travel through Git. No database is required.
 
-> **Benchmarked on real repositories.** The benchmark covers two task classes: **correctness (change completeness)**, where the requested behavior and its required related updates must be present; and **restraint (scope control)**, where the requested change must land while protected surfaces remain unchanged. Across both classes, **90% of Repovine runs** passed their case-specific diff gate, compared with **12.5% of baseline runs**. [Explore the results](benchmarks/README.md).
-
-**Checkout-local by design.** repovine runs as a stdio MCP server inside each checkout, so its graph reflects the working tree being changed. The live graph and indexes run in memory. No database is required. Configuration, domain layout, and annotations live in Git and provide shared repository context across developers, agents, worktrees, and CI.
+**Benchmarks.** Across correctness and restraint tasks drawn from large public software repositories, **90% of Repovine runs** passed their case-specific diff gate, compared with **12.5% of baseline runs**. [Explore the results](benchmarks/README.md).
 
 Start in an existing repository:
 
 ```bash
 npx repovine setup claude # or codex, cursor, all
 ```
+
+`setup` connects the selected client to repovine, adds repovine skills, hooks, and instructions, and builds the repository graph. Existing repovine configuration, annotations, and project specialists are preserved.
 
 ## The repovine model
 

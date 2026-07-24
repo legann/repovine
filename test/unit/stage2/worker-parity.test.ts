@@ -80,11 +80,11 @@ describe('composeRepositoryGraphAsync (Stage 2 worker offload)', () => {
     expect(normalizeGraph(offloaded)).toEqual(normalizeGraph(inline));
   });
 
-  // R5: interpreter entrypoints live in a process-local WeakMap keyed by the graph object; structured
+  // Interpreter entrypoints live in a process-local WeakMap keyed by the graph object; structured
   // clone hands the parent a fresh graph with no WeakMap entry, so the worker must carry them across the
   // boundary and the parent re-key them. normalizeGraph is blind to this sidecar — assert it directly, on
   // a route-bearing fixture so the assertion is not vacuous (other fixtures yield zero entrypoints).
-  it('carries interpreter entrypoints across the worker boundary (R5)', async () => {
+  it('carries interpreter entrypoints across the worker boundary', async () => {
     const snapshot = await snapshotOf('nestjs-modular');
     const inline = composeRepositoryGraph(snapshot);
     const inlineEntrypoints = getInterpreterEntrypoints(inline);

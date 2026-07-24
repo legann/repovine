@@ -54,7 +54,7 @@ describe('createLimiter', () => {
     await expect(limit(async () => 42)).resolves.toBe(42);
   });
 
-  it('a caller cancelled while queued leaves the line immediately, not after admission (R9)', async () => {
+  it('a caller cancelled while queued leaves the line immediately, not after admission', async () => {
     const limit = createLimiter(1);
     let releaseHolder = (): void => undefined;
     // Occupy the only slot with a task that will not finish until we let it, so the next call queues.

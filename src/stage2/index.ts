@@ -57,7 +57,7 @@ export function composeRepositoryGraph(
   logDomains(graph);
   // Node view fields are computed on-demand by buildNodeView
 
-  // Read-only invariant gate (WS C / F3): every snapshot record projected into the graph, no dangling
+  // Read-only invariant gate: every snapshot record projected into the graph, no dangling
   // edge. Healthy graphs produce zero problems, so this is silent in normal operation. It throws under
   // REPOVINE_DEV (git checkout / CI) to catch a pass regression at the source, and otherwise warns.
   const problems = validateComposedGraph(graph, snapshot);

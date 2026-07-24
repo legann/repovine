@@ -7,7 +7,7 @@ import * as realFsPromises from 'node:fs/promises';
 // R7/H4: directory-open failures are fail-closed except for a narrow Windows-only unsupported policy.
 // The fs namespace is frozen (can't jest.spyOn it), so inject the error via a module mock and override
 // process.platform (a configurable property) to exercise both sides of the platform gate.
-describe('atomic writer directory-open errno (R7)', () => {
+describe('atomic writer directory-open errno', () => {
   let root = '';
   const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
 

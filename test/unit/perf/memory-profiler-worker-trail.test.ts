@@ -3,11 +3,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-// R11: in a worker isolate (isMainThread=false) the profiler must NOT create or truncate the shared
+// In a worker isolate (isMainThread=false) the profiler must NOT create or truncate the shared
 // crash-trail file — a Stage 2 worker builds its own profiler, and truncating would wipe the main
 // thread's Stage 1 trail (and concurrent appends would interleave). Mock the worker_threads flag so
 // the constructor takes the off-main-thread branch.
-describe('MemoryProfiler crash-trail off the main thread (R11)', () => {
+describe('MemoryProfiler crash-trail off the main thread', () => {
   const originalProfile = process.env.REPOVINE_PROFILE;
   const originalProfileFile = process.env.REPOVINE_PROFILE_FILE;
   let tmpDir: string;

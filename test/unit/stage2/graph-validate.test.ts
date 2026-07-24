@@ -1,5 +1,5 @@
 /**
- * WS C (finding F3): the read-only post-composition invariant check. A healthy graph produces no
+ * The read-only post-composition invariant check. A healthy graph produces no
  * problems; a missing snapshot record or a dangling edge is reported.
  */
 import { validateComposedGraph, summarizeGraphValidationProblems } from '../../../src/stage2/graph-validate.js';

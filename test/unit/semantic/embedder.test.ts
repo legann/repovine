@@ -10,13 +10,13 @@ import {
   __setTransformersModuleForTest,
 } from '../../../src/semantic/embedder.js';
 
-// R8: the embed serializer and the per-model pipeline memo live at module scope, so two embedder
+// The embed serializer and the per-model pipeline memo live at module scope, so two embedder
 // instances (e.g. two live generations across a refresh / reloadConfig) share one inference serializer
 // and one loaded model. Per-instance state would run concurrent ONNX inference and load the model twice.
 
 type FakeExtractor = (texts: string[], opts: unknown) => Promise<{ tolist(): number[][] }>;
 
-describe('LocalTransformersEmbedder module-scoped inference (R8)', () => {
+describe('LocalTransformersEmbedder module-scoped inference', () => {
   let pipelineCreations: number;
   let activeInference: number;
   let maxActiveInference: number;

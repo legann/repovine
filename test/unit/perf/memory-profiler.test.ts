@@ -112,7 +112,7 @@ describe('MemoryProfiler', () => {
     expect(after).toContain('new-phase-C');
   });
 
-  it('reset() clears counters so a build reports its own numbers, not the prior build\'s (R10)', () => {
+  it('reset() clears counters so a build reports its own numbers, not the prior build\'s', () => {
     const profiler = MemoryProfiler.ensure();
     // Simulate a prior build that set a counter on the process-global singleton.
     profiler.setCounter('searchIndexTokens', 9999);

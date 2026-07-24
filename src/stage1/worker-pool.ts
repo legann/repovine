@@ -112,7 +112,9 @@ export class PackageWorkerPool {
         // Free the slot only when this reply is for the job this worker is running. A stray/duplicate
         // reply for a different jobId must not free a slot busy with another job (one-job-per-slot). The
         // current job may already be gone from pendingByJobId (swept by a crash elsewhere) — the
-        // currentJobId match still frees the slot (§10.3 leak), it just has nothing to resolve.
+        // currentJobId match still frees the slot, it just has nothing to resolve. Skipping the free in
+        // that case would leak the slot: it would stay marked busy forever and the pool would run one
+        // worker short for the rest of the build.
         if (slot.currentJobId === msg.jobId) this.clearSlot(slot);
         const job = this.pendingByJobId.get(msg.jobId);
         if (job) {
