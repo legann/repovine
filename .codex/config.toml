@@ -35,7 +35,8 @@ matcher = "Edit|Write|NotebookEdit|apply_patch"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/boundary-notice.js"'
+command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/repovine-client-dispatcher.mjs" boundary-notice codex'
+command_windows = 'node ".codex/hooks/repovine-client-dispatcher.mjs" boundary-notice codex'
 timeout = 5
 statusMessage = "Checking repovine boundary surface"
 
@@ -44,7 +45,8 @@ matcher = "Edit|Write|NotebookEdit|apply_patch|Bash"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"
-command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/stale-graph-notice.js"'
+command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/repovine-client-dispatcher.mjs" stale-graph-notice codex'
+command_windows = 'node ".codex/hooks/repovine-client-dispatcher.mjs" stale-graph-notice codex'
 timeout = 5
 statusMessage = "Checking repovine graph freshness"
 
@@ -53,7 +55,8 @@ matcher = "startup|resume|clear"
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/session-mcp-hint.js"'
+command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/repovine-client-dispatcher.mjs" session-mcp-hint codex'
+command_windows = 'node ".codex/hooks/repovine-client-dispatcher.mjs" session-mcp-hint codex'
 timeout = 5
 statusMessage = "Loading repovine MCP reminder"
 # END repovine hooks

@@ -11,7 +11,7 @@ If the MCP call fails with a connection error, the server is not running. Ask th
 
 If a tool returns `status:"building"`, call `get_build_status({ "waitSec": 45 })` instead of polling. If the ETA is large, tell the user and continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call `get_build_status({ "cancel": true })`; it stops Stage 1 workers and returns `cancelled` (no graph) or keeps a prior `ready` graph.
 
-Context Session Quality scores repovine MCP responses, not agent prose. Pass `contextSessionId` on MCP calls and inspect with `get_context_session_quality`; harnesses recompute via `repovine agents compliance`. Hard gates use `threshold` / `qualityThreshold`; soft gates use `warningThreshold`. Harness mode can fail weak required sessions; client mode emits warnings. Reference: `docs/context-quality.md` in the repovine package (`node_modules/repovine/docs/context-quality.md` when installed).
+Context Session Quality scores repovine MCP responses, not agent prose. Pass `contextSessionId` on MCP calls and inspect with `get_context_session_quality`; harnesses recompute via `repovine agents compliance`. Hard gates use `threshold` / `qualityThreshold`; soft gates use `warningThreshold`. Harness mode can fail weak required sessions; client mode emits warnings. Reference: `docs/context-quality.md` in the repovine source repository.
 
 ## Working loop
 
@@ -63,5 +63,5 @@ Normal client conversations are not Agent Protocol runs. Finish ordinary client 
 
 Only return an **Agent Protocol v1 `AgentRunResult`** when a harness/CI provides an `AgentAssignment` or `runId`, a command asks for `validate-result` / `compliance`, or the user explicitly requests an `AgentRunResult`. For the `main` role, required fields are: `summary`, `scope`, `compliance`.
 
-In explicit protocol mode, pass `contextSessionId` on repovine MCP calls, run `refresh_context` after file changes, and never hand-edit `repovine.annots.json`; use `write_annotation`, `merge_annotations`, and `validate_annotations` for annotation state. Schema and field reference: `repovine agents protocol --schemas`, or `docs/agent-protocol.md` in the repovine package (`node_modules/repovine/docs/agent-protocol.md` when installed).
+In explicit protocol mode, pass `contextSessionId` on repovine MCP calls, run `refresh_context` after file changes, and never hand-edit `repovine.annots.json`; use `write_annotation`, `merge_annotations`, and `validate_annotations` for annotation state. Schema and field reference: `repovine agents protocol --schemas`, or `docs/agent-protocol.md` in the repovine source repository.
 <!-- repovine:agents-md:end -->

@@ -3,22 +3,22 @@
   "hooks": {
     "afterFileEdit": [
       {
-        "command": "node \".cursor/hooks/stale-graph-notice.js\""
+        "command": "node \".cursor/hooks/repovine-client-dispatcher.mjs\" stale-graph-notice cursor"
       }
     ],
     "afterShellExecution": [
       {
-        "command": "node \".cursor/hooks/stale-graph-notice.js\""
+        "command": "node \".cursor/hooks/repovine-client-dispatcher.mjs\" stale-graph-notice cursor"
       }
     ],
     "sessionStart": [
       {
-        "command": "node \".cursor/hooks/session-mcp-hint.js\""
+        "command": "node \".cursor/hooks/repovine-client-dispatcher.mjs\" session-mcp-hint cursor"
       }
     ],
     "preToolUse": [
       {
-        "command": "node \".cursor/hooks/boundary-notice.js\""
+        "command": "node \".cursor/hooks/repovine-client-dispatcher.mjs\" boundary-notice cursor"
       }
     ]
   }

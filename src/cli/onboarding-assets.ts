@@ -1609,7 +1609,7 @@ You are a **leaf subagent** for this repository. The main chat agent delegates s
 5. **Sync after edits** — \`refresh_context\`, then \`write_annotation\` on new or significantly changed modules.
 6. **Return a handoff** — list files touched, contracts, env vars, and what sibling agents still need.
 
-Baseline repovine policy lives in \`AGENTS.md\` and client rules (Cursor: \`.cursor/rules/repovine-policy.mdc\`). Protocol projection details ship at \`node_modules/repovine/docs/agent-protocol.md#projections\`.
+Baseline repovine policy lives in \`AGENTS.md\` and client rules (Cursor: \`.cursor/rules/repovine-policy.mdc\`). Protocol projection details in the repovine source repository: \`docs/agent-protocol.md#projections\`.
 
 ## Scope
 

@@ -531,11 +531,7 @@ function writeClaudeSkills(cwd: string, force: boolean): FileResult[] {
   return writeRenderedAssets(cwd, [...COMMANDS, ...CLAUDE_SHARED_SKILLS], INIT_CAPABILITY_MATRIX.claude.skills.target, force);
 }
 
-/**
- * Write the client's hooks dir: one managed dispatcher file. Per-event scripts
- * written by earlier repovine versions are deleted in the same pass — a stale
- * copy would keep reporting an outdated boundary-index schema through doctor.
- */
+/** Write the client's hooks dir: one managed dispatcher file for every hook action. */
 function writeHookDispatcher(cwd: string, client: ClientId, force: boolean): FileResult[] {
   const hooksDir = path.join(cwd, ...CLIENT_CAPABILITIES[client].hooks.projectScriptsDir.split('/'));
   const results: FileResult[] = [

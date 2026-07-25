@@ -3,7 +3,9 @@ import {
   PROJECTION_VERSION,
   AGENT_PROTOCOL_MARKER,
   renderStructuredResultBlock,
+  renderResultBlockSection,
   renderClientProtocolGuidanceSection,
+  renderContextQualityGuidance,
   renderMainAgentProtocolSection,
   renderImplementerBrief,
 } from '../../../src/cli/agent-projection.js';
@@ -22,6 +24,7 @@ import {
   REFRESH_COMMAND,
   REPO_EXPLORER_AGENT,
   PROJECT_SAMPLE_SUBAGENT_MD,
+  PROJECT_SUBAGENT_TEMPLATE_MD,
   RUNTIME_HANDOFF_WORKFLOW_NOTE,
   STATUS_COMMAND,
   renderSkillMarkdown,
@@ -73,6 +76,28 @@ describe('agent projection helpers', () => {
     expect(section).toContain('repovine.annots.json');
     expect(section).toContain('implementer');
     expect(section).toContain('filesChanged');
+  });
+
+  it('uses source-repository doc pointers without claiming a consumer install path', () => {
+    const manifest = getManifest('project-subagent-sample')!;
+    const protocolSurfaces = [
+      renderResultBlockSection(manifest),
+      renderClientProtocolGuidanceSection(manifest),
+      renderMainAgentProtocolSection(),
+    ];
+    const contextSurface = renderContextQualityGuidance();
+    const onboardingSurface = PROJECT_SUBAGENT_TEMPLATE_MD;
+    const renderedSurfaces = [...protocolSurfaces, contextSurface, onboardingSurface];
+
+    for (const surface of renderedSurfaces) {
+      expect(surface).not.toContain('node_modules/repovine/docs');
+    }
+    for (const surface of protocolSurfaces) {
+      expect(surface).toContain('repovine agents protocol --schemas');
+      expect(surface).toContain('docs/agent-protocol.md');
+    }
+    expect(contextSurface).toContain('docs/context-quality.md');
+    expect(onboardingSurface).toContain('docs/agent-protocol.md#projections');
   });
 
   it('bakes the current projection version into the marker', () => {

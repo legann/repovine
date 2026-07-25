@@ -167,7 +167,7 @@ Every list field is a flat array of strings. One \`testsRun\` entry is one strin
 
 ${OBSERVABLE_CLAIMS_VALIDATION}
 
-Field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine package (\`node_modules/repovine/${AGENT_PROTOCOL_GUIDE_PATH}\` when installed).`;
+Field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
@@ -194,7 +194,7 @@ In explicit protocol mode, ${OBSERVABLE_CLAIMS_VALIDATION}
 
 Annotation quality has three orthogonal axes, so the \`quality.score\` (0–10) means **completeness only — not correctness or trust**. repovine separately validates \`quality.consistency\` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-\`pure\` while the graph detects side effects) and, as an observable signal over \`annotationsWritten\`, **provenance**: every annotated code module must have been \`inspect_node\`-ed (an \`export:\` of it counts; a \`pkg:\`/\`domain:\` does not) or edited in the SAME \`contextSessionId\` before \`write_annotation\`. So inspect the node you annotate in the same session, and never fill a field you cannot back from \`inspect_node\` or source — an empty field beats a fabricated one.
 
-Schema and field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine package (\`node_modules/repovine/${AGENT_PROTOCOL_GUIDE_PATH}\` when installed).`;
+Schema and field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
@@ -215,7 +215,7 @@ Normal client conversations are not Agent Protocol runs. Finish ordinary client 
 
 Only return an **Agent Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** when a harness/CI provides an \`AgentAssignment\` or \`runId\`, a command asks for \`validate-result\` / \`compliance\`, or the user explicitly requests an \`AgentRunResult\`. For the \`${main.role}\` role, required fields are: ${required}.
 
-In explicit protocol mode, pass \`contextSessionId\` on repovine MCP calls, run \`refresh_context\` after file changes, and never hand-edit \`repovine.annots.json\`; use \`write_annotation\`, \`merge_annotations\`, and \`validate_annotations\` for annotation state. Schema and field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine package (\`node_modules/repovine/${AGENT_PROTOCOL_GUIDE_PATH}\` when installed).`;
+In explicit protocol mode, pass \`contextSessionId\` on repovine MCP calls, run \`refresh_context\` after file changes, and never hand-edit \`repovine.annots.json\`; use \`write_annotation\`, \`merge_annotations\`, and \`validate_annotations\` for annotation state. Schema and field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
@@ -288,7 +288,7 @@ Honesty rules (repovine re-checks all of this against the real graph):
 
 /** Context Session Quality guidance for AGENTS.md and client rules. */
 export function renderContextQualityGuidance(): string {
-  return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine agents compliance\`. Hard gates use \`threshold\` / \`qualityThreshold\`; soft gates use \`warningThreshold\`. Harness mode can fail weak required sessions; client mode emits warnings. Reference: \`docs/context-quality.md\` in the repovine package (\`node_modules/repovine/docs/context-quality.md\` when installed).`;
+  return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine agents compliance\`. Hard gates use \`threshold\` / \`qualityThreshold\`; soft gates use \`warningThreshold\`. Harness mode can fail weak required sessions; client mode emits warnings. Reference: \`docs/context-quality.md\` in the repovine source repository.`;
 }
 
 /** Markers/snippets the doctor expects in every protocol-governed asset. */

@@ -95,5 +95,5 @@ In explicit protocol mode, repovine validates observable claims: declared graph 
 
 Annotation quality has three orthogonal axes, so the `quality.score` (0–10) means **completeness only — not correctness or trust**. repovine separately validates `quality.consistency` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-`pure` while the graph detects side effects) and, as an observable signal over `annotationsWritten`, **provenance**: every annotated code module must have been `inspect_node`-ed (an `export:` of it counts; a `pkg:`/`domain:` does not) or edited in the SAME `contextSessionId` before `write_annotation`. So inspect the node you annotate in the same session, and never fill a field you cannot back from `inspect_node` or source — an empty field beats a fabricated one.
 
-Schema and field reference: `repovine agents protocol --schemas`, or `docs/agent-protocol.md` in the repovine package (`node_modules/repovine/docs/agent-protocol.md` when installed).
+Schema and field reference: `repovine agents protocol --schemas`, or `docs/agent-protocol.md` in the repovine source repository.
 '''

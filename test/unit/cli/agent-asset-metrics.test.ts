@@ -33,6 +33,8 @@ describe('generated asset metrics helper', () => {
     expect(metrics.totals.alwaysOnEstimatedTokens).toBe(expectedAlwaysOnTokens);
     expect(metrics.snippetCounts.annotationsMcpOnly).toBeGreaterThan(0);
     expect(metrics.largestFiles.length).toBeGreaterThan(0);
+    expect(metrics.byClass.hooks.files).toBe(2);
+    expect(metrics.files.some(file => file.path.endsWith('hooks/repovine-client-dispatcher.mjs'))).toBe(true);
   });
 
   it('keeps Cursor and Claude scorecards separated in mixed init output', () => {
@@ -47,6 +49,7 @@ describe('generated asset metrics helper', () => {
     expect(cursor.byClass.rules.alwaysOnChars).toBe(cursor.totals.alwaysOnChars);
     expect(claude.byClass.instructions.alwaysOnChars).toBeGreaterThan(0);
     expect(claude.byClass.instructions.alwaysOnChars).toBeLessThan(9000);
+    expect(claude.files.some(file => file.path.endsWith('hooks/repovine-client-dispatcher.mjs'))).toBe(true);
   });
 
   it('collects Codex scorecard data with AGENTS.md and shared skills', () => {
@@ -61,5 +64,6 @@ describe('generated asset metrics helper', () => {
     expect(metrics.byClass.instructions.alwaysOnChars).toBeLessThan(8000);
     expect(metrics.byClass['shared-skills']?.files ?? 0).toBeGreaterThan(0);
     expect(metrics.byClass['hooks-and-config']?.files ?? 0).toBeGreaterThan(0);
+    expect(metrics.files.some(file => file.path.endsWith('hooks/repovine-client-dispatcher.mjs'))).toBe(true);
   });
 });

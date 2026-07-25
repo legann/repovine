@@ -6,7 +6,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stale-graph-notice.js\""
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/repovine-client-dispatcher.mjs",
+              "stale-graph-notice",
+              "claude"
+            ]
           }
         ]
       }
@@ -16,7 +21,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-mcp-hint.js\""
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/repovine-client-dispatcher.mjs",
+              "session-mcp-hint",
+              "claude"
+            ]
           }
         ]
       }
@@ -27,7 +37,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/boundary-notice.js\""
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/repovine-client-dispatcher.mjs",
+              "boundary-notice",
+              "claude"
+            ]
           }
         ]
       }

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { CLIENT_DISPATCHER_FILENAME } from '../../src/cli/dispatcher/index.js';
 
 export type AssetMetricsClient = 'cursor' | 'claude' | 'codex';
 
@@ -151,9 +152,7 @@ function classSpecsForClient(client: AssetMetricsClient): AssetClassSpec[] {
         className: 'hooks',
         root: '.cursor',
         include: rel => rel === path.join('.cursor', 'hooks.json')
-          || rel === path.join('.cursor', 'hooks', 'boundary-notice.js')
-          || rel === path.join('.cursor', 'hooks', 'stale-graph-notice.js')
-          || rel === path.join('.cursor', 'hooks', 'session-mcp-hint.js'),
+          || rel === path.join('.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME),
       },
       {
         className: 'shared-skills',
@@ -181,9 +180,7 @@ function classSpecsForClient(client: AssetMetricsClient): AssetClassSpec[] {
         className: 'hooks',
         root: '.claude',
         include: rel => rel === path.join('.claude', 'settings.json')
-          || rel === path.join('.claude', 'hooks', 'boundary-notice.js')
-          || rel === path.join('.claude', 'hooks', 'stale-graph-notice.js')
-          || rel === path.join('.claude', 'hooks', 'session-mcp-hint.js'),
+          || rel === path.join('.claude', 'hooks', CLIENT_DISPATCHER_FILENAME),
       },
     ];
   }
@@ -198,9 +195,7 @@ function classSpecsForClient(client: AssetMetricsClient): AssetClassSpec[] {
       className: 'hooks-and-config',
       root: '.codex',
       include: rel => rel === path.join('.codex', 'config.toml')
-        || rel === path.join('.codex', 'hooks', 'boundary-notice.js')
-        || rel === path.join('.codex', 'hooks', 'stale-graph-notice.js')
-        || rel === path.join('.codex', 'hooks', 'session-mcp-hint.js'),
+        || rel === path.join('.codex', 'hooks', CLIENT_DISPATCHER_FILENAME),
     },
     {
       className: 'shared-skills',

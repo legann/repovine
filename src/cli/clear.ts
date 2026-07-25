@@ -716,9 +716,7 @@ export function clearWorkspace(cwd: string, options: ClearOptions): ClearResult[
   results.push(removeGitignoreBlock(cwd, opts));
 
   const generatedFiles = generatedAssetFiles();
-  // Current hook layout: one dispatcher per client. The per-event script paths
-  // below stay listed so clear also removes installs written by earlier
-  // repovine versions.
+  // One dispatcher per client serves every hook action.
   generatedFiles.set(path.join('.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME), {
     relativePath: path.join('.cursor', 'hooks', CLIENT_DISPATCHER_FILENAME),
   });
@@ -727,33 +725,6 @@ export function clearWorkspace(cwd: string, options: ClearOptions): ClearResult[
   });
   generatedFiles.set(path.join('.codex', 'hooks', CLIENT_DISPATCHER_FILENAME), {
     relativePath: path.join('.codex', 'hooks', CLIENT_DISPATCHER_FILENAME),
-  });
-  generatedFiles.set(path.join('.cursor', 'hooks', 'boundary-notice.js'), {
-    relativePath: path.join('.cursor', 'hooks', 'boundary-notice.js'),
-  });
-  generatedFiles.set(path.join('.claude', 'hooks', 'boundary-notice.js'), {
-    relativePath: path.join('.claude', 'hooks', 'boundary-notice.js'),
-  });
-  generatedFiles.set(path.join('.codex', 'hooks', 'boundary-notice.js'), {
-    relativePath: path.join('.codex', 'hooks', 'boundary-notice.js'),
-  });
-  generatedFiles.set(path.join('.cursor', 'hooks', 'stale-graph-notice.js'), {
-    relativePath: path.join('.cursor', 'hooks', 'stale-graph-notice.js'),
-  });
-  generatedFiles.set(path.join('.cursor', 'hooks', 'session-mcp-hint.js'), {
-    relativePath: path.join('.cursor', 'hooks', 'session-mcp-hint.js'),
-  });
-  generatedFiles.set(path.join('.claude', 'hooks', 'stale-graph-notice.js'), {
-    relativePath: path.join('.claude', 'hooks', 'stale-graph-notice.js'),
-  });
-  generatedFiles.set(path.join('.claude', 'hooks', 'session-mcp-hint.js'), {
-    relativePath: path.join('.claude', 'hooks', 'session-mcp-hint.js'),
-  });
-  generatedFiles.set(path.join('.codex', 'hooks', 'stale-graph-notice.js'), {
-    relativePath: path.join('.codex', 'hooks', 'stale-graph-notice.js'),
-  });
-  generatedFiles.set(path.join('.codex', 'hooks', 'session-mcp-hint.js'), {
-    relativePath: path.join('.codex', 'hooks', 'session-mcp-hint.js'),
   });
 
   for (const file of generatedFiles.values()) {
