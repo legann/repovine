@@ -126,7 +126,7 @@ function readClassFiles(
       return {
         client,
         className: spec.className,
-        path: rel,
+        path: rel.split(path.sep).join('/'),
         chars,
         estimatedTokens: Math.ceil(chars / 4),
         alwaysOn: spec.alwaysOn?.(rel) ?? false,
