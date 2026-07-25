@@ -5,7 +5,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { jest } from '@jest/globals';
-import { loadDomainsConfig, resolveDomainToCanonical, getPathBasedDomains, evaluateBasenameCandidate, matchFileAsDomain, globToRegex, splitBasename, collectAllDomainTags, packageShortName, matchesInfraResourceExclude } from '../../../src/stage2/domains.js';
+import { loadDomainsConfig, resolveDomainToCanonical, getPathBasedDomains, evaluateBasenameCandidate, matchFileAsDomain, compileGlob, splitBasename, collectAllDomainTags, packageShortName, matchesInfraResourceExclude } from '../../../src/stage2/domains.js';
 import { createEmptyGraph, addNode, addEdge } from '../../../src/graph/index.js';
 import type { RepositoryFactsSnapshot, ModuleInfo } from '../../../src/types.js';
 
@@ -153,18 +153,18 @@ describe('splitBasename', () => {
   });
 });
 
-describe('globToRegex', () => {
+describe('compileGlob', () => {
   it('matches simple file glob', () => {
-    expect(globToRegex('*.ts').test('a.ts')).toBe(true);
-    expect(globToRegex('*.ts').test('dir/a.ts')).toBe(false); // * doesn't cross /
+    expect(compileGlob('*.ts').test('a.ts')).toBe(true);
+    expect(compileGlob('*.ts').test('dir/a.ts')).toBe(false); // * doesn't cross /
   });
   it('matches recursive glob with **', () => {
-    expect(globToRegex('**/*.controller.ts').test('src/users/users.controller.ts')).toBe(true);
-    expect(globToRegex('**/functions/src/*.ts').test('services/functions/src/webhook-handler.ts')).toBe(true);
+    expect(compileGlob('**/*.controller.ts').test('src/users/users.controller.ts')).toBe(true);
+    expect(compileGlob('**/functions/src/*.ts').test('services/functions/src/webhook-handler.ts')).toBe(true);
   });
   it('escapes regex metacharacters in literal segments', () => {
-    expect(globToRegex('a.b.ts').test('a.b.ts')).toBe(true);
-    expect(globToRegex('a.b.ts').test('aXb.ts')).toBe(false);
+    expect(compileGlob('a.b.ts').test('a.b.ts')).toBe(true);
+    expect(compileGlob('a.b.ts').test('aXb.ts')).toBe(false);
   });
 });
 
@@ -266,15 +266,15 @@ describe('matchFileAsDomain — config overrides', () => {
   });
 
   it('returns "include" when path matches include globs', () => {
-    const cfg = { _fileAsDomainInclude: [globToRegex('**/functions/src/*.ts')] };
+    const cfg = { _fileAsDomainInclude: [compileGlob('**/functions/src/*.ts')] };
     expect(matchFileAsDomain('services/functions/src/webhook-handler.ts', cfg)).toBe('include');
     expect(matchFileAsDomain('packages/other/src/x.ts', cfg)).toBeUndefined();
   });
 
   it('exclude beats include when both match', () => {
     const cfg = {
-      _fileAsDomainInclude: [globToRegex('**/*.ts')],
-      _fileAsDomainExclude: [globToRegex('**/*.test.ts')],
+      _fileAsDomainInclude: [compileGlob('**/*.ts')],
+      _fileAsDomainExclude: [compileGlob('**/*.test.ts')],
     };
     expect(matchFileAsDomain('src/x.test.ts', cfg)).toBe('exclude');
     expect(matchFileAsDomain('src/x.ts', cfg)).toBe('include');

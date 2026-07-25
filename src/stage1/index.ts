@@ -6,7 +6,7 @@ import { collectInfraModules } from './infra.js';
 import { collectTemplates } from './templates.js';
 import { loadBundleOutputHandlerMap } from '../stage2/bundle-output-loader.js';
 import { hasLinkingConfig, normalizeLinkingConfig } from './linking-config.js';
-import { compileScanPatterns, type ScanPatternInput } from '../scan-filters.js';
+import { compileScanPatterns, shouldScanSourcePath, type ScanPatternInput } from '../scan-filters.js';
 import { isPathInsideRepo } from '../fs/containment.js';
 import { MemoryProfiler } from '../perf/memory-profiler.js';
 import { formatPackageProgressLine, formatPipelineDetail, formatPipelineStageDone, logPipeline, logPipelineProgress, logPipelineProgressEnd, logPipelineWarn } from '../cli/ui.js';
@@ -518,6 +518,14 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
       // win32) and would misreport the name.
       if (!isPathInsideRepo(repoRoot, pending.filePath)) {
         outsideRepo.add(repoRelativePosix(repoRoot, pending.filePath));
+        continue;
+      }
+      // Enforce scan.include/exclude on every producer's output, not only the built-ins that apply it
+      // inside discover(). A third-party source plugin that ignores `options.scanPatterns` would
+      // otherwise seed the graph with files the config excludes; filtering here — before the id is
+      // minted — makes `scan.exclude` an engine guarantee. Built-ins already filtered, so this is a
+      // no-op for them.
+      if (!shouldScanSourcePath(repoRelativePosix(repoRoot, pending.filePath), scanPatterns)) {
         continue;
       }
       const existing = mergedPendingByPath.get(filePath);

@@ -97,7 +97,9 @@ export type ScanPatternInput =
     };
 
 export interface CompiledScanPattern {
-  regex: RegExp;
+  /** Matches a repo-relative, `/`-separated path against one compiled `scan` glob. Matching is
+   * linear in the path length: `*` stays within a segment, `**` spans separators, `?` is one char. */
+  matcher: { test(path: string): boolean };
   scope: ScanScope;
 }
 

@@ -1,4 +1,4 @@
-import { globToRegex } from './stage2/domains.js';
+import { compileGlob, type GlobMatcher } from './stage2/domains.js';
 import { REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS } from './paths.js';
 
 /** Repo-root-relative glob or scoped pattern entry from `repovine.config.json` → `build.scan`. */
@@ -12,7 +12,7 @@ export type ScanPatternInput =
     };
 
 export interface CompiledScanPattern {
-  regex: RegExp;
+  matcher: GlobMatcher;
   scope: ScanScope;
 }
 
@@ -39,11 +39,11 @@ export function compileScanPatterns(
   return {
     include: include.map(entry => {
       const { glob, scope } = parsePatternEntry(entry);
-      return { regex: globToRegex(glob), scope };
+      return { matcher: compileGlob(glob), scope };
     }),
     exclude: exclude.map(entry => {
       const { glob, scope } = parsePatternEntry(entry);
-      return { regex: globToRegex(glob), scope };
+      return { matcher: compileGlob(glob), scope };
     }),
   };
 }
@@ -60,7 +60,7 @@ function matchesAny(
   const norm = normalizeRelPath(relPath);
   for (const pattern of patterns) {
     if (!scopeApplies(pattern.scope, requestScope)) continue;
-    if (pattern.regex.test(norm)) return true;
+    if (pattern.matcher.test(norm)) return true;
   }
   return false;
 }

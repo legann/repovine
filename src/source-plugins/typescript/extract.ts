@@ -3,7 +3,7 @@ import ts from 'typescript';
 import type { ModuleInfo, PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import type { SourceFileText } from '@repovine/plugin-sdk';
 import { collectImports, collectReExports } from './imports.js';
-import { isNodeModulesPath, type PathsContext } from './resolve-specifier.js';
+import { isNodeModulesPath, resolveSpecifierFromMap, type PathsContext } from './resolve-specifier.js';
 import { collectExports } from './exports.js';
 import { collectSemanticHints } from './semantic-hints.js';
 import { extractTypeScriptFromSfc } from './sfc-extractor.js';
@@ -131,14 +131,32 @@ function extractModuleDelta(
   };
 }
 
-/** Project the semantic subset of a previously-extracted module onto a reuse delta. The engine
- * re-stamps the (unchanged) mechanical fields when it reassembles the ModuleInfo. */
-function reuseDelta(pending: PendingModule, prev: ModuleInfo): SemanticModuleDelta {
+/** Project the semantic subset of a previously-extracted module onto a reuse delta. The file content
+ * is unchanged (content-hash hit), so its specifiers, exports, and calls match a fresh parse. Import
+ * resolution is not content-only: a relative or path-aliased specifier resolves against the whole
+ * module set, which can change between builds (a file added or removed, a barrel introduced). Each
+ * edge is re-resolved against this build's path map so an incremental refresh matches a cold build of
+ * the same tree; a freshly extracted module resolves the same specifiers to the same ids, so the pass
+ * is a no-op for it. The engine re-stamps the unchanged mechanical fields when it reassembles the
+ * ModuleInfo. */
+function reuseDelta(
+  pending: PendingModule,
+  prev: ModuleInfo,
+  absPathToId: Map<string, string>,
+  packages: PackageInfo[],
+  repoRoot: string,
+  pathsContext: PathsContext,
+): SemanticModuleDelta {
+  const resolveEdge = (moduleSpecifier: string): { resolvedModuleId: string | undefined; isExternal: boolean } => {
+    const res = resolveSpecifierFromMap(moduleSpecifier, prev.filePath, absPathToId, packages, repoRoot, pathsContext);
+    return { resolvedModuleId: res?.resolvedModuleId, isExternal: res?.isExternal ?? false };
+  };
+  const reExports = prev.reExports?.map(rex => ({ ...rex, ...resolveEdge(rex.moduleSpecifier) }));
   return {
     moduleId: pending.moduleId,
-    imports: prev.imports,
+    imports: prev.imports.map(imp => ({ ...imp, ...resolveEdge(imp.moduleSpecifier) })),
     exports: prev.exports,
-    ...(prev.reExports?.length ? { reExports: prev.reExports } : {}),
+    ...(reExports?.length ? { reExports } : {}),
     ...(prev.calls?.length ? { calls: prev.calls } : {}),
     ...(prev.semanticHints ? { semanticHints: prev.semanticHints } : {}),
   };
@@ -162,19 +180,19 @@ export function extractPackage(input: ExtractPackageInput): ExtractPackageResult
     cached?: SemanticModuleDelta;
   }
 
+  const pathsContext: PathsContext = { compilerOptions };
   const resolved: Resolved[] = pkgModules.map(pending => {
     const src = sourceByModuleId.get(pending.moduleId);
     if (!src) return { pending, content: undefined };
     const content = moduleTextFor(pending, src);
     const prev = prevByPath.get(pending.filePath);
     if (prev && prev.id === pending.moduleId && prev.contentHash === content.hash) {
-      return { pending, content, cached: reuseDelta(pending, prev) };
+      return { pending, content, cached: reuseDelta(pending, prev, absPathToId, packages, repoRoot, pathsContext) };
     }
     return { pending, content };
   });
 
   const needsProject = resolved.some(r => r.content !== undefined && !r.cached);
-  const pathsContext: PathsContext = { compilerOptions };
 
   let project: Project | undefined;
   if (needsProject) {

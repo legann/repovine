@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import * as os from 'node:os';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
@@ -28,19 +29,76 @@ const SKIP_FILE_RE = /^(test_.*\.py|.*_test\.py|conftest\.py)$/i;
 
 let cachedPythonBin: string | null | undefined;
 
-/** Resolve a usable interpreter once per process. Returns null when neither python3 nor python
+/** A directory outside any analyzed repository, used as the working directory for interpreter
+ * subprocesses. The OS spawn search inspects the child's cwd before PATH on Windows, and `python -c`
+ * puts the cwd on `sys.path`; running from the temp dir keeps a repo-local `python.exe` or a
+ * repo-local `ast.py` from being executed. */
+export function safeInterpreterCwd(): string {
+  return os.tmpdir();
+}
+
+/** A PATH entry is trusted for interpreter resolution only when it is an absolute directory other
+ * than the current working directory. An empty entry and a relative entry both denote a cwd-relative
+ * location to the OS executable search — the exact vector a repo-local interpreter would exploit —
+ * so neither is a place to look for a real interpreter. */
+export function isTrustedInterpreterPathEntry(entry: string, cwd: string = process.cwd()): boolean {
+  if (!entry || !path.isAbsolute(entry)) return false;
+  return hostPathKey(path.resolve(entry)) !== hostPathKey(path.resolve(cwd));
+}
+
+/** Verify a resolved interpreter can import the stdlib `ast` module (the extractor's only
+ * dependency). Runs from a non-repo cwd; the bounded timeout keeps a wedged shim (network-FS pyenv,
+ * stale WSL stub) from hanging the scanner or `doctor`, and windowsHide suppresses a console flash. */
+function interpreterImportsAst(interpreterPath: string): boolean {
+  try {
+    execFileSync(interpreterPath, ['-c', 'import ast, sys'], {
+      stdio: 'ignore',
+      timeout: 3_000,
+      windowsHide: true,
+      cwd: safeInterpreterCwd(),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Executable-file candidates for a bare interpreter name in one PATH directory. On Windows a bare
+ * name resolves through PATHEXT; restrict it to `.exe`/`.com` — a `.bat`/`.cmd` shim is a separate
+ * class a no-shell spawn will not launch. POSIX uses the extensionless name. */
+function interpreterCandidates(dir: string, name: string): string[] {
+  if (process.platform === 'win32') {
+    return ['.exe', '.com'].map(ext => path.join(dir, name + ext));
+  }
+  return [path.join(dir, name)];
+}
+
+/** Resolve an interpreter name to an absolute path on PATH, returning the first candidate that both
+ * exists and imports `ast`. Untrusted PATH entries (empty, relative, or the cwd) are skipped so a
+ * repo-local `./python` — which the Windows spawn search would try before PATH — never wins. */
+function resolveInterpreterOnPath(name: string): string | null {
+  for (const entry of (process.env.PATH ?? '').split(path.delimiter)) {
+    if (!isTrustedInterpreterPathEntry(entry)) continue;
+    for (const candidate of interpreterCandidates(entry, name)) {
+      let isFile = false;
+      try { isFile = fs.statSync(candidate).isFile(); } catch { /* not present here */ }
+      if (isFile && interpreterImportsAst(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+/** Resolve a usable interpreter once per process. Returns the absolute path to python3/python — never
+ * a bare name, so the spawn search cannot fall back to the current directory — or null when neither
  * can import the stdlib `ast` module (the only dependency the extractor needs). */
 export function detectPython(): string | null {
   if (cachedPythonBin !== undefined) return cachedPythonBin;
-  for (const bin of ['python3', 'python']) {
-    try {
-      // timeout: a wedged interpreter shim (network-FS pyenv, stale WSL stub)
-      // must not hang the scanner or `doctor`; windowsHide keeps the probe from
-      // flashing a console window.
-      execFileSync(bin, ['-c', 'import ast, sys'], { stdio: 'ignore', timeout: 3_000, windowsHide: true });
-      cachedPythonBin = bin;
-      return bin;
-    } catch { /* try next candidate */ }
+  for (const name of ['python3', 'python']) {
+    const resolved = resolveInterpreterOnPath(name);
+    if (resolved) {
+      cachedPythonBin = resolved;
+      return resolved;
+    }
   }
   cachedPythonBin = null;
   return null;

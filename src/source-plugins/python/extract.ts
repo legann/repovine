@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import * as os from 'node:os';
 import type { SemanticHints, ExportInfo, ImportInfo, ModuleInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import type { SourceExtractInput, SourceExtractResult } from '@repovine/plugin-sdk';
 import type { PythonExtractContext } from './discover.js';
@@ -119,6 +120,9 @@ export function runPythonAst(pythonBin: string, pyAstScriptPath: string, filePat
   return new Promise((resolve, reject) => {
     const child = spawn(pythonBin, [pyAstScriptPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      // pythonBin is an absolute path; the non-repo cwd is defense in depth — it keeps the OS spawn
+      // search and the interpreter's `sys.path[0]` off the analyzed repo.
+      cwd: os.tmpdir(),
     });
     // Backstop: SIGKILL a runaway parse. A manual unref'd timer — not spawn's `timeout` option, whose
     // internal timer is ref'd and stays armed for the full timeout after an early spawn failure, holding
@@ -260,12 +264,46 @@ function toModuleDelta(
   };
 }
 
-/** Project the semantic subset of a previously-extracted module onto a reuse delta. The engine
- * re-stamps the (unchanged) mechanical fields when it reassembles the ModuleInfo. */
-function reuseDelta(pending: PendingModule, prev: ModuleInfo): SemanticModuleDelta {
+/** Invert a projected import specifier back to the resolver inputs. The fresh path encodes a relative
+ * `from` import as leading dots plus the dotted tail and any absolute import as the bare dotted name;
+ * a module name never carries a leading dot, so counting the leading dots recovers `level` exactly. */
+function specifierToResolverInput(moduleSpecifier: string): { level: number; moduleDotted: string } {
+  let level = 0;
+  while (level < moduleSpecifier.length && moduleSpecifier[level] === '.') level++;
+  return { level, moduleDotted: moduleSpecifier.slice(level) };
+}
+
+/** Project the semantic subset of a previously-extracted module onto a reuse delta. The file content
+ * is unchanged (content-hash hit), so its imports, exports, and hints match a fresh parse. Import
+ * resolution depends on the whole module set, which can change between builds (a file added or
+ * removed); re-resolve each import against this build's path map so an incremental refresh matches a
+ * cold build of the same tree. The engine re-stamps the unchanged mechanical fields when it
+ * reassembles the ModuleInfo. */
+function reuseDelta(
+  pending: PendingModule,
+  prev: ModuleInfo,
+  absPathToId: Map<string, string>,
+  packages: SourceExtractInput['packages'],
+  repoRoot: string,
+): SemanticModuleDelta {
+  const imports = prev.imports.map(imp => {
+    const { level, moduleDotted } = specifierToResolverInput(imp.moduleSpecifier);
+    // resolvePythonImport resolves by level/moduleDotted/packages; `kind` does not affect the id.
+    const res = resolvePythonImport({
+      importingFilePath: pending.filePath,
+      level,
+      moduleDotted,
+      kind: 'from',
+      absPathToId,
+      packages,
+      repoRoot,
+      importingPackage: pending.pkg,
+    });
+    return { ...imp, resolvedModuleId: res.resolvedModuleId, isExternal: res.isExternal };
+  });
   return {
     moduleId: pending.moduleId,
-    imports: prev.imports,
+    imports,
     exports: prev.exports,
     ...(prev.semanticHints ? { semanticHints: prev.semanticHints } : {}),
   };
@@ -291,7 +329,7 @@ export async function extractPython(input: SourceExtractInput): Promise<SourceEx
     if (!src) return { pending, needsParse: false };
     const prev = prevByPath.get(pending.filePath);
     if (prev && prev.id === pending.moduleId && prev.contentHash === src.contentHash) {
-      return { pending, cached: reuseDelta(pending, prev), needsParse: false };
+      return { pending, cached: reuseDelta(pending, prev, absPathToId, packages, repoRoot), needsParse: false };
     }
     return { pending, needsParse: true };
   });

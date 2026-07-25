@@ -174,6 +174,15 @@ export default defineIaCPlugin({
 });
 ```
 
+### Built-in parity (0.1.0)
+
+Bundled plugins may import engine internals the SDK does not export — the shared IaC helpers
+(`src/stage1/iac/utils`) and, for Kubernetes, workload attribute enrichment
+(`enrichK8sResourceAttributes`). An out-of-tree IaC plugin emits the same `InfraResource` facts and
+reaches the same node/edge schema, but does not reproduce that Kubernetes enrichment in 0.1.0.
+Exposing those helpers through the SDK is a post-0.1.0 API decision; the privileged boundary is a
+documented limitation, not a frozen contract.
+
 ## Enabling plugins (`repovine.config.json`)
 
 In the **repo you analyze** (not the repovine install):

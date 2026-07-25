@@ -46,9 +46,9 @@ export type DomainsConfigFile = z.infer<typeof DomainsConfigSchema>;
 export interface DomainsConfig extends DomainsConfigFile {
   /** Precomputed alias (lowercase) -> canonical; set by loadDomainsConfig for O(1) resolve. */
   _aliasToCanonical?: Record<string, string>;
-  /** Precomputed regex versions of basename.files globs; set by loadDomainsConfig. */
-  _fileAsDomainInclude?: RegExp[];
-  _fileAsDomainExclude?: RegExp[];
+  /** Precomputed matchers for basename.files globs; set by loadDomainsConfig. */
+  _fileAsDomainInclude?: GlobMatcher[];
+  _fileAsDomainExclude?: GlobMatcher[];
   /** Precomputed structuralDirs set (lowercase); set by loadDomainsConfig. */
   _structuralDirs?: Set<string>;
 }
@@ -71,37 +71,86 @@ export const DOMAINS_CONFIG_MERGE_STRATEGY = {
   structuralDirs: 'array-union',
 } as const;
 
-/**
- * Convert a glob like `**\/*.controller.ts` to a regex anchored to the full string.
- * Supports: `*` (any chars except `/`), `**` (any chars including `/`), `?` (single char).
- * Brace expansion is NOT supported — keep globs simple.
- */
-export function globToRegex(glob: string): RegExp {
-  let re = '';
+/** A compiled glob. `test` reports whether a `/`-separated path matches the whole glob. */
+export interface GlobMatcher {
+  test(path: string): boolean;
+}
+
+type GlobToken =
+  | { kind: 'lit'; ch: string } // an ordinary character, matched verbatim
+  | { kind: 'single' } // `?` — exactly one character other than `/`
+  | { kind: 'star' } // `*` — any run of characters, none of them `/`
+  | { kind: 'globstar' }; // `**` — any run of characters, `/` included
+
+function tokenizeGlob(glob: string): GlobToken[] {
+  const tokens: GlobToken[] = [];
   let i = 0;
   while (i < glob.length) {
     const c = glob[i];
     if (c === '*') {
       if (glob[i + 1] === '*') {
-        re += '.*';
+        tokens.push({ kind: 'globstar' });
         i += 2;
-        if (glob[i] === '/') i++;
+        if (glob[i] === '/') i++; // `**/` also spans zero directories, so it absorbs the slash
       } else {
-        re += '[^/]*';
+        tokens.push({ kind: 'star' });
         i++;
       }
     } else if (c === '?') {
-      re += '[^/]';
-      i++;
-    } else if ('.+^$()|{}[]\\'.includes(c)) {
-      re += '\\' + c;
+      tokens.push({ kind: 'single' });
       i++;
     } else {
-      re += c;
+      tokens.push({ kind: 'lit', ch: c });
       i++;
     }
   }
-  return new RegExp('^' + re + '$');
+  return tokens;
+}
+
+/**
+ * Compile a glob like `**\/*.controller.ts` to a linear matcher, anchored to the whole string.
+ * Supports: `*` (any chars except `/`), `**` (any chars including `/`), `?` (single non-`/` char);
+ * every other character is literal. Brace expansion is NOT supported — keep globs simple.
+ *
+ * Matching is a two-row dynamic program over (tokens × path length): O(tokens · path) time, no
+ * backtracking. A regex translation (`**` → `.*`) backtracks catastrophically when globstars are
+ * separated by literals (`**a**a…**b`) against a long non-matching path — a committed
+ * `repovine.config.json` glob runs on the discovery main thread, so that path stays linear here.
+ */
+export function compileGlob(glob: string): GlobMatcher {
+  const tokens = tokenizeGlob(glob);
+  return {
+    test(path: string): boolean {
+      const n = path.length;
+      // reach[j] = the tokens consumed so far match exactly the first j characters of the path.
+      let reach = new Array<boolean>(n + 1).fill(false);
+      reach[0] = true;
+      for (const token of tokens) {
+        const next = new Array<boolean>(n + 1).fill(false);
+        // j === 0: only the wildcards that accept an empty run can extend a match with no input left.
+        next[0] = (token.kind === 'star' || token.kind === 'globstar') && reach[0];
+        for (let j = 1; j <= n; j++) {
+          const ch = path[j - 1];
+          switch (token.kind) {
+            case 'lit':
+              next[j] = ch === token.ch && reach[j - 1];
+              break;
+            case 'single':
+              next[j] = ch !== '/' && reach[j - 1];
+              break;
+            case 'star':
+              next[j] = reach[j] || (ch !== '/' && next[j - 1]);
+              break;
+            case 'globstar':
+              next[j] = reach[j] || next[j - 1];
+              break;
+          }
+        }
+        reach = next;
+      }
+      return reach[n];
+    },
+  };
 }
 
 /**
@@ -133,10 +182,10 @@ export function loadDomainsConfig(repoRoot: string): DomainsConfig | null {
     }
 
     if (Array.isArray(config.basename?.files?.include)) {
-      config._fileAsDomainInclude = config.basename.files.include.map(globToRegex);
+      config._fileAsDomainInclude = config.basename.files.include.map(compileGlob);
     }
     if (Array.isArray(config.basename?.files?.exclude)) {
-      config._fileAsDomainExclude = config.basename.files.exclude.map(globToRegex);
+      config._fileAsDomainExclude = config.basename.files.exclude.map(compileGlob);
     }
     if (Array.isArray(config.structuralDirs)) {
       config._structuralDirs = new Set(config.structuralDirs.map(d => String(d).toLowerCase()));

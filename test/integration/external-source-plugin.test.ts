@@ -84,4 +84,35 @@ export default {
       console.log = origLog;
     }
   });
+
+  // The plugin above discovers every `*.foo` file and never consults `options.scanPatterns`. The
+  // engine still honours `scan.exclude` against its output, so an excluded file cannot enter the graph
+  // regardless of whether the plugin cooperated.
+  it('applies scan.exclude to an external plugin that ignores scanPatterns', async () => {
+    repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-ext-scan-'));
+    const pkgDir = path.join(repoRoot, 'node_modules', 'repovine-plugin-foo');
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pkgDir, 'package.json'),
+      JSON.stringify({ name: 'repovine-plugin-foo', type: 'module', main: 'index.js', repovine: { kind: 'source-plugin', apiVersion: '1', entry: 'index.js' } }),
+    );
+    fs.writeFileSync(path.join(pkgDir, 'index.js'), PLUGIN_JS);
+    fs.writeFileSync(path.join(repoRoot, 'keep.foo'), 'keep\n');
+    fs.writeFileSync(path.join(repoRoot, 'secret.foo'), 'secret\n');
+
+    const origLog = console.log;
+    console.log = () => {};
+    try {
+      const snapshot = await collectRepositoryFactsAsync(repoRoot, {
+        plugins: { defaults: true, add: ['repovine-plugin-foo'], disable: [] },
+        scanExclude: ['secret.foo'],
+        maxPackageWorkers: 1,
+      });
+      const ids = snapshot.modules.map(m => m.id);
+      expect(ids).toContain('mod:foo-pkg/keep');
+      expect(ids).not.toContain('mod:foo-pkg/secret');
+    } finally {
+      console.log = origLog;
+    }
+  });
 });

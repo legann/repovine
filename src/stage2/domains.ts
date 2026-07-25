@@ -1,7 +1,7 @@
 import type { RepositoryFactsSnapshot, RepositoryGraph, ModuleInfo } from '../types.js';
 import { loadDomainsConfig, type DomainsConfig } from './domains-schema.js';
 
-export { DOMAINS_CONFIG_MERGE_STRATEGY, DomainsConfigSchema, globToRegex, loadDomainsConfig, type DomainsConfig } from './domains-schema.js';
+export { DOMAINS_CONFIG_MERGE_STRATEGY, DomainsConfigSchema, compileGlob, loadDomainsConfig, type DomainsConfig, type GlobMatcher } from './domains-schema.js';
 
 /** First path segments that are structural — skip when inferring domain from path. */
 export const STRUCTURAL_DIRS = new Set([
