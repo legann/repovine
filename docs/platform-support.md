@@ -13,7 +13,7 @@ Architecture policy: macOS arm64 and Windows x64 are the Tier 1 targets; macOS x
 
 ## Support matrix
 
-Target tiers. A row is promoted only after its gate in [CI](../.github/workflows/ci.yml) is green and required.
+Target tiers. A row is promoted only after its gate in [CI](https://github.com/legann/repovine/blob/main/.github/workflows/ci.yml) is green and required.
 
 | Surface | Linux | macOS | Windows native | Windows WSL2 |
 |---|---|---|---|---|
@@ -24,7 +24,7 @@ Target tiers. A row is promoted only after its gate in [CI](../.github/workflows
 | Optional local embedder | Tier 1 | Tier 1 arm64 | Tier 1 x64 | Tier 1 x64 |
 | Agent-harness demo (sandbox / attach / host mode) | per-mode | per-mode | per-mode | per-mode |
 
-Harness demo modes carry separate contracts; see [usage.md, "Platform support"](../examples/agent-harness-demo/docs/usage.md).
+Harness demo modes carry separate contracts; see [usage.md, "Platform support"](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo/docs/usage.md).
 
 Embedder floor on macOS: `@huggingface/transformers` 4.x. The 3.8.1 floor bundles onnxruntime 1.21, whose exit teardown aborts on darwin — inference completes, the exit code is corrupt. The embedder matrix records this as a documented exclusion.
 
@@ -59,5 +59,5 @@ With `core.autocrlf=true`, a role-brief read from the working tree yields CRLF b
 |---|---|
 | Core Tier 1 on an OS | Green, required native CI job on that OS |
 | Client integration Tier 1 | Run under the client's real shell/cwd/env semantics; GUI-launch minimal-PATH proof recorded as manual evidence |
-| Docker Desktop support | Actual-container smoke on a real macOS / WSL2 machine (hosted runners have no Docker there). Record a release-evidence entry per harness-affecting release: {date, host OS + arch, Docker Desktop version, engine/compose versions from `docker compose version`, repo commit SHA, egress-smoke result, IPv6 leg: exercised or named-skip, render-matrix result incl. the drive-letter cell}. macOS is sandbox mode only — attach is Unsupported there, so the entry never implies attach coverage; the attach design is [ADR 0001](../examples/agent-harness-demo/docs/adr/0001-macos-attach-mount-topology.md) (Proposed). Windows evidence notes the checkout on WSL2 ext4 and is where the drive-letter cell gets its real-mount verification |
+| Docker Desktop support | Actual-container smoke on a real macOS / WSL2 machine (hosted runners have no Docker there). Record a release-evidence entry per harness-affecting release: {date, host OS + arch, Docker Desktop version, engine/compose versions from `docker compose version`, repo commit SHA, egress-smoke result, IPv6 leg: exercised or named-skip, render-matrix result incl. the drive-letter cell}. macOS is sandbox mode only — attach is Unsupported there, so the entry never implies attach coverage; the attach design is [ADR 0001](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo/docs/adr/0001-macos-attach-mount-topology.md) (Proposed). Windows evidence notes the checkout on WSL2 ext4 and is where the drive-letter cell gets its real-mount verification |
 | Any surface on any OS | An unsupported path fails early with a stable, actionable error |

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import type { PackageInfo, PendingModule } from '@repovine/plugin-sdk';
+import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
 import { hostPathKey } from '../../platform/paths.js';
@@ -49,15 +49,6 @@ export function detectPython(): string | null {
 /** Module id for a Python file. Mirrors the TS scheme: strip the extension and collapse
  * `__init__` (the Python analogue of `index`) so a package dir and its `__init__.py` share an id
  * and handler resolution (`app.handler` → `app`) lines up across languages. */
-export function makePythonModuleId(pkgName: string, relPath: string): string {
-  const normalized = relPath
-    .split(path.sep)
-    .join('/')
-    .replace(/\.py$/i, '')
-    .replace(/\/__init__$/, '');
-  return `mod:${pkgName}/${normalized}`;
-}
-
 function slug(relPath: string): string {
   // Input is POSIX-relative by contract; path.normalize here would
   // re-introduce win32 backslashes that the '/'-only replace misses.
@@ -117,7 +108,7 @@ function discoverPyFiles(
   repoRoot: string,
   pkg: PackageInfo,
   scanPatterns: CompiledScanPatterns,
-  pendingByPath: Map<string, PendingModule>,
+  pendingByPath: Map<string, PendingModuleDraft>,
 ): void {
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
@@ -151,7 +142,6 @@ function discoverPyFiles(
         filePath: full,
         pkg,
         relPath,
-        moduleId: makePythonModuleId(pkg.name, relPath),
         sourcePluginId: 'python',
       });
     }
@@ -170,7 +160,7 @@ export function discoverPython(repoRoot: string, options: SourceDiscoveryOptions
 
   const scanPatterns = options.scanPatterns ?? compileScanPatterns([], []);
   const packages = discoverPythonPackages(repoRoot);
-  const pendingByPath = new Map<string, PendingModule>();
+  const pendingByPath = new Map<string, PendingModuleDraft>();
   for (const pkg of packages) {
     const pkgAbs = path.resolve(repoRoot, pkg.path);
     discoverPyFiles(pkgAbs, repoRoot, pkg, scanPatterns, pendingByPath);

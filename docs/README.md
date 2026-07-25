@@ -16,5 +16,5 @@ and benchmark results. Use this index for detailed guides and references.
 ## Project documentation
 
 - [Design](../DESIGN.md) — system boundaries, graph contract, trust model, and limitations
-- [Contributing](../CONTRIBUTING.md) — development setup, change paths, and quality gates
-- [Runnable examples](../examples/README.md) — plugins and the LangGraph Agent Protocol harness
+- [Contributing](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md) — development setup, change paths, and quality gates
+- [Runnable examples](https://github.com/legann/repovine/blob/main/examples/README.md) — plugins and the LangGraph Agent Protocol harness

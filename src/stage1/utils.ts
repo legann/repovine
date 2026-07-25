@@ -7,14 +7,9 @@ import type { PackageInfo } from '../types.js';
  * orchestrator can import it without pulling in a language toolchain.
  */
 
-export function makeModuleId(packageName: string, relPath: string): string {
-  const normalized = relPath
-    .replace(/\\/g, '/')
-    .replace(/\.d\.ts$/i, '')
-    .replace(/\.(tsx?|jsx?|mjs|cjs)$/, '')
-    .replace(/\/index$/, '');
-  return `mod:${packageName}/${normalized}`;
-}
+/** Engine-side name for the SDK minter: one implementation, so the conformance kit and a real build
+ *  produce identical ids for the same file. */
+export { mintModuleId as makeModuleId } from '@repovine/plugin-sdk';
 
 /** Unique identity for a discovered package entry across source plugins. */
 export function packageJobKey(pkg: Pick<PackageInfo, 'name' | 'path' | 'sourcePluginId'>): string {

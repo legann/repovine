@@ -3,7 +3,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { RepositoryGraph, AnnotationContent, StoredAnnotation, RepositoryFactsSnapshot } from '../types.js';
 import type { AnnotationStore, AnnotationHealthScan, AnnotationFileStatusSnapshot } from './store.js';
-import { isPropagationStaleItem, isContentStaleItem } from './store.js';
+import { describeMergeKeeps, isPropagationStaleItem, isContentStaleItem } from './store.js';
 import { getInterpreterEntrypoints } from '../stage2/interpreter/entrypoint-store.js';
 import { ANNOTATIONS_FILENAME, ARTIFACTS_DIR_NAME, resolveAnnotationsFilePath } from '../paths.js';
 import { loadConfig } from '../config.js';
@@ -1124,6 +1124,11 @@ export function validateAnnotationHealth(input: {
   if (lastSaveError) {
     nextActions.push(`Annotation saves are failing (${lastSaveError}). The file may be conflicted, locked, or unreadable; resolve it (merge_annotations / restore), then re-save — pending writes are still held in memory.`);
   }
+  // Read defensively like `lastSaveError` above: callers pass store-like objects, and this is runtime
+  // state a partial one need not carry.
+  const keeps = annotations.lastMergeKeeps;
+  const mergeKeeps = keeps ? describeMergeKeeps(keeps) : undefined;
+  if (mergeKeeps) nextActions.push(mergeKeeps);
   if (mergeStatus.file.hasConflictMarkers) {
     nextActions.push('Call merge_annotations({}) before continuing annotation work.');
   }

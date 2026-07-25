@@ -28,6 +28,25 @@ Environment overrides:
 
 ---
 
+## Workspace root
+
+repovine analyzes **one workspace root**. Everything it indexes lives under that root.
+
+The root is `REPOVINE_ROOT` when set, otherwise the nearest ancestor holding `.git`. A resolved root carrying no `repovine.config.json` re-roots to a configured ancestor inside the same repository, reported on stderr.
+
+Every path the engine reads is resolved through symlinks and re-tested against the root. Config-supplied paths follow the same rule: `build.scan` globs, `build.linking` script and Dockerfile paths, `workspace.annotationsFile`, and paths reached through `tsconfig.json`.
+
+| Path leaves the root by | Example | Result |
+|---|---|---|
+| naming a parent | `"../shared/**"` in `build.scan.include` | Refused |
+| a file symlink | `src/leak.ts -> /etc/passwd` | Refused |
+| a directory symlink | `src/vendor -> ../../other-repo` | Everything beneath it refused |
+| a tsconfig reference | `"include": ["../lib"]` | Refused |
+
+Refused files are absent from the graph, including from import resolution. The build log counts them, `repovine status` reports them, and `refresh_context` / `get_build_status` return them under `outsideRepo`. To index a sibling tree, root repovine at the directory containing both.
+
+---
+
 ## `repovine.config.json`
 
 Controls graph **build** tuning (`build.scan` + `build.linking`), external plugin specs,

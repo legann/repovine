@@ -24,6 +24,7 @@ export type {
   PackageInfo,
   ParamInfo,
   PendingModule,
+  PendingModuleDraft,
   RouteInfo,
   RuntimeAction,
   SecuritySignal,

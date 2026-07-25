@@ -4,12 +4,13 @@ import type { RepositoryFactsSnapshot, PackageInfo, ModuleInfo, PendingModule } 
 import { ARTIFACTS_DIR_NAME, cacheDirFor } from '../paths.js';
 import { collectInfraModules } from './infra.js';
 import { collectTemplates } from './templates.js';
-import { loadBundleOutputHandlerMap } from '../stage2/lambda-bundle-loader.js';
+import { loadBundleOutputHandlerMap } from '../stage2/bundle-output-loader.js';
 import { hasLinkingConfig, normalizeLinkingConfig } from './linking-config.js';
 import { compileScanPatterns, type ScanPatternInput } from '../scan-filters.js';
+import { isPathInsideRepo } from '../fs/containment.js';
 import { MemoryProfiler } from '../perf/memory-profiler.js';
 import { formatPackageProgressLine, formatPipelineDetail, formatPipelineStageDone, logPipeline, logPipelineProgress, logPipelineProgressEnd, logPipelineWarn } from '../cli/ui.js';
-import { modulePathResolverPriority, extractPackageName, packageJobKey } from './utils.js';
+import { makeModuleId, modulePathResolverPriority, extractPackageName, packageJobKey } from './utils.js';
 import { PackageWorkerPool, chooseWorkerCount, effectiveTotalMemBytes, type PackageJob, type PackageJobResult } from './worker-pool.js';
 import { adviseFromCalibration, loadCalibration, saveCalibration } from './calibration.js';
 import { getSourcePlugin, getSourcePlugins } from './source/registry.js';
@@ -45,6 +46,11 @@ function pendingJobKey(pending: PendingModule): string {
 }
 
 const DEFAULT_SHARD_TARGET_SIZE = 800;
+
+/** How many refused paths the build log names before it falls back to a count. One directory link
+ *  refuses everything beneath it, so the count is the number to act on. Matches the cap the MCP
+ *  `outsideRepo` report uses, so both surfaces name the same set. */
+const OUTSIDE_REPO_SAMPLE = 5;
 
 /** Split a package's pendingModules into evenly sized shards. Stable per-module ordering
  * (relies on caller's order, which is filesystem-discovery order for cold scans and
@@ -373,10 +379,11 @@ function buildSnapshot(
   extractionConfigFingerprint: string,
   scanPatterns: ReturnType<typeof compileScanPatterns>,
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
+  outsideRepoPaths: string[],
   profiler: MemoryProfiler,
 ): RepositoryFactsSnapshot {
   const normalizedLinking = linkingOpt ? normalizeLinkingConfig(linkingOpt) : undefined;
-  const lambdaBundleHandlerMap = loadBundleOutputHandlerMap(
+  const bundleOutputHandlerMap = loadBundleOutputHandlerMap(
     repoRoot,
     normalizedLinking?.bundles.scripts ?? [],
     normalizedLinking?.bundles.autoDetect ?? true,
@@ -419,8 +426,9 @@ function buildSnapshot(
     packages,
     modules: allModules,
     infraModules,
+    ...(outsideRepoPaths.length > 0 ? { outsideRepoPaths } : {}),
     ...(templates.length > 0 ? { templates } : {}),
-    ...(Object.keys(lambdaBundleHandlerMap).length > 0 ? { lambdaBundleHandlerMap } : {}),
+    ...(Object.keys(bundleOutputHandlerMap).length > 0 ? { bundleOutputHandlerMap } : {}),
     ...(linkingOpt && hasLinkingConfig(linkingOpt) ? {
       linkingConfig: {
         handlers: { searchRoots: normalizedLinking!.handlers.searchRoots },
@@ -448,7 +456,14 @@ interface PreparedRun {
   extractionConfigFingerprint: string;
   scanPatterns: ReturnType<typeof compileScanPatterns>;
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined;
+  /** Repo-relative candidates refused by containment; sorted, so the report is deterministic. */
+  outsideRepoPaths: string[];
   profiler: MemoryProfiler;
+}
+
+/** Repo-relative, forward-slashed: the form the snapshot uses for every path but `filePath`. */
+function repoRelativePosix(repoRoot: string, absPath: string): string {
+  return path.normalize(path.relative(repoRoot, absPath)).split(path.sep).join('/');
 }
 
 async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined): Promise<PreparedRun> {
@@ -468,6 +483,9 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
   const mergedPendingByPath = new Map<string, PendingModule>();
   const extractContextByPlugin = new Map<string, unknown>();
   const activeSourcePlugins: SourcePlugin[] = [];
+  // A Set, so a file two packages both enumerate is one refused file, matching how
+  // `mergedPendingByPath` counts an accepted one.
+  const outsideRepo = new Set<string>();
 
   for (const plugin of getSourcePlugins()) {
     // Graceful degradation: a plugin self-probes its prerequisites
@@ -491,12 +509,29 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
       allPackages.push(pkg);
     }
     for (const [filePath, pending] of pendingByPath) {
+      // Containment is language-agnostic, so the engine applies it to every producer's candidates
+      // rather than trusting each discover(). A candidate names an in-repo path while `readFileSync`
+      // follows it, so `src/leak.ts -> ../../secret.ts`, or any file under a directory link, would
+      // publish its export names, signatures and types into the graph. Refusing here, before
+      // `absPathToId` is minted, keeps the path out of import resolution as well as out of the
+      // module set. `pending.filePath`, not the map key: keys are host-normalized (lowercased on
+      // win32) and would misreport the name.
+      if (!isPathInsideRepo(repoRoot, pending.filePath)) {
+        outsideRepo.add(repoRelativePosix(repoRoot, pending.filePath));
+        continue;
+      }
       const existing = mergedPendingByPath.get(filePath);
       if (existing) {
         logPipelineWarn(`  ⚠ File claimed by multiple source plugins (${existing.sourcePluginId} kept over ${pending.sourcePluginId}): ${pending.filePath}`);
         continue;
       }
-      mergedPendingByPath.set(filePath, pending);
+      // The engine mints the id, here, from what the producer reported. `mod:<pkg>/<path>` is
+      // load-bearing for scope resolution, annotation keys and boundary lookups, so it is derived
+      // centrally rather than trusted from a plugin that could return any string.
+      mergedPendingByPath.set(filePath, {
+        ...pending,
+        moduleId: makeModuleId(pending.pkg.name, pending.relPath, plugin.capabilities?.moduleIdNormalize),
+      });
     }
     extractContextByPlugin.set(plugin.id, extractContext);
   }
@@ -546,6 +581,12 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
   profiler.setCounter('uniqueModules', pendingModules.length);
   const pkgsWithModules = new Set(pendingModules.map(p => p.pkg.name)).size;
   logPipeline(formatPipelineDetail(`  Discovered ${pendingModules.length} unique modules across ${pkgsWithModules} packages`));
+  const outsideRepoPaths = Array.from(outsideRepo).sort();
+  if (outsideRepoPaths.length > 0) {
+    const sample = outsideRepoPaths.slice(0, OUTSIDE_REPO_SAMPLE);
+    const more = outsideRepoPaths.length > sample.length ? ` (+${outsideRepoPaths.length - sample.length} more)` : '';
+    logPipelineWarn(`  ⚠ Refused ${outsideRepoPaths.length} file(s) resolving outside the workspace root: ${sample.join(', ')}${more}`);
+  }
 
   return {
     packages,
@@ -556,6 +597,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
     extractionConfigFingerprint,
     scanPatterns,
     linkingOpt: options?.linking,
+    outsideRepoPaths,
     profiler,
   };
 }
@@ -568,6 +610,7 @@ function finalize(
   extractionConfigFingerprint: string,
   scanPatterns: ReturnType<typeof compileScanPatterns>,
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
+  outsideRepoPaths: string[],
   profiler: MemoryProfiler,
 ): RepositoryFactsSnapshot {
   const allModules: ModuleInfo[] = [];
@@ -589,6 +632,7 @@ function finalize(
     extractionConfigFingerprint,
     scanPatterns,
     linkingOpt,
+    outsideRepoPaths,
     profiler,
   );
 }
@@ -728,6 +772,7 @@ export async function collectRepositoryFactsAsync(
       prep.extractionConfigFingerprint,
       prep.scanPatterns,
       prep.linkingOpt,
+      prep.outsideRepoPaths,
       prep.profiler,
     );
   } finally {

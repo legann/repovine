@@ -902,4 +902,4 @@ independent maturity work.
 - [Agent Protocol](docs/agent-protocol.md) — harness and CI integration.
 - [Plugin authoring](docs/plugin-authoring.md) — source and IaC producer contracts.
 - [CLI and setup](docs/scripts.md) — commands and managed assets.
-- [Contributing](CONTRIBUTING.md) — development workflow and module ownership.
+- [Contributing](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md) — development workflow and module ownership.

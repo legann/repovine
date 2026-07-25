@@ -231,6 +231,39 @@ export interface AnnotationFileStatusSnapshot {
   error?: string;
 }
 
+/**
+ * What the last merge kept over the file, per branch of the never-lose net: `readded` for records the
+ * file no longer had, `reverted` for records it had in a superseded version. Runtime state of one store
+ * instance, so only an in-process reader sees it.
+ */
+export interface AnnotationMergeKeeps {
+  readded: number;
+  reverted: number;
+  /** Bounded, so one large revert cannot flood a response. */
+  sample: string[];
+}
+
+/** How many node ids a merge-keep report names before it falls back to the counts. */
+const MERGE_KEEP_SAMPLE = 5;
+
+/**
+ * One sentence for a merge that kept records the file disagreed with, or undefined when it kept none.
+ * The net exists so an interrupted save cannot lose a note, but it also silently outlives a deliberate
+ * revert, so the message names that cause and how to make a revert stick.
+ */
+export function describeMergeKeeps(keeps: AnnotationMergeKeeps): string | undefined {
+  const total = keeps.readded + keeps.reverted;
+  if (total === 0) return undefined;
+  const parts: string[] = [];
+  if (keeps.readded > 0) parts.push(`${keeps.readded} the file no longer held`);
+  if (keeps.reverted > 0) parts.push(`${keeps.reverted} the file held in an older version`);
+  const more = total > keeps.sample.length ? ` (+${total - keeps.sample.length} more)` : '';
+  return `Kept ${total} in-memory annotation(s) the file disagreed with — ${parts.join(', ')}: `
+    + `${keeps.sample.join(', ')}${more}. A revert of the annotations file does not stick while this process `
+    + 'holds the newer records; re-apply it after the process exits, or write the intended state through '
+    + 'write_annotation / merge_annotations.';
+}
+
 export interface AnnotationQueuePage {
   items: QueueItem[];
   counts: {
@@ -794,6 +827,52 @@ export function isDerivedStaleModule(
 const SAVE_DEBOUNCE_MS = 800;
 const MAX_SAVE_RETRIES = 3;
 
+function isAnnotationRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * A `pass` read off a RAW disk record. The serializer elides the key when the value is 1, and the
+ * loader hydrates that absence back to 1, so a raw record without the key is pass 1 — reading it as 0
+ * would rank every first-pass record on disk as superseded.
+ */
+function rawDiskPass(diskRec: Record<string, unknown>): number {
+  return typeof diskRec.pass === 'number' ? diskRec.pass : 1;
+}
+
+/**
+ * Whether a disk record is a superseded version of the one we hold: a lower `pass`, or the same `pass`
+ * with an older `updatedAt`. Drives the never-regress net in {@link AnnotationStore.mergeWithDisk}.
+ * Unparseable or equal metadata reads as "not older", so disk keeps the merge base by default and only a
+ * demonstrable regression is overridden.
+ */
+function diskRecordIsOlder(diskRec: unknown, ours: StoredAnnotation): boolean {
+  if (!isAnnotationRecord(diskRec)) return false;
+  const diskPass = rawDiskPass(diskRec);
+  const ourPass = typeof ours.pass === 'number' ? ours.pass : 1;
+  if (diskPass !== ourPass) return diskPass < ourPass;
+  const diskAt = typeof diskRec.updatedAt === 'string' ? Date.parse(diskRec.updatedAt) : NaN;
+  const ourAt = typeof ours.updatedAt === 'string' ? Date.parse(ours.updatedAt) : NaN;
+  if (Number.isNaN(diskAt) || Number.isNaN(ourAt)) return false;
+  return diskAt < ourAt;
+}
+
+/**
+ * Merge for a write that changed no annotation content (a re-submitted identical write, a bare
+ * importBaseline refresh). The disk record stays the base so its content keeps the `contentHash` and
+ * `updatedAt` that describe it; only what this write can carry independently of content is overlaid.
+ * Stamping our metadata over disk content instead would report a record as fresh while it holds the
+ * older text.
+ */
+function mergeRecordLevelOnly(disk: Record<string, unknown>, ours: StoredAnnotation): Record<string, unknown> {
+  const ourPass = typeof ours.pass === 'number' ? ours.pass : 1;
+  return {
+    ...disk,
+    pass: Math.max(rawDiskPass(disk), ourPass),
+    ...(ours.importBaseline ? { importBaseline: ours.importBaseline } : {}),
+  };
+}
+
 /**
  * Thrown when a save finds the file changed externally to something unreadable (git conflict markers,
  * partial write, corruption). The save refuses rather than overwrite the external bytes with in-memory
@@ -848,6 +927,7 @@ export class AnnotationStore {
   /** True while an async save holds (or is acquiring) the file lock — lets sync flush() fail fast. */
   private asyncSaveInFlight = false;
   private _lastSaveError: string | null = null;
+  private mergeKeeps: AnnotationMergeKeeps = { readded: 0, reverted: 0, sample: [] };
   private lastFlushedCount: number | null = null;
   private mergeStatusSnapshot: AnnotationFileStatusSnapshot = {
     exists: false,
@@ -1045,32 +1125,50 @@ export class AnnotationStore {
   /** Merge path: disk is the base; overlay the entries this process holds, then apply our deletes. */
   private mergeWithDisk(diskAnns: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = { ...diskAnns };
+    // Reset here rather than in a caller: a save on an unchanged file returns before merging, and a
+    // caller-side reset would erase a count the preceding refresh legitimately produced.
+    this.mergeKeeps = { readded: 0, reverted: 0, sample: [] };
     // Carry our quarantined entries the external writer does not have.
     for (const [k, v] of Object.entries(this.quarantine)) {
       if (!(k in out)) out[k] = v;
     }
     // Apply our pending writes. For a key an external writer also holds, merge only the fields we changed
-    // so their concurrent field additions survive; otherwise overlay the whole record.
+    // so their concurrent field additions survive; otherwise overlay the whole record. The regress net
+    // below deliberately does NOT apply here: `pass` is derived from our own possibly-stale copy
+    // (`existing.pass + 1`) and `updatedAt` from our wall clock, so a single concurrent write ties on
+    // `pass` and loses the timestamp comparison — treating that as a regression would discard exactly the
+    // field additions this branch exists to keep.
     for (const k of this.touched) {
       const ours = this.data[k];
       if (ours === undefined) continue;
       const fields = this.touchedFields.get(k);
       const diskRec = out[k];
-      if (fields instanceof Set && diskRec !== undefined && typeof diskRec === 'object' && diskRec !== null) {
-        out[k] = this.mergeAnnotationFields(diskRec as Record<string, unknown>, ours, fields);
-      } else {
+      if (!isAnnotationRecord(diskRec) || !(fields instanceof Set)) {
         out[k] = ours;
+      } else if (fields.size === 0) {
+        out[k] = mergeRecordLevelOnly(diskRec, ours);
+      } else {
+        out[k] = this.mergeAnnotationFields(diskRec, ours, fields);
       }
     }
     // Safety net against concurrent-writer / interrupted-save / git-checkout data loss: a merge must
-    // never DROP an annotation this process still holds in memory unless it was explicitly deleted.
-    // `touched` only covers writes since the last persist, so an annotation we persisted in an earlier
-    // cycle is otherwise protected solely by the disk snapshot — and a concurrent writer, a half-flushed
-    // debounced save, or an out-of-band file reset can leave the disk transiently missing it. Treat disk
-    // absence of a node we still hold as an external add-gap, not a delete: resurfacing a stale note is
-    // recoverable (freshness/orphan checks flag it); silently losing one is not.
+    // never DROP an annotation this process still holds in memory unless it was explicitly deleted, and
+    // never REVERT one to an older disk copy. `touched` only covers writes since the last persist, so an
+    // annotation we persisted in an earlier cycle is otherwise protected solely by the disk snapshot — and
+    // a concurrent writer, a half-flushed debounced save, or an out-of-band file reset can leave the disk
+    // transiently missing it or holding a superseded version. Treat both as external gaps, not as intent:
+    // resurfacing a stale note is recoverable (freshness/orphan checks flag it); silently losing an update
+    // is not. A genuine external update carries a higher `pass`, so it still wins.
     for (const k of Object.keys(this.data)) {
-      if (!(k in out) && !this.deleted.has(k)) out[k] = this.data[k];
+      if (this.deleted.has(k)) continue;
+      const ours = this.data[k];
+      if (!(k in out)) {
+        out[k] = ours;
+        this.recordMergeKeep('readded', k);
+      } else if (!this.touched.has(k) && diskRecordIsOlder(out[k], ours)) {
+        out[k] = ours;
+        this.recordMergeKeep('reverted', k);
+      }
     }
     // Apply our pending deletes. Absence from memory for any OTHER reason never deletes.
     for (const k of this.deleted) delete out[k];
@@ -1080,7 +1178,8 @@ export class AnnotationStore {
   /**
    * Overlay only `fields` from our annotation onto the disk record, keeping the disk record's other
    * fields (a concurrent external writer's additions). Record metadata comes from our write; `pass` takes
-   * the max so neither side's increment is lost.
+   * the max so neither side's increment is lost. Callers pass a non-empty `fields`; an empty set means the
+   * write changed no content and routes to {@link mergeRecordLevelOnly} instead.
    */
   private mergeAnnotationFields(
     disk: Record<string, unknown>,
@@ -1299,6 +1398,16 @@ export class AnnotationStore {
 
   get lastSaveError(): string | null {
     return this._lastSaveError;
+  }
+
+  /** What the last merge kept over a disagreeing file. Zeroed by every merge, so it describes the latest one. */
+  get lastMergeKeeps(): AnnotationMergeKeeps {
+    return { ...this.mergeKeeps, sample: [...this.mergeKeeps.sample] };
+  }
+
+  private recordMergeKeep(kind: 'readded' | 'reverted', nodeId: string): void {
+    this.mergeKeeps[kind]++;
+    if (this.mergeKeeps.sample.length < MERGE_KEEP_SAMPLE) this.mergeKeeps.sample.push(nodeId);
   }
 
   /**

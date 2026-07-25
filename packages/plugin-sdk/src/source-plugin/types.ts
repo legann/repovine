@@ -1,4 +1,4 @@
-import type { ModuleInfo, PackageInfo, PendingModule, SemanticModuleDelta } from '../types.js';
+import type { ModuleInfo, PackageInfo, PendingModule, PendingModuleDraft, SemanticModuleDelta } from '../types.js';
 import type { PluginRequirements, PluginAvailability } from '../runtime.js';
 
 /**
@@ -72,6 +72,18 @@ export interface SourcePluginCapabilities {
    *  TS/Python resolver handles `app.handler` -> `app`; Java/Go-style plugins can map their own
    *  conventions without forking IaC parsing. */
   resolveHandlerToModule?: HandlerResolver;
+  /** Ecosystem rules the engine applies when it mints `mod:<pkg>/<path>` from a discovered file.
+   *  The plugin states the facts; the engine owns the id, so the format never depends on plugin
+   *  cooperation. Absent ⇒ the repo-relative path is used verbatim. */
+  moduleIdNormalize?: ModuleIdNormalize;
+}
+
+/** Declarative path→id normalization for one ecosystem. */
+export interface ModuleIdNormalize {
+  /** Suffixes stripped from the path end. Tried longest-first, so `.d.ts` wins over `.ts`. */
+  stripSuffixes?: string[];
+  /** Basenames standing for their own directory, collapsed away: `index` (TS), `__init__` (Python). */
+  indexBasenames?: string[];
 }
 
 /** Repo-root-relative glob scope used by repovine build.scan include/exclude config. */
@@ -102,8 +114,9 @@ export interface SourceDiscoveryOptions {
 
 export interface SourceDiscoveryResult {
   packages: PackageInfo[];
-  /** Candidate modules keyed by absolute file path. The orchestrator dedups across plugins. */
-  pendingByPath: Map<string, PendingModule>;
+  /** Candidate modules keyed by absolute file path, without ids: the engine mints `moduleId` from
+   * `pkg` + `relPath` before anything downstream sees them. The orchestrator dedups across plugins. */
+  pendingByPath: Map<string, PendingModuleDraft>;
   /** Opaque per-plugin payload threaded into extract() (e.g. parsed compilerOptions). Must be
    * structured-clone-safe so it can cross a worker_threads boundary. */
   extractContext?: unknown;

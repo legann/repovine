@@ -20,13 +20,25 @@ const REF_MIN_LENGTH = 32;
 const REF_ALWAYS_LENGTH = 96;
 const MAX_REFS = 500;
 
-export function isToolErrorResult(result: unknown): result is { error: string } {
-  return (
-    typeof result === 'object' &&
-    result !== null &&
-    'error' in result &&
-    typeof (result as { error: unknown }).error === 'string'
-  );
+/**
+ * The message an errored tool result carries, or undefined when it is not an error.
+ *
+ * Handlers report failure in two shapes and both must reach the client flagged. A bare
+ * `{ error }` is the direct form. `envelopeError` instead nests the message at `result.error`
+ * inside a normal envelope, so a top-level-only check reads a resolve failure as success — that is
+ * the shape `inspect_node`, `search_context`, `get_config_surface` and `map_context` return.
+ * Truncation is deliberately not an error: it carries `result.responseTruncated`, never `result.error`.
+ */
+export function toolErrorMessage(result: unknown): string | undefined {
+  if (!isObject(result)) return undefined;
+  if (typeof result.error === 'string') return result.error;
+  const inner = result.result;
+  if (isObject(inner) && typeof inner.error === 'string') return inner.error;
+  return undefined;
+}
+
+export function isToolErrorResult(result: unknown): boolean {
+  return toolErrorMessage(result) !== undefined;
 }
 
 export class NavigationRefRegistry {

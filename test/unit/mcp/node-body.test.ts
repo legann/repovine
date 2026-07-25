@@ -1,9 +1,15 @@
-import { describe, expect, it } from '@jest/globals';
+import { afterEach, describe, expect, it } from '@jest/globals';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
+  displayPath,
   isUnsafeRegexPattern,
   MAX_GREP_LINE_CHARS,
+  readNodeBody,
   scanLinesWithRegex,
 } from '../../../src/mcp/lib/node-body.js';
+import type { ModuleInfo, RepositoryGraph } from '../../../src/types.js';
 
 describe('grepBody regex safety', () => {
   it.each([
@@ -100,5 +106,84 @@ describe('grepBody regex safety', () => {
       expect(result.totalMatches).toBe(1);
       expect(result.matchIndices).toEqual([0]);
     }
+  });
+});
+
+const tempRoots: string[] = [];
+
+// realpathSync the fixture root: on macOS os.tmpdir() is itself a symlink (/var -> /private/var),
+// which would make the containment assertions measure the tmpdir link instead of the fixture.
+function tempDir(label: string): string {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `repovine-${label}-`)));
+  tempRoots.push(dir);
+  return dir;
+}
+
+function moduleGraph(nodeId: string, filePath: string): {
+  graph: RepositoryGraph;
+  modulesById: Map<string, ModuleInfo>;
+} {
+  return {
+    graph: { nodes: new Map(), inEdges: new Map() } as unknown as RepositoryGraph,
+    modulesById: new Map([[nodeId, { id: nodeId, filePath } as unknown as ModuleInfo]]),
+  };
+}
+
+// fs.symlinkSync needs SeCreateSymbolicLinkPrivilege on Windows, where a committed symlink is also
+// only materialised as a link under git core.symlinks=true. Gate the fixture, keep the rest running.
+const itSymlink = process.platform === 'win32' ? it.skip : it;
+
+describe('source body containment', () => {
+  afterEach(() => {
+    while (tempRoots.length > 0) {
+      fs.rmSync(tempRoots.pop()!, { recursive: true, force: true });
+    }
+  });
+
+  itSymlink('refuses a module whose path is a symlink resolving outside the repo', async () => {
+    const root = tempDir('node-body');
+    const outside = tempDir('node-body-outside');
+    const secret = path.join(outside, 'id_rsa');
+    fs.writeFileSync(secret, '-----BEGIN PRIVATE KEY-----\nsecret\n');
+    const link = path.join(root, 'src', 'leak.ts');
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.symlinkSync(secret, link);
+
+    const { graph, modulesById } = moduleGraph('mod:repo/src/leak', link);
+    const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/leak', 'module');
+
+    // The refusal names the in-repo link, not its target: the operator learns which file to remove
+    // and the out-of-repo path never reaches the client.
+    expect(result).toEqual({ error: `Refusing to read source outside repo root: ${path.join('src', 'leak.ts')}` });
+  });
+
+  itSymlink('reads a module reached through a symlink that stays inside the repo', async () => {
+    const root = tempDir('node-body');
+    const real = path.join(root, 'src', 'real.ts');
+    fs.mkdirSync(path.dirname(real), { recursive: true });
+    fs.writeFileSync(real, 'export const a = 1;\n');
+    const link = path.join(root, 'src', 'alias.ts');
+    fs.symlinkSync(real, link);
+
+    const { graph, modulesById } = moduleGraph('mod:repo/src/alias', link);
+    const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/alias', 'module');
+
+    expect(result).toMatchObject({ lines: ['export const a = 1;', ''], lineStart: 0 });
+  });
+
+  it('reports a missing in-repo module as unreadable rather than as an escape', async () => {
+    const root = tempDir('node-body');
+    const missing = path.join(root, 'src', 'gone.ts');
+    const { graph, modulesById } = moduleGraph('mod:repo/src/gone', missing);
+    const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/gone', 'module');
+
+    expect(result).toEqual({ error: `Could not read file: ${path.join('src', 'gone.ts')} — ENOENT` });
+  });
+
+  it('labels an out-of-repo path without echoing it', () => {
+    const root = tempDir('node-body');
+    expect(displayPath(root, path.join(root, 'src', 'index.ts'))).toBe(path.join('src', 'index.ts'));
+    expect(displayPath(root, root)).toBe('.');
+    expect(displayPath(root, path.join(root, '..', 'secret.txt'))).toBe('[outside-repo]');
   });
 });

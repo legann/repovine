@@ -20,11 +20,12 @@ import { resolveServiceResourceContentHash } from '../../annotations/service-res
 import { owningModuleId } from '../../graph/node-ids.js';
 import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
 import { computePropagationPreview } from '../../annotations/propagation.js';
-import { isPropagationStaleItem, type StaleKind } from '../../annotations/store.js';
+import { describeMergeKeeps, isPropagationStaleItem, type StaleKind } from '../../annotations/store.js';
 import { computeRiskScopeCandidates } from '../../annotations/risk-scope-candidates.js';
 import { computeCarrierLinkGaps } from '../../annotations/carrier-links.js';
 import { carrierTargetRiskHash, readCarrierReviewFile, readValidSuppressedTargets } from '../../annotations/carrier-review.js';
 import { limitFrom, offsetFrom, DEFAULT_SEMANTIC_LIMIT } from '../response/pagination.js';
+import { outsideRepoReport } from './refresh-summary.js';
 import { resolveNodeId, type McpToolRuntime } from '../types.js';
 import { writeBoundaryIndex } from '../boundary-index.js';
 import { hasBoundaryScopedRisk } from '../../annotations/format.js';
@@ -851,6 +852,9 @@ export async function refreshContextCore(ctx: McpToolRuntime, args: Record<strin
   const annotationsData = afterState.annotations.getAll();
   const totalAnnotations = Object.keys(annotationsData).length;
   const domainsSuggestions = afterState.domainsSuggestions ?? { count: 0, axes: [], declinedHidden: 0 };
+  const outsideRepo = outsideRepoReport(afterState.snapshot);
+  const mergeKeeps = afterState.annotations.lastMergeKeeps;
+  const mergeKeepsWarning = describeMergeKeeps(mergeKeeps);
 
   const result: Record<string, unknown> = {
     status: 'rebuilt',
@@ -874,6 +878,17 @@ export async function refreshContextCore(ctx: McpToolRuntime, args: Record<strin
       axes: domainsSuggestions.axes,
       declinedHidden: domainsSuggestions.declinedHidden,
     },
+    ...(outsideRepo ? { outsideRepo } : {}),
+    // A separate key, not `annotations.warning`: that field is a single scalar and the orphan report
+    // already owns it, and the two conditions are independent.
+    ...(mergeKeepsWarning ? {
+      annotationMergeKeeps: {
+        readded: mergeKeeps.readded,
+        reverted: mergeKeeps.reverted,
+        sample: mergeKeeps.sample,
+        warning: mergeKeepsWarning,
+      },
+    } : {}),
   };
 
   if (orphanedReport.total > 0) {

@@ -13,14 +13,19 @@ describe('external source plugin — full Stage-1 pipeline', () => {
   let repoRoot: string;
 
   // A working source plugin authored as plain ESM (exactly what a third-party would publish):
-  // discover finds `*.foo` files at the repo root; extract emits one semantic delta per file.
+  // discover finds `*.foo` files at the repo root and reports drafts WITHOUT ids; extract emits one
+  // semantic delta per file, keyed by the id the engine minted.
   const PLUGIN_JS = `import * as fs from 'node:fs';
 import * as path from 'node:path';
 export default {
   id: 'foo-lang',
   apiVersion: 1,
   fileMatch: { extensions: ['.foo'] },
-  capabilities: { extensions: ['.foo'] },
+  capabilities: {
+    extensions: ['.foo'],
+    // Ecosystem facts only; the engine mints \`mod:<pkg>/<path>\` from them.
+    moduleIdNormalize: { stripSuffixes: ['.foo'] },
+  },
   discover(repoRoot) {
     const pkg = { name: 'foo-pkg', path: '.', sourcePluginId: 'foo-lang' };
     const pendingByPath = new Map();
@@ -29,7 +34,6 @@ export default {
         const filePath = path.join(repoRoot, entry);
         pendingByPath.set(filePath, {
           filePath, pkg, relPath: entry,
-          moduleId: 'mod:foo-pkg/' + entry.replace(/\\.foo$/, ''),
           sourcePluginId: 'foo-lang',
         });
       }

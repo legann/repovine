@@ -19,6 +19,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { isPathInsideRepo } from '../fs/containment.js';
 
 const CONFIG_FILENAME = 'repovine.config.json';
 
@@ -88,19 +89,6 @@ function scopeEntryError(entry: unknown): string | undefined {
   if (path.isAbsolute(value)) return `scope "${value}" must be repository-relative`;
   if (value.split(/[\\/]/).includes('..')) return `scope "${value}" must not contain ".." segments`;
   return undefined;
-}
-
-/** Brief path must stay inside the real repoRoot after symlink resolution (working-tree mode). */
-function briefEscapesRepo(repoRoot: string, rel: string): boolean {
-  try {
-    const realRoot = fs.realpathSync(repoRoot);
-    const abs = path.resolve(realRoot, rel);
-    const real = fs.existsSync(abs) ? fs.realpathSync(abs) : abs;
-    const relFromRoot = path.relative(realRoot, real);
-    return relFromRoot.startsWith('..') || path.isAbsolute(relFromRoot);
-  } catch {
-    return true;
-  }
 }
 
 /** Cheap deterministic scan-coverage advisory: scope named by a scan exclude. */
@@ -185,7 +173,7 @@ export function loadProjectRoleSource(
       errors.push(`${label}: brief path must be repository-relative without ".." segments`);
       continue;
     }
-    if (!options.at && briefEscapesRepo(repoRoot, briefPath)) {
+    if (!options.at && !isPathInsideRepo(repoRoot, briefPath)) {
       errors.push(`${label}: brief path escapes the repository after symlink resolution`);
       continue;
     }

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { parseBundleOutputScript, loadBundleOutputHandlerMap } from '../../../src/stage2/lambda-bundle-loader.js';
+import { parseBundleOutputScript, loadBundleOutputHandlerMap } from '../../../src/stage2/bundle-output-loader.js';
 
 describe('parseBundleOutputScript — esbuild style', () => {
   it('maps output path to TS entry when they differ', () => {
@@ -136,5 +136,21 @@ describe('loadBundleOutputHandlerMap — auto-detect convention paths', () => {
     const m = loadBundleOutputHandlerMap(tmp, ['custom/extra.js'], false);
     expect(m['dist/foo']).toBeUndefined();
     expect(m['dist/bar']).toBe('src/bar');
+  });
+
+  // A configured script path is repo-root-relative, and `path.join` normalizes a `..` segment away
+  // instead of rejecting it. Everything the engine reads stays under the workspace root.
+  it('refuses a configured script path that climbs out of the workspace root', () => {
+    const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-outside-')));
+    fs.writeFileSync(
+      path.join(outside, 'evil.js'),
+      `{ entryPoint: 'src/evil.ts', outputFile: 'dist/evil.js' }`,
+    );
+    const rel = path.relative(tmp, path.join(outside, 'evil.js'));
+
+    const m = loadBundleOutputHandlerMap(tmp, [rel], false);
+
+    expect(m).toEqual({});
+    fs.rmSync(outside, { recursive: true, force: true });
   });
 });

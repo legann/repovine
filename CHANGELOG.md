@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.1.0] - 2026-05-25
+## [0.1.0] - 2026-07-25
 
 Initial public release.
 
@@ -32,7 +32,7 @@ Initial public release.
 
 **CLI & server** — `setup`, `build`, `status`, `doctor`, `clear`, `agents`; `setup` builds the graph by default (`--no-build` defers to first MCP start). MCP over stdio only in v1.
 
-**Language & framework extraction** — framework-aware for React, Next.js, Remix, Nuxt, SvelteKit, Angular, NestJS, serverless monorepos, and Vue/Svelte/Astro SFCs; built-in source adapters for TypeScript/JS and Python, with additional languages/formats addable as `@repovine/plugin-sdk` plugins.
+**Language & framework extraction** — framework-aware for React, Next.js, Remix, Nuxt, SvelteKit, Angular, NestJS, serverless monorepos, and Vue/Svelte SFCs; built-in source adapters for TypeScript/JS and Python, with additional languages/formats addable as `@repovine/plugin-sdk` plugins.
 
 **IaC indexing** — SAM/CloudFormation, Terraform, Kubernetes, Helm, Dockerfile, docker-compose, and Vercel, through a plugin contract; infra-only repos build a graph without source packages.
 
@@ -40,6 +40,6 @@ Initial public release.
 
 **Cross-platform Tier 1** — native Windows x64 and macOS arm64 join Linux x64 for the package, CLI, stdio MCP server, client projections, and the optional embedder. Support is a per-surface contract with CI evidence: [docs/platform-support.md](docs/platform-support.md). Required merge gates: `core-linux`, `core-windows`, `core-macos-arm`, `harness-linux`, plus a 3-OS embedder matrix (floor and latest-resolvable of each accepted `@huggingface/transformers` major; 3.8.1 on macOS excluded for a documented onnxruntime 1.21 exit defect). Host paths go through a canonical key contract (`src/platform/paths.ts`: win32-only case folding, 8.3 short names, `\\?\`/UNC forms, non-ASCII paths); Python extraction is UTF-8-forced on Windows. `doctor --json` reports platform, filesystem case, and the embedder install; embedder models cache under the OS user cache dir (`REPOVINE_MODEL_CACHE` overrides). Config edits preserve per-file EOL; mixed-EOL files stay byte-exact.
 
-**Harness demo sandbox** (cross-platform hosts, Linux container runtime) — compose attach services live in a required-variable overlay (`compose.attach.yaml`, fail-closed before Docker); host binds set `create_host_path: false`; a gateway loopback forwarder makes `LOCAL_BASE_URL=http://127.0.0.1:11434/v1` one constant on every platform; an actual-container egress smoke (default-deny rule order, DNS NXDOMAIN sinkhole, non-degenerate IPv6 drop, in-image hardening probe) runs strict in CI. The attach launcher enumerates the host mount table through a tri-state adapter — cannot-enumerate refuses before Docker — and proves filesystem types: projection/network types refused everywhere, WSL accepts ext4 checkouts only. macOS attach refuses; the lifting design is [ADR 0001](examples/agent-harness-demo/docs/adr/0001-macos-attach-mount-topology.md) (Proposed).
+**Harness demo sandbox** (cross-platform hosts, Linux container runtime) — compose attach services live in a required-variable overlay (`compose.attach.yaml`, fail-closed before Docker); host binds set `create_host_path: false`; a gateway loopback forwarder makes `LOCAL_BASE_URL=http://127.0.0.1:11434/v1` one constant on every platform; an actual-container egress smoke (default-deny rule order, DNS NXDOMAIN sinkhole, non-degenerate IPv6 drop, in-image hardening probe) runs strict in CI. The attach launcher enumerates the host mount table through a tri-state adapter — cannot-enumerate refuses before Docker — and proves filesystem types: projection/network types refused everywhere, WSL accepts ext4 checkouts only. macOS attach refuses; the lifting design is [ADR 0001](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo/docs/adr/0001-macos-attach-mount-topology.md) (Proposed).
 
 **Release gate** — `publish.yml` verifies every Tier-1 gate completed green on the exact tagged commit before npm publish. A bug-report issue template collects `doctor --json` and platform evidence.

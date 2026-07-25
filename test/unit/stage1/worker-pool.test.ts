@@ -47,7 +47,7 @@ function normalizeSnapshotContract(snapshot: RepositoryFactsSnapshot): Record<st
     modules: sortStable(snapshot.modules.map(stableValue)),
     infraModules: sortStable((snapshot.infraModules ?? []).map(stableValue)),
     templates: sortStable((snapshot.templates ?? []).map(stableValue)),
-    lambdaBundleHandlerMap: stableValue(snapshot.lambdaBundleHandlerMap ?? null),
+    bundleOutputHandlerMap: stableValue(snapshot.bundleOutputHandlerMap ?? null),
     linkingConfig: stableValue(snapshot.linkingConfig ?? null),
   };
 }

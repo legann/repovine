@@ -16,7 +16,7 @@ Together, these layers support **intent-driven, context-compiled, contract-verif
 
 **Checkout-local by design.** The live graph and indexes are built from each checkout's working tree and run in memory. Configuration and authored knowledge travel through Git. No database is required.
 
-**Benchmarks.** Across correctness and restraint tasks drawn from large public software repositories, **90% of Repovine runs** passed their case-specific diff gate, compared with **12.5% of baseline runs**. [Explore the results](benchmarks/README.md).
+**Benchmarks.** Across correctness and restraint tasks drawn from large public software repositories, **90% of Repovine runs** passed their case-specific diff gate, compared with **12.5% of baseline runs**. [Explore the results](https://github.com/legann/repovine/blob/main/benchmarks/README.md).
 
 Start in an existing repository:
 
@@ -43,7 +43,7 @@ The same model-agnostic engine supports interactive and autonomous development:
 | Mode | What |
 |---|---|
 | **Client (IDE or CLI)** | MCP delivers scoped graph context and annotations in Cursor, Claude Code, or Codex; a developer stays in the loop and repovine's checks are advisory |
-| **Agent Protocol (harness)** | an external harness runs the agent; repovine checks its structured result against the graph and annotation state, while the harness owns tests, retries, and final acceptance. See the [LangGraph harness demo](examples/agent-harness-demo) |
+| **Agent Protocol (harness)** | an external harness runs the agent; repovine checks its structured result against the graph and annotation state, while the harness owns tests, retries, and final acceptance. See the [LangGraph harness demo](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo) |
 
 ## How it works (Client)
 
@@ -134,6 +134,7 @@ After a verified change, the agent re-syncs the graph (`refresh_context`) and re
 | `npx repovine build` | build the graph |
 | `npx repovine status` | graph / config / annotation health |
 | `npx repovine doctor` | diagnose repovine assets |
+| `npx repovine agents` | inspect repository role prose and validate harness results |
 | `npx repovine clear` | remove managed assets |
 | `npx repovine` | run the stdio MCP server outside an IDE/CLI client |
 | `npx repovine --version` · `--help` | version / help |
@@ -190,16 +191,16 @@ Plugins are the main way to extend repovine. Two surfaces, both via `@repovine/p
 | Language source producer | a language: source files → modules, imports, exports, semantic hints |
 | IaC parser | an infra format: files → runtime-resource nodes and links |
 
-Built-in TypeScript, Python, and IaC producers use the same public contracts as third-party plugins. Add one in-repo (one bootstrap line) or publish it as an npm package; repovine validates the facts it produces while core retains graph ids and ontology. Plugin guide: [docs/plugin-authoring.md](docs/plugin-authoring.md). Runnable examples: [Go source plugin](examples/repovine-plugin-go), [IaC plugin](examples/repovine-plugin-iac), and the [examples catalog](examples/README.md). Dev setup and other paths: [CONTRIBUTING.md](CONTRIBUTING.md).
+Built-in TypeScript, Python, and IaC producers use the same public contracts as third-party plugins. Add one in-repo (one bootstrap line) or publish it as an npm package; repovine validates the facts it produces while core retains graph ids and ontology. Plugin guide: [docs/plugin-authoring.md](docs/plugin-authoring.md). Runnable examples: [Go source plugin](https://github.com/legann/repovine/blob/main/examples/repovine-plugin-go), [IaC plugin](https://github.com/legann/repovine/blob/main/examples/repovine-plugin-iac), and the [examples catalog](https://github.com/legann/repovine/blob/main/examples/README.md). Dev setup and other paths: [CONTRIBUTING.md](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md).
 
-Delivery mechanics are the core extension point for edit-relevant signals derived from graph and annotation state. Each mechanic declares the primitive it reads, its propagation direction, delivery channels, and detection rule; when that primitive is unavailable, the mechanic remains dormant. Mechanics stay in core because they consume graph, annotation, and response contracts. See [adding a delivery mechanic](CONTRIBUTING.md#adding-a-delivery-mechanic) and the [mechanics registry](DESIGN.md#mechanics-registry).
+Delivery mechanics are the core extension point for edit-relevant signals derived from graph and annotation state. Each mechanic declares the primitive it reads, its propagation direction, delivery channels, and detection rule; when that primitive is unavailable, the mechanic remains dormant. Mechanics stay in core because they consume graph, annotation, and response contracts. See [adding a delivery mechanic](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md#adding-a-delivery-mechanic) and the [mechanics registry](DESIGN.md#mechanics-registry).
 
 ## Examples
 
-[Browse all runnable examples](examples/README.md), including plugin authoring,
+[Browse all runnable examples](https://github.com/legann/repovine/blob/main/examples/README.md), including plugin authoring,
 an offline Agent Protocol fixture, and the live harness below.
 
-[`examples/agent-harness-demo`](examples/agent-harness-demo) is a runnable harness that applies the protocol with LangGraph: channels (Telegram bot, HTTP, CLI), role agents (greenfield scaffolds fan out in parallel git worktrees), and retries. Agents run write-only inside an egress-restricted Docker sandbox. Providers: Claude, Cursor, Codex via API, or a local model.
+[`examples/agent-harness-demo`](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo) is a runnable harness that applies the protocol with LangGraph: channels (Telegram bot, HTTP, CLI), role agents (greenfield scaffolds fan out in parallel git worktrees), and retries. Agents run write-only inside an egress-restricted Docker sandbox. Providers: Claude, Cursor, Codex via API, or a local model.
 
 ```mermaid
 graph LR
@@ -222,8 +223,8 @@ Guide: [docs/agent-protocol.md](docs/agent-protocol.md).
 - [Documentation](docs/README.md): guides, references, and the TODO app walkthrough
 - [Platform support](docs/platform-support.md): per-surface OS tiers, prerequisites, and promotion rules
 - [DESIGN.md](DESIGN.md): system boundaries, graph contract, trust model, and limitations
-- [CONTRIBUTING.md](CONTRIBUTING.md): dev setup, quality gates
-- [examples](examples/README.md): runnable plugins and Agent Protocol harnesses
+- [CONTRIBUTING.md](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md): dev setup, quality gates
+- [examples](https://github.com/legann/repovine/blob/main/examples/README.md): runnable plugins and Agent Protocol harnesses
 
 ## License
 

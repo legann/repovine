@@ -101,7 +101,7 @@ function buildHandlerResolveContext(
     artifactRoot,
     attributes,
     infraRelPath,
-    handlerPathMap: snapshot.lambdaBundleHandlerMap ?? {},
+    handlerPathMap: snapshot.bundleOutputHandlerMap ?? {},
     resolveModuleByRepoPath(candidate: string): string | undefined {
       return lookupModuleByRepoPath(moduleIdsByRepoPath, candidate);
     },

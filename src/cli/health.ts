@@ -9,6 +9,7 @@ import { graphStats } from '../graph/index.js';
 import { RepovineRuntime } from '../mcp/context.js';
 import { toolDefs } from '../mcp/tool-defs.js';
 import { boundaryIndexFilePath, readBoundaryIndex, BOUNDARY_INDEX_VERSION } from '../mcp/boundary-index.js';
+import { outsideRepoReport } from '../mcp/lib/refresh-summary.js';
 import {
   getAnnotationMergeStatus,
   validateAnnotationHealth,
@@ -935,6 +936,7 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
     const configuredClients = mcpConfigs.filter(check => check.hasrepovine).map(check => check.client);
     const statusNextActions = annotationHealth.nextActions
       .filter(action => !action.startsWith('Annotation file is parseable, merged, and fresh'));
+    const outsideRepo = outsideRepoReport(state.snapshot);
     const result = {
       ok: annotationHealth.status === 'clean' && agentAssets.summary.errors === 0,
       workspace: env.repoRoot,
@@ -945,6 +947,9 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
         edges: stats.totalEdges,
         packages: state.graph.byType.get('package')?.size ?? 0,
         domains: state.graph.byType.get('domain')?.size ?? 0,
+        // The module count above silently excludes refused files, and this command muted the build log
+        // that would have named them, so this is the only place the fact survives here.
+        ...(outsideRepo ? { outsideRepo } : {}),
       },
       cache,
       mcp: {
@@ -973,6 +978,9 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
       logCli(`  ${cli.dim('Graph:')}       ${stats.totalNodes} nodes, ${stats.totalEdges} edges, ${state.snapshot.modules.length} modules`);
       logCli(`  ${cli.dim('MCP clients:')} ${configuredClients.length ? configuredClients.join(', ') : cli.warn('none configured')}`);
       logCli(`  ${cli.dim('Cache:')}       ${cache.severity === 'ok' ? cli.success('warm') : cli.warn('missing')}`);
+      if (outsideRepo) {
+        logCli(`  ${cli.dim('Containment:')} ${cli.warn(`${outsideRepo.count} file(s) refused`)} (${outsideRepo.sample.join(', ')})`);
+      }
       logCli(`  ${cli.dim('Annotations:')} ${annotationHealth.status === 'clean' ? cli.success('clean') : cli.warn('needs review')} `
         + `(needsWork ${annotationHealth.needsWork}, stale ${annotationHealth.counts.stale}, propagation-stale ${annotationHealth.counts.stalePropagation}, unannotated ${annotationHealth.counts.unannotated})`);
       logCli(`  ${cli.dim('Coverage:')}   ${formatModuleCoverageLine(compactCoverage(annotationStats))}`);

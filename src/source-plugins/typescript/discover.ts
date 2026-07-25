@@ -1,12 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type ts from 'typescript';
-import type { PackageInfo, PendingModule } from '@repovine/plugin-sdk';
+import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
 import { hostPathKey } from '../../platform/paths.js';
 import { logPipelineWarn } from '../../cli/ui.js';
-import { makeModuleId, pathPrefixLength } from '../../stage1/utils.js';
+import { pathPrefixLength } from '../../stage1/utils.js';
 import { discoverPackages } from './packages.js';
 import { parsePackageTsConfig } from './list-tsconfig-files.js';
 import { extractTypeScriptFromSfc, SFC_EXTENSIONS } from './sfc-extractor.js';
@@ -46,15 +46,15 @@ interface DiscoveryContext {
 }
 
 interface DiscoveryResult {
-  pendingByPath: Map<string, PendingModule>;
+  pendingByPath: Map<string, PendingModuleDraft>;
   parsedOptionsByPkg: Map<string, ts.CompilerOptions>;
   sourceFilesDiscovered: number;
 }
 
 function registerPendingModule(
-  pendingByPath: Map<string, PendingModule>,
+  pendingByPath: Map<string, PendingModuleDraft>,
   filePath: string,
-  entry: PendingModule,
+  entry: PendingModuleDraft,
   relFromRoot: string,
 ): void {
   // Canonical key: tsconfig enumeration, SFC discovery, and the tree
@@ -124,7 +124,7 @@ function discoverPackageSourceFiles(
   repoRoot: string,
   ctx: DiscoveryContext,
   fileNames: string[],
-  pendingByPath: Map<string, PendingModule>,
+  pendingByPath: Map<string, PendingModuleDraft>,
 ): number {
   let count = 0;
   for (const filePath of fileNames) {
@@ -137,7 +137,6 @@ function discoverPackageSourceFiles(
       filePath,
       pkg,
       relPath,
-      moduleId: makeModuleId(pkg.name, relPath),
     }, check.relFromRoot);
     if (pendingByPath.size > before) count++;
   }
@@ -149,7 +148,7 @@ function discoverSfcFiles(
   repoRoot: string,
   pkg: PackageInfo,
   ctx: DiscoveryContext,
-  pendingByPath: Map<string, PendingModule>,
+  pendingByPath: Map<string, PendingModuleDraft>,
 ): number {
   let added = 0;
   const walk = (dir: string): void => {
@@ -186,8 +185,7 @@ function discoverSfcFiles(
         virtualPath: full + '.ts',
         pkg,
         relPath,
-        moduleId: makeModuleId(pkg.name, relPath),
-      }, relFromRoot);
+        }, relFromRoot);
       if (pendingByPath.size > before) added++;
     }
   };
@@ -199,7 +197,7 @@ function discoverExplicitIncludeFiles(
   packages: PackageInfo[],
   repoRoot: string,
   ctx: DiscoveryContext,
-  pendingByPath: Map<string, PendingModule>,
+  pendingByPath: Map<string, PendingModuleDraft>,
 ): number {
   if (ctx.scanPatterns.include.length === 0) return 0;
 
@@ -225,7 +223,6 @@ function discoverExplicitIncludeFiles(
       filePath: absPath,
       pkg,
       relPath,
-      moduleId: makeModuleId(pkg.name, relPath),
     }, relFromRoot);
     if (pendingByPath.size > before) added++;
   };
@@ -261,7 +258,7 @@ function discoverPendingModules(
   repoRoot: string,
   ctx: DiscoveryContext,
 ): DiscoveryResult {
-  const pendingByPath = new Map<string, PendingModule>();
+  const pendingByPath = new Map<string, PendingModuleDraft>();
   const parsedOptionsByPkg = new Map<string, ts.CompilerOptions>();
   let sourceFilesDiscovered = 0;
 

@@ -350,6 +350,11 @@ const baseToolDefs: ToolDef[] = [
       + 'The response reports graph deltas, annotation orphan status, searchTokens (token+annotation index size), '
       + 'semanticSearch ({ status: disabled|up_to_date|updated|failed, embedded?, total?, error? }) when semantic_search_embeddings is enabled, '
       + 'and domainsSuggestions ({ count, axes, declinedHidden }) for first-run domains advisor follow-up. '
+      + 'annotationMergeKeeps ({ readded, reverted, sample, warning }) appears when the reload kept in-memory notes the '
+      + 'file disagreed with — the shape a reverted repovine.annots.json produces, which is otherwise undone silently. '
+      + 'outsideRepo ({ count, sample, warning }) appears when the build refused files that name an in-repo path but '
+      + 'resolve outside the repository through a symlink; those files are absent from the graph. get_build_status '
+      + 'reports the same block for the first build. '
       + 'Pass reloadConfig: true after editing repovine.config.json to re-read config and rebuild with a fresh runtime; '
       + 'pass cleanupOrphans: true to remove orphaned annotations after rebuild. '
       + 'After get_build_status({ cancel: true }) left the server in status:"cancelled" (no graph), refresh_context re-triggers a fresh background build and returns the building status.',

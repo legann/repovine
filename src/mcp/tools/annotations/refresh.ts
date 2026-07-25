@@ -21,12 +21,17 @@ export const handleRefreshContext: ToolHandler = async (ctx, args) => {
   }
   navigation.validate.push(nav('get_annotation_status', { view: 'coverage' }, 'Check annotation freshness after refresh.'));
 
+  const gaps: string[] = [];
+  if (orphanCount > 0 && !cleanupOrphans) gaps.push(`${orphanCount} orphaned annotation(s) remain until cleanup is requested.`);
+  const outsideRepo = result.outsideRepo as { warning?: string } | undefined;
+  if (outsideRepo?.warning) gaps.push(outsideRepo.warning);
+
   return envelope('all', cleanupOrphans ? 'Refreshed graph and cleaned orphaned annotations when present.' : 'Refreshed repository context graph.', {
     refresh: result,
     ...(cleanupResult ? { cleanup: cleanupResult } : {}),
   }, {
     confidence: 'high',
-    gaps: orphanCount > 0 && !cleanupOrphans ? [`${orphanCount} orphaned annotation(s) remain until cleanup is requested.`] : [],
+    gaps,
     navigation,
   });
 };

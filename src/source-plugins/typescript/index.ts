@@ -79,6 +79,12 @@ const typescriptSourcePlugin = defineSourcePlugin({
     extensions: TYPESCRIPT_SOURCE_EXTENSIONS,
     uiSurfaces: true,
     resolveHandlerToModule: resolveDottedPathHandlerToModule,
+    // `.d.ts` is listed alongside the source extensions because the engine strips longest-first:
+    // declaring it keeps `global.d.ts` from minting as `global.d`.
+    moduleIdNormalize: {
+      stripSuffixes: ['.d.ts', ...TYPESCRIPT_SOURCE_EXTENSIONS],
+      indexBasenames: ['index'],
+    },
   },
 
   discover(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {

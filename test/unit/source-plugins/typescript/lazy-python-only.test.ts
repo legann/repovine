@@ -23,7 +23,7 @@ d('python-only discovery does not load the TypeScript extract chunk', () => {
   it('discovers only python pending modules and leaves lazy extract unloaded in this process', () => {
     const repoRoot = findFixture();
     const packages = [];
-    const pendingByPath = new Map<string, import('../../../../src/types.js').PendingModule>();
+    const pendingByPath = new Map<string, import('../../../../src/types.js').PendingModuleDraft>();
 
     for (const plugin of getSourcePlugins()) {
       const { packages: found, pendingByPath: pending } = plugin.discover(repoRoot, {});

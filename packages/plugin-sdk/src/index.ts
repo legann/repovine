@@ -35,9 +35,11 @@ export type {
   SourceDiscoveryResult,
   SourceExtractInput,
   SourceExtractResult,
+  ModuleIdNormalize,
 } from './source-plugin/types.js';
 
 export { resolveDottedPathHandlerToModule } from './source-plugin/handler-resolver.js';
+export { mintModuleId } from './source-plugin/module-id.js';
 
 /* ---- semanticHints schema (versioned producer↔consumer contract) ---- */
 export { SEMANTIC_HINTS_VERSION, zSemanticHints, validateSemanticHints } from './source-plugin/semantic-hints-schema.js';
@@ -86,6 +88,7 @@ export type {
   ModuleInfo,
   PackageInfo,
   PendingModule,
+  PendingModuleDraft,
   SemanticModuleDelta,
   ImportInfo,
   ReExportInfo,

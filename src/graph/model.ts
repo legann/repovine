@@ -83,13 +83,18 @@ export interface RepositoryFactsSnapshot {
   packages: PackageInfo[];
   modules: ModuleInfo[];
   infraModules?: InfraModuleInfo[];
+  /** Repo-relative candidates refused by containment because they resolve outside the repository.
+   * They are absent from `modules`, so the graph reports why rather than losing them silently.
+   * Recomputed by every discovery pass, never reused from a cached snapshot. */
+  outsideRepoPaths?: string[];
   /** Template/rendered-surface artifacts discovered by stage1 producers. */
   templates?: TemplateFileInfo[];
   /**
-   * SAM Handler path (before `.handler`) → `src/`-relative TS path without extension,
-   * when esbuild output path differs from source (from configured bundle scripts).
+   * Bundle output path → source entry path, both extension-stripped and repo-relative. Populated
+   * from configured and auto-detected bundle scripts when the bundler's output path differs from
+   * its entry, so a deployed artifact path resolves back to the source it was built from.
    */
-  lambdaBundleHandlerMap?: Record<string, string>;
+  bundleOutputHandlerMap?: Record<string, string>;
   linkingConfig?: {
     handlers?: { searchRoots?: string[] };
     bundles?: { scripts?: string[]; autoDetect?: boolean };

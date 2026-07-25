@@ -1,17 +1,35 @@
 import { makeModuleId, modulePathResolverPriority } from '../../../src/stage1/utils.js';
 
+// The engine mints ids; a plugin only declares its ecosystem's facts. These are TypeScript's, as
+// declared by the built-in plugin's `capabilities.moduleIdNormalize`.
+const TS_NORMALIZE = {
+  stripSuffixes: ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'],
+  indexBasenames: ['index'],
+};
+
 describe('makeModuleId', () => {
   it('normalizes Windows separators before stripping extensions and index', () => {
-    expect(makeModuleId('pkg', 'src\\features\\orders\\index.ts'))
+    expect(makeModuleId('pkg', 'src\\features\\orders\\index.ts', TS_NORMALIZE))
       .toBe('mod:pkg/src/features/orders');
   });
 
   it('strips .d.ts as a unit, leaving no trailing .d', () => {
-    // The dedicated .d.ts strip must run BEFORE the general single-extension strip.
-    // If removed or reordered after it, the general strip removes only `.ts`,
-    // leaving a trailing `.d` (→ 'mod:pkg/src/types/global.d').
-    expect(makeModuleId('pkg', 'src/types/global.d.ts'))
+    // Suffixes are tried longest-first, so `.d.ts` wins over `.ts`. Sorting shortest-first instead
+    // would strip only `.ts` and leave 'mod:pkg/src/types/global.d'.
+    expect(makeModuleId('pkg', 'src/types/global.d.ts', TS_NORMALIZE))
       .toBe('mod:pkg/src/types/global');
+  });
+
+  it('uses the path verbatim when the ecosystem declares no normalization', () => {
+    // An external plugin that declares nothing still gets a well-formed id — it just keeps the
+    // suffix, rather than the engine guessing at another language's conventions.
+    expect(makeModuleId('go-app', 'cmd/server/main.go'))
+      .toBe('mod:go-app/cmd/server/main.go');
+  });
+
+  it('collapses the ecosystem-declared package-index basename', () => {
+    expect(makeModuleId('pkg', 'a/b/__init__.py', { stripSuffixes: ['.py'], indexBasenames: ['__init__'] }))
+      .toBe('mod:pkg/a/b');
   });
 });
 

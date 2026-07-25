@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { isPathInsideRepo } from '../fs/containment.js';
 
 /**
  * Conventional paths where build scripts that map source → bundle-output usually live.
@@ -137,6 +138,10 @@ export function loadBundleOutputHandlerMap(
 
   for (const rel of paths) {
     const abs = path.join(repoRoot, rel);
+    // `path.join` normalizes a `..` segment away instead of rejecting it, and `statSync` follows
+    // links, so a configured script path can name a file outside the workspace root. Same rule the
+    // engine applies to discovered candidates.
+    if (!isPathInsideRepo(repoRoot, abs)) continue;
     if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) continue;
     try {
       const text = fs.readFileSync(abs, 'utf8');

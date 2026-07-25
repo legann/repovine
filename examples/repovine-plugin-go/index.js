@@ -4,7 +4,8 @@
 // It demonstrates the whole contract a third-party plugin honors:
 //   • discover() finds the artifacts it owns (no AST);
 //   • extract() emits SEMANTICS ONLY (imports/exports/semanticHints) keyed back to the
-//     engine-minted moduleId — it never sets id/filePath/contentHash; the engine stamps those;
+//     engine-minted moduleId — discover() reports pkg + relPath and the engine mints the id, so a
+//     plugin never spells `mod:<pkg>/<path>` itself and never sets id/filePath/contentHash;
 //   • routes go into `semanticHints.routes`, which the CORE projects into API entrypoints with no
 //     new interpreter (a new language gets backend interpretation for free).
 //
@@ -32,7 +33,11 @@ export default {
   id: 'go',
   apiVersion: 1,
   fileMatch: { extensions: ['.go'] },
-  capabilities: { extensions: ['.go'] },
+  // `moduleIdNormalize` states this ecosystem's facts; the ENGINE applies them when it mints ids.
+  capabilities: {
+    extensions: ['.go'],
+    moduleIdNormalize: { stripSuffixes: ['.go'] },
+  },
 
   // Pass 1 — discovery (no parsing). Return packages + candidate files keyed by absolute path.
   discover(repoRoot) {
@@ -46,7 +51,6 @@ export default {
         filePath,
         pkg,
         relPath: rel,
-        moduleId: 'mod:go-app/' + rel.replace(/\\/g, '/').replace(GO_RE, ''),
         sourcePluginId: 'go',
       });
     }

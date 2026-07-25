@@ -19,8 +19,8 @@ The fastest path is to copy one of the working examples and adapt it:
 
 | Example | Kind | Copy from |
 |---|---|---|
-| Go (source) | `source-plugin` | [`examples/repovine-plugin-go/`](../examples/repovine-plugin-go/) |
-| edge-stack (IaC) | `iac-plugin` | [`examples/repovine-plugin-iac/`](../examples/repovine-plugin-iac/) |
+| Go (source) | `source-plugin` | [`examples/repovine-plugin-go/`](https://github.com/legann/repovine/blob/main/examples/repovine-plugin-go/) |
+| edge-stack (IaC) | `iac-plugin` | [`examples/repovine-plugin-iac/`](https://github.com/legann/repovine/blob/main/examples/repovine-plugin-iac/) |
 
 Each example is self-contained:
 
@@ -116,15 +116,22 @@ export default defineSourcePlugin({
     return hasGoToolchain() ? { ok: true } : { ok: false, reason: 'go not found on PATH' };
   },
   fileMatch: { extensions: ['.go'] },
-  capabilities: { extensions: ['.go'] },
+  capabilities: {
+    extensions: ['.go'],
+    // Ecosystem facts the ENGINE applies when it mints module ids. Declare the suffixes that are
+    // not part of a module's identity, and any basename standing for its own directory.
+    moduleIdNormalize: { stripSuffixes: ['.go'] },
+  },
 
   // Pass 1 — discovery (NO AST). Return packages + candidate files keyed by absolute path.
+  // Each entry is a PendingModuleDraft: filePath, pkg, relPath — and NO moduleId. The engine mints
+  // `mod:<pkg>/<path>` from pkg + relPath, so a plugin never spells that format itself.
   discover(repoRoot, options) {
     /* ...enumerate packages and .go files... */
     return { packages, pendingByPath };
   },
 
-  // Pass 2 — extract SEMANTICS ONLY, keyed back to PendingModule.moduleId from discover().
+  // Pass 2 — extract SEMANTICS ONLY, keyed back to the engine-minted PendingModule.moduleId.
   // The engine reads the file and computes the hash (input.sourceByModuleId); never set
   // id/filePath/contentHash on the delta — those fields are not on the return type.
   extract(input: SourceExtractInput): SourceExtractResult {
@@ -242,7 +249,7 @@ new slots are additive, not breaking.
 
 ## SDK reference
 
-Package: [`packages/plugin-sdk/`](../packages/plugin-sdk/) (`@repovine/plugin-sdk`).
+Package: [`packages/plugin-sdk/`](https://github.com/legann/repovine/blob/main/packages/plugin-sdk/) (`@repovine/plugin-sdk`).
 
 Built-in producers (Path A reference): `src/source-plugins/`, `src/iac-plugins/`.
 

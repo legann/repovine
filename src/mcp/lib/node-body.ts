@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
 import type { RepositoryGraph, ModuleInfo } from '../../types.js';
+import { isLexicallyInsideRepo, isPathInsideRepo } from '../../fs/containment.js';
 import { createLimiter } from '../../semantic/serialize.js';
 
 export const GREP_EXECUTION_TIMEOUT_MS = 5_000;
@@ -118,15 +119,15 @@ export async function readNodeBody(
   return { error: `Unsupported node type for body: ${nodeType}` };
 }
 
-export function isPathInsideRepo(repoRoot: string, filePath: string): boolean {
-  const root = path.resolve(repoRoot);
-  const target = path.resolve(filePath);
-  return target === root || target.startsWith(root + path.sep);
-}
-
+/**
+ * Repo-relative label for messages, or `[outside-repo]`. Lexical: it names the path a caller
+ * asked about, so a refused symlink still reports the in-repo file to remove. The read guard is
+ * `isPathInsideRepo`.
+ */
 export function displayPath(repoRoot: string, filePath: string): string {
-  const resolved = path.resolve(filePath);
-  return isPathInsideRepo(repoRoot, resolved) ? path.relative(path.resolve(repoRoot), resolved) || '.' : '[outside-repo]';
+  const root = path.resolve(repoRoot);
+  if (!isLexicallyInsideRepo(root, filePath)) return '[outside-repo]';
+  return path.relative(root, path.resolve(root, filePath)) || '.';
 }
 
 function hasRiskyRepeatedGroup(pattern: string): boolean {

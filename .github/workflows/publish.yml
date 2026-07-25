@@ -56,6 +56,18 @@ jobs:
             exit 1
           fi
 
+      # The tag check above only guards `push`. A non-dry-run workflow_dispatch reaches the staging
+      # steps from any ref, so require the commit to be on main — otherwise a branch commit that was
+      # never tagged or merged can be staged for approval.
+      - name: Verify dispatch publishes a commit on main
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::${GITHUB_SHA} is not an ancestor of origin/main; publish a tagged commit merged to main"
+            exit 1
+          fi
+
       # A publish never outruns the platform contract: every Tier-1 merge gate
       # must have completed green on the exact commit being published. Missing
       # or failed check-runs fail the publish — absence of evidence is failure.
@@ -162,16 +174,30 @@ jobs:
           Staged versions are not installable and do not appear in
           'npm view' until a maintainer approves them.
 
+          APPROVE THE SDK FIRST, THEN THE ROOT — the order is required, not a
+          preference. repovine@${ROOT_VERSION} pins
+          @repovine/plugin-sdk@${SDK_VERSION} exactly, so approving the root
+          first puts a release on the registry whose 'npm install' and 'npx'
+          fail with ETARGET until the SDK follows.
+
           Approve from a machine with interactive 2FA (an OIDC/CI token
           cannot approve a stage):
 
+            # 1. SDK first
             npm stage list @repovine/plugin-sdk   # show the pending <stage-id>
             npm stage view <stage-id>             # inspect tarball + metadata
             npm stage approve <stage-id>          # publishes live, prompts 2FA
 
+            # 2. Confirm the SDK is actually live BEFORE approving the root
+            npm view "@repovine/plugin-sdk@${SDK_VERSION}" version
+
+            # 3. Root only after that command prints the version
             npm stage list repovine
             npm stage view <stage-id>
             npm stage approve <stage-id>
+
+          If the root was approved first, the fix is to approve the SDK
+          immediately; installs recover with no version bump.
 
           Discard a stage instead: npm stage reject <stage-id>
           After approval, confirm live: npm view "repovine@${ROOT_VERSION}" version

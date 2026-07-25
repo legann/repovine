@@ -309,6 +309,8 @@ console.error = (...args: unknown[]) => {
 };
 import { repoRoot, artifactsDir } from '../paths.js';
 import { toolHandlers } from './tools/registry.js';
+import { outsideRepoReport } from './lib/refresh-summary.js';
+import { notReadyResponse } from './lib/not-ready-response.js';
 import { toolDefs, getRequiredArgs } from './tool-defs.js';
 import { RepovineRuntime } from './context.js';
 import { IndexBuildController } from './build-controller.js';
@@ -316,7 +318,7 @@ import { getSourcePlugins } from '../stage1/source/registry.js';
 import { loadConfig, type ResolvedConfig } from '../config.js';
 import { ContextSessionStore, bootstrapContextSessionsOnMcpStart } from '../context-quality/session-store.js';
 import {
-  isToolErrorResult,
+  toolErrorMessage,
   NavigationRefRegistry,
   responseConfigWithOverride,
   toCallToolMcpResult,
@@ -376,25 +378,7 @@ const CONTEXT_QUALITY_META_TOOLS = new Set([
 function getBuildingResponse(name: string, controller: IndexBuildController): unknown {
   const cached = lastBuildingResponse.get(name);
   if (cached && Date.now() < cached.expiresAt) return cached.payload;
-  const snapshot = controller.snapshot();
-  const payload = {
-    status: snapshot.status,
-    stage: snapshot.stage,
-    pct: snapshot.pct,
-    done_packages: snapshot.donePackages,
-    total_packages: snapshot.totalPackages,
-    done_modules: snapshot.doneModules,
-    total_modules: snapshot.totalModules,
-    done_semantic_cards: snapshot.doneSemanticCards,
-    total_semantic_cards: snapshot.totalSemanticCards,
-    current_package: snapshot.currentPackage,
-    elapsed_sec: snapshot.elapsedSec,
-    eta_sec: snapshot.etaSec,
-    retry_after_sec: snapshot.retryAfterSec,
-    message: snapshot.message,
-    next_action: 'Call get_build_status (always available) for live progress — pass waitSec (e.g. { waitSec: 45 }) to wait server-side until the build settles instead of polling; then retry this tool.',
-    errorMessage: snapshot.errorMessage,
-  };
+  const payload = notReadyResponse(controller.snapshot());
   lastBuildingResponse.set(name, { expiresAt: Date.now() + BUILDING_RESPONSE_TTL_MS, payload });
   return payload;
 }
@@ -440,7 +424,11 @@ async function executeTool(
       : 0;
     const snapshot = waitSec > 0 ? await controller.waitForSettled(waitSec, signal) : controller.snapshot();
     if (snapshot.status !== 'ready') return snapshot;
-    const domainsSuggestions = controller.getCtx()?.getState().domainsSuggestions;
+    const readyState = controller.getCtx()?.getState();
+    const domainsSuggestions = readyState?.domainsSuggestions;
+    // A cold start never calls refresh_context, so this is the only place the first build can
+    // report what it refused.
+    const outsideRepo = readyState ? outsideRepoReport(readyState.snapshot) : undefined;
     return {
       ...snapshot,
       ...(domainsSuggestions ? {
@@ -450,6 +438,7 @@ async function executeTool(
           declinedHidden: domainsSuggestions.declinedHidden,
         },
       } : {}),
+      ...(outsideRepo ? { outsideRepo } : {}),
     };
   }
 
@@ -595,7 +584,8 @@ async function runStdio(
         // extra.signal is the SDK's per-request AbortSignal (aborted on notifications/cancelled);
         // thread it so long-running tools stop work when the client cancels.
         const result = await Promise.resolve(executeTool(controller, name, safeArgs, processState, extra?.signal));
-        if (isToolErrorResult(result)) logToolError(name, result.error);
+        const errorMessage = toolErrorMessage(result);
+        if (errorMessage !== undefined) logToolError(name, errorMessage);
         const out = toCallToolMcpResult(result, responseConfig, navigationRefs);
         recordContextQualityCall(processState.contextQualityStore, name, safeArgs, result, out.content[0].text);
         trackCall(name, out.content[0].text);

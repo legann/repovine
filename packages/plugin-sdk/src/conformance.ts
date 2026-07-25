@@ -3,8 +3,9 @@ import * as fs from 'node:fs';
 import { PLUGIN_API_VERSION } from './runtime.js';
 import { validateSemanticModuleDelta, validateSemanticInfraDelta } from './fact-schemas.js';
 import type { SourcePlugin, SourceExtractInput } from './source-plugin/types.js';
+import { mintModuleId } from './source-plugin/module-id.js';
 import type { IaCPluginDescriptor } from './factory.js';
-import type { PackageInfo, PendingModule, IaCParser } from './types.js';
+import type { PackageInfo, PendingModule, PendingModuleDraft, IaCParser } from './types.js';
 
 /**
  * Conformance kit. A plugin author runs these checks against
@@ -78,7 +79,7 @@ export async function checkSourcePluginConformance(
   }
 
   // Behavioral: discover the sample repo and extract once (+ again for determinism).
-  let discovery: { packages: PackageInfo[]; pendingByPath: Map<string, PendingModule>; extractContext?: unknown };
+  let discovery: { packages: PackageInfo[]; pendingByPath: Map<string, PendingModuleDraft>; extractContext?: unknown };
   try {
     discovery = plugin.discover(opts.sampleRepoRoot, {});
   } catch (e) {
@@ -87,7 +88,12 @@ export async function checkSourcePluginConformance(
   }
   checks.push(check('discover() returns packages + pendingByPath', Array.isArray(discovery.packages) && discovery.pendingByPath instanceof Map));
 
-  const pendingModules = [...discovery.pendingByPath.values()];
+  // The kit stands in for the engine, so it mints ids the same way a real build does: the plugin
+  // under test never supplies one, and it sees exactly the ids it will see in production.
+  const pendingModules: PendingModule[] = [...discovery.pendingByPath.values()].map(draft => ({
+    ...draft,
+    moduleId: mintModuleId(draft.pkg.name, draft.relPath, plugin.capabilities?.moduleIdNormalize),
+  }));
   if (pendingModules.length === 0) {
     checks.push(check('behavioral extract checks', true, 'skipped — sample repo had no files this plugin owns'));
     return reportOf(checks);

@@ -38,6 +38,11 @@ const pythonSourcePlugin = defineSourcePlugin({
     uiSurfaces: false,
     looseNameSeparators: true,
     resolveHandlerToModule: resolveDottedPathHandlerToModule,
+    // `__init__` stands for its own package directory, the way `index` does for TypeScript.
+    moduleIdNormalize: {
+      stripSuffixes: PYTHON_EXTENSIONS,
+      indexBasenames: ['__init__'],
+    },
   },
 
   discover(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {

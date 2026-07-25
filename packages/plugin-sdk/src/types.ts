@@ -9,17 +9,23 @@ export interface PackageInfo {
   sourcePluginId?: string;
 }
 
-/** A discovered source file awaiting AST extraction. Produced by a source plugin's discover()
- * pass and consumed by its extract() pass (the latter is worker_threads-safe). */
-export interface PendingModule {
+/** A discovered source file as a producer reports it: location and ownership, no identity. The
+ * engine mints `moduleId` from these fields, so the graph id never depends on plugin cooperation. */
+export interface PendingModuleDraft {
   filePath: string;
   /** Present for SFCs: the virtual `.ts` path used by ts-morph. */
   virtualPath?: string;
   pkg: PackageInfo;
   relPath: string;
-  moduleId: string;
   /** Logical id of the source plugin that owns this file; drives worker dispatch. */
   sourcePluginId?: string;
+}
+
+/** A discovered source file awaiting AST extraction: a producer's draft after the engine stamped
+ * `moduleId`. Handed back to the same plugin's extract() pass (which is worker_threads-safe), where
+ * the id serves as the correlation key for deltas and source text. */
+export interface PendingModule extends PendingModuleDraft {
+  moduleId: string;
 }
 
 export interface ParamInfo {
