@@ -190,25 +190,16 @@ describe('writeJsonObjectStreamed', () => {
 describe('fsync durability (P3)', () => {
   // Spy on FileHandle.prototype.sync (an ordinary object method, unlike the frozen fs namespace).
   // Both helpers fsync the temp file before rename and the parent directory after — two sync() calls.
-  // The prototype is shared process-wide and Jest runs several test files per worker, so a sync()
-  // leaked from another test's still-open handle can be observed on this spy too; the count assertions
-  // below check "at least two" rather than an exact total to stay immune to that.
+  // The prototype is shared across the worker process and Jest runs several test files per worker, so a
+  // sync() from another test can be observed here too: an annotation store's debounced save (the
+  // fire-and-forget setTimeout in AnnotationStore.scheduleSave) can fire after its own test ended and
+  // land during this one. The count assertions below check "at least two" rather than an exact total to
+  // stay immune to that unrelated fsync activity; a dropped writer fsync still fails them (count < 2).
   async function spyOnFileHandleSync(dir: string) {
     const probe = await fsPromises.open(path.join(dir, 'probe'), 'w');
-    const proto = Object.getPrototypeOf(probe) as Record<string, (this: unknown) => Promise<void>>;
+    const proto = Object.getPrototypeOf(probe) as Record<string, () => Promise<void>>;
     await probe.close();
-    const realSync = proto.sync;
-    // TEMP DIAGNOSTIC (remove after locating the leaker): log where each sync() originates during the
-    // durability tests. A [SYNC] line whose stack is the writer runs through writeJsonObjectStreamed /
-    // writeFileAtomic in fs/atomic.ts; any other origin is a sync leaked from another test in the same
-    // Jest worker — that stack names the leaker.
-    return jest.spyOn(proto, 'sync').mockImplementation(function (this: unknown): Promise<void> {
-      const state = (expect as unknown as { getState(): { currentTestName?: string } }).getState();
-      const frames = (new Error().stack ?? '').split('\n').slice(1, 12)
-        .map(f => f.trim()).filter(f => !/node:internal|node_modules[\\/]/.test(f));
-      process.stderr.write(`[SYNC] test=${JSON.stringify(state.currentTestName ?? '')}  ${frames.join('  <-  ')}\n`);
-      return realSync.call(this);
-    });
+    return jest.spyOn(proto, 'sync');
   }
 
   it('writeFileAtomic fsyncs the file then the directory', async () => {

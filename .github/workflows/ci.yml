@@ -14,7 +14,6 @@ jobs:
   # typecheck, dist shape) on top of the same build+test+smoke the native legs
   # run — one OS runs them, every OS shares the verdict.
   core-linux:
-    if: false  # TEMPORARY: macOS-only fsync-leak diagnostic run; remove to restore full CI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -81,7 +80,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # TEMPORARY: windows removed for the macOS-only diagnostic run; restore before merge
+          - name: core-windows
+            os: windows-latest
           - name: core-macos-arm
             os: macos-15
     name: ${{ matrix.name }}
@@ -100,21 +100,7 @@ jobs:
         run: npm run build
 
       - name: Test
-        shell: bash
-        run: |
-          set -o pipefail
-          npm test -- --maxWorkers=2 2>&1 | tee test-output.log
-
-      # TEMPORARY: surface the [SYNC] origins logged by test/unit/fs/atomic.test.ts to locate a
-      # cross-test fsync leak. Remove together with the diagnostic in atomic.test.ts once fixed.
-      - name: fsync leak diagnostic
-        if: always()
-        shell: bash
-        run: |
-          echo '===== [SYNC] origins during durability tests ====='
-          grep -F '[SYNC]' test-output.log || echo '(no [SYNC] lines captured)'
-          echo '===== streamed-test sync count (2 = clean, >2 = leak reproduced) ====='
-          grep -F '[SYNC]' test-output.log | grep -c writeJsonObjectStreamed || true
+        run: npm test -- --maxWorkers=2
 
       - name: Client projections suite (node:test)
         shell: bash
@@ -129,7 +115,6 @@ jobs:
   # (the exact job name below) to branch protection required checks — the old
   # advisory name `harness-linux (advisory)` was never a required context.
   harness-linux:
-    if: false  # TEMPORARY: macOS-only fsync-leak diagnostic run; remove to restore full CI
     name: harness-linux
     runs-on: ubuntu-latest
     steps:
