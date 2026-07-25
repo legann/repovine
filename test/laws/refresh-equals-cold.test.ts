@@ -42,8 +42,9 @@ async function build(root: string, previousSnapshot?: RepositoryFactsSnapshot): 
 }
 
 /** Cold-build the initial tree, apply `mutate`, then compare a refresh (previous = cold v1) against a
- * cold build of the mutated tree. Both must agree on module order and every resolved edge. */
-async function assertRefreshEqualsCold(root: string, mutate: () => void): Promise<void> {
+ * cold build of the mutated tree. Both must agree on module order and every resolved edge. Returns the
+ * cold snapshot so a caller can assert the mutation was actually extracted (guarding a vacuous pass). */
+async function assertRefreshEqualsCold(root: string, mutate: () => void): Promise<RepositoryFactsSnapshot> {
   const v1 = await build(root);
   mutate();
   const refreshed = await build(root, v1);
@@ -53,6 +54,7 @@ async function assertRefreshEqualsCold(root: string, mutate: () => void): Promis
   expect(refreshed.modules.map(m => m.id)).toEqual(cold.modules.map(m => m.id));
   // Every import and re-export resolves to the same id (or stays unresolved) under both paths.
   expect(byId(edgesOf(refreshed))).toEqual(byId(edgesOf(cold)));
+  return cold;
 }
 
 describe('law: incremental refresh equals cold build (TypeScript)', () => {
@@ -128,8 +130,14 @@ describePython('law: incremental refresh equals cold build (Python)', () => {
     fs.writeFileSync(path.join(pkgDir, 'pyproject.toml'), `[project]\nname = "svc"\n`);
     fs.writeFileSync(path.join(pkgDir, '__init__.py'), '');
     fs.writeFileSync(path.join(pkgDir, 'a.py'), `from .b import thing\n\nvalue = thing\n`);
-    await assertRefreshEqualsCold(tmpDir, () => {
+    const cold = await assertRefreshEqualsCold(tmpDir, () => {
       fs.writeFileSync(path.join(pkgDir, 'b.py'), `thing = 1\n`);
     });
+    // Guard against a vacuous pass: a failed interpreter subprocess would leave both snapshots empty,
+    // so parity would hold trivially. Assert the Python import was actually extracted and resolved.
+    const importer = cold.modules.find(m => m.imports.some(i => i.moduleSpecifier === '.b'));
+    const resolved = importer?.imports.find(i => i.moduleSpecifier === '.b')?.resolvedModuleId;
+    expect(resolved).toBeTruthy();
+    expect(cold.modules.map(m => m.id)).toContain(resolved);
   });
 });
