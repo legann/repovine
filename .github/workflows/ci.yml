@@ -81,13 +81,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: core-windows
-            os: windows-latest
+          # TEMPORARY: windows removed for the macOS-only diagnostic run; restore before merge
           - name: core-macos-arm
             os: macos-15
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    if: ${{ matrix.name == 'core-macos-arm' }}  # TEMPORARY: skip windows during the diagnostic run
     steps:
       - uses: actions/checkout@v5
 
