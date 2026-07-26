@@ -35,6 +35,7 @@ describe('loadConfig', () => {
       'build',
       'mcp',
       'semanticSearchEmbeddings',
+      'semanticSearchEmbeddingsDerived',
       'analyze_architecture',
       'contextQuality',
       'annotations',
@@ -63,6 +64,18 @@ describe('loadConfig', () => {
     const { describeTransformersInstall } = await import('../../src/semantic/transformers-install.js');
     const cfg = loadConfig(tmpDir);
     expect(cfg.semanticSearchEmbeddings).toBe(describeTransformersInstall(tmpDir).resolved);
+  });
+
+  // Provenance, not the value: the build path speaks only when the default was derived, so a user
+  // who wrote `false` is never told to install a package they declined.
+  it('marks the semantic default as derived only when the file omits the key', () => {
+    expect(loadConfig(tmpDir).semanticSearchEmbeddingsDerived).toBe(true);
+
+    fs.writeFileSync(path.join(tmpDir, 'repovine.config.json'), JSON.stringify({
+      semantic_search_embeddings: false,
+    }));
+    expect(loadConfig(tmpDir).semanticSearchEmbeddingsDerived).toBe(false);
+    expect(loadConfig(tmpDir).semanticSearchEmbeddings).toBe(false);
   });
 
   // The assertion above cannot fail in this checkout: the peer is a devDependency and

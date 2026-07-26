@@ -10,6 +10,7 @@ import { pathPrefixLength } from '../../stage1/utils.js';
 import { discoverPackages } from './packages.js';
 import { parsePackageTsConfig } from './list-tsconfig-files.js';
 import { extractTypeScriptFromSfc, SFC_EXTENSIONS } from './sfc-extractor.js';
+import { readDirSorted } from '../../fs/read-dir-sorted.js';
 
 /**
  * TypeScript/JavaScript discovery (Pass 1 of the source-plugin contract).
@@ -154,7 +155,7 @@ function discoverSfcFiles(
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readDirSorted(dir);
     } catch {
       return;
     }
@@ -230,7 +231,7 @@ function discoverExplicitIncludeFiles(
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readDirSorted(dir);
     } catch {
       return;
     }

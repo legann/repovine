@@ -57,6 +57,10 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
       // Cross-platform path primitives: by design shared by core,
       // CLI, and source plugins — dependency-free id/path plumbing.
       'platform/paths.ts',
+      // Directory enumeration in a host-independent order. Node order follows discovery order, so
+      // every producer must read directories the same way or the same repository projects
+      // differently per filesystem. Mechanical, and shared with core for that reason.
+      'fs/read-dir-sorted.ts',
     ].map(rel => rel.replace(/\//g, path.sep)),
   );
 

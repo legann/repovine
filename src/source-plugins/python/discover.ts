@@ -6,6 +6,7 @@ import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
 import { hostPathKey } from '../../platform/paths.js';
+import { readDirSorted } from '../../fs/read-dir-sorted.js';
 
 /**
  * Python discovery (Pass 1). Finds Python packages (`pyproject.toml` / `setup.py`) and their
@@ -134,7 +135,7 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readDirSorted(dir);
     } catch {
       return;
     }
@@ -171,7 +172,7 @@ function discoverPyFiles(
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readDirSorted(dir);
     } catch {
       return;
     }

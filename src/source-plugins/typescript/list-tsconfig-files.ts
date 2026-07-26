@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { readDirSorted } from '../../fs/read-dir-sorted.js';
 
 export interface ParsedPackageTsConfig {
   fileNames: string[];
@@ -116,7 +117,7 @@ function walkSourceTree(srcDir: string): string[] {
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readDirSorted(dir);
     } catch {
       return;
     }

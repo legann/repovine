@@ -1,5 +1,6 @@
 import { RepovineRuntime } from '../mcp/context.js';
 import { loadConfig } from '../config.js';
+import { TRANSFORMERS_PACKAGE } from '../semantic/transformers-install.js';
 
 import { cli, formatBuildSummary, logCli, setPipelineLogSink, setProgressInPlace } from './ui.js';
 
@@ -20,6 +21,16 @@ export async function runBuild(
   setPipelineLogSink('stderr');
   setProgressInPlace(true);
   const cfg = loadConfig(repoRoot);
+  // Derived-off is the plain-install case: the peer is absent, so the default resolved to false and
+  // nothing downstream would say why. An explicit `false` is the user's own choice and stays silent —
+  // the embedder error advertises that key as the way to silence this.
+  if (!cfg.semanticSearchEmbeddings && cfg.semanticSearchEmbeddingsDerived) {
+    logCli(
+      `  Semantic search is off: the opt-in peer dependency ${TRANSFORMERS_PACKAGE} is not installed `
+      + `(~700MB ONNX runtime). Search runs on the token index. Enable it with: `
+      + `npm install ${TRANSFORMERS_PACKAGE}`,
+    );
+  }
   logCli(cli.bold(`Building repovine context for: ${repoRoot}`));
   const t0 = Date.now();
   const ctx = await RepovineRuntime.create(repoRoot, artifactsDir, cfg);

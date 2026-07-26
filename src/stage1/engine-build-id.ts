@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { readDirSorted } from '../fs/read-dir-sorted.js';
 
 /**
  * Engine-build identity for the Stage-1 snapshot reuse gate.
@@ -56,7 +57,7 @@ function fingerprintDist(root: string): string {
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readDirSorted(dir);
     } catch {
       return;
     }

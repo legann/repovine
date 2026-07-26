@@ -14,6 +14,7 @@ import {
 } from './iac/registry.js';
 import type { CompiledScanPatterns } from '../scan-filters.js';
 import { shouldScanInfraPath } from '../scan-filters.js';
+import { readDirSorted } from '../fs/read-dir-sorted.js';
 
 export interface InfraScanOptions {
   repoRoot: string;
@@ -39,7 +40,7 @@ const INFRA_SCAN_SKIP_DIRS = new Set([
 function discoverInfraFiles(repoRoot: string, dir: string, out: { filePath: string; relPath: string }[]): void {
   let entries: fs.Dirent[];
   try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
+    entries = readDirSorted(dir);
   } catch {
     return;
   }

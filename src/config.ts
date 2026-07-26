@@ -349,6 +349,12 @@ export interface ResolvedConfig {
   };
   /** Local Hugging Face embeddings for `search_context` NL fuzzy entry. */
   semanticSearchEmbeddings: boolean;
+  /**
+   * True when `semanticSearchEmbeddings` came from peer detection rather than from the config file.
+   * The build path announces the derived-off case only: a user who wrote `false` chose it, and the
+   * embedder error already advertises that key as the way to silence the message.
+   */
+  semanticSearchEmbeddingsDerived: boolean;
   analyze_architecture: {
     strictness: AnalyzeArchitectureStrictness;
     thresholds: AnalyzeArchitectureThresholds;
@@ -395,6 +401,7 @@ const DEFAULTS: ResolvedConfig = {
     },
   },
   semanticSearchEmbeddings: true,
+  semanticSearchEmbeddingsDerived: true,
   analyze_architecture: {
     strictness: 'normal',
     thresholds: resolveAnalyzeArchitectureThresholds(undefined),
@@ -556,6 +563,7 @@ function resolveConfig(file: RepoContextFileConfig, repoRoot: string): ResolvedC
       },
     },
     semanticSearchEmbeddings: resolveSemanticSearchEmbeddings(file, repoRoot),
+    semanticSearchEmbeddingsDerived: file.semantic_search_embeddings === undefined,
     analyze_architecture: analyzeArchitecture,
     contextQuality,
     annotations: {

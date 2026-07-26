@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { TemplateFileInfo } from '../types.js';
 import { shouldScanSourcePath, type CompiledScanPatterns } from '../scan-filters.js';
+import { readDirSorted } from '../fs/read-dir-sorted.js';
 
 /**
  * Stage 1 template artifact discovery for the built-in server-templates producer (no AST).
@@ -115,7 +116,7 @@ export function collectTemplates(opts: {
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readDirSorted(dir);
     } catch {
       return;
     }
