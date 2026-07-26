@@ -12,16 +12,15 @@ import {
   searchAnnotationEscalation,
 } from '../lib/search-annotation-escalation.js';
 import { SEMANTIC_MIN_COSINE } from '../../semantic/relevance.js';
+import { narrowTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
 
 type SearchStrategy = {
   relaxedFrom?: string;
   used?: string;
   tokens?: string[];
   weakTokenOnlySuppressed?: boolean;
-  postingLists?: {
-    truncated?: boolean;
-    tokens?: Record<string, { total?: number; considered?: number; truncated?: boolean }>;
-  };
+  weakTokens?: string[];
+  truncation?: TruncationMap;
 };
 
 function getTopHitQuality(
@@ -133,7 +132,7 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
         ...(args.perTokenLimit ? { perTokenLimit: args.perTokenLimit } : {}),
         ...(semantic.status === 'ok' && semantic.ranking.length > 0 ? { semantic: semantic.ranking } : {}),
       }) as Record<string, unknown>
-    : { query, results: [], totalResults: 0, returned: 0, truncated: false };
+    : { query, results: [], totalResults: 0, returned: 0 };
 
   const matchStrategy = matches.strategy as Record<string, unknown> | undefined;
   if (matchStrategy) {
@@ -175,8 +174,9 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
   type SearchAuxiliaryResult = {
     items: Array<Record<string, unknown>>;
     total: number;
-    pagination: { total: number; returned: number; offset: number; truncated: boolean };
   };
+  // Auxiliary sections are a preview beside the graph hits, capped well below the caller's limit.
+  const AUX_PREVIEW_CAP = 5;
   const collectByScopes = (
     collector: (scopeArgs: Record<string, unknown>) => SearchAuxiliaryResult,
     idKey: string,
@@ -185,33 +185,27 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
     const seen = new Set<string>();
     const scopes = [`query:${query}`, ...topIds];
     for (const scoped of scopes) {
-      if (items.length >= Math.min(5, limit)) break;
-      const result = collector({ ...args, scope: scoped, limit: Math.min(5, limit) - items.length });
+      if (items.length >= Math.min(AUX_PREVIEW_CAP, limit)) break;
+      const result = collector({ ...args, scope: scoped, limit: Math.min(AUX_PREVIEW_CAP, limit) - items.length });
       for (const item of result.items) {
         const key = typeof item[idKey] === 'string' ? item[idKey] as string : JSON.stringify(item);
         if (seen.has(key)) continue;
         seen.add(key);
         items.push(item);
-        if (items.length >= Math.min(5, limit)) break;
+        if (items.length >= Math.min(AUX_PREVIEW_CAP, limit)) break;
       }
     }
     return {
       items,
       total: items.length,
-      pagination: {
-        total: items.length,
-        returned: items.length,
-        offset: 0,
-        truncated: false,
-      },
     };
   };
   const config = includeConfig
     ? collectByScopes(scopeArgs => collectConfigSurface(pinned, scopeArgs), 'name')
-    : { items: [], total: 0, pagination: { total: 0, returned: 0, offset: 0, truncated: false } };
+    : { items: [], total: 0 };
   const entrypoints = includeEntrypoints
     ? collectByScopes(scopeArgs => collectEntrypoints(pinned, scopeArgs), 'id')
-    : { items: [], total: 0, pagination: { total: 0, returned: 0, offset: 0, truncated: false } };
+    : { items: [], total: 0 };
 
   const navigation = emptyNavigation();
   if (firstId) {
@@ -238,15 +232,14 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
   const strategy = matches.strategy as SearchStrategy | undefined;
   const tokenCount = strategy?.tokens?.length ?? 0;
   const weakRelaxedMatch = isWeakRelaxedSearchMatch(strategy, topQuality, tokenCount);
-  const postingListsTruncated = strategy?.postingLists?.truncated === true;
+  const candidateWindows = Object.entries(strategy?.truncation ?? {});
+  const postingListsTruncated = candidateWindows.length > 0;
   const gaps = firstId || hasAuxiliaryMatches ? [] : ['No graph node strongly matched the query; try a more specific symbol, route, package, or config name.'];
   if (strategy?.relaxedFrom === 'and') {
     gaps.push('No single node matched all query tokens; results were relaxed to bounded OR token matching.');
   }
   if (postingListsTruncated) {
-    const windows = Object.entries(strategy?.postingLists?.tokens ?? {})
-      .filter(([, window]) => window.truncated)
-      .map(([token, window]) => `${token} (${window.considered ?? 0}/${window.total ?? 0})`);
+    const windows = candidateWindows.map(([token, window]) => `${token} (${window.shown}/${window.total ?? window.shown})`);
     gaps.push(
       `Candidate posting lists were truncated before global ranking for: ${windows.join(', ')}. `
       + 'Increase perTokenLimit or narrow the query if the expected node is missing.',
@@ -293,11 +286,23 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
         : weakRelaxedMatch
           ? `No strong match for "${query}"; showing relaxed OR candidates.`
           : `Found context candidates for "${query}".`;
+  const auxBound = (shown: number, total: number, tool: string, noun: string) => total > shown
+    ? narrowTruncation({
+      shown,
+      total,
+      hint: `${noun} matches are previewed beside the graph hits; call ${tool} with this query scope for the full list.`,
+    })
+    : undefined;
+  const auxTruncation = truncationMap({
+    configMatches: auxBound(config.items.length, config.total, 'get_config_surface', 'Config/resource'),
+    entrypoints: auxBound(entrypoints.items.length, entrypoints.total, 'get_entrypoints', 'Entrypoint'),
+  });
   return envelope(scope, summary, {
     matches,
     suggestedScopes: matches.suggestedScopes ?? [],
     configMatches: config.items,
     entrypoints: entrypoints.items,
+    ...(auxTruncation ? { truncation: auxTruncation } : {}),
     ...(emptyDiagnostic ? { emptyDiagnostic } : {}),
   }, {
     confidence: !hasHits || weakRelaxedMatch || semanticOnlyTop || postingListsTruncated ? 'low' : 'medium',

@@ -450,7 +450,7 @@
       "view": {
         "id": "domain:auth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -461,7 +461,7 @@
       "view": {
         "id": "domain:auth-handler",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -472,7 +472,7 @@
       "view": {
         "id": "domain:authcontext",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -483,7 +483,7 @@
       "view": {
         "id": "domain:basebutton",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -494,7 +494,7 @@
       "view": {
         "id": "domain:client-react",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -505,7 +505,7 @@
       "view": {
         "id": "domain:lambda-functions",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -516,7 +516,7 @@
       "view": {
         "id": "domain:loginform",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -527,7 +527,7 @@
       "view": {
         "id": "domain:siteheader",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -538,7 +538,7 @@
       "view": {
         "id": "domain:useauth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -549,7 +549,7 @@
       "view": {
         "id": "domain:users-handler",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -560,7 +560,7 @@
       "view": {
         "id": "domain:vue-shared",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -571,7 +571,7 @@
       "view": {
         "id": "export:@hybrid/client-react/src/auth/auth-client/login",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -582,7 +582,7 @@
       "view": {
         "id": "export:@hybrid/client-react/src/auth/AuthContext/AuthContext",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -593,7 +593,7 @@
       "view": {
         "id": "export:@hybrid/client-react/src/auth/useAuth/useAuth",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -604,7 +604,7 @@
       "view": {
         "id": "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -615,7 +615,7 @@
       "view": {
         "id": "export:@hybrid/lambda-functions/src/auth-handler/handler",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -626,7 +626,7 @@
       "view": {
         "id": "export:@hybrid/lambda-functions/src/users-handler/handler",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -637,7 +637,7 @@
       "view": {
         "id": "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -661,7 +661,7 @@
       "view": {
         "id": "mod:@hybrid/client-react/src/auth/auth-client",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:@hybrid/client-react/src/auth/auth-client/login",
             "type": "export-symbol"
@@ -705,7 +705,7 @@
       "view": {
         "id": "mod:@hybrid/client-react/src/auth/AuthContext",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:@hybrid/client-react/src/auth/AuthContext/AuthContext",
             "type": "export-symbol"
@@ -753,7 +753,7 @@
       "view": {
         "id": "mod:@hybrid/client-react/src/auth/useAuth",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:@hybrid/client-react/src/auth/useAuth/useAuth",
             "type": "export-symbol"
@@ -796,7 +796,7 @@
       "view": {
         "id": "mod:@hybrid/client-react/src/components/SiteHeader",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader",
             "type": "export-symbol"
@@ -828,7 +828,7 @@
       "view": {
         "id": "mod:@hybrid/client-react/src/main",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:client-react",
@@ -858,7 +858,7 @@
       "view": {
         "id": "mod:@hybrid/lambda-functions/src/auth-handler",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:@hybrid/lambda-functions/src/auth-handler/handler",
             "type": "export-symbol"
@@ -897,7 +897,7 @@
       "view": {
         "id": "mod:@hybrid/lambda-functions/src/users-handler",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:@hybrid/lambda-functions/src/users-handler/handler",
             "type": "export-symbol"
@@ -936,7 +936,7 @@
       "view": {
         "id": "mod:@hybrid/vue-shared/src/auth/auth-vue",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth",
             "type": "export-symbol"
@@ -978,7 +978,7 @@
       "view": {
         "id": "mod:@hybrid/vue-shared/src/auth/LoginForm.vue",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:auth",
@@ -1014,7 +1014,7 @@
       "view": {
         "id": "mod:@hybrid/vue-shared/src/components/BaseButton.vue",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:vue-shared",
@@ -1041,7 +1041,7 @@
       "view": {
         "id": "pkg:@hybrid/client-react",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:@hybrid/client-react/src/auth/auth-client",
             "type": "module"
@@ -1076,7 +1076,7 @@
       "view": {
         "id": "pkg:@hybrid/lambda-functions",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:@hybrid/lambda-functions/src/auth-handler",
             "type": "module"
@@ -1100,7 +1100,7 @@
       "view": {
         "id": "pkg:@hybrid/vue-shared",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:@hybrid/vue-shared/src/auth/auth-vue",
             "type": "module"
@@ -1124,7 +1124,7 @@
       "view": {
         "id": "pkg:hybrid-monorepo-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1140,7 +1140,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:hybrid-monorepo-fixture",
             "type": "package"

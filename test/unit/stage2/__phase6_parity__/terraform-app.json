@@ -333,7 +333,7 @@
       "view": {
         "id": "domain:infra-terraform",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -344,7 +344,7 @@
       "view": {
         "id": "domain:terraform-app-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -355,7 +355,7 @@
       "view": {
         "id": "domain:users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -366,7 +366,7 @@
       "view": {
         "id": "export:terraform-app-fixture/src/users/handler",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -387,7 +387,7 @@
       "view": {
         "id": "infra:terraform:infrastructure/main.tf",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:terraform:users_api",
             "type": "runtime-resource"
@@ -433,7 +433,7 @@
       "view": {
         "id": "infra:terraform:infrastructure/storage.tf",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:terraform:uploads",
             "type": "runtime-resource"
@@ -503,7 +503,7 @@
       "view": {
         "id": "mod:terraform-app-fixture/src/users",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:terraform-app-fixture/src/users/handler",
             "type": "export-symbol"
@@ -543,7 +543,7 @@
       "view": {
         "id": "pkg:terraform-app-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:terraform-app-fixture/src/users",
             "type": "module"
@@ -564,7 +564,7 @@
       "view": {
         "id": "resource:terraform:api_key",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -585,7 +585,7 @@
       "view": {
         "id": "resource:terraform:current",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -606,7 +606,7 @@
       "view": {
         "id": "resource:terraform:db_password",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -627,7 +627,7 @@
       "view": {
         "id": "resource:terraform:events",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -648,7 +648,7 @@
       "view": {
         "id": "resource:terraform:gcp_key",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -669,7 +669,7 @@
       "view": {
         "id": "resource:terraform:lambda_role",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -690,7 +690,7 @@
       "view": {
         "id": "resource:terraform:log_level",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -711,7 +711,7 @@
       "view": {
         "id": "resource:terraform:uploads",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -732,7 +732,7 @@
       "view": {
         "id": "resource:terraform:users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -777,7 +777,7 @@
       "view": {
         "id": "resource:terraform:users_api",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -822,7 +822,7 @@
       "view": {
         "id": "resource:terraform:vpc",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-terraform",
@@ -842,7 +842,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:terraform-app-fixture",
             "type": "package"

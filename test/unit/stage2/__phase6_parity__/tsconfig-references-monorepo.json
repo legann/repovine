@@ -317,7 +317,7 @@
       "view": {
         "id": "domain:button",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -328,7 +328,7 @@
       "view": {
         "id": "domain:fixture-api",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -339,7 +339,7 @@
       "view": {
         "id": "domain:fixture-shared",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -350,7 +350,7 @@
       "view": {
         "id": "domain:fixture-web",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -361,7 +361,7 @@
       "view": {
         "id": "domain:handler",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -372,7 +372,7 @@
       "view": {
         "id": "domain:util",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -383,7 +383,7 @@
       "view": {
         "id": "export:fixture-api/src/handler/handleRequest",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -394,7 +394,7 @@
       "view": {
         "id": "export:fixture-shared/src/lib/util/util",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -405,7 +405,7 @@
       "view": {
         "id": "export:fixture-web/src/components/Button/Button",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -416,7 +416,7 @@
       "view": {
         "id": "export:fixture-web/src/main/bootstrap",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -440,7 +440,7 @@
       "view": {
         "id": "mod:fixture-api/src/handler",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:fixture-api/src/handler/handleRequest",
             "type": "export-symbol"
@@ -476,7 +476,7 @@
       "view": {
         "id": "mod:fixture-shared/src",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "mod:fixture-shared/src/lib/util",
@@ -510,7 +510,7 @@
       "view": {
         "id": "mod:fixture-shared/src/lib/util",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:fixture-shared/src/lib/util/util",
             "type": "export-symbol"
@@ -549,7 +549,7 @@
       "view": {
         "id": "mod:fixture-web/src/components/Button",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:fixture-web/src/components/Button/Button",
             "type": "export-symbol"
@@ -585,7 +585,7 @@
       "view": {
         "id": "mod:fixture-web/src/components/Button.stories",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "mod:fixture-web/src/components/Button",
@@ -626,7 +626,7 @@
       "view": {
         "id": "mod:fixture-web/src/main",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:fixture-web/src/main/bootstrap",
             "type": "export-symbol"
@@ -662,7 +662,7 @@
       "view": {
         "id": "pkg:fixture-api",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:fixture-api/src/handler",
             "type": "module"
@@ -681,7 +681,7 @@
       "view": {
         "id": "pkg:fixture-shared",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:fixture-shared/src",
             "type": "module"
@@ -705,7 +705,7 @@
       "view": {
         "id": "pkg:fixture-web",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:fixture-web/src/main",
             "type": "module"
@@ -729,7 +729,7 @@
       "view": {
         "id": "pkg:packages-web-.storybook",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -740,7 +740,7 @@
       "view": {
         "id": "pkg:root",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -757,7 +757,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:root",
             "type": "package"

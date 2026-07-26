@@ -6,6 +6,8 @@
 import type { NodeType, EdgeKind, TagEdgeSource } from './model.js';
 import type { FieldInfo, ParamInfo, SsrMarkers, SymbolKind, InternalInfo } from '@repovine/plugin-sdk';
 import type { AnnotationContent } from '../annotations/types.js';
+import type { TruncationMap } from '../response/truncation.js';
+import type { Provenance } from '../response/provenance.js';
 
 /**
  * Reasons a 1-hop reference is worth inspecting before treating its target unchanged. Each tag has a
@@ -23,7 +25,7 @@ export interface NodeView {
   label: string;
   description: string;
   content?: string;
-  drill_down: Array<{
+  drillDown: Array<{
     id: string;
     label: string;
     type: NodeType;
@@ -35,18 +37,17 @@ export interface NodeView {
     fields?: FieldInfo[];
     implementsInterfaces?: string[];
     calls?: string[];
-    callsTotal?: number;
+    /** Bounds that bit on this child preview: `calls` when the extraction cap dropped callee names. */
+    truncation?: TruncationMap;
     lineRange?: { start: number; end: number };
   }>;
   links?: Array<{ targetId: string; relation: EdgeKind; label: string; tagSource?: TagEdgeSource; /** Reasons to inspect the linked node before treating it unchanged. */ investigate?: InvestigateTag[] }>;
-  /** Present when buildNodeView caps a high-fanout link set; use dependency tools for full traversal. */
-  linksPagination?: {
-    total: number;
-    returned: number;
-    offset: 0;
-    truncated: true;
-    hint: string;
-  };
+  /**
+   * Bounds that bit on this view, keyed by what they bounded: `links` when the link set was capped,
+   * `children` when the child page did not reach the end, `calls` when the extraction cap dropped
+   * callee names, and on a detail view `body`, `grepMatches`, `grepInput`, `investigateRefs`.
+   */
+  truncation?: TruncationMap;
   // symbol detail (level 4, only for export-symbol nodes)
   signature?: string;
   params?: ParamInfo[];
@@ -55,8 +56,6 @@ export interface NodeView {
   fields?: FieldInfo[];
   implementsInterfaces?: string[];
   calls?: string[];
-  /** Distinct callee names before the producer cap; set only when it exceeds `calls.length`. */
-  callsTotal?: number;
   lineRange?: { start: number; end: number };
   symbolKind?: SymbolKind;
   // content-based enrichments (module nodes)
@@ -74,11 +73,11 @@ export interface NodeView {
      * Whether the stored content hash still matches the node's current hash. Omitted when no
      * comparison is possible — `write_annotation` stores `contentHash: 'unknown'` for node types it
      * cannot hash (export symbols, packages, root), and reporting `fresh: true` there would state a
-     * verification that never ran. Read together with `freshnessSource`.
+     * verification that never ran. Read together with `provenance`.
      */
     fresh?: boolean;
     /** How `fresh` was decided, or why it is absent. */
-    freshnessSource?: 'content-hash' | 'not-comparable';
+    provenance?: Provenance;
     /** Inferred module kind (types/ui/api-handler/adapter/service-mgr/infra/runtime-resource/template/domain/generic). */
     moduleKind?: string;
     /** Annotation quality scoring (omitted for non-module nodes that lack export/line metrics). */
@@ -93,35 +92,22 @@ export interface NodeView {
 
 /** Node view with optional MCP enrichments (body, grep, etc.) */
 export interface NodeViewDetail extends NodeView {
+  /** Matching lines with surrounding context; a matching line carries `isMatch`. */
   grepMatches?: Array<{ line: number; text: string; isMatch: boolean }>;
-  /** Total matches in the bounded input; see grepInputTruncated when long lines were capped. */
-  grepTotalMatches?: number;
   grepError?: string;
-  /** True when one or more source lines were tested only up to grepTestedLineCharLimit. */
-  grepInputTruncated?: boolean;
-  grepTruncatedLineCount?: number;
-  grepTestedLineCharLimit?: number;
-  /** True when only the first grepMatchLimit matching lines received context in grepMatches. */
-  grepMatchesTruncated?: boolean;
-  grepMatchLimit?: number;
   body?: string;
-  bodyTotalChars?: number;
-  bodyHasMore?: boolean;
-  bodyNextOffset?: number;
   /** Set when file could not be read for includeBody or when parent module is missing. */
   bodyError?: string;
   /**
-   * Count of affordances/exports on this node (mirrors `childPagination.total`). A per-node
-   * enumeration floor: list each affordance and its capability gate before reporting the node
-   * unchanged. Per-node completeness, not task completeness.
+   * Count of affordances/exports on this node. A per-node enumeration floor: list each affordance
+   * and its capability gate before reporting the node unchanged. Per-node completeness, not task
+   * completeness.
    */
   affordanceCount?: number;
-  /** Set when the per-response `investigate` cap dropped tags from some refs. */
-  investigateTruncated?: { shownRefs: number; totalRefs: number };
   /**
    * Targets named in this node's `integrationPoints` that it transitively depends on (bounded
    * forward-import closure) and that carry a consumer-scoped risk. A non-structural sibling of a
-   * flagged `links`/`drill_down` ref: must-inspect under the same closure.
+   * flagged `links`/`drillDown` ref: must-inspect under the same closure.
    *
    * Membership is decided by a closure of depth {@link INVESTIGATE_DEP_GUARD_DEPTH}, which records
    * no per-target distance, so no hop count is emitted.
@@ -129,8 +115,8 @@ export interface NodeViewDetail extends NodeView {
   investigatePointers?: Array<{ id: string; investigate: InvestigateTag[]; via: 'integrationPoints' }>;
 }
 
-/** One entry in drill_down[]; may include private/internal metadata from MCP options */
-export type NodeViewChild = NodeView['drill_down'][number] & {
+/** One entry in drillDown[]; may include private/internal metadata from MCP options */
+export type NodeViewChild = NodeView['drillDown'][number] & {
   access?: 'private' | 'protected' | 'public';
   internal?: boolean;
   internalKind?: InternalInfo['kind'];

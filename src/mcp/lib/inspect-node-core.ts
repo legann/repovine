@@ -19,6 +19,8 @@ import {
   paginateNodeViewChildren,
 } from '../response/pagination.js';
 import { applyInvestigateTags, computeHubInDegreeThreshold, INVESTIGATE_DEP_GUARD_DEPTH } from './investigate-refs.js';
+import { annotationFreshnessProvenance } from './annotation-freshness.js';
+import { narrowTruncation, pageTruncation, unavailableTruncation } from '../../response/truncation.js';
 import { resolveNodeId, type McpToolRuntime } from '../types.js';
 import {
   GREP_EXECUTION_TIMEOUT_MS,
@@ -70,7 +72,7 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
     const members = node.data?.privateMembers;
     if (members?.length) {
       for (const m of members) {
-        view.drill_down.push({
+        view.drillDown.push({
           id: `${nodeId}/${m.name}`,
           label: m.name,
           type: 'export-symbol',
@@ -87,7 +89,7 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
     const internals = node.data?.internals;
     if (internals?.length) {
       for (const i of internals) {
-        view.drill_down.push({
+        view.drillDown.push({
           id: `${nodeId}/#${i.name.replace(/,\s*/g, '_')}`,
           label: i.name,
           type: 'export-symbol',
@@ -123,13 +125,28 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
             view.grepError = `Regex execution exceeded the ${GREP_EXECUTION_TIMEOUT_MS}ms deadline`;
           } else {
             if (scan.truncatedLineCount > 0) {
-              view.grepInputTruncated = true;
-              view.grepTruncatedLineCount = scan.truncatedLineCount;
-              view.grepTestedLineCharLimit = MAX_GREP_LINE_CHARS;
+              // Long lines are clipped before the regex sees them, so a match past the cap was never
+              // tested for. The untested tail is not retrievable through grep at any argument.
+              view.truncation = {
+                ...view.truncation,
+                grepInput: unavailableTruncation({
+                  shown: bodyResult.lines.length - scan.truncatedLineCount,
+                  total: bodyResult.lines.length,
+                  unit: 'line',
+                  hint: `${scan.truncatedLineCount} line(s) longer than ${MAX_GREP_LINE_CHARS} chars were tested only up to that width; read the full text with includeBody and bodyOffset.`,
+                }),
+              };
             }
             if (scan.matchesTruncated) {
-              view.grepMatchesTruncated = true;
-              view.grepMatchLimit = MAX_GREP_MATCHES;
+              view.truncation = {
+                ...view.truncation,
+                grepMatches: narrowTruncation({
+                  shown: scan.matchIndices.length,
+                  total: scan.totalMatches,
+                  unit: 'match',
+                  hint: `Context lines are attached to the first ${MAX_GREP_MATCHES} matching lines; narrow grepBody to reach the rest.`,
+                }),
+              };
             }
             const matches: Array<{ line: number; text: string; isMatch: boolean }> = [];
             const included = new Set<number>();
@@ -153,7 +170,6 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
             }
             matches.sort((a, b) => a.line - b.line);
             view.grepMatches = matches;
-            view.grepTotalMatches = scan.totalMatches;
           }
         }
       } catch (error) {
@@ -173,11 +189,16 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
       const full = redactSecretLikeText(bodyResult.lines.join('\n'));
       const slice = full.slice(bodyOffset, bodyOffset + bodyLimit);
       view.body = slice;
-      view.bodyTotalChars = full.length;
-      if (bodyOffset + bodyLimit < full.length) {
-        view.bodyHasMore = true;
-        view.bodyNextOffset = bodyOffset + bodyLimit;
-      }
+      const body = pageTruncation({
+        shown: slice.length,
+        total: full.length,
+        offset: bodyOffset,
+        arg: 'bodyOffset',
+        unit: 'char',
+        noun: 'character',
+        hint: 'Pass bodyOffset with the same bodyLimit for the next slice; a shorter bodyLimit narrows the window, it does not move it.',
+      });
+      if (body) view.truncation = { ...view.truncation, body };
     }
   }
 
@@ -222,7 +243,7 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
       pass: ann.pass,
       updatedAt: ann.updatedAt,
       ...(fresh === undefined ? {} : { fresh }),
-      freshnessSource: fresh === undefined ? 'not-comparable' : 'content-hash',
+      provenance: annotationFreshnessProvenance(fresh),
     };
     const moduleKind = inferModuleKind({ mod, node });
     if (moduleKind !== 'generic' || mod) meta.moduleKind = moduleKind;
@@ -279,14 +300,17 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
     // 1-hop kind+direction edge count for the `wiring`/`co-change` tags.
     edgeCount: graphEdgeCount(graph),
   });
+  // Affordance/export count: per-node enumeration floor, read before the page bounds the list. A
+  // node with M affordances needs each enumerated with its gate; one gated affordance does not
+  // close it.
+  const affordanceCount = view.drillDown.length;
   const paginated = paginateNodeViewChildren(view, {
     limit: exportLimit,
     offset: exportOffset,
     summaryOnly: false,
+    arg: 'exportOffset',
   });
   Object.assign(view, paginated);
-  // Affordance/export count: per-node enumeration floor, mirrors childPagination.total. A node
-  // with M affordances needs each enumerated with its gate; one gated affordance does not close it.
-  view.affordanceCount = paginated.childPagination.total;
+  view.affordanceCount = affordanceCount;
   return view;
 }

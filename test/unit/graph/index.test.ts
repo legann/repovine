@@ -94,14 +94,14 @@ describe('buildNodeView', () => {
     expect(buildNodeView(g, 'mod:nonexistent')).toBeNull();
   });
 
-  it('builds view for root with package children in drill_down', () => {
+  it('builds view for root with package children in drillDown', () => {
     const g = buildFixture();
     const view = buildNodeView(g, 'root');
     expect(view).not.toBeNull();
     const v = view as NonNullable<typeof view>;
     expect(v.id).toBe('root');
     expect(v.level).toBe(0);
-    expect(v.drill_down.map(d => d.id)).toContain('pkg:a');
+    expect(v.drillDown.map(d => d.id)).toContain('pkg:a');
   });
 
   it('builds view for module with export-symbol children', () => {
@@ -109,10 +109,10 @@ describe('buildNodeView', () => {
     const view = buildNodeView(g, 'mod:a/foo');
     expect(view).not.toBeNull();
     const v = view as NonNullable<typeof view>;
-    expect(v.drill_down.length).toBe(1);
-    expect(v.drill_down[0].id).toBe('export:a/foo/Bar');
-    expect(v.drill_down[0].signature).toBe('function Bar(x: number): string');
-    expect(v.drill_down[0].symbolKind).toBe('function');
+    expect(v.drillDown.length).toBe(1);
+    expect(v.drillDown[0].id).toBe('export:a/foo/Bar');
+    expect(v.drillDown[0].signature).toBe('function Bar(x: number): string');
+    expect(v.drillDown[0].symbolKind).toBe('function');
   });
 
   it('builds view for export-symbol with symbol detail', () => {
@@ -148,12 +148,12 @@ describe('buildNodeView', () => {
 
     expect(view?.links).toHaveLength(MAX_NODE_VIEW_LINKS);
     expect(view?.links?.filter(link => link.targetId === 'mod:a/leaf-0')).toHaveLength(1);
-    expect(view?.linksPagination).toEqual(expect.objectContaining({
+    expect(view?.truncation?.links).toEqual({
+      shown: MAX_NODE_VIEW_LINKS,
       total: MAX_NODE_VIEW_LINKS + 10,
-      returned: MAX_NODE_VIEW_LINKS,
-      offset: 0,
-      truncated: true,
-    }));
+      unit: 'item',
+      more: { kind: 'narrow', hint: expect.stringContaining('analyze_dependencies') },
+    });
   });
 });
 

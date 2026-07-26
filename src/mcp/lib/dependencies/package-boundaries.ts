@@ -1,5 +1,6 @@
 import type { McpToolRuntime } from '../../types.js';
 import { paginateList } from '../../response/pagination.js';
+import { narrowTruncation, truncationMap } from '../../../response/truncation.js';
 
 export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
   const { graph, modulesById } = ctx.getState();
@@ -192,18 +193,30 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
             fixesViolations: g.importedBy.length,
           }
         : undefined;
+      const shownImporters = g.importedBy.slice(0, 10);
       return {
         targetModule: g.targetModule,
         targetPackage: g.targetPackage,
-        importedBy: g.importedBy.slice(0, 10).map(d => ({
+        importedBy: shownImporters.map(d => ({
           from: d.fromModule,
           symbols: d.symbols,
         })),
-        totalImporters: g.importedBy.length,
+        importerCount: g.importedBy.length,
+        ...(g.importedBy.length > shownImporters.length
+          ? {
+            truncation: {
+              importedBy: narrowTruncation({
+                shown: shownImporters.length,
+                total: g.importedBy.length,
+                hint: 'Importer lists are previewed per violation; scope analyze_dependencies to the target package for the full set.',
+              }),
+            },
+          }
+          : {}),
         ...(suggestedFix ? { suggestedFix } : {}),
       };
     })
-    .sort((a, b) => b.totalImporters - a.totalImporters);
+    .sort((a, b) => b.importerCount - a.importerCount);
 
   const pagedEdges = paginateList(edges, {
     limit, offset, noun: 'cross-package edge', narrow: 'filter by package scope or direction',
@@ -211,12 +224,14 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
   const pagedViolations = paginateList(boundaryViolations, {
     limit, offset, noun: 'boundary violation', narrow: 'filter by package scope',
   });
+  const truncation = truncationMap({
+    edges: pagedEdges.truncation,
+    ...(boundaryViolations.length > 0 ? { boundaryViolations: pagedViolations.truncation } : {}),
+  });
   return {
     packages: [...packages].sort(),
     edges: pagedEdges.page,
-    edgesPagination: pagedEdges.pagination,
-    ...(boundaryViolations.length > 0
-      ? { boundaryViolations: pagedViolations.page, boundaryViolationsPagination: pagedViolations.pagination }
-      : {}),
+    ...(boundaryViolations.length > 0 ? { boundaryViolations: pagedViolations.page } : {}),
+    ...(truncation ? { truncation } : {}),
   };
 }

@@ -17,7 +17,7 @@ import type { McpToolRuntime } from '../../../src/mcp/types.js';
 type TopologyResource = {
   logicalId?: string;
   access?: string;
-  accessSource?: string;
+  provenance?: { basis: string; method: string };
   envVar?: string;
 };
 
@@ -82,14 +82,14 @@ describe('trace_flow resource access provenance', () => {
   it('reports the declared verb and names the grant as its source', () => {
     expect(resourcesByLogicalId.get('ReadOnlyTable')).toMatchObject({
       access: 'read',
-      accessSource: 'iam-policy',
+      provenance: { basis: 'declared', method: 'iam-policy' },
     });
   });
 
   it('reports unknown rather than a default when no grant names the target', () => {
     expect(resourcesByLogicalId.get('UngrantedTable')).toMatchObject({
       access: 'unknown',
-      accessSource: 'not-declared',
+      provenance: { basis: 'absent', method: 'not-declared' },
     });
   });
 

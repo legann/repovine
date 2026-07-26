@@ -110,8 +110,6 @@ describe('runtime handoff', () => {
         trigger: 'annotation',
         note: RUNTIME_HANDOFF_NOTE,
       }],
-      truncated: false,
-      omittedCount: 0,
     });
   });
 
@@ -205,7 +203,7 @@ describe('runtime handoff', () => {
       serviceIds: [],
     });
 
-    expect(result).toEqual({ items: [], truncated: false, omittedCount: 0 });
+    expect(result).toEqual({ items: [] });
   });
 
   it('omits a plain broad resource with no annotation or secret signal', () => {
@@ -216,7 +214,7 @@ describe('runtime handoff', () => {
     expect(computeRuntimeHandoff(ctx, {
       scope: ALL_SCOPE,
       serviceIds: ['resource:plain'],
-    })).toEqual({ items: [], truncated: false, omittedCount: 0 });
+    })).toEqual({ items: [] });
   });
 
   it('caps eligible pairs at three and reports omitted entries', () => {
@@ -238,8 +236,12 @@ describe('runtime handoff', () => {
     });
 
     expect(result.items).toHaveLength(RUNTIME_HANDOFF_LIMIT);
-    expect(result.truncated).toBe(true);
-    expect(result.omittedCount).toBe(2);
+    expect(result.truncation?.items).toEqual({
+      shown: RUNTIME_HANDOFF_LIMIT,
+      total: RUNTIME_HANDOFF_LIMIT + 2,
+      unit: 'item',
+      more: { kind: 'narrow', hint: expect.stringContaining('trace_flow') },
+    });
   });
 
   it('omits resources that do not resolve to handler modules', () => {
@@ -254,7 +256,7 @@ describe('runtime handoff', () => {
     expect(computeRuntimeHandoff(ctx, {
       scope: ALL_SCOPE,
       serviceIds: ['resource:no-handler'],
-    })).toEqual({ items: [], truncated: false, omittedCount: 0 });
+    })).toEqual({ items: [] });
   });
 
   it('includes handlers with boundary-scoped risks', () => {

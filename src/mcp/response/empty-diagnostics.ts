@@ -52,7 +52,7 @@ export type EmptyDiagnosticAction = {
 export type EmptyDiagnostic = {
   reason: EmptyDiagnosticReason;
   message: string;
-  diagnosticConfidence: Confidence;
+  confidence: Confidence;
   nextActions: EmptyDiagnosticAction[];
   details?: Record<string, unknown>;
 };
@@ -93,7 +93,7 @@ export function graphEmptyDiagnostic(): EmptyDiagnostic {
   return {
     reason: 'graph_empty',
       message: 'The repository graph has no indexed modules, templates, runtime resources, export symbols, or domains, so no narrower alternatives can be inferred yet.',
-    diagnosticConfidence: 'high',
+    confidence: 'high',
     nextActions: [
       { tool: 'refresh_context', args: {}, note: 'Build or refresh the repository syntax index.' },
       { note: 'If refresh still returns an empty graph, check the repovine repo root and scan configuration.' },
@@ -115,7 +115,7 @@ export function entrypointsEmptyDiagnostic(
     return {
       reason: 'scope_unresolved',
         message: `The scope "${scope.raw}" did not resolve to a graph node, package, domain, template, runtime resource, or query scope.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if you have a symbol or path', 'search_context', { query: scope.query ?? scope.raw }),
         emptyAction('if you need repository-level entrypoints', 'get_entrypoints', { scope: 'all' }),
@@ -131,7 +131,7 @@ export function entrypointsEmptyDiagnostic(
     return {
       reason: 'filtered_out',
       message: `Entrypoints exist in ${scopeLabel(scope)}, but the requested kind/layer filter removed all of them.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('to inspect unfiltered execution starts', 'get_entrypoints', { scope: scope.resolvedScope }),
       ],
@@ -148,7 +148,7 @@ export function entrypointsEmptyDiagnostic(
     return {
       reason: 'semantic_domain_not_runtime_boundary',
       message: `${scope.resolvedScope} is a semantic/path tag. Entrypoints are owned by handler modules, pages, packages, or runtime resources, not by the domain tag itself.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if you need runtime/API/page entrypoints', 'search_context', { query: `${label} handler route lambda` }),
         emptyAction('if you need code structure', 'map_context', { scope: scope.resolvedScope, view: 'modules' }),
@@ -161,7 +161,7 @@ export function entrypointsEmptyDiagnostic(
     return {
       reason: 'library_module_no_entrypoint',
       message: `${scope.resolvedScope} does not own a detected route/page/API/queue/schedule entrypoint. It may be library code used by another handler or page.`,
-      diagnosticConfidence: 'medium',
+      confidence: 'medium',
       nextActions: [
         emptyAction('if you need consumers/importers', 'analyze_dependencies', { scope: scope.resolvedScope, mode: 'impact' }),
         emptyAction('if you need implementation details', 'inspect_node', { nodeId: scope.nodeId ?? scope.resolvedScope }),
@@ -173,7 +173,7 @@ export function entrypointsEmptyDiagnostic(
     return {
       reason: 'package_has_no_entrypoints',
       message: `${scope.resolvedScope} has no detected execution starts. It may be a library package or the entrypoint detector may not cover this package's runtime style.`,
-      diagnosticConfidence: 'medium',
+      confidence: 'medium',
       nextActions: [
         emptyAction('if you need package structure', 'map_context', { scope: scope.resolvedScope, view: 'modules' }),
         emptyAction('if you need likely runtime anchors', 'search_context', { query: `${scope.raw.replace(/^pkg:/, '')} handler route` }),
@@ -185,7 +185,7 @@ export function entrypointsEmptyDiagnostic(
     return {
       reason: 'query_no_entrypoints',
       message: `No detected entrypoints matched query scope "${scope.query ?? scope.raw}". Try a stronger symbol, route path, package, module, or runtime-resource anchor.`,
-      diagnosticConfidence: 'medium',
+      confidence: 'medium',
       nextActions: [
         emptyAction('to find graph anchors first', 'search_context', { query: scope.query ?? scope.raw }),
         emptyAction('to inspect all known execution starts', 'get_entrypoints', { scope: 'all' }),
@@ -196,7 +196,7 @@ export function entrypointsEmptyDiagnostic(
   return {
     reason: 'no_entrypoints_indexed',
     message: `No detected execution starts matched ${scopeLabel(scope)}.`,
-    diagnosticConfidence: 'medium',
+    confidence: 'medium',
     nextActions: [
       emptyAction('to inspect all known execution starts', 'get_entrypoints', { scope: 'all' }),
       emptyAction('to search for runtime anchors', 'search_context', { query: 'handler route lambda page' }),
@@ -215,7 +215,7 @@ export function traceFlowEmptyDiagnostic(
     return {
       reason: 'scope_unresolved',
       message: `The scope "${scope.raw}" did not resolve, so runtime topology cannot be traced for it.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if you have a symbol or runtime name', 'search_context', { query: scope.query ?? scope.raw }),
       ],
@@ -226,7 +226,7 @@ export function traceFlowEmptyDiagnostic(
     return {
       reason: 'semantic_domain_not_runtime_boundary',
       message: `${scope.resolvedScope} is a semantic/path tag. Runtime flow is graph-proven through services/resources/entrypoints, which may live outside that domain tag.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if you need runtime flow', 'search_context', { query: `${label} handler route lambda` }),
         emptyAction('if you need code structure', 'map_context', { scope: scope.resolvedScope, view: 'modules' }),
@@ -238,7 +238,7 @@ export function traceFlowEmptyDiagnostic(
     return {
       reason: 'no_producer_resource_consumer_edges',
       message: `Runtime services/resources were found for ${scopeLabel(scope)}, but no concrete producer-resource-consumer data flow was proven.`,
-      diagnosticConfidence: 'medium',
+      confidence: 'medium',
       nextActions: [
         emptyAction('if you need execution starts first', 'get_entrypoints', { scope: scope.resolvedScope }),
         emptyAction('if you need config/resource bindings', 'get_config_surface', { scope: scope.resolvedScope }),
@@ -249,7 +249,7 @@ export function traceFlowEmptyDiagnostic(
   return {
     reason: 'semantic_scope_has_no_runtime_topology',
     message: `No runtime services, resources, entrypoints, or data-flow edges matched ${scopeLabel(scope)}.`,
-    diagnosticConfidence: 'medium',
+    confidence: 'medium',
     nextActions: [
       emptyAction('if you need execution starts', 'get_entrypoints', { scope: scope.resolvedScope }),
       emptyAction('if you need code structure', 'map_context', { scope: scope.resolvedScope }),
@@ -279,7 +279,7 @@ export function searchEmptyDiagnostic(
     return {
       reason: 'weak_token_only_suppressed',
       message: 'Only weak/common tokens had matches after auto-relaxation, so search_context suppressed them instead of surfacing noisy results.',
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if you want weak-token matches anyway', 'search_context', { query, match: 'or' }),
         emptyAction('if you know a stronger symbol/path', 'search_context', { query: '<symbol-or-path>' }),
@@ -291,7 +291,7 @@ export function searchEmptyDiagnostic(
     return {
       reason: 'no_token_hits',
       message: 'None of the query tokens matched the repository search index.',
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if you have a path/package/domain alias', 'map_context', { scope: query }),
         emptyAction('to browse from the repository root', 'map_context', { scope: 'all', view: 'summary' }),
@@ -303,7 +303,7 @@ export function searchEmptyDiagnostic(
     return {
       reason: 'type_filter_excluded',
       message: 'Some query tokens matched the index, but no results survived the requested type filter.',
-      diagnosticConfidence: 'medium',
+      confidence: 'medium',
       nextActions: [
         emptyAction('to retry without type filtering', 'search_context', { query }),
       ],
@@ -313,7 +313,7 @@ export function searchEmptyDiagnostic(
   return {
     reason: 'strict_and_no_single_node',
     message: 'Query tokens matched the index, but no single graph node matched the requested token combination.',
-    diagnosticConfidence: 'medium',
+    confidence: 'medium',
     nextActions: [
       emptyAction('to intentionally union token matches', 'search_context', { query, match: 'or' }),
       emptyAction('to narrow by one strong anchor', 'search_context', { query: hitTokens[0] ?? query }),
@@ -332,7 +332,7 @@ export function configSurfaceEmptyDiagnostic(
     return {
       reason: 'scope_unresolved',
       message: `The scope "${scope.raw}" did not resolve, so config/resource bindings cannot be inspected for it.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if you have a config/resource name', 'get_config_surface', { scope: 'all', namePattern: scope.query ?? scope.raw }),
         emptyAction('if you have a symbol/path', 'search_context', { query: scope.query ?? scope.raw }),
@@ -348,7 +348,7 @@ export function configSurfaceEmptyDiagnostic(
     return {
       reason: hasNamePattern ? 'name_pattern_empty' : 'kind_filter_empty',
       message: `Config/resource surface items exist in ${scopeLabel(scope)}, but the requested filter removed all of them.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('to inspect unfiltered config/resource surface', 'get_config_surface', { scope: scope.resolvedScope }),
       ],
@@ -363,7 +363,7 @@ export function configSurfaceEmptyDiagnostic(
   return {
     reason: 'scope_has_no_config_surface',
     message: `No env vars, public config, secrets, resources, or resource bindings matched ${scopeLabel(scope)}.`,
-    diagnosticConfidence: 'medium',
+    confidence: 'medium',
     nextActions: [
       emptyAction('if you need code structure instead', 'map_context', { scope: scope.resolvedScope }),
       emptyAction('if you need runtime topology', 'trace_flow', { scope: scope.resolvedScope, include: ['services', 'resources', 'flows'] }),
@@ -382,7 +382,7 @@ export function mapContextEmptyDiagnostic(
     return {
       reason: 'scope_unresolved',
         message: `The scope "${scope.raw}" did not resolve to a graph node, package, domain, template, runtime resource, or query scope.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if this is a symbol, file, route, config, or feature name', 'search_context', { query: scope.query ?? scope.raw }),
         emptyAction('to browse from the repository root', 'map_context', { scope: 'all', view: 'summary' }),
@@ -390,29 +390,31 @@ export function mapContextEmptyDiagnostic(
     };
   }
 
-  const pagination = result?.pagination as { total?: unknown; returned?: unknown; offset?: unknown } | undefined;
-  const focus = result?.focus as { childPagination?: { total?: unknown; returned?: unknown; offset?: unknown } } | undefined;
-  const childPagination = focus?.childPagination;
-  const total = typeof pagination?.total === 'number'
-    ? pagination.total
-    : typeof childPagination?.total === 'number'
-      ? childPagination.total
+  // `truncation` is present only when a bound bit, so a complete page carries its own total: the
+  // page IS the whole list. Reading both apart tells "the scope is empty" from "this page is".
+  const focus = result?.focus as {
+    drillDown?: unknown;
+    topChildren?: unknown;
+    truncation?: { children?: { total?: unknown } };
+  } | undefined;
+  const childShown = Array.isArray(focus?.topChildren)
+    ? focus.topChildren.length
+    : Array.isArray(focus?.drillDown)
+      ? focus.drillDown.length
       : undefined;
-  const returned = typeof pagination?.returned === 'number'
-    ? pagination.returned
-    : typeof childPagination?.returned === 'number'
-      ? childPagination.returned
-      : undefined;
-  const offset = typeof pagination?.offset === 'number'
-    ? pagination.offset
-    : typeof childPagination?.offset === 'number'
-      ? childPagination.offset
-      : offsetFrom(args);
+  const childTotal = typeof focus?.truncation?.children?.total === 'number'
+    ? focus.truncation.children.total
+    : childShown;
+  const packagesShown = Array.isArray(result?.packages) ? result.packages.length : undefined;
+  const packageTotal = typeof result?.packageTotal === 'number' ? result.packageTotal : packagesShown;
+  const total = packageTotal ?? childTotal;
+  const returned = packagesShown ?? childShown;
+  const offset = offsetFrom(args);
   if (typeof total === 'number' && total > 0 && returned === 0 && offset > 0) {
     return {
       reason: 'offset_out_of_range',
       message: `The scope has ${total} item(s), but offset ${offset} is outside the available page range.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('to restart pagination', 'map_context', { scope: scope.resolvedScope, view: args.view ?? 'summary', limit: args.limit ?? DEFAULT_MAP_LIMIT, offset: 0 }),
       ],
@@ -435,7 +437,7 @@ export function mapContextEmptyDiagnostic(
       return {
         reason: 'scope_has_no_map_context',
         message: `${scope.resolvedScope} exists as a domain tag, but no modules are currently tagged into that scope.`,
-        diagnosticConfidence: 'medium',
+        confidence: 'medium',
         nextActions: [
           emptyAction('to find similarly named anchors', 'search_context', { query: label }),
           emptyAction('to browse repository packages/domains', 'map_context', { scope: 'all', view: 'summary' }),
@@ -446,12 +448,11 @@ export function mapContextEmptyDiagnostic(
   }
 
   if (scope.kind === 'package') {
-    const childTotal = typeof childPagination?.total === 'number' ? childPagination.total : undefined;
     if (childTotal === 0) {
       return {
         reason: 'package_has_no_modules',
         message: `${scope.resolvedScope} resolved as a package, but it has no module children in the current graph.`,
-        diagnosticConfidence: 'medium',
+        confidence: 'medium',
         nextActions: [
           emptyAction('to inspect package-level dependencies', 'analyze_dependencies', { scope: scope.resolvedScope, mode: 'package-boundaries' }),
           emptyAction('to find files/symbols by query instead', 'search_context', { query: scope.raw.replace(/^pkg:/, '') }),
@@ -462,6 +463,20 @@ export function mapContextEmptyDiagnostic(
   }
 
   return undefined;
+}
+
+/**
+ * How many entries a bounded list has in total.
+ *
+ * `truncation` is present only when a bound bit, so a list without one is complete and its own
+ * length is the total. Reading it this way keeps "the scope has nothing" apart from "this page has
+ * nothing", which is the difference these diagnostics exist to state.
+ */
+export function boundedTotal(result: Record<string, unknown> | undefined, key: string): number {
+  const bound = (result?.truncation as Record<string, { total?: unknown }> | undefined)?.[key];
+  if (typeof bound?.total === 'number') return bound.total;
+  const list = result?.[key];
+  return Array.isArray(list) ? list.length : 0;
 }
 
 export function dependencyModeScopeMismatchDiagnostic(
@@ -475,7 +490,7 @@ export function dependencyModeScopeMismatchDiagnostic(
     return {
       reason: 'scope_unresolved',
       message: `The scope "${scope.raw}" did not resolve, so dependency analysis cannot choose the correct module/package/export-symbol boundary.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if this is a symbol or path', 'search_context', { query: scope.query ?? scope.raw }),
         emptyAction('to browse package/module scopes', 'map_context', { scope: 'all', view: 'summary' }),
@@ -509,7 +524,7 @@ export function dependencyModeScopeMismatchDiagnostic(
   return {
     reason: 'dependency_mode_scope_mismatch',
     message,
-    diagnosticConfidence: 'high',
+    confidence: 'high',
     nextActions,
     details: { mode, scopeKind: scope.kind },
   };
@@ -527,7 +542,7 @@ export function dependenciesEmptyDiagnostic(
     return {
       reason: 'scope_unresolved',
       message: `The scope "${scope.raw}" did not resolve, so dependency analysis could not anchor to imports, exports, packages, or export symbols.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if this is a symbol or path', 'search_context', { query: scope.query ?? scope.raw }),
         emptyAction('to browse package/module scopes', 'map_context', { scope: 'all', view: 'summary' }),
@@ -536,15 +551,12 @@ export function dependenciesEmptyDiagnostic(
   }
 
   if (mode === 'package-boundaries' || mode === 'import-map') {
-    const edgesPagination = result?.edgesPagination as { total?: number } | undefined;
-    const edgeTotal = typeof edgesPagination?.total === 'number'
-      ? edgesPagination.total
-      : Array.isArray(result?.edges) ? result.edges.length : 0;
+    const edgeTotal = boundedTotal(result, 'edges');
     if (edgeTotal === 0) {
       return {
         reason: 'no_cross_package_edges',
         message: `No cross-package import edges matched ${scopeLabel(scope)}. Intra-package imports are intentionally not reported in package-boundary/import-map mode.`,
-        diagnosticConfidence: 'medium',
+        confidence: 'medium',
         nextActions: [
           emptyAction('to include every package boundary', 'analyze_dependencies', { scope: 'all', mode, ...(args.direction ? { direction: args.direction } : {}) }),
           emptyAction('if you need consumers of one concrete module/export', 'analyze_dependencies', { scope: '<module-or-export-symbol-scope>', mode: 'impact' }),
@@ -556,14 +568,8 @@ export function dependenciesEmptyDiagnostic(
   }
 
   if (mode === 'impact') {
-    const downstreamPagination = result?.downstreamPagination as { total?: number } | undefined;
-    const upstreamPagination = result?.upstreamPagination as { total?: number } | undefined;
-    const downstreamTotal = typeof downstreamPagination?.total === 'number'
-      ? downstreamPagination.total
-      : Array.isArray(result?.downstream) ? result.downstream.length : 0;
-    const upstreamTotal = typeof upstreamPagination?.total === 'number'
-      ? upstreamPagination.total
-      : Array.isArray(result?.upstream) ? result.upstream.length : 0;
+    const downstreamTotal = boundedTotal(result, 'downstream');
+    const upstreamTotal = boundedTotal(result, 'upstream');
     const exportFiltered = typeof args.exportName === 'string' && args.exportName.length > 0;
     if ((downstreamTotal === 0 && upstreamTotal === 0) || (exportFiltered && downstreamTotal === 0)) {
       return {
@@ -571,7 +577,7 @@ export function dependenciesEmptyDiagnostic(
         message: exportFiltered
           ? `No downstream importers matched export "${args.exportName}" for ${scopeLabel(scope)}.`
           : `No upstream or downstream import impact edges matched ${scopeLabel(scope)} within the requested depth.`,
-        diagnosticConfidence: 'medium',
+        confidence: 'medium',
         nextActions: [
           emptyAction('to inspect the module/export surface', 'inspect_node', { scope: scope.resolvedScope }),
           emptyAction('to inspect package-level edges instead', 'analyze_dependencies', { scope: 'all', mode: 'package-boundaries' }),
@@ -587,7 +593,7 @@ export function dependenciesEmptyDiagnostic(
       return {
         reason: 'no_interface_implementations',
         message: `No graph-indexed implementations were found for interface "${result?.interface ?? args.interfaceName ?? scope.raw}".`,
-        diagnosticConfidence: 'medium',
+        confidence: 'medium',
         nextActions: [
           emptyAction('to search for similarly named symbols', 'search_context', { query: String(result?.interface ?? args.interfaceName ?? scope.raw) }),
           emptyAction('to inspect the candidate interface/export', 'inspect_node', { scope: scope.resolvedScope }),
@@ -603,7 +609,7 @@ export function dependenciesEmptyDiagnostic(
       return {
         reason: 'no_callgraph_edges',
         message: `No calls were detected for ${scopeLabel(scope)} in the indexed export-symbol call graph.`,
-        diagnosticConfidence: 'medium',
+        confidence: 'medium',
         nextActions: [
           emptyAction('to inspect source/signature details', 'inspect_node', { scope: scope.resolvedScope, includeBody: true }),
           emptyAction('to inspect import impact instead', 'analyze_dependencies', { scope: scope.resolvedScope, mode: 'impact' }),
@@ -628,7 +634,7 @@ export function architectureEmptyDiagnostic(
     return {
       reason: 'scope_unresolved',
       message: `The scope "${scope.raw}" did not resolve, so architecture analysis inspected an empty scope.`,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('if this is a feature/symbol/path', 'search_context', { query: scope.query ?? scope.raw }),
         emptyAction('to browse package/domain scopes', 'map_context', { scope: 'all', view: 'summary' }),
@@ -640,7 +646,7 @@ export function architectureEmptyDiagnostic(
     return {
       reason: 'finding_not_found',
       message: result.error,
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: [
         emptyAction('to list current finding ids', 'analyze_architecture', {
           scope: refactoringScopeArg(scope),
@@ -674,7 +680,7 @@ export function architectureEmptyDiagnostic(
       message: hasFilters
         ? `No architecture findings survived the requested scope/category/confidence filters for ${scopeLabel(scope)}.`
         : `No architecture findings matched ${scopeLabel(scope)} with the current detectors and thresholds.`,
-      diagnosticConfidence: 'medium',
+      confidence: 'medium',
       nextActions,
       details: {
         categories: args.categories,

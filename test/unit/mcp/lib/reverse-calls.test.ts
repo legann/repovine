@@ -39,7 +39,7 @@ describe('reverse-calls index', () => {
 });
 
 describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
-  it('surfaces a name-matched caller of an export-symbol, flagged unresolved', () => {
+  it('surfaces a name-matched caller of an export-symbol, its provenance inferred', () => {
     const graph = createEmptyGraph();
     addNode(graph, { id: 'mod:app/validator', type: 'module', label: 'validator.ts', description: '' });
     addNode(graph, { id: 'export:app/validator/validateMonitor', type: 'export-symbol', label: 'validateMonitor', description: '', data: { symbolKind: 'function' } });
@@ -52,12 +52,12 @@ describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
     ]);
 
     const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:app/validator/validateMonitor' }) as {
-      downstream: Array<{ id: string; unresolved?: boolean }>;
+      downstream: Array<{ id: string; provenance?: { basis: string; method: string } }>;
       nameMatchedCallers?: number;
     };
     const formatter = result.downstream.find(e => e.id === 'mod:app/formatter');
     expect(formatter).toBeDefined();
-    expect(formatter?.unresolved).toBe(true);
+    expect(formatter?.provenance).toEqual({ basis: 'inferred', method: 'call-name-index' });
     expect(result.nameMatchedCallers).toBe(1);
   });
 
@@ -77,9 +77,10 @@ describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
     ]);
 
     const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:shared/utils/slugify' }) as {
-      downstream: Array<{ id: string; unresolved?: boolean }>;
+      downstream: Array<{ id: string; provenance?: { basis: string; method: string } }>;
     };
-    expect(result.downstream.find(e => e.id === 'mod:web/tool')?.unresolved).toBe(true);
+    expect(result.downstream.find(e => e.id === 'mod:web/tool')?.provenance)
+      .toEqual({ basis: 'inferred', method: 'call-name-index' });
   });
 
   it('resolves export-symbol scope to the parent module and filters importers by export name (Part 3)', () => {
@@ -107,12 +108,13 @@ describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
     ]);
 
     const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:app/validator/validateMonitor' }) as {
-      downstream: Array<{ id: string; uses?: string[]; unresolved?: boolean }>;
+      downstream: Array<{ id: string; uses?: string[]; provenance?: { basis: string; method: string } }>;
     };
     const resolved = result.downstream.find(e => e.id === 'mod:app/caller');
     expect(resolved).toBeDefined();
     expect(resolved?.uses).toContain('validateMonitor');
-    expect(resolved?.unresolved).toBeUndefined();
+    // Absence means the walk reached it over a graph edge, not that a name happened to match.
+    expect(resolved?.provenance).toBeUndefined();
     // same-name import from a different module is not a caller of THIS export.
     expect(result.downstream.find(e => e.id === 'mod:app/other')).toBeUndefined();
   });

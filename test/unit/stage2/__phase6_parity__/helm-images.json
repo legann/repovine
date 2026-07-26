@@ -230,7 +230,7 @@
       "view": {
         "id": "domain:helm-images-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -241,7 +241,7 @@
       "view": {
         "id": "domain:infra-dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -252,7 +252,7 @@
       "view": {
         "id": "domain:infra-helm",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -263,7 +263,7 @@
       "view": {
         "id": "domain:placeholder",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -274,7 +274,7 @@
       "view": {
         "id": "export:helm-images-fixture/src/placeholder/placeholder",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -292,7 +292,7 @@
       "view": {
         "id": "infra:dockerfile:helm/demo-chart/Dockerfile",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:generic:helm/demo-chart/Dockerfile",
             "type": "runtime-resource"
@@ -320,7 +320,7 @@
       "view": {
         "id": "infra:helm:helm/demo-chart/Chart.yaml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:generic:demo-chart",
             "type": "runtime-resource"
@@ -349,7 +349,7 @@
       "view": {
         "id": "infra:helm:helm/demo-chart/values.yaml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:generic:app",
             "type": "runtime-resource"
@@ -387,7 +387,7 @@
       "view": {
         "id": "mod:helm-images-fixture/src/placeholder",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:helm-images-fixture/src/placeholder/placeholder",
             "type": "export-symbol"
@@ -415,7 +415,7 @@
       "view": {
         "id": "pkg:helm-images-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:helm-images-fixture/src/placeholder",
             "type": "module"
@@ -448,7 +448,7 @@
       "view": {
         "id": "resource:generic:app",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-helm",
@@ -481,7 +481,7 @@
       "view": {
         "id": "resource:generic:demo-chart",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-helm",
@@ -502,7 +502,7 @@
       "view": {
         "id": "resource:generic:helm/demo-chart/Dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-dockerfile",
@@ -523,7 +523,7 @@
       "view": {
         "id": "resource:generic:secret:app-db-credentials",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-helm",
@@ -544,7 +544,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:helm-images-fixture",
             "type": "package"

@@ -35,25 +35,26 @@ describe('every failure class reaches the client flagged', () => {
   });
 
   it('does not read a withheld oversized payload as a failure', () => {
-    // The size backstop emits confidence:'low' with `result.responseTruncated` and no `result.error`.
-    // Keying the flag on confidence instead of the error field would mark truncation as an error.
+    // The size backstop emits confidence:'low' with `truncation.result` and no `result.error`.
+    // Keying the flag on confidence instead of the error field would mark a withheld body an error.
     const huge = envelope('all', 'Big', { items: Array.from({ length: 5_000 }, (_, i) => `item-${i}`) });
     const out = toCallToolMcpResult(huge, { ...RESPONSE, maxChars: 500 });
 
     expect(out.isError).toBeUndefined();
-    expect(out.content[0].text).toContain('responseTruncated');
+    // `truncation.result` is emitted by the size backstop and by nothing else.
+    expect(out.content[0].text).toContain('"truncation":{"result":');
   });
 
   it('keeps a failure flagged when it is withheld for size', () => {
     // Failure is a property of the payload, not of its length. Deciding the flag after the size
-    // branch loses it exactly when the body is replaced by the truncation marker.
+    // branch loses it exactly when the body is replaced by the bound.
     const bulky = envelopeError('all', 'Could not resolve node: x', {
       candidates: Array.from({ length: 5_000 }, (_, i) => `mod:pkg/candidate-${i}`),
     });
     const out = toCallToolMcpResult(bulky, { ...RESPONSE, maxChars: 500 });
 
     expect(out.isError).toBe(true);
-    expect(out.content[0].text).toContain('responseTruncated');
+    expect(out.content[0].text).toContain('"truncation":{"result":');
     expect(out.content[0].text).toContain('Could not resolve node: x');
   });
 });
@@ -132,10 +133,11 @@ describe('attention truncation is disclosed', () => {
     });
 
     expect((result.attention as unknown[]).length).toBe(3);
-    expect(result.attentionTruncated).toEqual({
+    expect(result.truncation?.attention).toEqual({
       shown: 3,
       total: 5,
-      hint: expect.stringContaining('omitted'),
+      unit: 'item',
+      more: { kind: 'inline', hint: expect.stringContaining('investigate tags') },
     });
   });
 
@@ -145,12 +147,12 @@ describe('attention truncation is disclosed', () => {
     });
 
     expect((result.attention as unknown[]).length).toBe(2);
-    expect(result).not.toHaveProperty('attentionTruncated');
+    expect(result).not.toHaveProperty('truncation');
   });
 
   it('says nothing when there is no attention block at all', () => {
     const result = envelope('all', 'Inspected x', { ok: true });
     expect(result).not.toHaveProperty('attention');
-    expect(result).not.toHaveProperty('attentionTruncated');
+    expect(result).not.toHaveProperty('truncation');
   });
 });

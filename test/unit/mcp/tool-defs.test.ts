@@ -207,14 +207,14 @@ describe('public MCP tool definitions', () => {
     const dependencies = toolDefs.find(def => def.name === 'analyze_dependencies');
     expect(dependencies?.description).toContain('mode/scope-mismatch');
     expect(dependencies?.description).toContain('emptyDiagnostic');
-    expect(dependencies?.description).toContain('nextOffset'); // build-site list caps documented
-    expect(dependencies?.description).toContain('responseTruncated'); // global size backstop documented
+    expect(dependencies?.description).toContain('result.truncation'); // build-site list caps documented
+    expect(dependencies?.description).toContain('truncation.result'); // global size backstop documented
     expect(dependencies?.schema.shape.offset).toBeDefined(); // pages the capped lists
 
     const architecture = toolDefs.find(def => def.name === 'analyze_architecture');
     expect(architecture?.description).toContain('missing finding detail');
     expect(architecture?.description).toContain('emptyDiagnostic');
-    expect(architecture?.description).toContain('truncatedNodes'); // report-mode node preview documented
+    expect(architecture?.description).toContain('truncation block'); // report-mode node preview documented
     expect(architecture?.schema.shape.annotationReasoning.description).toContain('verification obligations');
     expect('minConfidence' in (architecture?.schema.shape ?? {})).toBe(false);
     expect(architecture?.schema.shape.limit.safeParse(30).success).toBe(true);

@@ -224,7 +224,7 @@
       "view": {
         "id": "domain:handler",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -235,7 +235,7 @@
       "view": {
         "id": "domain:infra-sam",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -246,7 +246,7 @@
       "view": {
         "id": "domain:sam-lambda-app-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -257,7 +257,7 @@
       "view": {
         "id": "export:sam-lambda-app-fixture/src/handler/main",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -278,7 +278,7 @@
       "view": {
         "id": "infra:cloudformation:template.yaml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:aws-lambda:ApiFunction",
             "type": "runtime-resource"
@@ -336,7 +336,7 @@
       "view": {
         "id": "mod:sam-lambda-app-fixture/src/handler",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sam-lambda-app-fixture/src/handler/main",
             "type": "export-symbol"
@@ -376,7 +376,7 @@
       "view": {
         "id": "pkg:sam-lambda-app-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:sam-lambda-app-fixture/src/handler",
             "type": "module"
@@ -421,7 +421,7 @@
       "view": {
         "id": "resource:aws-lambda:ApiFunction",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-sam",
@@ -466,7 +466,7 @@
       "view": {
         "id": "resource:aws:DbSecret",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-sam",
@@ -487,7 +487,7 @@
       "view": {
         "id": "resource:aws:secret:/demo/token",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-sam",
@@ -508,7 +508,7 @@
       "view": {
         "id": "resource:aws:secret:GoogleSecretsArn",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-sam",
@@ -527,7 +527,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:sam-lambda-app-fixture",
             "type": "package"

@@ -185,7 +185,7 @@
       "view": {
         "id": "domain:infra-dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -196,7 +196,7 @@
       "view": {
         "id": "domain:infra-k8s",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -207,7 +207,7 @@
       "view": {
         "id": "domain:job",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -218,7 +218,7 @@
       "view": {
         "id": "domain:k8s-cronjob-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -229,7 +229,7 @@
       "view": {
         "id": "export:k8s-cronjob-fixture/src/job/tick",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -247,7 +247,7 @@
       "view": {
         "id": "infra:dockerfile:Dockerfile",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:generic:Dockerfile",
             "type": "runtime-resource"
@@ -275,7 +275,7 @@
       "view": {
         "id": "infra:kubernetes:manifests/cronjob.yaml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:k8s:_/CronJob/demo-scheduler",
             "type": "runtime-resource"
@@ -309,7 +309,7 @@
       "view": {
         "id": "mod:k8s-cronjob-fixture/src/job",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:k8s-cronjob-fixture/src/job/tick",
             "type": "export-symbol"
@@ -337,7 +337,7 @@
       "view": {
         "id": "pkg:k8s-cronjob-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:k8s-cronjob-fixture/src/job",
             "type": "module"
@@ -358,7 +358,7 @@
       "view": {
         "id": "resource:generic:Dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-dockerfile",
@@ -387,7 +387,7 @@
       "view": {
         "id": "resource:k8s:_/CronJob/demo-scheduler",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-k8s",
@@ -415,7 +415,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:k8s-cronjob-fixture",
             "type": "package"

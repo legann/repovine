@@ -15,71 +15,75 @@ import type { ModuleInfo, RepositoryGraph } from '../../../src/types.js';
 describe('paginateList', () => {
   const items = [0, 1, 2, 3, 4];
 
-  it('slices to a page and reports total/returned/nextOffset when truncated', () => {
-    const { page, pagination } = paginateList(items, { limit: 2, offset: 0 });
+  it('slices to a page and says how to reach the rest when it does not fit', () => {
+    const { page, truncation } = paginateList(items, { limit: 2, offset: 0 });
     expect(page).toEqual([0, 1]);
-    expect(pagination.total).toBe(5);
-    expect(pagination.returned).toBe(2);
-    expect(pagination.offset).toBe(0);
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.nextOffset).toBe(2);
-    expect(pagination.hint).toBeDefined();
+    expect(truncation).toEqual({
+      shown: 2,
+      total: 5,
+      unit: 'item',
+      more: { kind: 'page', arg: 'offset', nextOffset: 2, hint: expect.any(String) },
+    });
   });
 
-  it('omits nextOffset/hint when the page covers the whole list', () => {
-    const { page, pagination } = paginateList(items, { limit: 10, offset: 0 });
+  it('says nothing when the page covers the whole list', () => {
+    const { page, truncation } = paginateList(items, { limit: 10, offset: 0 });
     expect(page).toEqual(items);
-    expect(pagination.total).toBe(5);
-    expect(pagination.truncated).toBe(false);
-    expect(pagination.nextOffset).toBeUndefined();
-    expect(pagination.hint).toBeUndefined();
+    expect(truncation).toBeUndefined();
   });
 
   it('pages a middle slice with offset', () => {
-    const { page, pagination } = paginateList(items, { limit: 2, offset: 2 });
+    const { page, truncation } = paginateList(items, { limit: 2, offset: 2 });
     expect(page).toEqual([2, 3]);
-    expect(pagination.offset).toBe(2);
-    expect(pagination.returned).toBe(2);
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.nextOffset).toBe(4);
+    expect(truncation?.shown).toBe(2);
+    expect(truncation?.more).toEqual(expect.objectContaining({ kind: 'page', nextOffset: 4 }));
   });
 
-  it('returns the final partial page without nextOffset', () => {
-    const { page, pagination } = paginateList(items, { limit: 2, offset: 4 });
+  // A last page is smaller than the list and still holds everything left, so the end is decided by
+  // nextOffset, not by comparing the page size with the total.
+  it('says nothing on the final partial page', () => {
+    const { page, truncation } = paginateList(items, { limit: 2, offset: 4 });
     expect(page).toEqual([4]);
-    expect(pagination.returned).toBe(1);
-    expect(pagination.truncated).toBe(false);
-    expect(pagination.nextOffset).toBeUndefined();
+    expect(truncation).toBeUndefined();
   });
 
-  it('handles an offset past the end as an empty, non-truncated page', () => {
-    const { page, pagination } = paginateList(items, { limit: 2, offset: 99 });
+  // Advancing from an offset past the end would hand back the offset that just returned nothing, so
+  // the answer is to restart rather than to page on.
+  it('sends an offset past the end back to the start instead of forward', () => {
+    const { page, truncation } = paginateList(items, { limit: 2, offset: 99 });
     expect(page).toEqual([]);
-    expect(pagination.returned).toBe(0);
-    expect(pagination.offset).toBe(99);
-    expect(pagination.truncated).toBe(false);
-    expect(pagination.nextOffset).toBeUndefined();
+    expect(truncation).toEqual({
+      shown: 0,
+      total: 5,
+      unit: 'item',
+      more: { kind: 'arg', arg: 'offset', value: 0, hint: expect.stringContaining('past the end') },
+    });
   });
 
+  // An unclamped slice(-5, -3) would hand back [0, 1] too, so the page alone cannot tell the clamp
+  // from its absence — the reported offset is what does.
   it('clamps a negative offset to 0', () => {
-    const { pagination } = paginateList(items, { limit: 2, offset: -5 });
-    expect(pagination.offset).toBe(0);
+    const { page, truncation } = paginateList(items, { limit: 2, offset: -5 });
+    expect(page).toEqual([0, 1]);
+    expect(truncation?.more).toEqual(expect.objectContaining({ kind: 'page', nextOffset: 2 }));
   });
 
-  it('embeds noun + narrow guidance in the truncation hint (how to get the rest)', () => {
-    const { pagination } = paginateList(items, {
+  it('embeds noun + narrow guidance in the hint (how to get the rest)', () => {
+    const { truncation } = paginateList(items, {
       limit: 2, offset: 0, noun: 'downstream importer', narrow: 'pass exportName to scope to one export',
     });
-    expect(pagination.hint).toContain('5 downstream importer(s)');
-    expect(pagination.hint).toContain('Showing 1-2');
-    expect(pagination.hint).toContain('offset 2');
-    expect(pagination.hint).toContain('pass exportName to scope to one export');
+    const hint = truncation?.more.kind === 'page' ? truncation.more.hint : undefined;
+    expect(hint).toContain('5 downstream importer(s)');
+    expect(hint).toContain('Showing 1-2');
+    expect(hint).toContain('offset 2');
+    expect(hint).toContain('pass exportName to scope to one export');
   });
 
   it('falls back to a generic noun + narrow when none given', () => {
-    const { pagination } = paginateList(items, { limit: 2, offset: 0 });
-    expect(pagination.hint).toContain('5 item(s)');
-    expect(pagination.hint).toContain('narrow the scope or reduce depth');
+    const { truncation } = paginateList(items, { limit: 2, offset: 0 });
+    const hint = truncation?.more.kind === 'page' ? truncation.more.hint : undefined;
+    expect(hint).toContain('5 item(s)');
+    expect(hint).toContain('narrow the scope or reduce depth');
   });
 });
 
@@ -183,17 +187,18 @@ describe('map_context handler pagination branches', () => {
       scope: 'all',
       limit: 1,
     }) as HandlerEnvelope;
-    const pagination = response.result.pagination as Record<string, unknown>;
+    const truncation = response.result.truncation as Record<string, Record<string, unknown>>;
 
     expect(response.confidence).toBe('high');
     expect(response.summary).toContain('Repository map');
+    expect(response.result.packageTotal).toBe(2);
     expect(response.result.packages).toEqual([
       expect.objectContaining({ id: 'pkg:app' }),
     ]);
-    expect(pagination).toEqual(expect.objectContaining({
+    expect(truncation.packages).toEqual(expect.objectContaining({
+      shown: 1,
       total: 2,
-      returned: 1,
-      offset: 0,
+      more: expect.objectContaining({ kind: 'page', arg: 'offset', nextOffset: 1 }),
     }));
   });
 
@@ -204,13 +209,15 @@ describe('map_context handler pagination branches', () => {
       limit: 1,
       offset: 99,
     }) as HandlerEnvelope;
-    const focus = response.result.focus as { childPagination: Record<string, unknown> };
+    const focus = response.result.focus as { drillDown: unknown[]; truncation: Record<string, Record<string, unknown>> };
 
     expect(response.confidence).toBe('low');
-    expect(focus.childPagination).toEqual(expect.objectContaining({
+    expect(focus.drillDown).toEqual([]);
+    // An offset past the end is answered by a restart, never by a cursor pointing at itself.
+    expect(focus.truncation.children).toEqual(expect.objectContaining({
+      shown: 0,
       total: 2,
-      returned: 0,
-      offset: 99,
+      more: expect.objectContaining({ kind: 'arg', arg: 'offset', value: 0 }),
     }));
     expect(response.result.emptyDiagnostic).toEqual(expect.objectContaining({
       reason: 'offset_out_of_range',
@@ -222,10 +229,12 @@ describe('map_context handler pagination branches', () => {
     const response = await toolHandlers.map_context(runtime(graph, modules), {
       scope: 'pkg:empty',
     }) as HandlerEnvelope;
-    const focus = response.result.focus as { childPagination: Record<string, unknown> };
+    const focus = response.result.focus as { drillDown: unknown[]; truncation?: unknown };
 
     expect(response.confidence).toBe('low');
-    expect(focus.childPagination).toEqual(expect.objectContaining({ total: 0 }));
+    // No children at all, so nothing was bounded: the page IS the whole (empty) list.
+    expect(focus.drillDown).toEqual([]);
+    expect(focus.truncation).toBeUndefined();
     expect(response.result.emptyDiagnostic).toEqual(expect.objectContaining({
       reason: 'package_has_no_modules',
     }));

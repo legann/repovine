@@ -519,13 +519,13 @@ describe('inspect_node salience ordering + attention', () => {
     const ctx = makeCtx({ graph, modulesById, annotations });
 
     const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha', exportLimit: 2 });
-    const detail = result.result as { drill_down: Array<{ id: string; investigate?: string[] }>; childPagination: { total: number }; affordanceCount: number };
+    const detail = result.result as { drillDown: Array<{ id: string; investigate?: string[] }>; truncation: { children: { total: number } }; affordanceCount: number };
 
     // Qux sits at source index 3 (past exportLimit 2); the partition surfaces it on page 1.
-    expect(detail.drill_down[0].id).toBe('export:test/alpha/Qux');
-    expect(detail.drill_down[0].investigate).toEqual(['risk']);
-    expect(detail.drill_down).toHaveLength(2);
-    expect(detail.childPagination.total).toBe(4); // counting unchanged by ordering
+    expect(detail.drillDown[0].id).toBe('export:test/alpha/Qux');
+    expect(detail.drillDown[0].investigate).toEqual(['risk']);
+    expect(detail.drillDown).toHaveLength(2);
+    expect(detail.truncation.children.total).toBe(4); // counting unchanged by ordering
     expect(detail.affordanceCount).toBe(4);
   });
 
@@ -742,8 +742,8 @@ describe('inspect_node salience ordering + attention', () => {
     const ctx = makeCtx({ graph, modulesById });
 
     const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
-    const detail = env.result as { drill_down: Array<{ id: string; investigate?: string[] }> };
-    expect(detail.drill_down.find((c) => c.id === 'export:test/alpha/Foo')?.investigate).toEqual(['co-change']);
+    const detail = env.result as { drillDown: Array<{ id: string; investigate?: string[] }> };
+    expect(detail.drillDown.find((c) => c.id === 'export:test/alpha/Foo')?.investigate).toEqual(['co-change']);
     expect(env.attention).toBeUndefined();
   });
 });
@@ -816,11 +816,11 @@ describe('inspect_node domain freshness', () => {
       annotations: domainAnnotations('unknown'),
     });
     const view = (await buildInspectNodeDetail(ctx, { nodeId: 'domain:order' })) as {
-      annotationMeta?: { fresh?: boolean; freshnessSource?: string };
+      annotationMeta?: { fresh?: boolean; provenance?: { basis: string; method: string } };
     };
     expect(view.annotationMeta).toBeDefined();
     expect(view.annotationMeta!.fresh).toBeUndefined();
-    expect(view.annotationMeta!.freshnessSource).toBe('not-comparable');
+    expect(view.annotationMeta!.provenance).toEqual({ basis: 'absent', method: 'not-comparable' });
   });
 
   it('names content-hash as the source when a comparison did run', async () => {
@@ -833,9 +833,9 @@ describe('inspect_node domain freshness', () => {
       annotations: domainAnnotations('stale-deliberately-wrong-hash'),
     });
     const view = (await buildInspectNodeDetail(ctx, { nodeId: 'domain:order' })) as {
-      annotationMeta?: { freshnessSource?: string };
+      annotationMeta?: { provenance?: { basis: string; method: string } };
     };
-    expect(view.annotationMeta!.freshnessSource).toBe('content-hash');
+    expect(view.annotationMeta!.provenance).toEqual({ basis: 'computed', method: 'content-hash' });
   });
 });
 
@@ -1027,13 +1027,11 @@ describe('public v1 context tools', () => {
 
     expectEnvelope(result);
     const focus = (result.result as { focus: Record<string, unknown> }).focus;
-    expect(focus.drill_down).toHaveLength(1);
-    expect(focus.childPagination).toMatchObject({
+    expect(focus.drillDown).toHaveLength(1);
+    expect((focus.truncation as Record<string, unknown>).children).toMatchObject({
+      shown: 1,
       total: 2,
-      returned: 1,
-      offset: 0,
-      truncated: true,
-      nextOffset: 1,
+      more: { kind: 'page', arg: 'offset', nextOffset: 1, hint: expect.any(String) },
     });
   });
 
@@ -1047,16 +1045,15 @@ describe('public v1 context tools', () => {
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
     const focus = (result.result as { focus: Record<string, unknown> }).focus;
-    expect(focus.childPagination).toMatchObject({
+    expect((focus.truncation as Record<string, unknown>).children).toMatchObject({
+      shown: 0,
       total: 2,
-      returned: 0,
-      offset: 999,
-      truncated: false,
+      more: { kind: 'arg', arg: 'offset', value: 0, hint: expect.any(String) },
     });
     expect(result.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({
         reason: 'offset_out_of_range',
-        diagnosticConfidence: 'high',
+        confidence: 'high',
         details: expect.objectContaining({ total: 2, returned: 0, offset: 999 }),
         nextActions: expect.arrayContaining([
           expect.objectContaining({
@@ -1520,7 +1517,7 @@ describe('public v1 context tools', () => {
     expect(payload.suggestedScopes).toEqual([]);
     expect(payload.emptyDiagnostic).toEqual(expect.objectContaining({
       reason: 'weak_token_only_suppressed',
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: expect.arrayContaining([
         expect.objectContaining({ tool: 'search_context', args: expect.objectContaining({ match: 'or' }) }),
       ]),
@@ -1573,7 +1570,7 @@ describe('public v1 context tools', () => {
     expect(payload.configMatches).toEqual([]);
     expect(payload.emptyDiagnostic).toEqual(expect.objectContaining({
       reason: 'no_token_hits',
-      diagnosticConfidence: 'high',
+      confidence: 'high',
     }));
   });
 
@@ -1589,7 +1586,7 @@ describe('public v1 context tools', () => {
     const payload = result.result as Record<string, unknown>;
     expect(payload.emptyDiagnostic).toEqual(expect.objectContaining({
       reason: 'graph_empty',
-      diagnosticConfidence: 'high',
+      confidence: 'high',
       nextActions: expect.arrayContaining([
         expect.objectContaining({ tool: 'refresh_context' }),
       ]),
@@ -1614,20 +1611,18 @@ describe('public v1 context tools', () => {
 
     expectEnvelope(result);
     const detail = result.result as Record<string, unknown>;
-    expect(detail.drill_down).toHaveLength(1);
-    expect(detail.childPagination).toMatchObject({
+    expect(detail.drillDown).toHaveLength(1);
+    expect((detail.truncation as Record<string, unknown>).children).toMatchObject({
+      shown: 1,
       total: 2,
-      returned: 1,
-      offset: 0,
-      truncated: true,
-      nextOffset: 1,
+      more: { kind: 'page', arg: 'exportOffset', nextOffset: 1, hint: expect.any(String) },
     });
     // affordanceCount reports the node's full member count, not the paginated page size,
     // so "addressed 1 of M" stays honest even when the children are paginated.
     expect(detail.affordanceCount).toBe(2);
   });
 
-  it('surfaces affordanceCount mirroring childPagination.total on inspect_node', async () => {
+  it('surfaces affordanceCount as the full member count on inspect_node', async () => {
     const { graph, modulesById } = buildFixtureGraph();
     const ctx = makeCtx({
       graph,
@@ -1639,9 +1634,12 @@ describe('public v1 context tools', () => {
 
     expectEnvelope(result);
     const detail = result.result as Record<string, unknown>;
-    const pagination = detail.childPagination as { total: number };
-    expect(typeof detail.affordanceCount).toBe('number');
-    expect(detail.affordanceCount).toBe(pagination.total);
+    // The fixture module owns two exports; affordanceCount is that count, not the page size — pinned
+    // against the graph rather than against the response, so a page-sized value fails.
+    const members = [...(ctx.getState().graph.outEdges.get('mod:test/alpha') ?? [])]
+      .filter(e => e.kind === 'contains').length;
+    expect(detail.affordanceCount).toBe(members);
+    expect(detail.truncation).toBeUndefined();
   });
 
   it('rejects oversized inspect_node bodyLimit before reading source', async () => {
@@ -1712,12 +1710,8 @@ describe('public v1 context tools', () => {
       stale: 0,
     });
     expect(Object.keys(coverage.byDomain as Record<string, unknown>)).toEqual(['beta', 'gamma']);
-    expect(coverage.domainPagination).toMatchObject({
-      total: 3,
-      returned: 2,
-      offset: 1,
-      truncated: false,
-    });
+    // Two of three domains, requested from offset 1 — the page reaches the end, so no bound.
+    expect(coverage.truncation).toBeUndefined();
     expect(coverage.byTier).toEqual(expect.objectContaining({
       business: { domainCount: 2, totalModules: 2 },
     }));
@@ -1771,7 +1765,14 @@ describe('public v1 context tools', () => {
     expect(queue.hint).toMatch(/ONE unified annotation queue, not separate queues/i);
     expect(queue.queueLength).toBeUndefined();
     expect(queue.offset).toBe(0);
-    expect(queue.nextOffset).toBe(2);
+    expect(queue.truncation).toEqual({
+      items: {
+        shown: 2,
+        total: 6,
+        unit: 'item',
+        more: { kind: 'page', arg: 'offset', nextOffset: 2, hint: expect.any(String) },
+      },
+    });
   });
 
   it('includes propagation-stale in needsWork', async () => {
@@ -1928,12 +1929,13 @@ describe('public v1 context tools', () => {
       consumer: 1,
       boundary: 1,
     }));
-    expect(candidates.pagination).toEqual({
-      limit: 1,
-      offset: 0,
-      total: 2,
-      returned: 1,
-      nextOffset: 1,
+    expect(candidates.truncation).toEqual({
+      items: {
+        shown: 1,
+        total: 2,
+        unit: 'item',
+        more: { kind: 'page', arg: 'offset', nextOffset: 1, hint: expect.any(String) },
+      },
     });
     expect(candidates.items).toEqual([
       expect.objectContaining({
@@ -1971,12 +1973,14 @@ describe('public v1 context tools', () => {
     });
     const pageCandidates = (page.result as { riskScopeCandidates: Record<string, unknown> }).riskScopeCandidates;
     expect(pageCandidates.items).toEqual([]);
-    expect(pageCandidates.pagination).toEqual({
-      limit: 1,
-      offset: 1,
-      total: 1,
-      returned: 0,
-      nextOffset: null,
+    // Offset 1 of a one-item list starts past the end, so the answer is to restart.
+    expect(pageCandidates.truncation).toEqual({
+      items: {
+        shown: 0,
+        total: 1,
+        unit: 'item',
+        more: { kind: 'arg', arg: 'offset', value: 0, hint: expect.any(String) },
+      },
     });
 
     const empty = await toolHandlers['get_annotation_status'](makeCtx(), {
@@ -2130,7 +2134,7 @@ describe('public v1 context tools', () => {
       total: 0,
       emptyDiagnostic: expect.objectContaining({
         reason: 'filtered_out',
-        diagnosticConfidence: 'high',
+        confidence: 'high',
         nextActions: expect.arrayContaining([
           expect.objectContaining({ tool: 'get_entrypoints', args: { scope: 'pkg:test' } }),
         ]),
@@ -2217,11 +2221,14 @@ describe('public v1 context tools', () => {
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
       services: [],
-      pagination: expect.objectContaining({
-        servicesTotal: 1,
-        servicesReturned: 0,
-        offset: 1,
-        truncated: false,
+      // One service in scope, requested from offset 1: the page starts past the end.
+      truncation: expect.objectContaining({
+        services: {
+          shown: 0,
+          total: 1,
+          unit: 'item',
+          more: { kind: 'arg', arg: 'offset', value: 0, hint: expect.any(String) },
+        },
       }),
     }));
   });
@@ -2285,8 +2292,6 @@ describe('public v1 context tools', () => {
             trigger: 'annotation',
           }),
         ],
-        truncated: false,
-        omittedCount: 0,
       },
     }));
     const deeper = (result.navigation as Record<string, Array<Record<string, unknown>>>).deeper;
@@ -2341,8 +2346,6 @@ describe('public v1 context tools', () => {
             trigger: 'scoped-resource',
           }),
         ],
-        truncated: false,
-        omittedCount: 0,
       },
     }));
     const deeper = (result.navigation as Record<string, Array<Record<string, unknown>>>).deeper;
@@ -2385,7 +2388,7 @@ describe('public v1 context tools', () => {
       total: 0,
       emptyDiagnostic: expect.objectContaining({
         reason: 'name_pattern_empty',
-        diagnosticConfidence: 'high',
+        confidence: 'high',
         details: expect.objectContaining({ namePattern: 'DOES_NOT_MATCH' }),
       }),
     }));
@@ -4047,7 +4050,7 @@ describe('get_context_detail', () => {
     const result = await buildInspectNodeDetail(ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
     expect(result.id).toBe('mod:test/alpha');
     expect(result.label).toBe('alpha');
-    expect(Array.isArray(result.drill_down)).toBe(true);
+    expect(Array.isArray(result.drillDown)).toBe(true);
   });
 
   it('sets bodyError when includeBody and file read fails', async () => {
@@ -4118,7 +4121,9 @@ describe('get_context_detail', () => {
     const ctx = makeCtx();
     const result = await buildInspectNodeDetail(ctx, { nodeId: 'mod:test/alpha', grepBody: 'Foo' }) as Record<string, unknown>;
     expect(Array.isArray(result.grepMatches)).toBe(true);
-    expect(result.grepTotalMatches).toBe(1);
+    // One match, nothing bounded: matching lines carry isMatch, so the count needs no second field.
+    expect((result.grepMatches as Array<{ isMatch: boolean }>).filter(m => m.isMatch)).toHaveLength(1);
+    expect(result.truncation).toBeUndefined();
   });
 
   it('bounds long grep lines and reports that input was truncated', async () => {
@@ -4128,11 +4133,13 @@ describe('get_context_detail', () => {
     const result = await buildInspectNodeDetail(ctx, { nodeId: 'mod:test/alpha', grepBody: 'NEEDLE$' }) as Record<string, unknown>;
     expect(result.grepError).toBeUndefined();
     expect(result.grepMatches).toEqual([]);
-    expect(result.grepTotalMatches).toBe(0);
-    expect(result.grepInputTruncated).toBe(true);
-    expect(result.grepTruncatedLineCount).toBe(1);
-    expect(result.grepTestedLineCharLimit).toEqual(expect.any(Number));
-    expect(result.grepTestedLineCharLimit as number).toBeLessThan(longLine.length);
+    const grepInput = (result.truncation as Record<string, { shown: number; total: number; unit: string; more: { kind: string; hint: string } }>).grepInput;
+    expect(grepInput).toMatchObject({ shown: 0, total: 1, unit: 'line', more: { kind: 'unavailable' } });
+    // The hint carries the width that was actually applied; a wrong number there is a wrong answer.
+    const width = Number(/tested only up to|longer than (\d+) chars/.exec(grepInput.more.hint)?.[1]);
+    expect(width).toBeGreaterThan(0);
+    expect(width).toBeLessThan(longLine.length);
+    expect(grepInput.more.hint).toContain(`1 line(s) longer than ${width} chars`);
   });
 
   it('sets bodyError for export-symbol when parent module not found in modulesById', async () => {
@@ -4555,20 +4562,16 @@ describe('analyze_dependencies output bounding', () => {
 
   it('caps impact downstream at the build site with total/nextOffset', () => {
     const result = analyzeImpact(highFanCtx(60), { nodeId: 'mod:test/hub', limit: 20, offset: 0 }) as Record<string, unknown>;
-    const pagination = result.downstreamPagination as { total: number; returned: number; truncated: boolean; nextOffset?: number };
+    const bound = (result.truncation as Record<string, Record<string, unknown>>).downstream;
     expect((result.downstream as unknown[]).length).toBe(20);
-    expect(pagination.total).toBe(60);
-    expect(pagination.returned).toBe(20);
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.nextOffset).toBe(20);
+    expect(bound).toMatchObject({ shown: 20, total: 60, more: { kind: 'page', nextOffset: 20 } });
   });
 
   it('pages the next slice with offset', () => {
     const result = analyzeImpact(highFanCtx(60), { nodeId: 'mod:test/hub', limit: 20, offset: 20 }) as Record<string, unknown>;
-    const pagination = result.downstreamPagination as { offset: number; nextOffset?: number };
+    const bound = (result.truncation as Record<string, Record<string, unknown>>).downstream;
     expect((result.downstream as unknown[]).length).toBe(20);
-    expect(pagination.offset).toBe(20);
-    expect(pagination.nextOffset).toBe(40);
+    expect(bound).toMatchObject({ shown: 20, more: { kind: 'page', nextOffset: 40 } });
   });
 
   it('caps impact via the analyze_dependencies handler with total/nextOffset and a consumable size (59 KB regression)', async () => {
@@ -4579,11 +4582,9 @@ describe('analyze_dependencies output bounding', () => {
     const out = toCallToolMcpResult(result, CONFIG_DEFAULTS.mcp.response);
     expect(out.content[0].text.length).toBeLessThanOrEqual(CONFIG_DEFAULTS.mcp.response.maxChars);
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
-    const pagination = analysis.downstreamPagination as { total: number; returned: number; truncated: boolean; nextOffset?: number };
+    const bound = (analysis.truncation as Record<string, Record<string, unknown>>).downstream;
     expect((analysis.downstream as unknown[]).length).toBe(20); // default page
-    expect(pagination.total).toBe(400);
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.nextOffset).toBe(20);
+    expect(bound).toMatchObject({ shown: 20, total: 400, more: { kind: 'page', nextOffset: 20 } });
   });
 
   it('adds a soft gap and validation navigation for name-matched unresolved impact callers', async () => {
@@ -4597,7 +4598,7 @@ describe('analyze_dependencies output bounding', () => {
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
     expect(analysis.nameMatchedCallers).toBe(1);
     expect(analysis.downstream).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'mod:app/formatter-0', unresolved: true }),
+      expect.objectContaining({ id: 'mod:app/formatter-0', provenance: { basis: 'inferred', method: 'call-name-index' } }),
     ]));
     const gaps = result.gaps as string[];
     expect(gaps.filter(g => g.includes('name-matched unresolved caller'))).toHaveLength(1);
@@ -4683,10 +4684,8 @@ describe('analyze_dependencies output bounding', () => {
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
     expect(analysis.count).toBe(3); // full count is preserved
     expect((analysis.implementations as unknown[]).length).toBe(2);
-    const pagination = analysis.implementationsPagination as { total: number; truncated: boolean; nextOffset?: number };
-    expect(pagination.total).toBe(3);
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.nextOffset).toBe(2);
+    const bound = (analysis.truncation as Record<string, Record<string, unknown>>).implementations;
+    expect(bound).toMatchObject({ shown: 2, total: 3, more: { kind: 'page', nextOffset: 2 } });
   });
 
   it('caps package-boundaries edges via the handler with total/nextOffset', async () => {
@@ -4698,11 +4697,8 @@ describe('analyze_dependencies output bounding', () => {
     expectEnvelope(result);
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
     expect((analysis.edges as unknown[]).length).toBe(1);
-    const pagination = analysis.edgesPagination as { total: number; returned: number; truncated: boolean; nextOffset?: number };
-    expect(pagination.total).toBe(2);
-    expect(pagination.returned).toBe(1);
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.nextOffset).toBe(1);
+    const bound = (analysis.truncation as Record<string, Record<string, unknown>>).edges;
+    expect(bound).toMatchObject({ shown: 1, total: 2, more: { kind: 'page', nextOffset: 1 } });
     // A truncated first page must not be mistaken for "no cross-package edges".
     expect(result.gaps).not.toEqual(expect.arrayContaining([expect.stringContaining('No cross-package import edges')]));
   });
@@ -4749,24 +4745,26 @@ describe('analyze_architecture report node bounding', () => {
 
   const BOUNDARY_ID = 'boundary:mod:shared/src/internal/rules';
 
-  it('caps a report finding`s nodes to a preview with nodeCount/truncatedNodes', async () => {
+  it('caps a report finding`s nodes to a preview and points at detail mode', async () => {
     const result = await architectureResult(manyImportersCtx(15), { scope: 'all', categories: ['boundary'] });
     const findings = result.findings as Array<Record<string, unknown>>;
     const boundary = findings.find(f => f.id === BOUNDARY_ID);
     expect(boundary).toBeDefined();
     expect((boundary!.nodes as unknown[]).length).toBe(10); // preview, not 16
-    expect(boundary!.nodeCount).toBe(16);
-    expect(boundary!.truncatedNodes).toBe(6);
+    expect((boundary!.truncation as Record<string, unknown>).nodes).toMatchObject({
+      shown: 10,
+      total: 16,
+      more: { kind: 'arg', arg: 'detailFindingId', value: BOUNDARY_ID },
+    });
   });
 
-  it('leaves a small finding`s nodes untouched (no nodeCount/truncatedNodes)', async () => {
+  it('leaves a small finding`s nodes untouched (no bound)', async () => {
     const result = await architectureResult(manyImportersCtx(3), { scope: 'all', categories: ['boundary'] });
     const findings = result.findings as Array<Record<string, unknown>>;
     const boundary = findings.find(f => f.id === BOUNDARY_ID);
     expect(boundary).toBeDefined();
     expect((boundary!.nodes as unknown[]).length).toBe(4); // target + 3 importers, below preview
-    expect(boundary!.nodeCount).toBeUndefined();
-    expect(boundary!.truncatedNodes).toBeUndefined();
+    expect(boundary!.truncation).toBeUndefined();
   });
 
   it('detail mode returns the full node set (maxNodes-bounded), unaffected by the report preview', async () => {
@@ -4819,8 +4817,9 @@ describe('search_repo_context', () => {
       s2.add(id);
     }
     const result = searchGraph(ctx, { query: 'thing', maxResults: 10 }) as Record<string, unknown>;
-    expect(result.truncated).toBe(true);
-    expect(typeof result.hint).toBe('string');
+    const bound = (result.truncation as Record<string, Record<string, unknown>>).domains;
+    expect(bound).toMatchObject({ total: 50, more: { kind: 'page', arg: 'offset' } });
+    expect((bound.more as { hint: string }).hint).toContain('types:["domain"]');
     expect((result.groupTotals as Record<string, number>).domains).toBe(50);
   });
 
@@ -4882,12 +4881,16 @@ describe('get_domain_modules_slice — primary vs secondary tags', () => {
     return wrapTestRuntime(state);
   }
 
-  it('excludes pattern-only matches by default and surfaces secondaryMatches.count', () => {
+  it('excludes pattern-only matches by default and says which argument returns them', () => {
     const ctx = buildSliceCtx();
     const result = buildDomainModulesSlice(ctx, { domainTag: 'auth' }) as Record<string, unknown>;
     expect(result.taggedModules).toBe(1);
-    const sec = result.secondaryMatches as { count: number } | undefined;
-    expect(sec?.count).toBe(1);
+    const sec = (result.truncation as Record<string, Record<string, unknown>>).secondaryMatches;
+    expect(sec).toMatchObject({
+      shown: 0,
+      total: 1,
+      more: { kind: 'arg', arg: 'includeSecondaryMatches', value: true },
+    });
     // utils-mod must not appear in byPackage
     const byPkg = result.byPackage as Record<string, Array<{ id: string }>>;
     const allIds = Object.values(byPkg).flat().map(m => m.id);
@@ -4899,7 +4902,7 @@ describe('get_domain_modules_slice — primary vs secondary tags', () => {
     const ctx = buildSliceCtx();
     const result = buildDomainModulesSlice(ctx, { domainTag: 'auth', includeSecondaryMatches: true }) as Record<string, unknown>;
     expect(result.taggedModules).toBe(2);
-    expect(result.secondaryMatches).toBeUndefined();
+    expect(result.truncation).toBeUndefined();
     const byPkg = result.byPackage as Record<string, Array<{ id: string }>>;
     const allIds = Object.values(byPkg).flat().map(m => m.id);
     expect(allIds).toContain('mod:test/utils-mod');
@@ -4915,9 +4918,11 @@ describe('get_domain_modules_slice — primary vs secondary tags', () => {
     }) as Record<string, unknown>;
     expect(result.byPackage).toBeUndefined();
     expect(Array.isArray(result.topModules)).toBe(true);
-    const pagination = result.pagination as { summaryOnly: boolean; returned: number };
-    expect(pagination.summaryOnly).toBe(true);
-    expect(pagination.returned).toBe(1);
+    expect(result.summaryOnly).toBe(true);
+    expect((result.truncation as Record<string, Record<string, unknown>>).modules).toMatchObject({
+      shown: 1,
+      more: { kind: 'arg', arg: 'view', value: 'modules' },
+    });
   });
 
   it('moduleLimit paginates byPackage entries', () => {
@@ -4931,9 +4936,11 @@ describe('get_domain_modules_slice — primary vs secondary tags', () => {
     const byPkg = result.byPackage as Record<string, Array<{ id: string }>>;
     const allIds = Object.values(byPkg).flat().map(m => m.id);
     expect(allIds).toHaveLength(1);
-    const pagination = result.pagination as { truncated: boolean; totalModules: number };
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.totalModules).toBe(2);
+    expect((result.truncation as Record<string, Record<string, unknown>>).modules).toMatchObject({
+      shown: 1,
+      total: 2,
+      more: { kind: 'page', arg: 'offset', nextOffset: 1 },
+    });
   });
 });
 
@@ -4984,7 +4991,7 @@ describe('get_domain_or_focus_context — pagination', () => {
     const top = result.topModules as Array<{ id: string }>;
     expect(top).toHaveLength(1);
     expect(top[0].id).toBe('mod:test/high');
-    expect((result.pagination as { summaryOnly: boolean }).summaryOnly).toBe(true);
+    expect(result.summaryOnly).toBe(true);
   });
 });
 
@@ -5097,9 +5104,12 @@ describe('get_annotation_status coverage — compact response', () => {
 
     const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage' }) as ToolResponse;
     const anomalies = ((envelope.result as { coverage: Record<string, unknown> }).coverage.anomalies) as {
-      inconsistent: { total: number; sample: Array<{ nodeId: string; issues: string[] }> };
+      inconsistent: { sample: Array<{ nodeId: string; issues: string[] }> };
+      truncation?: unknown;
     };
-    expect(anomalies.inconsistent.total).toBe(1); // only the keyExports drift; env-only is advisory/excluded
+    // Only the keyExports drift; env-only is advisory/excluded. One note fits the preview, so no bound.
+    expect(anomalies.inconsistent.sample).toHaveLength(1);
+    expect(anomalies.truncation).toBeUndefined();
     expect(anomalies.inconsistent.sample[0].nodeId).toBe('mod:test/drift');
     expect(anomalies.inconsistent.sample[0].issues).toContain('keyExports:ghostFn');
   });
@@ -5442,12 +5452,12 @@ describe('get_cross_package_dependencies — grouped boundary violations + sugge
     const result = analyzePackageBoundaries(ctx, {}) as Record<string, unknown>;
     const violations = result.boundaryViolations as Array<{
       targetModule: string;
-      totalImporters: number;
+      importerCount: number;
       importedBy: Array<{ from: string; symbols: string[] }>;
     }>;
     expect(violations).toHaveLength(1);
     expect(violations[0].targetModule).toBe('…/auth/middleware');
-    expect(violations[0].totalImporters).toBe(2);
+    expect(violations[0].importerCount).toBe(2);
     const importers = violations[0].importedBy.map(i => i.from).sort();
     expect(importers).toEqual(['handler-a', 'handler-b']);
   });
@@ -5506,7 +5516,7 @@ describe('get_cross_package_dependencies — grouped boundary violations + sugge
         topModuleEdges: Array<{ fromModule: string; toModule: string; symbols: string[] }>;
       }>;
       boundaryViolations: Array<{
-        totalImporters: number;
+        importerCount: number;
         importedBy: Array<{ from: string; symbols: string[] }>;
         suggestedFix?: { exportStatement: string };
       }>;
@@ -5522,7 +5532,7 @@ describe('get_cross_package_dependencies — grouped boundary violations + sugge
       toModule: '…/shared/setup',
       symbols: [],
     }]);
-    expect(result.boundaryViolations[0].totalImporters).toBe(1);
+    expect(result.boundaryViolations[0].importerCount).toBe(1);
     expect(result.boundaryViolations[0].importedBy).toEqual([{
       from: 'handler-b',
       symbols: ['getCorsHeaders'],

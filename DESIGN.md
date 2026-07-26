@@ -748,13 +748,13 @@ emit the primitive; the mechanic then fires with no registry or core change. For
 #### Investigate tags
 
 The pointer register renders the mechanics above as `investigate` tags on a ref
-(`links`, `drill_down`, or an `investigatePointers` target), read from the
+(`links`, `drillDown`, or an `investigatePointers` target), read from the
 target's stored annotation or its graph edges — structured fields only, never a
 prose scan.
 
 Tags rank highest-first `risk > boundary > effect > wiring > co-change > hub`;
 `unannotated` sits reserved at rank 4 and never emits. Per-ref cap is 3 tags;
-per-response cap is 12 tagged refs, with an `investigateTruncated` marker.
+per-response cap is 12 tagged refs, reported in `truncation.investigateRefs`.
 `hub`, `wiring`, and `co-change` are inline-only, capped at 2 refs each, and
 never hoisted to `attention`; `wiring`'s salience surface is a self attention
 item on the wired node. Implementation: `src/mcp/lib/investigate-refs.ts`.

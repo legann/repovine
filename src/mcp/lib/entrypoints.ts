@@ -13,6 +13,7 @@ import {
 } from '../../stage2/routes/file-based.js';
 import { nodeInScope, resolveScope } from '../scope/resolve.js';
 import { DEFAULT_LIST_LIMIT, limitFrom, offsetFrom } from '../response/pagination.js';
+import { pageTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
 import type { McpToolRuntime } from '../types.js';
 
 export { fileBasedEntryKind, inferFileBasedRoutes } from '../../stage2/routes/file-based.js';
@@ -21,7 +22,7 @@ export { triggerEntryKind } from '../../stage2/runtime/trigger-entry-kind.js';
 export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unknown>): {
   items: Array<Record<string, unknown>>;
   total: number;
-  pagination: { total: number; returned: number; offset: number; truncated: boolean };
+  truncation?: TruncationMap;
 } {
   const { graph, snapshot } = ctx.getState();
   const scope = resolveScope(ctx, args.scope);
@@ -107,16 +108,16 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
   }
 
   const page = items.slice(offset, offset + limit);
-  return {
-    items: page,
-    total: items.length,
-    pagination: {
+  const truncation = truncationMap({
+    items: pageTruncation({
+      shown: page.length,
       total: items.length,
-      returned: page.length,
       offset,
-      truncated: offset + page.length < items.length,
-    },
-  };
+      noun: 'entrypoint',
+      hint: `${items.length} entrypoint(s). Pass offset ${offset + page.length} with the same limit for the next page.`,
+    }),
+  });
+  return { items: page, total: items.length, ...(truncation ? { truncation } : {}) };
 }
 
 const REPLAYED_SLOTS = new Set<EntrypointSlot>([

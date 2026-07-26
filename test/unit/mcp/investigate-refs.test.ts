@@ -45,7 +45,7 @@ function consumerRiskAnnotations(consumerIds: Set<string>) {
 }
 
 function baseView(): NodeViewDetail {
-  return { id: 'mod:x', level: 2, label: 'x', description: '', drill_down: [] };
+  return { id: 'mod:x', level: 2, label: 'x', description: '', drillDown: [] };
 }
 
 describe('applyInvestigateTags', () => {
@@ -58,18 +58,18 @@ describe('applyInvestigateTags', () => {
     applyInvestigateTags(view, consumerRiskAnnotations(new Set(['mod:a'])));
     expect(view.links[0].investigate).toEqual(['risk']);
     expect(view.links[1].investigate).toBeUndefined();
-    expect(view.investigateTruncated).toBeUndefined();
+    expect(view.truncation?.investigateRefs).toBeUndefined();
   });
 
-  it('tags drill_down children too', () => {
+  it('tags drillDown children too', () => {
     const view = baseView();
-    view.drill_down = [
+    view.drillDown = [
       { id: 'export:a', label: 'a', type: 'export-symbol' },
       { id: 'export:b', label: 'b', type: 'export-symbol' },
     ];
     applyInvestigateTags(view, consumerRiskAnnotations(new Set(['export:b'])));
-    expect(view.drill_down[0].investigate).toBeUndefined();
-    expect(view.drill_down[1].investigate).toEqual(['risk']);
+    expect(view.drillDown[0].investigate).toBeUndefined();
+    expect(view.drillDown[1].investigate).toEqual(['risk']);
   });
 
   it('does not tag local-only or absent risks', () => {
@@ -94,7 +94,12 @@ describe('applyInvestigateTags', () => {
 
     const tagged = view.links.filter((l) => l.investigate?.length);
     expect(tagged).toHaveLength(MAX_INVESTIGATE_REFS);
-    expect(view.investigateTruncated).toEqual({ shownRefs: MAX_INVESTIGATE_REFS, totalRefs: total });
+    expect(view.truncation?.investigateRefs).toEqual({
+      shown: MAX_INVESTIGATE_REFS,
+      total,
+      unit: 'item',
+      more: { kind: 'unavailable', hint: expect.stringContaining('inspect_node') },
+    });
   });
 
   it('does not surface investigatePointers without options (legacy 2-arg behavior)', () => {
@@ -280,17 +285,17 @@ describe('applyInvestigateTags — wiring / co-change topology tags', () => {
     expect(view.links![0].investigate).toEqual(['wiring']);
   });
 
-  it('tags a drill_down child that implements a contract with ["co-change"]', () => {
+  it('tags a drillDown child that implements a contract with ["co-change"]', () => {
     const view = baseView();
-    view.drill_down = [
+    view.drillDown = [
       { id: 'export:x/Impl', label: 'Impl', type: 'export-symbol' },
       { id: 'export:x/Helper', label: 'Helper', type: 'export-symbol' },
     ];
     applyInvestigateTags(view, annotationsFor({}), {
       edgeCount: edgeCountFrom({ 'export:x/Impl|implements:out': 1 }),
     });
-    expect(view.drill_down[0].investigate).toEqual(['co-change']);
-    expect(view.drill_down[1].investigate).toBeUndefined();
+    expect(view.drillDown[0].investigate).toEqual(['co-change']);
+    expect(view.drillDown[1].investigate).toBeUndefined();
   });
 
   it('tags an implements link to the contract with ["co-change"] (contract side: in-edge)', () => {
@@ -365,7 +370,7 @@ describe('applyInvestigateTags — wiring / co-change topology tags', () => {
     // 14 carriers → kept 12 (8 risk + first 4 wiring); wiring demotion past cap 2 empties two refs.
     const tagged = view.links!.filter((l) => l.investigate?.length);
     expect(tagged).toHaveLength(10);
-    expect(view.investigateTruncated).toEqual({ shownRefs: 10, totalRefs: 14 });
+    expect(view.truncation?.investigateRefs).toEqual(expect.objectContaining({ shown: 10, total: 14 }));
   });
 
   it('caps hub and wiring independently on the same response (hub comparator unchanged)', () => {
@@ -506,9 +511,9 @@ describe('applyInvestigateTags — integrationPoints carriers', () => {
     // All 12 cap slots go to the structural links (collected first); pointers are dropped.
     expect(view.links.filter((l) => l.investigate?.length)).toHaveLength(MAX_INVESTIGATE_REFS);
     expect(view.investigatePointers ?? []).toHaveLength(0);
-    expect(view.investigateTruncated).toEqual({
-      shownRefs: MAX_INVESTIGATE_REFS,
-      totalRefs: MAX_INVESTIGATE_REFS + pointerIds.length,
-    });
+    expect(view.truncation?.investigateRefs).toEqual(expect.objectContaining({
+      shown: MAX_INVESTIGATE_REFS,
+      total: MAX_INVESTIGATE_REFS + pointerIds.length,
+    }));
   });
 });

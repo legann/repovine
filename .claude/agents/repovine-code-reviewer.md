@@ -25,7 +25,7 @@ inspect_node({ "nodeId": "mod:<changed-node>" })
 analyze_dependencies({ "scope": "mod:<changed-node>", "mode": "impact", "depth": 2 })
 ~~~
 
-Enumerate callers of an export (who-calls X) with impact scoped to the export-symbol — `analyze_dependencies({ "scope": "export:pkg/path/module/Name", "mode": "impact" })`, or a module scope plus `exportName`. This is grep-parity for caller lookup and spans re-export barrels, so prefer it over `grep`. Resolved import-edge callers carry `uses`; `unresolved: true` callers are name-matched impact candidates, not proven import edges. Inspect them or explicitly code-cite why they are out of scope before treating the caller set as complete.
+Enumerate callers of an export (who-calls X) with impact scoped to the export-symbol — `analyze_dependencies({ "scope": "export:pkg/path/module/Name", "mode": "impact" })`, or a module scope plus `exportName`. This is grep-parity for caller lookup and spans re-export barrels, so prefer it over `grep`. Callers reached over a graph edge carry `uses` and no `provenance`; callers with `provenance.basis: "inferred"` are name-matched impact candidates, not proven edges. Inspect them or explicitly code-cite why they are out of scope before treating the caller set as complete.
 
 For changed nodes with annotations, derive annotation obligations from `invariants`, `risks`, `dataFlow` / `flowDescription`, `integrationPoints`, and `sideEffects`, then compare the diff against them.
 

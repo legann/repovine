@@ -4,6 +4,7 @@ import { resolveScope, stripDomainPrefix } from '../scope/resolve.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, resultError, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom, pathFromRootPaginated, DEFAULT_MAP_LIMIT } from '../response/pagination.js';
+import { pageTruncation } from '../../response/truncation.js';
 import { mapContextEmptyDiagnostic } from '../response/empty-diagnostics.js';
 import { searchGraph } from '../lib/search-graph.js';
 import { buildDomainContext, buildDomainModulesSlice } from '../lib/domain-map.js';
@@ -25,12 +26,30 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
       const node = graph.nodes.get(id);
       return { id, label: node?.label ?? id };
     });
-    result = { stats, packages, pagination: { total: graph.byType.get('package')?.size ?? 0, returned: packages.length, offset } };
+    const packageTotal = graph.byType.get('package')?.size ?? 0;
+    const packagesBound = pageTruncation({
+      shown: packages.length,
+      total: packageTotal,
+      offset,
+      noun: 'package',
+      hint: `${packageTotal} package(s). Pass offset ${offset + packages.length} with the same limit for the next page.`,
+    });
+    result = {
+      stats,
+      packages,
+      packageTotal,
+      ...(packagesBound ? { truncation: { packages: packagesBound } } : {}),
+    };
     summary = `Repository map: ${stats.totalNodes} nodes and ${stats.totalEdges} edges.`;
   } else if (scope.kind === 'domain') {
     const domainArg = stripDomainPrefix(scope.resolvedScope);
     result = view === 'modules'
-      ? buildDomainModulesSlice(ctx, { domainTag: domainArg, moduleLimit: limit, offset })
+      ? buildDomainModulesSlice(ctx, {
+        domainTag: domainArg,
+        moduleLimit: limit,
+        offset,
+        includeSecondaryMatches: args.includeSecondaryMatches,
+      })
       : buildDomainContext(ctx, { domainOrNodeId: domainArg, summaryOnly: true, moduleLimit: limit });
     summary = `Mapped domain ${scope.resolvedScope}.`;
   } else if (scope.kind === 'query') {
@@ -62,8 +81,8 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
       (navigation.deeper ??= []).push(nav('inspect_node', { nodeId: m.id }, 'Inspect a high-connectivity module in this scope.'));
     }
   }
-  const focus = r.focus as { topChildren?: Array<{ id?: string }>; drill_down?: Array<{ id?: string }> } | undefined;
-  const focusChildren = focus?.topChildren ?? focus?.drill_down ?? [];
+  const focus = r.focus as { topChildren?: Array<{ id?: string }>; drillDown?: Array<{ id?: string }> } | undefined;
+  const focusChildren = focus?.topChildren ?? focus?.drillDown ?? [];
   for (const child of focusChildren.slice(0, 5)) {
     if (child.id) navigation.deeper.push(nav('inspect_node', { nodeId: child.id }, 'Inspect a child node in this scope.'));
   }

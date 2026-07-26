@@ -532,7 +532,7 @@
       "view": {
         "id": "domain:about",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -543,7 +543,7 @@
       "view": {
         "id": "domain:auth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -554,7 +554,7 @@
       "view": {
         "id": "domain:blog",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -565,7 +565,7 @@
       "view": {
         "id": "domain:dashboard",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -576,7 +576,7 @@
       "view": {
         "id": "domain:db",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -587,7 +587,7 @@
       "view": {
         "id": "domain:docs",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -598,7 +598,7 @@
       "view": {
         "id": "domain:home",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -609,7 +609,7 @@
       "view": {
         "id": "domain:lang",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -620,7 +620,7 @@
       "view": {
         "id": "domain:marketing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -631,7 +631,7 @@
       "view": {
         "id": "domain:path",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -642,7 +642,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -653,7 +653,7 @@
       "view": {
         "id": "domain:slug",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -664,7 +664,7 @@
       "view": {
         "id": "domain:sveltekit-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -680,7 +680,7 @@
       "view": {
         "id": "domain:sveltekit-fixture/dashboard",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:sveltekit-fixture",
@@ -696,7 +696,7 @@
       "view": {
         "id": "domain:users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -707,7 +707,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/lib/server/auth/checkAuth",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -718,7 +718,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/lib/server/db/connect",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -729,7 +729,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/routes/+layout/load",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -740,7 +740,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/routes/+page/load",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -751,7 +751,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/routes/api/users/+server/GET",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -762,7 +762,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -773,7 +773,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -784,7 +784,7 @@
       "view": {
         "id": "export:sveltekit-fixture/src/routes/dashboard/+page/load",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -808,7 +808,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/lib/server/auth",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/lib/server/auth/checkAuth",
             "type": "export-symbol"
@@ -847,7 +847,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/lib/server/db",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/lib/server/db/connect",
             "type": "export-symbol"
@@ -893,7 +893,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:sveltekit-fixture",
@@ -943,7 +943,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:sveltekit-fixture",
@@ -981,7 +981,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/+layout",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/routes/+layout/load",
             "type": "export-symbol"
@@ -1011,7 +1011,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/+page",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/routes/+page/load",
             "type": "export-symbol"
@@ -1043,7 +1043,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/+page.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:sveltekit-fixture",
@@ -1082,7 +1082,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/api/users/+server",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/routes/api/users/+server/GET",
             "type": "export-symbol"
@@ -1131,7 +1131,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load",
             "type": "export-symbol"
@@ -1181,7 +1181,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:sveltekit-fixture",
@@ -1228,7 +1228,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/dashboard/+page",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/routes/dashboard/+page/load",
             "type": "export-symbol"
@@ -1275,7 +1275,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.server",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions",
             "type": "export-symbol"
@@ -1324,7 +1324,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:dashboard",
@@ -1374,7 +1374,7 @@
       "view": {
         "id": "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:sveltekit-fixture",
@@ -1419,7 +1419,7 @@
       "view": {
         "id": "pkg:sveltekit-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:sveltekit-fixture/src/lib/server/auth",
             "type": "module"
@@ -1489,7 +1489,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:sveltekit-fixture",
             "type": "package"

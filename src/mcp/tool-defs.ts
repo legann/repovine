@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { CONTEXT_ENFORCEMENT_MODES, CONTEXT_PHASES } from '../agents/protocol.js';
 import { ANNOTATION_CONSUMER_RISK_AUTHORING, ANNOTATION_INVESTIGATE_CLOSURE } from '../cli/onboarding-assets.js';
 import { REFACTORING_CATEGORIES, type RefactoringCategory } from '../analysis/architecture/types.js';
+import { MAX_PER_TOKEN_LIMIT } from './lib/search-graph.js';
 
 export interface ToolDef {
   name: string;
@@ -128,7 +129,7 @@ const baseToolDefs: ToolDef[] = [
       'When topResults[].annotationMatched is true, annotation fields are omitted — use inspect_node on that nodeId before source-only reasoning. ' +
       'Weak/common tokens (package, route, handler, module, …) match at reduced weight; auto may suppress OR noise via weakTokenOnlySuppressed. ' +
       'A semantic-only nearest neighbour has low confidence, no matched tokens, and an advisory suggestedScope reason; it is not evidence that the requested functionality exists. ' +
-      'When perTokenLimit truncates an OR posting list before global ranking, strategy.postingLists and gaps expose each affected token and considered/total counts, and confidence is low. ' +
+      'When perTokenLimit truncates an OR posting list before global ranking, strategy.truncation names each affected token with shown/total counts, gaps repeat them, and confidence is low. ' +
       'Responses include matchedTokens, strategy.semantic.used/attempted, semanticRank/semanticScore on fused hits, suggestedScopes, navigation, and emptyDiagnostic reasons such as no_token_hits, strict_and_no_single_node, weak_token_only_suppressed, type_filter_excluded.',
     schema: z.object({
       query: z.string().describe('Task keyword, feature name, symbol, route, package, config name, or other search text.'),
@@ -138,7 +139,7 @@ const baseToolDefs: ToolDef[] = [
         + 'and: every token must match one node; partial token hits → totalResults:0 and emptyDiagnostic strict_and_no_single_node. '
         + 'or: union capped per-token candidates (may return noise on weak tokens like package/route/handler). Default auto.',
       ),
-      perTokenLimit: z.number().int().min(1).max(100).optional().describe('Max OR candidates considered per query token before final ranking. Default scales with limit, capped at 100.'),
+      perTokenLimit: z.number().int().min(1).max(MAX_PER_TOKEN_LIMIT).optional().describe(`Max OR candidates considered per query token before final ranking. Default scales with limit, capped at ${MAX_PER_TOKEN_LIMIT}.`),
       limit: LimitSchema,
       offset: OffsetSchema,
       include: IncludeSchema,
@@ -152,6 +153,7 @@ const baseToolDefs: ToolDef[] = [
     schema: z.object({
       scope: ScopeSchema,
       view: z.enum(['summary', 'modules', 'path']).optional().describe('Map shape to prefer. Default summary.'),
+      includeSecondaryMatches: z.boolean().optional().describe('Include domain members matched by regex pattern only, not by directory or import cluster. Default false.'),
       include: IncludeSchema,
       limit: LimitSchema,
       offset: OffsetSchema,
@@ -167,7 +169,7 @@ const baseToolDefs: ToolDef[] = [
       'A derived capability, permission, or feature flag is consumed at mount/render predicates and importers, not only the hook that derives it; on boundary tasks inspect those consumers before treating them unchanged. '
       + `${ANNOTATION_INVESTIGATE_CLOSURE} `
       + 'When annotations are returned, treat relevant invariants, risks, dataFlow/flowDescription, integrationPoints, and sideEffects as verification obligations: must preserve, must verify, known risk, or surface to check before editing. '
-      + 'References in links or drill_down may carry an investigate tag (risk/boundary/effect/wiring/co-change/hub) — the target holds a consumer-scoped risk, a boundary-scoped risk (off-limits surface), a persistent side effect, runtime wiring (deployed topology dispatches into or binds from it), an implements relation (contract and implementations move together), or many importers; investigatePointers surface the same flags for a deeper dependency named in this node\'s integrationPoints, and are must-inspect under the same closure; affordanceCount reports how many affordances/exports the node has to enumerate. '
+      + 'References in links or drillDown may carry an investigate tag (risk/boundary/effect/wiring/co-change/hub) — the target holds a consumer-scoped risk, a boundary-scoped risk (off-limits surface), a persistent side effect, runtime wiring (deployed topology dispatches into or binds from it), an implements relation (contract and implementations move together), or many importers; investigatePointers surface the same flags for a deeper dependency named in this node\'s integrationPoints, and are must-inspect under the same closure; affordanceCount reports how many affordances/exports the node has to enumerate. '
       + 'The response may also carry a top-level attention block — the same open obligations hoisted for primacy as data plus the cheapest next call, never a gate.',
     schema: z.object({
       nodeId: z.string().optional().describe('Node id to inspect. Preferred for module/export-symbol/runtime-resource/template/domain inspection.'),
@@ -217,8 +219,8 @@ const baseToolDefs: ToolDef[] = [
     description:
       'Analyze import/export contracts and dependency risk. Replaces impact, cross-package dependencies, interface implementations, and import-map style queries. ' +
       'Use before changing exported APIs, types, package boundaries, interfaces, or shared modules. Empty or mode/scope-mismatch results include emptyDiagnostic with reason and conditional nextActions. ' +
-      'impact on an export-symbol scope (or a module scope plus exportName) resolves reverse callers: precise resolved-import callers carry uses; callers matched by call name carry unresolved:true (spans re-export barrels), reported via nameMatchedCallers. The name index is capped per declaration at extraction, so it is a completeness backstop, not grep parity — the response reports the cap in nameMatchLimits. ' +
-      'impact, interface-implementations, and package-boundaries cap every returned list and paginate with total/nextOffset; page the rest with offset/limit. Oversized results are withheld behind a responseTruncated marker with narrowing guidance.',
+      'impact on an export-symbol scope (or a module scope plus exportName) resolves reverse callers: precise resolved-import callers carry uses; callers matched by call name carry provenance {basis:"inferred",method:"call-name-index"} (spans re-export barrels) and are counted by nameMatchedCallers; an entry without provenance was reached over a graph edge. The name index is capped per declaration while extracting, so it is a completeness backstop, not grep parity, and gaps say so. ' +
+      'impact, interface-implementations, and package-boundaries cap every returned list; result.truncation names each bounded list with shown/total and how to reach the rest. An oversized result is withheld whole behind truncation.result with narrowing guidance.',
     schema: z.object({
       scope: ScopeSchema,
       mode: DependencyModeSchema.optional().describe('Dependency analysis mode. Default impact for module/export-symbol scopes, package-boundaries otherwise. mode callgraph requires an export-symbol scope, or a module scope plus exportName.'),
@@ -251,7 +253,7 @@ const baseToolDefs: ToolDef[] = [
     description:
       'Run architecture analysis for a scope or expand one finding. This is read-only and heuristic: treat findings as review candidates. ' +
       'Use after context mapping or when the user asks for smells, risks, duplicated responsibilities, security-sensitive boundaries, frontend state/effect issues, or event boundaries. Empty reports or missing finding detail include emptyDiagnostic with reason and conditional nextActions. ' +
-      'Report mode previews each finding\'s nodes (nodeCount/truncatedNodes when capped); pass detailFindingId for the full maxNodes-bounded node set.',
+      'Report mode previews each finding\'s nodes and reports the cut in the finding\'s truncation block; pass detailFindingId for the full maxNodes-bounded node set.',
     schema: z.object({
       scope: ScopeSchema,
       mode: z.enum(['report', 'detail']).optional().describe('report returns findings; detail expands a findingId. Default report.'),

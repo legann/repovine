@@ -41,8 +41,13 @@ export function findInterfaceImplementations(ctx: McpToolRuntime, args: Record<s
     }
   }
 
-  const { page, pagination } = paginateList(implementations, {
+  const { page, truncation } = paginateList(implementations, {
     limit, offset, noun: 'implementation', narrow: 'page with offset',
   });
-  return { interface: ifaceName, count: implementations.length, implementations: page, implementationsPagination: pagination };
+  return {
+    interface: ifaceName,
+    count: implementations.length,
+    implementations: page,
+    ...(truncation ? { truncation: { implementations: truncation } } : {}),
+  };
 }

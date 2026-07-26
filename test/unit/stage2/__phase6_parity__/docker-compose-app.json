@@ -255,7 +255,7 @@
       "view": {
         "id": "domain:docker-compose-app-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -266,7 +266,7 @@
       "view": {
         "id": "domain:infra-docker-compose",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -277,7 +277,7 @@
       "view": {
         "id": "domain:infra-dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -288,7 +288,7 @@
       "view": {
         "id": "export:docker-compose-app-fixture/src/ok",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -310,7 +310,7 @@
       "view": {
         "id": "infra:docker-compose:docker-compose.yml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:generic:postgres",
             "type": "runtime-resource"
@@ -354,7 +354,7 @@
       "view": {
         "id": "infra:dockerfile:services/api/Dockerfile",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:generic:services/api/Dockerfile",
             "type": "runtime-resource"
@@ -383,7 +383,7 @@
       "view": {
         "id": "mod:docker-compose-app-fixture/src",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:docker-compose-app-fixture/src/ok",
             "type": "export-symbol"
@@ -407,7 +407,7 @@
       "view": {
         "id": "pkg:docker-compose-app-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:docker-compose-app-fixture/src",
             "type": "module"
@@ -448,7 +448,7 @@
       "view": {
         "id": "resource:generic:api",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-docker-compose",
@@ -489,7 +489,7 @@
       "view": {
         "id": "resource:generic:api_token",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-docker-compose",
@@ -510,7 +510,7 @@
       "view": {
         "id": "resource:generic:db_password",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-docker-compose",
@@ -535,7 +535,7 @@
       "view": {
         "id": "resource:generic:postgres",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-docker-compose",
@@ -560,7 +560,7 @@
       "view": {
         "id": "resource:generic:secret:.env.production",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-docker-compose",
@@ -581,7 +581,7 @@
       "view": {
         "id": "resource:generic:services/api/Dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-dockerfile",
@@ -601,7 +601,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:docker-compose-app-fixture",
             "type": "package"

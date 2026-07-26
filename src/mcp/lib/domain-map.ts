@@ -11,13 +11,15 @@ import {
   type DomainModuleRow,
 } from '../domain-pagination.js';
 import { resolveNodeId, type McpToolRuntime } from '../types.js';
+import { argTruncation, truncationMap } from '../../response/truncation.js';
+import { annotationFreshnessProvenance, freshAgainstHash } from './annotation-freshness.js';
 
 /** Prefixes that indicate a node id rather than a domain name. */
 export const NODE_ID_PREFIXES = /^(mod|export|pkg|resource|infra):/;
 
 export function moduleLinkCount(graph: RepositoryGraph, moduleId: string): number {
   const view = buildNodeView(graph, moduleId);
-  return view?.linksPagination?.total ?? view?.links?.length ?? 0;
+  return view?.truncation?.links?.total ?? view?.links?.length ?? 0;
 }
 
 export function resolveModulePackageId(graph: RepositoryGraph, moduleId: string): string {
@@ -64,8 +66,8 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
       moduleRows.push({
         id: view.id,
         label: view.label,
-        exports: view.drill_down.length,
-        links: view.linksPagination?.total ?? view.links?.length ?? 0,
+        exports: view.drillDown.length,
+        links: view.truncation?.links?.total ?? view.links?.length ?? 0,
       });
     }
     const { modules: pagedModules, topModules, pagination } = paginateDomainModules(moduleRows, paginationInput);
@@ -79,7 +81,8 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
       // Tagged nodes that are not modules (infra propagation attaches runtime resources) are
       // counted rather than dropped in silence; inspect the domain node to enumerate them.
       ...(taggedNonModuleCount > 0 ? { taggedNonModuleCount } : {}),
-      pagination,
+      summaryOnly: pagination.summaryOnly,
+      ...(pagination.truncation ? { truncation: { modules: pagination.truncation } } : {}),
     };
     if (pagination.summaryOnly) {
       if (topModules?.length) result.topModules = topModules;
@@ -99,9 +102,14 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
       const { snapshot } = ctx.getState();
       const propagation = ctx.getConfig().annotations.propagation ?? DEFAULT_PROPAGATION_CONFIG;
       const currentHash = resolveDomainContentHash(graph, snapshot, domainId, propagation);
-      const fresh = currentHash !== undefined && domainAnn.contentHash === currentHash;
+      const fresh = freshAgainstHash(domainAnn.contentHash, currentHash);
       result.annotation = domainAnn.annotation;
-      result.annotationMeta = { pass: domainAnn.pass, updatedAt: domainAnn.updatedAt, fresh, freshnessSource: "content-hash" };
+      result.annotationMeta = {
+        pass: domainAnn.pass,
+        updatedAt: domainAnn.updatedAt,
+        ...(fresh === undefined ? {} : { fresh }),
+        provenance: annotationFreshnessProvenance(fresh),
+      };
     }
     return result;
   }
@@ -187,18 +195,25 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
     ...(tier ? { tier } : {}),
     taggedModules: taggedModuleIds.size,
     totalWithDeps: allIds.size,
-    pagination,
+    summaryOnly: pagination.summaryOnly,
   };
+  // Pattern-only matches are filtered out by default rather than paged away, so the bound they
+  // report is the flag that returns them, not an offset.
+  const secondary = !includeSecondary && secondaryMatchCount > 0
+    ? argTruncation({
+      shown: 0,
+      total: secondaryMatchCount,
+      arg: 'includeSecondaryMatches',
+      value: true,
+      hint: 'Modules matched by regex pattern only, not by directory or import cluster.',
+    })
+    : undefined;
+  const truncation = truncationMap({ modules: pagination.truncation, secondaryMatches: secondary });
+  if (truncation) result.truncation = truncation;
   if (pagination.summaryOnly) {
     if (topModules?.length) result.topModules = topModules;
   } else if (pagedByPackage) {
     result.byPackage = pagedByPackage;
-  }
-  if (!includeSecondary && secondaryMatchCount > 0) {
-    result.secondaryMatches = {
-      count: secondaryMatchCount,
-      note: 'Modules matched by regex pattern only (not directory/import-cluster). Pass includeSecondaryMatches: true to include.',
-    };
   }
   if (includeConsumers && consumerIds.size > 0) {
     result.consumers = { count: consumerIds.size, byPackage: groupByPackage(consumerIds) };
@@ -208,9 +223,14 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
     const { snapshot } = ctx.getState();
     const propagation = ctx.getConfig().annotations.propagation ?? DEFAULT_PROPAGATION_CONFIG;
     const currentHash = resolveDomainContentHash(graph, snapshot, domainId, propagation);
-    const fresh = currentHash !== undefined && domainAnn.contentHash === currentHash;
+    const fresh = freshAgainstHash(domainAnn.contentHash, currentHash);
     result.annotation = domainAnn.annotation;
-    result.annotationMeta = { pass: domainAnn.pass, updatedAt: domainAnn.updatedAt, fresh, freshnessSource: "content-hash" };
+    result.annotationMeta = {
+      pass: domainAnn.pass,
+      updatedAt: domainAnn.updatedAt,
+      ...(fresh === undefined ? {} : { fresh }),
+      provenance: annotationFreshnessProvenance(fresh),
+    };
   }
   return result;
 }

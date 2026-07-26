@@ -323,7 +323,7 @@
       "view": {
         "id": "domain:auth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -334,7 +334,7 @@
       "view": {
         "id": "domain:billing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -345,7 +345,7 @@
       "view": {
         "id": "domain:nestjs-modular-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -356,7 +356,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -367,7 +367,7 @@
       "view": {
         "id": "domain:users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -378,7 +378,7 @@
       "view": {
         "id": "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -389,7 +389,7 @@
       "view": {
         "id": "export:nestjs-modular-fixture/src/auth/auth.service/AuthService",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -400,7 +400,7 @@
       "view": {
         "id": "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -411,7 +411,7 @@
       "view": {
         "id": "export:nestjs-modular-fixture/src/main/bootstrap",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -422,7 +422,7 @@
       "view": {
         "id": "export:nestjs-modular-fixture/src/users/users.controller/UsersController",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -433,7 +433,7 @@
       "view": {
         "id": "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -444,7 +444,7 @@
       "view": {
         "id": "export:nestjs-modular-fixture/src/users/users.service/UsersService",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -472,7 +472,7 @@
       "view": {
         "id": "mod:nestjs-modular-fixture/src/auth/auth.controller",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController",
             "type": "export-symbol"
@@ -516,7 +516,7 @@
       "view": {
         "id": "mod:nestjs-modular-fixture/src/auth/auth.service",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nestjs-modular-fixture/src/auth/auth.service/AuthService",
             "type": "export-symbol"
@@ -559,7 +559,7 @@
       "view": {
         "id": "mod:nestjs-modular-fixture/src/billing/billing.controller",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController",
             "type": "export-symbol"
@@ -598,7 +598,7 @@
       "view": {
         "id": "mod:nestjs-modular-fixture/src/main",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nestjs-modular-fixture/src/main/bootstrap",
             "type": "export-symbol"
@@ -637,7 +637,7 @@
       "view": {
         "id": "mod:nestjs-modular-fixture/src/users/users.controller",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nestjs-modular-fixture/src/users/users.controller/UsersController",
             "type": "export-symbol"
@@ -681,7 +681,7 @@
       "view": {
         "id": "mod:nestjs-modular-fixture/src/users/users.repository",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository",
             "type": "export-symbol"
@@ -720,7 +720,7 @@
       "view": {
         "id": "mod:nestjs-modular-fixture/src/users/users.service",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nestjs-modular-fixture/src/users/users.service/UsersService",
             "type": "export-symbol"
@@ -754,7 +754,7 @@
       "view": {
         "id": "pkg:nestjs-modular-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:nestjs-modular-fixture/src/main",
             "type": "module"
@@ -796,7 +796,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:nestjs-modular-fixture",
             "type": "package"

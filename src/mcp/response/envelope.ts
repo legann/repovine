@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import type { ResolvedScope } from '../scope/resolve.js';
 import { scopeNavigation } from '../scope/navigation.js';
+import { inlineTruncation, truncationMap, TruncationMapSchema, type TruncationMap } from '../../response/truncation.js';
+import { ProvenanceSchema } from '../../response/provenance.js';
 
 export type Confidence = 'high' | 'medium' | 'low';
 export type NavigationSection = 'deeper' | 'sideways' | 'up' | 'crossLayer' | 'validate';
@@ -25,20 +27,17 @@ export type AttentionItem = {
 /** Max obligations surfaced in the top-level `attention` block. */
 export const ATTENTION_LIMIT = 3;
 
-/** How many attention obligations were dropped, and where the rest still live. */
-export type AttentionTruncated = {
-  shown: number;
-  total: number;
-  hint: string;
-};
-
 /**
  * The shape every tool answers in.
  *
- * `result` is the tool's own payload and stays open here; the fields around it are the same for all
- * eighteen tools, so a caller reads scope, confidence, gaps and navigation without knowing which
- * tool produced the response. Build it with {@link envelope} or {@link envelopeError} — the type is
- * exported so a handler's return is checked, not so responses are assembled by hand.
+ * `result` is the tool's own payload and stays open apart from the two facts every payload can
+ * carry: the fields around it are the same for all eighteen tools, so a caller reads scope,
+ * confidence, gaps and navigation without knowing which tool produced the response. Build it with
+ * {@link envelope} or {@link envelopeError} — the type is exported so a handler's return is checked,
+ * not so responses are assembled by hand.
+ *
+ * `truncation` at this level bounds what the envelope itself holds: `attention`, which is capped,
+ * and `result`, which the transport withholds whole when it exceeds the response ceiling.
  */
 export interface ToolResponse {
   scope: string;
@@ -46,7 +45,7 @@ export interface ToolResponse {
   summary: string;
   confidence: Confidence;
   attention?: AttentionItem[];
-  attentionTruncated?: AttentionTruncated;
+  truncation?: TruncationMap;
   result: unknown;
   gaps: string[];
   navigation: Navigation;
@@ -70,6 +69,20 @@ const NavigationSchema = z.object({
  * Runtime shape of {@link ToolResponse}. Strict on purpose: a field added beside `result` instead of
  * inside it is a new top-level contract for every tool, and this is what refuses it.
  */
+/**
+ * The payload slot.
+ *
+ * Open, because eighteen tools answer eighteen different questions and no field is common to all of
+ * them — the type stays `unknown` for that reason. Three are described anyway: how a payload reports
+ * a bound it applied, what backs a claim it makes, and how it reports failure. Those are the fields
+ * that grew a new spelling per tool, so those are the ones held to one shape.
+ */
+export const ToolResultSchema = z.looseObject({
+  truncation: TruncationMapSchema.optional(),
+  provenance: ProvenanceSchema.optional(),
+  error: z.string().optional(),
+});
+
 export const ToolResponseSchema = z.strictObject({
   scope: z.string(),
   resolvedScope: z.record(z.string(), z.unknown()),
@@ -81,12 +94,8 @@ export const ToolResponseSchema = z.strictObject({
     note: z.string(),
     next: z.object({ tool: z.string(), args: z.record(z.string(), z.unknown()) }),
   })).optional(),
-  attentionTruncated: z.object({
-    shown: z.number(),
-    total: z.number(),
-    hint: z.string(),
-  }).optional(),
-  result: z.unknown(),
+  truncation: TruncationMapSchema.optional(),
+  result: ToolResultSchema,
   gaps: z.array(z.string()),
   navigation: NavigationSchema,
 });
@@ -162,24 +171,24 @@ export function envelope(
   }
   const allAttention = options.attention ?? [];
   const attention = allAttention.slice(0, ATTENTION_LIMIT);
-  // The block is hoisted for primacy, so the ones that did not fit are the ones a reader would
-  // never learn about. Say how many were dropped and where to see the rest.
-  const attentionTruncated = allAttention.length > attention.length
-    ? {
-      attentionTruncated: {
+  // The block is a reading order, not a filter: every obligation in it was read off lists that ship
+  // inside `result`, so what did not fit at the top is still down the page as an `investigate` tag.
+  const truncation = truncationMap({
+    attention: allAttention.length > attention.length
+      ? inlineTruncation({
         shown: attention.length,
         total: allAttention.length,
-        hint: 'Attention items beyond the first few are omitted; the same obligations stay on the referenced nodes.',
-      },
-    }
-    : {};
+        hint: 'Obligations past the first few stay as investigate tags on result.drillDown, result.links and result.investigatePointers in this same response.',
+      })
+      : undefined,
+  });
   return {
     scope: rawScope,
     resolvedScope: publicResolvedScope(scope),
     summary,
     confidence: options.confidence ?? 'medium',
     ...(attention.length ? { attention } : {}),
-    ...attentionTruncated,
+    ...(truncation ? { truncation } : {}),
     result,
     gaps: options.gaps ?? [],
     navigation: dedupeNavigation(baseNav),

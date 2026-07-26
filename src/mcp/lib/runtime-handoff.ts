@@ -2,6 +2,7 @@ import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from '../../annotations/
 import type { RepositoryGraph } from '../../types.js';
 import type { McpToolRuntime } from '../types.js';
 import type { ResolvedScope } from '../scope/resolve.js';
+import { narrowTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
 
 export const RUNTIME_HANDOFF_LIMIT = 3;
 
@@ -19,8 +20,7 @@ export interface RuntimeHandoffEntry {
 
 export interface RuntimeHandoffResult {
   items: RuntimeHandoffEntry[];
-  truncated: boolean;
-  omittedCount: number;
+  truncation?: TruncationMap;
 }
 
 const TRIGGER_PRIORITY: Record<RuntimeHandoffTrigger, number> = {
@@ -151,9 +151,16 @@ export function computeRuntimeHandoff(
   );
 
   const items = entries.slice(0, RUNTIME_HANDOFF_LIMIT);
-  return {
-    items,
-    truncated: entries.length > RUNTIME_HANDOFF_LIMIT,
-    omittedCount: Math.max(0, entries.length - RUNTIME_HANDOFF_LIMIT),
-  };
+  // The list leads the response so the highest-priority handler is never paged off; the rest is
+  // reached by narrowing the traced scope, not by advancing an offset this list does not have.
+  const truncation = truncationMap({
+    items: entries.length > items.length
+      ? narrowTruncation({
+        shown: items.length,
+        total: entries.length,
+        hint: 'Handler handoffs are capped per response; page trace_flow with offset/limit or inspect_node each remaining resource individually.',
+      })
+      : undefined,
+  });
+  return { items, ...(truncation ? { truncation } : {}) };
 }

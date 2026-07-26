@@ -81,11 +81,11 @@ describe('Part 4 — cross-package barrel → leaf linking', () => {
   it('reverse query on the leaf export resolves the cross-package consumer (not name-only)', () => {
     const { graph, modulesById } = build();
     const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:@shared/utils/slugify' }) as {
-      downstream: Array<{ id: string; uses?: string[]; unresolved?: boolean }>;
+      downstream: Array<{ id: string; uses?: string[]; provenance?: { basis: string; method: string } }>;
     };
     const consumer = result.downstream.find(e => e.id === 'mod:@web/tool');
     expect(consumer).toBeDefined();
     expect(consumer?.uses).toContain('slugify');
-    expect(consumer?.unresolved).toBeUndefined();
+    expect(consumer?.provenance).toBeUndefined();
   });
 });

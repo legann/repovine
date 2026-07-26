@@ -39,18 +39,27 @@ describe('domain-pagination', () => {
     expect(modules).toHaveLength(0);
     expect(topModules?.map(m => m.id)).toEqual(['mod:b', 'mod:c']);
     expect(pagination.summaryOnly).toBe(true);
-    expect(pagination.truncated).toBe(true);
-    expect(pagination.hint).toContain('3 modules');
+    expect(pagination.truncation).toEqual({
+      shown: 2,
+      total: 3,
+      unit: 'item',
+      more: { kind: 'arg', arg: 'view', value: 'modules', hint: expect.stringContaining('top 2 modules') },
+    });
   });
 
   it('moduleLimit and offset paginate full list', () => {
     const page0 = paginateDomainModules(sample, { moduleLimit: 2, offset: 0 });
     expect(page0.modules.map(m => m.id)).toEqual(['mod:b', 'mod:c']);
-    expect(page0.pagination.truncated).toBe(true);
+    expect(page0.pagination.truncation?.more).toEqual({
+      kind: 'page',
+      arg: 'offset',
+      nextOffset: 2,
+      hint: expect.stringContaining('3 modules'),
+    });
 
     const page1 = paginateDomainModules(sample, { moduleLimit: 2, offset: 2 });
     expect(page1.modules.map(m => m.id)).toEqual(['mod:a']);
-    expect(page1.pagination.truncated).toBe(false);
+    expect(page1.pagination.truncation).toBeUndefined();
   });
 
   it('parseDomainPaginationArgs validates bounds', () => {

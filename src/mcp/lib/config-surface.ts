@@ -2,21 +2,17 @@ import { resolveScope, nodeInScope } from '../scope/resolve.js';
 import { limitFrom, offsetFrom, DEFAULT_LIST_LIMIT } from '../response/pagination.js';
 import type { McpToolRuntime } from '../types.js';
 import { isUnsafeRegexPattern } from './node-body.js';
+import { pageTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
 
 export interface ConfigSurfaceResult {
   items: Array<Record<string, unknown>>;
   total: number;
-  pagination: { total: number; returned: number; offset: number; truncated: boolean };
+  truncation?: TruncationMap;
   error?: string;
 }
 
 function configSurfaceError(error: string): ConfigSurfaceResult {
-  return {
-    items: [],
-    total: 0,
-    pagination: { total: 0, returned: 0, offset: 0, truncated: false },
-    error,
-  };
+  return { items: [], total: 0, error };
 }
 
 export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, unknown>): ConfigSurfaceResult {
@@ -132,14 +128,14 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
     String(a[groupBy] ?? a.name ?? '').localeCompare(String(b[groupBy] ?? b.name ?? '')),
   );
   const page = sorted.slice(offset, offset + limit);
-  return {
-    items: page,
-    total: sorted.length,
-    pagination: {
+  const truncation = truncationMap({
+    items: pageTruncation({
+      shown: page.length,
       total: sorted.length,
-      returned: page.length,
       offset,
-      truncated: offset + page.length < sorted.length,
-    },
-  };
+      noun: 'config/resource item',
+      hint: `${sorted.length} config/resource item(s). Pass offset ${offset + page.length} with the same limit for the next page.`,
+    }),
+  });
+  return { items: page, total: sorted.length, ...(truncation ? { truncation } : {}) };
 }

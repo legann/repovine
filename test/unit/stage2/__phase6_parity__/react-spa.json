@@ -464,7 +464,7 @@
       "view": {
         "id": "domain:billing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -475,7 +475,7 @@
       "view": {
         "id": "domain:billingform",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -486,7 +486,7 @@
       "view": {
         "id": "domain:billingpage",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -497,7 +497,7 @@
       "view": {
         "id": "domain:dashboard",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -508,7 +508,7 @@
       "view": {
         "id": "domain:dashboardpage",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -519,7 +519,7 @@
       "view": {
         "id": "domain:navbar",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -530,7 +530,7 @@
       "view": {
         "id": "domain:react-spa-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -546,7 +546,7 @@
       "view": {
         "id": "domain:react-spa-fixture/billing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:react-spa-fixture",
@@ -562,7 +562,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -573,7 +573,7 @@
       "view": {
         "id": "domain:siteheader",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -584,7 +584,7 @@
       "view": {
         "id": "domain:useauth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -595,7 +595,7 @@
       "view": {
         "id": "domain:usetheme",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -606,7 +606,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/App/default",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -617,7 +617,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/components/NavBar/NavBar",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -628,7 +628,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/components/SiteHeader/SiteHeader",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -639,7 +639,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/features/billing/billing-api/fetchBilling",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -650,7 +650,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/features/billing/BillingForm/BillingForm",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -661,7 +661,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/features/billing/BillingPage/BillingPage",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -672,7 +672,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/features/dashboard/DashboardPage/DashboardPage",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -683,7 +683,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/hooks/useAuth/useAuth",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -694,7 +694,7 @@
       "view": {
         "id": "export:react-spa-fixture/src/hooks/useTheme/useTheme",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -717,7 +717,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/App",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/App/default",
             "type": "export-symbol"
@@ -757,7 +757,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/components/NavBar",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/components/NavBar/NavBar",
             "type": "export-symbol"
@@ -796,7 +796,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/components/SiteHeader",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/components/SiteHeader/SiteHeader",
             "type": "export-symbol"
@@ -839,7 +839,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/features/billing/billing-api",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/features/billing/billing-api/fetchBilling",
             "type": "export-symbol"
@@ -891,7 +891,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/features/billing/BillingForm",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/features/billing/BillingForm/BillingForm",
             "type": "export-symbol"
@@ -947,7 +947,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/features/billing/BillingPage",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/features/billing/BillingPage/BillingPage",
             "type": "export-symbol"
@@ -999,7 +999,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/features/dashboard/DashboardPage",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/features/dashboard/DashboardPage/DashboardPage",
             "type": "export-symbol"
@@ -1042,7 +1042,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/hooks/useAuth",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/hooks/useAuth/useAuth",
             "type": "export-symbol"
@@ -1081,7 +1081,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/hooks/useTheme",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:react-spa-fixture/src/hooks/useTheme/useTheme",
             "type": "export-symbol"
@@ -1113,7 +1113,7 @@
       "view": {
         "id": "mod:react-spa-fixture/src/main",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:react-spa-fixture",
@@ -1141,7 +1141,7 @@
       "view": {
         "id": "pkg:react-spa-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:react-spa-fixture/src/features/billing/billing-api",
             "type": "module"
@@ -1195,7 +1195,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:react-spa-fixture",
             "type": "package"

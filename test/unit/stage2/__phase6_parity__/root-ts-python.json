@@ -282,7 +282,7 @@
       "view": {
         "id": "domain:health",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -293,7 +293,7 @@
       "view": {
         "id": "domain:home",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -304,7 +304,7 @@
       "view": {
         "id": "domain:myapp",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -315,7 +315,7 @@
       "view": {
         "id": "domain:router",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -326,7 +326,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -337,7 +337,7 @@
       "view": {
         "id": "domain:static",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -348,7 +348,7 @@
       "view": {
         "id": "domain:web",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -359,7 +359,7 @@
       "view": {
         "id": "export:myapp/src/myapp/api/health/health_view",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -370,7 +370,7 @@
       "view": {
         "id": "export:myapp/src/myapp/web/urls/urlpatterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -381,7 +381,7 @@
       "view": {
         "id": "export:myapp/static/app/api/client/fetchHealth",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -392,7 +392,7 @@
       "view": {
         "id": "export:myapp/static/app/router/routes/appRoutes",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -403,7 +403,7 @@
       "view": {
         "id": "export:myapp/static/app/views/home/HomeView",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -427,7 +427,7 @@
       "view": {
         "id": "mod:myapp/src/myapp/api/health",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:myapp/src/myapp/api/health/health_view",
             "type": "export-symbol"
@@ -470,7 +470,7 @@
       "view": {
         "id": "mod:myapp/src/myapp/web/urls",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:myapp/src/myapp/web/urls/urlpatterns",
             "type": "export-symbol"
@@ -514,7 +514,7 @@
       "view": {
         "id": "mod:myapp/static/app/api/client",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:myapp/static/app/api/client/fetchHealth",
             "type": "export-symbol"
@@ -562,7 +562,7 @@
       "view": {
         "id": "mod:myapp/static/app/router/routes",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:myapp/static/app/router/routes/appRoutes",
             "type": "export-symbol"
@@ -619,7 +619,7 @@
       "view": {
         "id": "mod:myapp/static/app/views/home",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:myapp/static/app/views/home/HomeView",
             "type": "export-symbol"
@@ -660,7 +660,7 @@
       "view": {
         "id": "pkg:myapp",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:myapp/static/app/api/client",
             "type": "module"
@@ -695,7 +695,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:myapp",
             "type": "package"

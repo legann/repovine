@@ -1,6 +1,7 @@
 import type { McpToolRuntime } from '../types.js';
 import type { EdgeKind } from '../../types.js';
 import { resolveInfraRef } from '../../graph/resolve-infra-ref.js';
+import { provenance } from '../../response/provenance.js';
 
 export function publishTypeForRuntimeResource(serviceId: string): string {
   if (serviceId.startsWith('resource:aws-sqs:')) return 'sqs';
@@ -144,7 +145,7 @@ export function projectRuntimeTopology(ctx: McpToolRuntime, args: Record<string,
               // parsed for this target the mode stays 'unknown' — a binding without a readable
               // verb is an unread fact, and reporting a default here would state one.
               access: ref.access ?? 'unknown',
-              accessSource: ref.access ? 'iam-policy' : 'not-declared',
+              provenance: provenance(ref.access ? 'iam-policy' : 'not-declared'),
               envVar: ref.varName,
             });
             if (!resourceMap.has(targetNode)) {

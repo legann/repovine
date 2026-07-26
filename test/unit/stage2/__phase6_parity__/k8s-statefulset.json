@@ -240,7 +240,7 @@
       "view": {
         "id": "domain:infra-dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -251,7 +251,7 @@
       "view": {
         "id": "domain:infra-k8s",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -262,7 +262,7 @@
       "view": {
         "id": "domain:k8s-statefulset-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -273,7 +273,7 @@
       "view": {
         "id": "domain:worker",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -284,7 +284,7 @@
       "view": {
         "id": "export:k8s-statefulset-fixture/src/worker/run",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -302,7 +302,7 @@
       "view": {
         "id": "infra:dockerfile:Dockerfile",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:generic:Dockerfile",
             "type": "runtime-resource"
@@ -330,7 +330,7 @@
       "view": {
         "id": "infra:kubernetes:manifests/ingress.yaml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:k8s:_/Ingress/demo-worker-ingress",
             "type": "runtime-resource"
@@ -358,7 +358,7 @@
       "view": {
         "id": "infra:kubernetes:manifests/service.yaml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:k8s:_/Service/demo-worker",
             "type": "runtime-resource"
@@ -386,7 +386,7 @@
       "view": {
         "id": "infra:kubernetes:manifests/statefulset.yaml",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "resource:k8s:_/StatefulSet/demo-worker",
             "type": "runtime-resource"
@@ -420,7 +420,7 @@
       "view": {
         "id": "mod:k8s-statefulset-fixture/src/worker",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:k8s-statefulset-fixture/src/worker/run",
             "type": "export-symbol"
@@ -448,7 +448,7 @@
       "view": {
         "id": "pkg:k8s-statefulset-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:k8s-statefulset-fixture/src/worker",
             "type": "module"
@@ -469,7 +469,7 @@
       "view": {
         "id": "resource:generic:Dockerfile",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-dockerfile",
@@ -494,7 +494,7 @@
       "view": {
         "id": "resource:k8s:_/Ingress/demo-worker-ingress",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-k8s",
@@ -519,7 +519,7 @@
       "view": {
         "id": "resource:k8s:_/Service/demo-worker",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-k8s",
@@ -548,7 +548,7 @@
       "view": {
         "id": "resource:k8s:_/StatefulSet/demo-worker",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:infra-k8s",
@@ -578,7 +578,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:k8s-statefulset-fixture",
             "type": "package"

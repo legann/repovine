@@ -149,7 +149,11 @@ function extractSearchMetrics(resultBody: JsonObject | undefined, testPackageReg
   const capRatio = topResults.length > 0 ? capCount / topResults.length : 0;
   const totalResults = typeof matches.totalResults === 'number' ? matches.totalResults : 0;
   const returned = typeof matches.returned === 'number' ? matches.returned : topResults.length;
-  const truncated = matches.truncated === true;
+  // A bound is reported only when it bit, so its presence is the fact — no separate flag to read.
+  // Only bounds on the returned rows count: a filtered-out lightweight tag is a narrower question,
+  // not a cut answer, and folding it in here would widen what this metric has always meant.
+  const truncated = isRecord(matches.truncation)
+    && Object.keys(matches.truncation).some(key => key !== 'lightweight');
   return {
     isOrSearch: strategy.used === 'or' || strategy.relaxedFrom === 'and',
     capRatio,

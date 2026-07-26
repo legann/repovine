@@ -909,7 +909,7 @@
       "view": {
         "id": "domain:django-app",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -920,7 +920,7 @@
       "view": {
         "id": "domain:drf-advanced",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -931,7 +931,7 @@
       "view": {
         "id": "domain:drf-fbv",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -942,7 +942,7 @@
       "view": {
         "id": "domain:drf-urls",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -953,7 +953,7 @@
       "view": {
         "id": "domain:fastapi-app",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -964,7 +964,7 @@
       "view": {
         "id": "domain:firstpass",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -975,7 +975,7 @@
       "view": {
         "id": "domain:firstpass-urls",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -986,7 +986,7 @@
       "view": {
         "id": "domain:nested-urls",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -997,7 +997,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1008,7 +1008,7 @@
       "view": {
         "id": "domain:urls",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1019,7 +1019,7 @@
       "view": {
         "id": "export:django-app/drf_advanced/billing_router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1030,7 +1030,7 @@
       "view": {
         "id": "export:django-app/drf_advanced/BillingRouter",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1041,7 +1041,7 @@
       "view": {
         "id": "export:django-app/drf_advanced/full_router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1052,7 +1052,7 @@
       "view": {
         "id": "export:django-app/drf_advanced/InvoiceViewSet",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1063,7 +1063,7 @@
       "view": {
         "id": "export:django-app/drf_advanced/readonly_router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1074,7 +1074,7 @@
       "view": {
         "id": "export:django-app/drf_advanced/ReadOnlyViewSet",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1085,7 +1085,7 @@
       "view": {
         "id": "export:django-app/drf_advanced/urlpatterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1096,7 +1096,7 @@
       "view": {
         "id": "export:django-app/drf_fbv/notes_list",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1107,7 +1107,7 @@
       "view": {
         "id": "export:django-app/drf_fbv/urlpatterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1118,7 +1118,7 @@
       "view": {
         "id": "export:django-app/drf_urls/router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1129,7 +1129,7 @@
       "view": {
         "id": "export:django-app/drf_urls/urlpatterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1140,7 +1140,7 @@
       "view": {
         "id": "export:django-app/drf_urls/UserViewSet",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1151,7 +1151,7 @@
       "view": {
         "id": "export:django-app/firstpass_urls/core_patterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1162,7 +1162,7 @@
       "view": {
         "id": "export:django-app/firstpass_urls/core_view",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1173,7 +1173,7 @@
       "view": {
         "id": "export:django-app/firstpass_urls/extra_patterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1184,7 +1184,7 @@
       "view": {
         "id": "export:django-app/firstpass_urls/extra_view",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1195,7 +1195,7 @@
       "view": {
         "id": "export:django-app/firstpass_urls/more_patterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1206,7 +1206,7 @@
       "view": {
         "id": "export:django-app/firstpass_urls/urlpatterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1217,7 +1217,7 @@
       "view": {
         "id": "export:django-app/nested_urls/legacy_patterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1228,7 +1228,7 @@
       "view": {
         "id": "export:django-app/nested_urls/legacy_view",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1239,7 +1239,7 @@
       "view": {
         "id": "export:django-app/nested_urls/urlpatterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1250,7 +1250,7 @@
       "view": {
         "id": "export:django-app/urls/item_detail",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1261,7 +1261,7 @@
       "view": {
         "id": "export:django-app/urls/list_users",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1272,7 +1272,7 @@
       "view": {
         "id": "export:django-app/urls/urlpatterns",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1283,7 +1283,7 @@
       "view": {
         "id": "export:fastapi-app/firstpass/app",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1294,7 +1294,7 @@
       "view": {
         "id": "export:fastapi-app/firstpass/info",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1305,7 +1305,7 @@
       "view": {
         "id": "export:fastapi-app/firstpass/pos_router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1316,7 +1316,7 @@
       "view": {
         "id": "export:fastapi-app/firstpass/PREFIX",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1327,7 +1327,7 @@
       "view": {
         "id": "export:fastapi-app/firstpass/report",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1338,7 +1338,7 @@
       "view": {
         "id": "export:fastapi-app/firstpass/ws_feed",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1349,7 +1349,7 @@
       "view": {
         "id": "export:fastapi-app/main/API_VER",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1360,7 +1360,7 @@
       "view": {
         "id": "export:fastapi-app/main/app",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1371,7 +1371,7 @@
       "view": {
         "id": "export:fastapi-app/main/create_item",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1382,7 +1382,7 @@
       "view": {
         "id": "export:fastapi-app/main/health",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1393,7 +1393,7 @@
       "view": {
         "id": "export:fastapi-app/main/list_users_v1",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1404,7 +1404,7 @@
       "view": {
         "id": "export:fastapi-app/main/liveness",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1415,7 +1415,7 @@
       "view": {
         "id": "export:fastapi-app/main/METRICS_PREFIX",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1426,7 +1426,7 @@
       "view": {
         "id": "export:fastapi-app/main/metrics_router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1437,7 +1437,7 @@
       "view": {
         "id": "export:fastapi-app/main/router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1448,7 +1448,7 @@
       "view": {
         "id": "export:fastapi-app/main/status_v3",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1459,7 +1459,7 @@
       "view": {
         "id": "export:fastapi-app/main/v1_router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1470,7 +1470,7 @@
       "view": {
         "id": "export:fastapi-app/main/v3_router",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -1504,7 +1504,7 @@
       "view": {
         "id": "mod:django-app/drf_advanced",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:django-app/drf_advanced/InvoiceViewSet",
             "type": "export-symbol"
@@ -1577,7 +1577,7 @@
       "view": {
         "id": "mod:django-app/drf_fbv",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:django-app/drf_fbv/notes_list",
             "type": "export-symbol"
@@ -1631,7 +1631,7 @@
       "view": {
         "id": "mod:django-app/drf_urls",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:django-app/drf_urls/UserViewSet",
             "type": "export-symbol"
@@ -1692,7 +1692,7 @@
       "view": {
         "id": "mod:django-app/firstpass_urls",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:django-app/firstpass_urls/core_view",
             "type": "export-symbol"
@@ -1762,7 +1762,7 @@
       "view": {
         "id": "mod:django-app/nested_urls",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:django-app/nested_urls/legacy_view",
             "type": "export-symbol"
@@ -1820,7 +1820,7 @@
       "view": {
         "id": "mod:django-app/urls",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:django-app/urls/list_users",
             "type": "export-symbol"
@@ -1881,7 +1881,7 @@
       "view": {
         "id": "mod:fastapi-app/firstpass",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:fastapi-app/firstpass/app",
             "type": "export-symbol"
@@ -1955,7 +1955,7 @@
       "view": {
         "id": "mod:fastapi-app/main",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:fastapi-app/main/app",
             "type": "export-symbol"
@@ -2033,7 +2033,7 @@
       "view": {
         "id": "pkg:django-app",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:django-app/drf_advanced",
             "type": "module"
@@ -2072,7 +2072,7 @@
       "view": {
         "id": "pkg:fastapi-app",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:fastapi-app/firstpass",
             "type": "module"
@@ -2095,7 +2095,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:django-app",
             "type": "package"

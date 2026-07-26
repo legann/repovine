@@ -224,20 +224,22 @@ describe('PER_BUCKET_CAP is disclosed to callers', () => {
     const ctx = { getState: () => ({ graph }) } as never;
 
     const atCap = analyzeCallgraph(ctx, { nodeId: 'export:app/wide' }) as Record<string, unknown>;
-    expect(atCap.callsTruncated).toEqual({
-      shown: PER_BUCKET_CAP,
-      total: 87,
-      limit: PER_BUCKET_CAP,
-      hint: expect.stringContaining('not in the graph'),
+    expect(atCap.truncation).toEqual({
+      calls: {
+        shown: PER_BUCKET_CAP,
+        total: 87,
+        unit: 'name',
+        more: { kind: 'unavailable', hint: expect.stringContaining('not in the graph') },
+      },
     });
 
     const belowCap = analyzeCallgraph(ctx, { nodeId: 'export:app/narrow' }) as Record<string, unknown>;
-    expect(belowCap).not.toHaveProperty('callsTruncated');
+    expect(belowCap).not.toHaveProperty('truncation');
   });
 
   // The test above hands `callsTotal` straight to addNode, so it passes whether or not graph
   // composition carries the field. It did not: the producer emitted `callsTotal`, the fact
-  // snapshot kept it, and pass3 dropped it, leaving `callsTruncated` unreachable on every real
+  // snapshot kept it, and pass3 dropped it, leaving `truncation.calls` unreachable on every real
   // build. This walks the composition path instead.
   it('graph composition carries callsTotal from the fact snapshot onto the export-symbol node', async () => {
     const { contributeStructural } = await import('../../../src/interpreters/code-structure/graph.js');
@@ -268,6 +270,6 @@ describe('PER_BUCKET_CAP is disclosed to callers', () => {
 
     const ctx = { getState: () => ({ graph }) } as never;
     const result = analyzeCallgraph(ctx, { nodeId: 'export:app/wide/wide' }) as Record<string, unknown>;
-    expect(result.callsTruncated).toMatchObject({ shown: PER_BUCKET_CAP, total: 87 });
+    expect(result.truncation).toMatchObject({ calls: { shown: PER_BUCKET_CAP, total: 87 } });
   });
 });

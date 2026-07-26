@@ -56,7 +56,7 @@ async function main(): Promise<void> {
       for (const node of result.path) {
         console.log(`    L${node.level}: ${node.label}`);
       }
-      console.log(`  Focus: ${result.focus.label} (${result.focus.drill_down.length} children, ${result.focus.links?.length ?? 0} links)`);
+      console.log(`  Focus: ${result.focus.label} (${result.focus.drillDown.length} children, ${result.focus.links?.length ?? 0} links)`);
     }
   }
 

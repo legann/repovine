@@ -1,11 +1,13 @@
 import type { ResolvedConfig } from '../config.js';
 import { DEFAULT_MAX_RESPONSE_CHARS } from '../config.js';
+import { narrowTruncation } from '../response/truncation.js';
+import { emptyNavigation } from './response/envelope.js';
 
 export type McpResponseConfig = ResolvedConfig['mcp']['response'];
 export type ResponseFormatMode = McpResponseConfig['mode'];
 
-/** Generic guidance returned with `responseTruncated`; tool-agnostic so the backstop knows no tools. */
-const RESPONSE_TRUNCATED_NARROW = ['reduce depth', 'narrow scope', 'page with offset/limit'];
+/** Generic guidance returned with the withheld payload; tool-agnostic so the backstop knows no tools. */
+const RESPONSE_TRUNCATED_NARROW = 'reduce depth, narrow scope, or page with offset/limit';
 
 export interface CallToolMcpResult {
   [key: string]: unknown;
@@ -27,7 +29,7 @@ const MAX_REFS = 500;
  * and what every refusal — unknown tool, invalid arguments, unresolved scope, a handler that threw —
  * comes back as.
  *
- * Truncating a successful result is not a failure: it carries `result.responseTruncated` alone.
+ * Withholding a successful result for size is not a failure: it carries `truncation.result` alone.
  * A failure withheld for size carries both, and this reads the message off the pre-bounded payload.
  */
 export function toolErrorMessage(result: unknown): string | undefined {
@@ -107,9 +109,17 @@ export function toCallToolMcpResult(
 }
 
 /**
- * Backstop: replace a payload that exceeds the ceiling with a small, valid envelope carrying a
- * `responseTruncated` marker. Tool-agnostic and operates on the shaped object before re-serializing,
- * so it never blind-cuts JSON. Build-site pagination keeps this from firing in normal use.
+ * Backstop: replace a payload that exceeds the ceiling with a small, valid envelope whose
+ * `truncation.result` says how much was withheld.
+ *
+ * The bound is the same fact every other bound is — how much of the answer came back and how to
+ * reach the rest — measured in characters rather than list entries, because the ceiling applies to
+ * the serialized response and knows nothing about what the payload holds. `shown` is zero: the
+ * payload is withheld whole, never cut. The remainder is reachable only by asking for less, so the
+ * ceiling itself goes in the hint, where a narrower request can be aimed at it.
+ *
+ * Tool-agnostic and operates on the shaped object before re-serializing, so it never blind-cuts
+ * JSON. Build-site pagination keeps this from firing in normal use.
  */
 function boundOversizedResult(
   shaped: unknown,
@@ -126,20 +136,21 @@ function boundOversizedResult(
       ? base.summary
       : 'Result withheld: exceeded the response size ceiling.',
     confidence: 'low',
-    result: {
-      // A withheld failure keeps its message, so the body matches the isError flag on the result.
-      ...(errorMessage === undefined ? {} : { error: errorMessage }),
-      responseTruncated: {
-        originalChars,
-        limitChars,
-        reason: 'Result exceeded the MCP response size ceiling and was withheld to stay consumable.',
-        narrow: RESPONSE_TRUNCATED_NARROW,
-      },
+    truncation: {
+      result: narrowTruncation({
+        shown: 0,
+        total: originalChars,
+        unit: 'char',
+        hint: `The payload was withheld whole to stay consumable under the ${limitChars}-char response ceiling; ${RESPONSE_TRUNCATED_NARROW}.`,
+      }),
     },
+    // A withheld failure keeps its message, so the body matches the isError flag on the result.
+    result: errorMessage === undefined ? {} : { error: errorMessage },
     gaps: [
       `Response was ${originalChars} chars, over the ${limitChars}-char ceiling, so the payload was withheld. `
         + 'Re-run with a narrower scope, lower depth, or page with offset/limit.',
     ],
+    navigation: emptyNavigation(),
   };
   return { content: [{ type: 'text', text: JSON.stringify(safe, null, pretty ? 2 : undefined) }] };
 }

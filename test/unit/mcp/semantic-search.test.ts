@@ -236,13 +236,19 @@ describe('searchGraph posting-list truncation', () => {
     expect((truncated.topResults as Array<{ id: string }>).map(item => item.id))
       .not.toContain('pkg:alpha-beta');
     expect((truncated.strategy as {
-      postingLists: { truncated: boolean; tokens: Record<string, Record<string, unknown>> };
-    }).postingLists).toEqual({
-      truncated: true,
-      tokens: {
-        alpha: expect.objectContaining({ total: 2, considered: 1, limit: 1, truncated: true }),
-        beta: expect.objectContaining({ total: 2, considered: 1, limit: 1, truncated: true }),
-      },
+      truncation: Record<string, Record<string, unknown>>;
+    }).truncation).toEqual({
+      alpha: expect.objectContaining({
+        shown: 1,
+        total: 2,
+        unit: 'item',
+        more: expect.objectContaining({ kind: 'arg', arg: 'perTokenLimit', value: 2 }),
+      }),
+      beta: expect.objectContaining({
+        shown: 1,
+        total: 2,
+        more: expect.objectContaining({ kind: 'arg', arg: 'perTokenLimit' }),
+      }),
     });
   });
 });
@@ -832,7 +838,7 @@ describe('search_context handler with semantic backend', () => {
       perTokenLimit: 1,
     }) as Record<string, unknown>;
     const result = response.result as {
-      matches: { strategy: { postingLists: { truncated: boolean } } };
+      matches: { strategy: { truncation: Record<string, unknown> } };
     };
 
     expect(response.confidence).toBe('low');
@@ -842,7 +848,7 @@ describe('search_context handler with semantic backend', () => {
       && gap.includes('alpha (1/2)')
       && gap.includes('beta (1/2)')
     ))).toBe(true);
-    expect(result.matches.strategy.postingLists.truncated).toBe(true);
+    expect(Object.keys(result.matches.strategy.truncation)).toEqual(['alpha', 'beta']);
   });
 
   it('returns type_filter_excluded when node hits are removed by the requested type filter', async () => {

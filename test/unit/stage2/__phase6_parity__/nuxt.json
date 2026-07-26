@@ -480,7 +480,7 @@
       "view": {
         "id": "domain:auth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -491,7 +491,7 @@
       "view": {
         "id": "domain:cart",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -502,7 +502,7 @@
       "view": {
         "id": "domain:files",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -513,7 +513,7 @@
       "view": {
         "id": "domain:logger",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -524,7 +524,7 @@
       "view": {
         "id": "domain:nuxt-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -540,7 +540,7 @@
       "view": {
         "id": "domain:nuxt-fixture/users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:nuxt-fixture",
@@ -556,7 +556,7 @@
       "view": {
         "id": "domain:products",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -567,7 +567,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -578,7 +578,7 @@
       "view": {
         "id": "domain:useauth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -589,7 +589,7 @@
       "view": {
         "id": "domain:usefetch",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -600,7 +600,7 @@
       "view": {
         "id": "domain:user",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -611,7 +611,7 @@
       "view": {
         "id": "domain:users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -622,7 +622,7 @@
       "view": {
         "id": "export:nuxt-fixture/composables/useAuth/useAuth",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -633,7 +633,7 @@
       "view": {
         "id": "export:nuxt-fixture/composables/useFetch/useFetchData",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -644,7 +644,7 @@
       "view": {
         "id": "export:nuxt-fixture/server/api/products/default",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -655,7 +655,7 @@
       "view": {
         "id": "export:nuxt-fixture/server/api/users/create/default",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -666,7 +666,7 @@
       "view": {
         "id": "export:nuxt-fixture/server/api/users/default",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -677,7 +677,7 @@
       "view": {
         "id": "export:nuxt-fixture/server/middleware/auth/default",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -688,7 +688,7 @@
       "view": {
         "id": "export:nuxt-fixture/server/middleware/logger/default",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -699,7 +699,7 @@
       "view": {
         "id": "export:nuxt-fixture/stores/cart.store/useCartStore",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -710,7 +710,7 @@
       "view": {
         "id": "export:nuxt-fixture/stores/user.store/useUserStore",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -734,7 +734,7 @@
       "view": {
         "id": "mod:nuxt-fixture/composables/useAuth",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/composables/useAuth/useAuth",
             "type": "export-symbol"
@@ -773,7 +773,7 @@
       "view": {
         "id": "mod:nuxt-fixture/composables/useFetch",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/composables/useFetch/useFetchData",
             "type": "export-symbol"
@@ -814,7 +814,7 @@
       "view": {
         "id": "mod:nuxt-fixture/server/api/files/[...path]",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:nuxt-fixture",
@@ -857,7 +857,7 @@
       "view": {
         "id": "mod:nuxt-fixture/server/api/products",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/server/api/products/default",
             "type": "export-symbol"
@@ -909,7 +909,7 @@
       "view": {
         "id": "mod:nuxt-fixture/server/api/users",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/server/api/users/default",
             "type": "export-symbol"
@@ -963,7 +963,7 @@
       "view": {
         "id": "mod:nuxt-fixture/server/api/users/[id].get",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:users",
@@ -1014,7 +1014,7 @@
       "view": {
         "id": "mod:nuxt-fixture/server/api/users/create",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/server/api/users/create/default",
             "type": "export-symbol"
@@ -1062,7 +1062,7 @@
       "view": {
         "id": "mod:nuxt-fixture/server/middleware/auth",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/server/middleware/auth/default",
             "type": "export-symbol"
@@ -1101,7 +1101,7 @@
       "view": {
         "id": "mod:nuxt-fixture/server/middleware/logger",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/server/middleware/logger/default",
             "type": "export-symbol"
@@ -1140,7 +1140,7 @@
       "view": {
         "id": "mod:nuxt-fixture/stores/cart.store",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/stores/cart.store/useCartStore",
             "type": "export-symbol"
@@ -1179,7 +1179,7 @@
       "view": {
         "id": "mod:nuxt-fixture/stores/user.store",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:nuxt-fixture/stores/user.store/useUserStore",
             "type": "export-symbol"
@@ -1217,7 +1217,7 @@
       "view": {
         "id": "pkg:nuxt-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:nuxt-fixture/server/api/files/[...path]",
             "type": "module"
@@ -1275,7 +1275,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:nuxt-fixture",
             "type": "package"

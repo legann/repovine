@@ -1,4 +1,14 @@
 import { buildNodeView } from '../../graph/index.js';
+import {
+  argTruncation,
+  pageTruncation,
+  truncationMap,
+  type Truncation,
+  type TruncationMap,
+} from '../../response/truncation.js';
+
+/** Ceiling on `perTokenLimit`, declared once for the clamp and the argument schema. */
+export const MAX_PER_TOKEN_LIMIT = 100;
 import { DEFAULT_CONTEXT_QUALITY_CONFIG } from '../../context-quality/session-store.js';
 import { type McpToolRuntime } from '../types.js';
 import {
@@ -146,17 +156,14 @@ export function searchGraph(
   // 1979-module app repo, 3.7% and 2.0%. The band between those two is where a discriminating token
   // loses real candidates. Above it the tail is extreme (thousands of nodes for the top tokens) and
   // truncating is correct — a token matching a third of the graph carries no signal. Hence 50, not
-  // 20 and not unbounded. `postingLists` reports every token where the budget still bit.
-  const perTokenLimit = Math.max(1, Math.min(100, (args.perTokenLimit as number | undefined) ?? Math.max(30, max * 5)));
+  // 20 and not unbounded. `strategy.truncation` reports every token where the budget still bit.
+  const perTokenLimit = Math.max(1, Math.min(MAX_PER_TOKEN_LIMIT, (args.perTokenLimit as number | undefined) ?? Math.max(30, max * 5)));
   const includeLightweight = args.includeLightweight === true;
   const semantic = Array.isArray(args.semantic) ? args.semantic as SemanticRanking : [];
-  const postingLists: Record<string, {
-    total: number;
-    considered: number;
-    limit: number;
-    truncated: boolean;
-    weakToken: boolean;
-  }> = {};
+  // One bound per query token: how many of its scored candidates entered the OR union. Weak tokens
+  // get a third of the budget, so the same query carries different bounds per token.
+  const postingLists: TruncationMap = {};
+  const weakTokens: string[] = [];
   const semanticRankById = new Map<string, { rank: number; score: number }>();
   semantic.forEach((hit, rank) => {
     if (!semanticRankById.has(hit.id)) semanticRankById.set(hit.id, { rank, score: hit.score });
@@ -207,13 +214,16 @@ export function searchGraph(
       .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score);
     const considered = Math.min(tokenLimit, ranked.length);
-    postingLists[token] = {
-      total: ranked.length,
-      considered,
-      limit: tokenLimit,
-      truncated: ranked.length > considered,
-      weakToken: WEAK_SEARCH_TOKENS.has(token),
-    };
+    if (WEAK_SEARCH_TOKENS.has(token)) weakTokens.push(token);
+    if (ranked.length > considered) {
+      postingLists[token] = argTruncation({
+        shown: considered,
+        total: ranked.length,
+        arg: 'perTokenLimit',
+        value: Math.min(MAX_PER_TOKEN_LIMIT, ranked.length),
+        hint: `Candidates for "${token}" were cut to ${tokenLimit} before global ranking; a raise above ${MAX_PER_TOKEN_LIMIT} is not accepted, so narrow the query when the expected node is still missing.`,
+      });
+    }
     return ranked.slice(0, tokenLimit).map(item => item.id);
   };
 
@@ -346,8 +356,8 @@ export function searchGraph(
       id: m.id, label: m.label, type: m.type, score: m.score,
       matchedTokens: m.matchedTokens,
       matchedTokenCount: m.matchedTokens.length,
-      children: nodeView?.drill_down.length ?? 0,
-      links: nodeView?.linksPagination?.total ?? nodeView?.links?.length ?? 0,
+      children: nodeView?.drillDown.length ?? 0,
+      links: nodeView?.truncation?.links?.total ?? nodeView?.links?.length ?? 0,
     };
     if (m.annotationMatched) out.annotationMatched = true;
     if (m.semanticRank !== undefined) {
@@ -382,14 +392,8 @@ export function searchGraph(
         used: false,
         ...(exportSymbolDampened ? { exportSymbolDampened: true } : {}),
       },
-    ...(Object.keys(postingLists).length > 0
-      ? {
-        postingLists: {
-          truncated: Object.values(postingLists).some(item => item.truncated),
-          tokens: postingLists,
-        },
-      }
-      : {}),
+    ...(weakTokens.length > 0 ? { weakTokens } : {}),
+    ...(Object.keys(postingLists).length > 0 ? { truncation: postingLists } : {}),
     ...(relaxedFrom ? { relaxedFrom } : {}),
     ...(weakTokenOnlySuppressed ? { weakTokenOnlySuppressed } : {}),
   };
@@ -402,7 +406,16 @@ export function searchGraph(
         const tier = m.tier ?? 'technical';
         (byTier[tier] ??= []).push(enrichMatch(m));
       }
-      const truncated = offset + returned.length < allMatches.length;
+      const truncation = truncationMap({
+        results: pageTruncation({
+          shown: returned.length,
+          total: allMatches.length,
+          offset,
+          noun: 'match',
+          hint: `${allMatches.length} domains matched. Showing ${offset + 1}-${offset + returned.length}. Pass offset ${offset + returned.length} for the next page or narrow the query.`,
+        }),
+        lightweight: lightweightTruncation(lightweightHidden),
+      });
       return {
         query: normalized || rawQuery,
         strategy,
@@ -412,16 +425,20 @@ export function searchGraph(
         byTier,
         totalResults: allMatches.length,
         returned: returned.length,
-        truncated,
-        pagination: { total: allMatches.length, returned: returned.length, offset, truncated },
         ...(hasVocabulary ? { vocabulary } : {}),
-        ...(lightweightHidden > 0 ? { lightweightHidden } : {}),
-        ...(truncated ? {
-          hint: `${allMatches.length} domains matched. Showing ${offset + 1}-${offset + returned.length}. Use offset:${offset + returned.length} for the next page or narrow the query.`,
-        } : {}),
+        ...(truncation ? { truncation } : {}),
       };
     }
-    const truncated = offset + returned.length < allMatches.length;
+    const truncation = truncationMap({
+      results: pageTruncation({
+        shown: returned.length,
+        total: allMatches.length,
+        offset,
+          noun: 'match',
+        hint: `${allMatches.length} matches. Showing ${offset + 1}-${offset + returned.length}. Pass offset ${offset + returned.length} for the next page or narrow the query.`,
+      }),
+      lightweight: lightweightTruncation(lightweightHidden),
+    });
     return {
       query: normalized || rawQuery,
       strategy,
@@ -430,14 +447,12 @@ export function searchGraph(
       suggestedScopes,
       totalResults: allMatches.length,
       returned: returned.length,
-      truncated,
-      pagination: { total: allMatches.length, returned: returned.length, offset, truncated },
       ...(hasVocabulary ? { vocabulary } : {}),
-      ...(lightweightHidden > 0 ? { lightweightHidden } : {}),
-      ...(truncated ? { hint: `${allMatches.length} matches. Showing ${offset + 1}-${offset + returned.length}. Use offset:${offset + returned.length} for the next page or narrow the query.` } : {}),
+      ...(truncation ? { truncation } : {}),
     };
   }
 
+  const lightweightBound = lightweightTruncation(lightweightHidden);
   const groups: Record<string, typeof allMatches> = { domains: [], packages: [], modules: [], templates: [], runtimeResources: [], exportSymbols: [] };
   for (const m of allMatches) {
     switch (m.type) {
@@ -450,28 +465,29 @@ export function searchGraph(
     }
   }
 
-  const maxPerGroup = Math.max(2, Math.floor(max / 6));
+  const maxPerGroup = Math.max(2, Math.floor(max / Object.keys(groups).length));
   const grouped: Record<string, unknown[]> = {};
   const groupTotals: Record<string, number> = {};
-  const groupPagination: Record<string, { total: number; returned: number; offset: number; truncated: boolean }> = {};
+  const groupBounds: Record<string, Truncation | undefined> = {};
   let totalResults = 0;
-  let anyTruncated = false;
   for (const [key, items] of Object.entries(groups)) {
-    if (items.length > 0) {
-      const page = items.slice(offset, offset + maxPerGroup);
-      grouped[key] = page.map(enrichMatch);
-      groupTotals[key] = items.length;
-      groupPagination[key] = {
-        total: items.length,
-        returned: page.length,
-        offset,
-        truncated: offset + page.length < items.length,
-      };
-      totalResults += items.length;
-      if (offset + page.length < items.length) anyTruncated = true;
-    }
+    if (items.length === 0) continue;
+    const page = items.slice(offset, offset + maxPerGroup);
+    grouped[key] = page.map(enrichMatch);
+    groupTotals[key] = items.length;
+    // One `offset` advances every category at once, so a per-category cursor would promise a page
+    // move the argument cannot make; `types` is what narrows to one category before paging it.
+    groupBounds[key] = pageTruncation({
+      shown: page.length,
+      total: items.length,
+      offset,
+      noun: 'match',
+      hint: `Pass types:["${SEARCH_GROUP_TYPE[key] ?? key}"] with offset ${offset + page.length} to page this category alone; offset advances every category at once.`,
+    });
+    totalResults += items.length;
   }
 
+  const truncation = truncationMap({ ...groupBounds, lightweight: lightweightBound });
   return {
     query: normalized || rawQuery,
     strategy,
@@ -479,13 +495,35 @@ export function searchGraph(
     topResults,
     suggestedScopes,
     groupTotals,
-    groupPagination,
     totalResults,
-    truncated: anyTruncated,
     ...(hasVocabulary ? { vocabulary } : {}),
-    ...(lightweightHidden > 0 ? { lightweightHidden } : {}),
-    ...(anyTruncated ? {
-      hint: 'Use types to page a single category (for example types:["export-symbol"] with offset), or narrow your query.',
-    } : {}),
+    ...(truncation ? { truncation } : {}),
   };
+}
+
+/** Result-group key to the `types` filter value that pages that group alone. */
+const SEARCH_GROUP_TYPE: Record<string, string> = {
+  domains: 'domain',
+  packages: 'package',
+  modules: 'module',
+  templates: 'template',
+  runtimeResources: 'runtime-resource',
+  exportSymbols: 'export-symbol',
+};
+
+/**
+ * Lightweight domain tags dropped from the candidate set.
+ *
+ * They are filtered out rather than paged away, so the bound they report is the flag that returns
+ * them.
+ */
+function lightweightTruncation(hidden: number): Truncation | undefined {
+  if (hidden <= 0) return undefined;
+  return argTruncation({
+    shown: 0,
+    total: hidden,
+    arg: 'includeLightweight',
+    value: true,
+    hint: 'Lightweight domain tags are hidden unless the query names one exactly.',
+  });
 }

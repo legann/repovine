@@ -4,13 +4,16 @@ import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, resultError, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom } from '../response/pagination.js';
 import {
+  boundedTotal,
   dependenciesEmptyDiagnostic,
   dependencyModeScopeMismatchDiagnostic,
 } from '../response/empty-diagnostics.js';
 import { analyzeImpact } from '../lib/dependencies/impact.js';
 import { analyzeCallgraph } from '../lib/dependencies/callgraph.js';
+import { nameMatchGap } from '../lib/dependencies/impact.js';
 import { findInterfaceImplementations } from '../lib/dependencies/interfaces.js';
 import { analyzePackageBoundaries } from '../lib/dependencies/package-boundaries.js';
+import type { Provenance } from '../../response/provenance.js';
 
 export function defaultDependencyMode(scope: ResolvedScope): string {
   return scope.kind === 'module' || scope.kind === 'export-symbol' ? 'impact' : 'package-boundaries';
@@ -27,10 +30,10 @@ function impactNameMatchedCallerFollowup(result: unknown): {
   };
   const unresolvedCurrentPage = Array.isArray(analysis.downstream)
     ? analysis.downstream
-      .filter((entry): entry is { id: string; unresolved: true } =>
+      .filter((entry): entry is { id: string; provenance: Provenance } =>
         !!entry
         && typeof entry === 'object'
-        && (entry as { unresolved?: unknown }).unresolved === true
+        && (entry as { provenance?: Provenance }).provenance?.basis === 'inferred'
         && typeof (entry as { id?: unknown }).id === 'string')
       .map(entry => entry.id)
     : [];
@@ -131,8 +134,7 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
   const error = (result as { error?: string }).error;
   const gaps = error ? [error] : [];
   if (!error && (mode === 'package-boundaries' || mode === 'import-map')) {
-    const edgeTotal = (result as { edgesPagination?: { total?: number } }).edgesPagination?.total
-      ?? (Array.isArray((result as { edges?: unknown }).edges) ? (result as { edges: unknown[] }).edges.length : 0);
+    const edgeTotal = boundedTotal(result as Record<string, unknown>, 'edges');
     if (edgeTotal === 0) {
       gaps.push('No cross-package import edges matched this scope/direction. Intra-package imports are intentionally omitted; try scope "all" or a different direction if you expected package-level edges.');
     }
@@ -158,6 +160,10 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
         gaps.push(`Impact includes ${followup.total} name-matched unresolved caller(s) not shown on this downstream page; page or narrow the impact result with limit/offset or a tighter export scope before treating the caller set as complete.`);
       }
     }
+    // The cap on the name index runs while extracting and leaves no count behind, so whether it bit
+    // on this query is unknowable here. Said as a standing gap rather than as a bound with a total
+    // the response would have to invent.
+    if (typeof args.exportName === 'string' || scope.kind === 'export-symbol') gaps.push(nameMatchGap());
   }
   return envelope(scope, `Analyzed dependencies using mode ${mode}.`, {
     mode,

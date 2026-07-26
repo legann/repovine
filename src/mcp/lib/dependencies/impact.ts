@@ -3,6 +3,8 @@ import { resolveNodeId, type McpToolRuntime } from '../../types.js';
 import { paginateList } from '../../response/pagination.js';
 import { PER_BUCKET_CAP } from '../../../source-plugins/typescript/call-graph.js';
 import { getCallersByName } from './reverse-calls.js';
+import { truncationMap } from '../../../response/truncation.js';
+import { provenance } from '../../../response/provenance.js';
 
 export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
   const { graph, modulesById } = ctx.getState();
@@ -49,8 +51,10 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   // Reverse-by-name completeness backstop (grep-parity, works across barrels): when the query is
   // scoped to a single symbol — an export-symbol node, or a module plus exportName — union the
   // modules whose forward calls include that name. These are matched by call name, not a resolved
-  // import edge, so they are flagged `unresolved`; resolved import-edge callers above keep priority
-  // and de-duplicate the name-only hits.
+  // import edge, so they carry `provenance` naming the index that found them; entries reached over a
+  // graph edge carry none, because the walk records no edge kind and labelling them all as import
+  // callers would claim an edge that may have been `infra` or `reexports`. Graph-reached callers keep
+  // priority and de-duplicate the name-only hits.
   let nameMatchedCallers = 0;
   if (filterName) {
     const seen = new Set(downstreamEntries.map(e => e.id as string));
@@ -63,7 +67,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
         id: callerId,
         label: nodeLabel(callerId),
         type: graph.nodes.get(callerId)?.type,
-        unresolved: true,
+        provenance: provenance('call-name-index'),
       });
     }
   }
@@ -80,25 +84,26 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
     narrow: filterName ? 'reduce depth' : 'pass exportName to scope to one export, or reduce depth',
   });
   const up = paginateList(upstreamEntries, { limit, offset, noun: 'upstream dependency', narrow: 'reduce depth' });
+  const truncation = truncationMap({ downstream: down.truncation, upstream: up.truncation });
   return {
     nodeId,
     label: nodeLabel(nodeId),
     ...(filterName ? { filteredByExport: filterName } : {}),
     ...(nameMatchedCallers > 0 ? { nameMatchedCallers } : {}),
-    // The backstop reads an index built from call names that were capped per declaration at
-    // extraction, so it cannot claim grep parity: a caller whose declaration exceeded the cap is
-    // absent from the index and therefore from this answer, with nothing to mark its absence.
-    ...(filterName
-      ? {
-        nameMatchLimits: {
-          perDeclarationCallNameCap: PER_BUCKET_CAP,
-          note: 'Name-matched callers come from a per-declaration capped call index; callers in declarations above the cap are not represented.',
-        },
-      }
-      : {}),
     downstream: down.page,
-    downstreamPagination: down.pagination,
     upstream: up.page,
-    upstreamPagination: up.pagination,
+    ...(truncation ? { truncation } : {}),
   };
+}
+
+/**
+ * What the caller index knows about a name-matched caller, and why it is weaker than an import edge.
+ *
+ * The index is built from call names capped per declaration while extracting, so a caller whose
+ * declaration exceeded the cap is absent from it — the answer is a completeness backstop, not grep
+ * parity, and nothing in the response marks the absence. Said as a gap because the cap may not have
+ * bitten on this query at all: counting what a rebuild would add is not possible from here.
+ */
+export function nameMatchGap(): string {
+  return `Name-matched callers come from a call index capped at ${PER_BUCKET_CAP} distinct call names per declaration while extracting; callers in declarations above the cap are not represented.`;
 }

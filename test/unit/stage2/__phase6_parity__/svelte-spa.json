@@ -239,7 +239,7 @@
       "view": {
         "id": "domain:button",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -250,7 +250,7 @@
       "view": {
         "id": "domain:stores",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -261,7 +261,7 @@
       "view": {
         "id": "domain:svelte-spa-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -272,7 +272,7 @@
       "view": {
         "id": "domain:usercard",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -283,7 +283,7 @@
       "view": {
         "id": "domain:userlist",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -294,7 +294,7 @@
       "view": {
         "id": "domain:users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -305,7 +305,7 @@
       "view": {
         "id": "export:svelte-spa-fixture/src/lib/components/Button.svelte/label",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -316,7 +316,7 @@
       "view": {
         "id": "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -327,7 +327,7 @@
       "view": {
         "id": "export:svelte-spa-fixture/src/lib/stores/userStore",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -344,7 +344,7 @@
       "view": {
         "id": "mod:svelte-spa-fixture/src/App.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:svelte-spa-fixture",
@@ -374,7 +374,7 @@
       "view": {
         "id": "mod:svelte-spa-fixture/src/lib/components/Button.svelte",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:svelte-spa-fixture/src/lib/components/Button.svelte/label",
             "type": "export-symbol"
@@ -413,7 +413,7 @@
       "view": {
         "id": "mod:svelte-spa-fixture/src/lib/components/UserCard.svelte",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name",
             "type": "export-symbol"
@@ -452,7 +452,7 @@
       "view": {
         "id": "mod:svelte-spa-fixture/src/lib/stores",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:svelte-spa-fixture/src/lib/stores/userStore",
             "type": "export-symbol"
@@ -484,7 +484,7 @@
       "view": {
         "id": "mod:svelte-spa-fixture/src/main",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:svelte-spa-fixture",
@@ -517,7 +517,7 @@
       "view": {
         "id": "mod:svelte-spa-fixture/src/routes/users/UserList.svelte",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:svelte-spa-fixture",
@@ -549,7 +549,7 @@
       "view": {
         "id": "pkg:svelte-spa-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:svelte-spa-fixture/src/main",
             "type": "module"
@@ -587,7 +587,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:svelte-spa-fixture",
             "type": "package"

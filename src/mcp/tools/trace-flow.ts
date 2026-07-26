@@ -3,6 +3,7 @@ import { resolveScope, nodeInScope } from '../scope/resolve.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom, DEFAULT_LIST_LIMIT } from '../response/pagination.js';
+import { pageTruncation, truncationMap } from '../../response/truncation.js';
 import { traceFlowEmptyDiagnostic } from '../response/empty-diagnostics.js';
 import { projectRuntimeTopology } from '../lib/topology.js';
 import { collectEntrypoints } from '../lib/entrypoints.js';
@@ -93,9 +94,12 @@ export const handleTraceFlow: ToolHandler = (ctx, args) => {
     scope,
     serviceIds: services.map(s => s.id).filter((id): id is string => typeof id === 'string'),
   });
-  const entrypoints = include.includes('entrypoints')
-    ? collectEntrypoints(ctx, { scope: scope.resolvedScope, limit }).items
-    : [];
+  // Paged with the same offset as the other three lists; without it every page repeated the first
+  // `limit` entrypoints while services and flows advanced.
+  const entrypointPage = include.includes('entrypoints')
+    ? collectEntrypoints(ctx, { scope: scope.resolvedScope, limit, offset })
+    : undefined;
+  const entrypoints = entrypointPage?.items ?? [];
   const result: Record<string, unknown> = {
     scope: raw.scope,
     ...(include.includes('services') ? { services } : {}),
@@ -103,20 +107,23 @@ export const handleTraceFlow: ToolHandler = (ctx, args) => {
     ...(include.includes('flows') ? { dataFlows } : {}),
     ...(include.includes('entrypoints') ? { entrypoints } : {}),
     runtimeHandoff: handoff,
-    pagination: {
-      servicesTotal: servicesInScope.length,
-      servicesReturned: services.length,
-      resourcesTotal: resourcesRaw.length,
-      resourcesReturned: include.includes('resources') ? resources.length : 0,
-      dataFlowsTotal: dataFlowsRaw.length,
-      dataFlowsReturned: include.includes('flows') ? dataFlows.length : 0,
-      offset,
-      truncated:
-        (include.includes('services') && offset + services.length < servicesInScope.length)
-        || (include.includes('resources') && offset + resources.length < resourcesRaw.length)
-        || (include.includes('flows') && offset + dataFlows.length < dataFlowsRaw.length),
-    },
   };
+  // Three lists share one offset, so each reports its own bound rather than one flag standing for
+  // whichever of them still has rows.
+  const pageBound = (shown: number, total: number, noun: string) => pageTruncation({
+    shown,
+    total,
+    offset,
+    noun,
+    hint: `${total} ${noun}(s) in scope. Pass offset ${offset + shown} with the same limit for the next page.`,
+  });
+  const truncation = truncationMap({
+    services: include.includes('services') ? pageBound(services.length, servicesInScope.length, 'service') : undefined,
+    resources: include.includes('resources') ? pageBound(resources.length, resourcesRaw.length, 'resource') : undefined,
+    dataFlows: include.includes('flows') ? pageBound(dataFlows.length, dataFlowsRaw.length, 'data flow') : undefined,
+    entrypoints: entrypointPage?.truncation?.items,
+  });
+  if (truncation) result.truncation = truncation;
   const navigation = scopeNavigation(scope);
   navigation.deeper.unshift(...handoff.items.map(item =>
     nav(
@@ -132,7 +139,7 @@ export const handleTraceFlow: ToolHandler = (ctx, args) => {
     if (id) navigation.deeper.push(nav('inspect_node', { nodeId: id }, 'Inspect a runtime service/resource participating in this flow.'));
   }
   const gaps = dataFlowsRaw.length > 0 ? [] : ['No concrete producer-resource-consumer data flow was found in this scope.'];
-  if (handoff.truncated) gaps.push(RUNTIME_HANDOFF_TRUNCATED_GAP);
+  if (handoff.truncation) gaps.push(RUNTIME_HANDOFF_TRUNCATED_GAP);
   gaps.push(...unresolvedRefGaps(services));
   gaps.push(...dataFlowProductGaps(dataFlowsRaw));
   if (servicesRaw.length === 0 && dataFlowsRaw.length === 0 && scope.kind === 'domain') {

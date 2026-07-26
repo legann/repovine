@@ -305,7 +305,7 @@
       "view": {
         "id": "domain:admin",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -316,7 +316,7 @@
       "view": {
         "id": "domain:files",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -327,7 +327,7 @@
       "view": {
         "id": "domain:postid",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -338,7 +338,7 @@
       "view": {
         "id": "domain:posts",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -349,7 +349,7 @@
       "view": {
         "id": "domain:routetree",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -360,7 +360,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -371,7 +371,7 @@
       "view": {
         "id": "domain:tanstack-router-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -382,7 +382,7 @@
       "view": {
         "id": "export:tanstack-router-fixture/src/routes/admin/users/Route",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -393,7 +393,7 @@
       "view": {
         "id": "export:tanstack-router-fixture/src/routes/files/$/Route",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -404,7 +404,7 @@
       "view": {
         "id": "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -415,7 +415,7 @@
       "view": {
         "id": "export:tanstack-router-fixture/src/routes/posts/$postId/Route",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -426,7 +426,7 @@
       "view": {
         "id": "export:tanstack-router-fixture/src/routeTree/rootRoute",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -437,7 +437,7 @@
       "view": {
         "id": "export:tanstack-router-fixture/src/routeTree/settingsRoute",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -465,7 +465,7 @@
       "view": {
         "id": "mod:tanstack-router-fixture/src/routes/admin/users",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:tanstack-router-fixture/src/routes/admin/users/Route",
             "type": "export-symbol"
@@ -513,7 +513,7 @@
       "view": {
         "id": "mod:tanstack-router-fixture/src/routes/files/$",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:tanstack-router-fixture/src/routes/files/$/Route",
             "type": "export-symbol"
@@ -561,7 +561,7 @@
       "view": {
         "id": "mod:tanstack-router-fixture/src/routes/posts/{-$category}",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route",
             "type": "export-symbol"
@@ -614,7 +614,7 @@
       "view": {
         "id": "mod:tanstack-router-fixture/src/routes/posts/$postId",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:tanstack-router-fixture/src/routes/posts/$postId/Route",
             "type": "export-symbol"
@@ -667,7 +667,7 @@
       "view": {
         "id": "mod:tanstack-router-fixture/src/routeTree",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:tanstack-router-fixture/src/routeTree/rootRoute",
             "type": "export-symbol"
@@ -708,7 +708,7 @@
       "view": {
         "id": "pkg:tanstack-router-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:tanstack-router-fixture/src/routeTree",
             "type": "module"
@@ -742,7 +742,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:tanstack-router-fixture",
             "type": "package"

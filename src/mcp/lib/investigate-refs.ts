@@ -2,6 +2,7 @@ import { parseIntegrationPointTargets } from '../../annotations/carrier-links.js
 import { HUB_IMPORTER_FLOOR, DELIVERY_MECHANICS, DELIVERY_MECHANIC_PRIORITY } from '../../mechanics/registry.js';
 import type { DeliveryMechanicContext } from '../../mechanics/types.js';
 import type { AnnotationContent, EdgeKind, InvestigateTag, NodeViewDetail, RepositoryGraph } from '../../types.js';
+import { unavailableTruncation } from '../../response/truncation.js';
 
 type AnnotationLookup = {
   get(nodeId: string): { annotation: AnnotationContent } | undefined;
@@ -64,7 +65,7 @@ export const INVESTIGATE_DEP_GUARD_DEPTH = 4;
 
 /**
  * Extra inputs for the integrationPoints carrier channel. Absent → the channel is a no-op and only
- * structural (`links`/`drill_down`) refs are tagged, matching the legacy 2-arg behavior.
+ * structural (`links`/`drillDown`) refs are tagged, matching the legacy 2-arg behavior.
  */
 export type InvestigateOptions = {
   /** The inspected node's own annotation; `integrationPoints` is the carrier source. */
@@ -115,12 +116,12 @@ function capTags(tags: InvestigateTag[]): InvestigateTag[] {
  * Tag refs whose target carries an investigate reason (see {@link tagsForTarget} for the sources).
  *
  * Two channels share one priority-ordered cap:
- *   - structural: 1-hop `links` (imports) + `drill_down` (children) — target-side, no guard.
+ *   - structural: 1-hop `links` (imports) + `drillDown` (children) — target-side, no guard.
  *   - integrationPoints: deeper dependencies named in the inspected node's own annotation, kept only
  *     when the node transitively depends on them (direction guard) — surfaced as `investigatePointers`.
  *
  * Per-ref cap orders tags by priority; the per-response cap keeps the highest-priority refs (ties to
- * structural, which is collected first) and records `investigateTruncated` when refs were dropped.
+ * structural, which is collected first) and records `truncation.investigateRefs` when refs dropped.
  */
 export function applyInvestigateTags(
   view: NodeViewDetail,
@@ -144,7 +145,7 @@ export function applyInvestigateTags(
   if (view.links) {
     for (const link of view.links) collect(link.targetId, (tags) => { link.investigate = tags; });
   }
-  for (const child of view.drill_down) {
+  for (const child of view.drillDown) {
     collect(child.id, (tags) => { child.investigate = tags; });
   }
 
@@ -155,7 +156,7 @@ export function applyInvestigateTags(
     const nodeExists = options.nodeExists ?? (() => true);
     const structuralIds = new Set<string>([
       ...(view.links?.map((l) => l.targetId) ?? []),
-      ...view.drill_down.map((c) => c.id),
+      ...view.drillDown.map((c) => c.id),
     ]);
     for (const id of parseIntegrationPointTargets(options.selfAnnotation.integrationPoints, { nodeExists })) {
       if (structuralIds.has(id)) continue; // structural channel owns it
@@ -195,6 +196,13 @@ export function applyInvestigateTags(
   if (pointers.length > 0) view.investigatePointers = pointers;
 
   if (carriers.length > kept.length) {
-    view.investigateTruncated = { shownRefs, totalRefs: carriers.length };
+    view.truncation = {
+      ...view.truncation,
+      investigateRefs: unavailableTruncation({
+        shown: shownRefs,
+        total: carriers.length,
+        hint: `The per-response investigate cap keeps ${MAX_INVESTIGATE_REFS} refs and is not an argument; inspect_node an untagged ref to read its own risks and side effects.`,
+      }),
+    };
   }
 }

@@ -598,7 +598,8 @@ describe('decline_advisory (carrier-link-gaps) and the carrier-gaps status view'
     const items = afterGaps.items as Array<Record<string, unknown>>;
     expect(items[0]?.targetId).toBe('mod:app/target');
     expect(nestedRecord(items[0]?.reviewed)).toMatchObject({ hashValid: true, reason: 'reviewed' });
-    const pagination = nestedRecord(afterGaps.pagination);
-    expect(pagination).toMatchObject({ total: 1, returned: 1, nextOffset: null });
+    // The single target fits, so nothing was bounded and no block is emitted.
+    expect(afterGaps.total).toBe(1);
+    expect(afterGaps.truncation).toBeUndefined();
   });
 });

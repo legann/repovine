@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { envelopeError } from '../../../src/mcp/response/envelope.js';
+import { envelopeError, ToolResponseSchema } from '../../../src/mcp/response/envelope.js';
 import {
   NavigationRefRegistry,
   responseConfigWithOverride,
@@ -141,7 +141,7 @@ describe('MCP response formatting', () => {
     expect(responseConfigWithOverride(concise, 'wat')).toBe(concise);
   });
 
-  it('bounds an oversized result below the ceiling and marks responseTruncated', () => {
+  it('bounds an oversized result below the ceiling and reports the bound on the payload', () => {
     const small: McpResponseConfig = { mode: 'concise', pretty: false, maxChars: 2_000 };
     const big = {
       ...envelope(),
@@ -150,15 +150,22 @@ describe('MCP response formatting', () => {
     const out = toCallToolMcpResult(big, small);
     expect(out.content[0].text.length).toBeLessThanOrEqual(2_000);
     const parsed = JSON.parse(out.content[0].text) as Record<string, unknown>;
-    const result = parsed.result as { responseTruncated?: { originalChars: number; limitChars: number; narrow: string[] } };
-    expect(result.responseTruncated).toBeDefined();
-    expect(result.responseTruncated!.limitChars).toBe(2_000);
-    expect(result.responseTruncated!.originalChars).toBeGreaterThan(2_000);
-    expect(result.responseTruncated!.narrow).toEqual(expect.arrayContaining(['page with offset/limit']));
+    const bound = (parsed.truncation as Record<string, { shown: number; total: number; unit: string; more: { kind: string; hint: string } }>).result;
+    expect(bound.shown).toBe(0);
+    expect(bound.unit).toBe('char');
+    expect(bound.total).toBeGreaterThan(2_000);
+    expect(bound.more.kind).toBe('narrow');
+    expect(bound.more.hint).toContain('2000-char response ceiling');
+    expect(bound.more.hint).toContain('page with offset/limit');
     // Identity fields survive so the agent still knows what it asked.
     expect(parsed.scope).toBe('mod:pkg/src/session');
     expect(parsed.confidence).toBe('low');
     expect(Array.isArray(parsed.gaps)).toBe(true);
+    // The replacement is still an envelope. It is assembled by the transport rather than by a
+    // handler, so the law over handlers never sees it — and it went without `navigation` until this
+    // pinned it.
+    const reparsed = ToolResponseSchema.safeParse(parsed);
+    expect(reparsed.success ? [] : reparsed.error.issues.map(i => i.path.join('.'))).toEqual([]);
   });
 
   it('leaves a normal-sized result untouched by the ceiling', () => {

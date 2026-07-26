@@ -1,5 +1,6 @@
-import { PER_BUCKET_CAP } from '../../../source-plugins/typescript/call-graph.js';
 import { resolveNodeId, type McpToolRuntime } from '../../types.js';
+import { callsTruncation } from '../../../graph/index.js';
+import { truncationMap } from '../../../response/truncation.js';
 
 export function analyzeCallgraph(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
   const { graph } = ctx.getState();
@@ -20,23 +21,14 @@ export function analyzeCallgraph(ctx: McpToolRuntime, args: Record<string, unkno
     }
     return { nodeId, calls: [], note: 'No calls detected (calls are captured for functions, classes, consts, arrow-property methods, accessors, and HOC-wrapped components)' };
   }
-  // Call names are deduped and capped per declaration at extraction. `callsTotal` carries the
+  // Call names are deduped and capped per declaration while extracting. `callsTotal` carries the
   // pre-cap size, so the dropped count is reported rather than inferred from a list that happens
   // to sit on the cap.
-  const total = node.data?.callsTotal;
+  const truncation = node.data ? truncationMap({ calls: callsTruncation(node.data) }) : undefined;
   return {
     nodeId,
     label: node.label,
     calls,
-    ...(total && total > calls.length
-      ? {
-        callsTruncated: {
-          shown: calls.length,
-          total,
-          limit: PER_BUCKET_CAP,
-          hint: 'Call names are capped per declaration at extraction; the dropped names are not in the graph.',
-        },
-      }
-      : {}),
+    ...(truncation ? { truncation } : {}),
   };
 }

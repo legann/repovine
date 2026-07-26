@@ -116,7 +116,7 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
       emptyDiagnostic: {
         reason: 'scope_unresolved',
         message: `"${scope.raw}" did not resolve to a concrete graph node.`,
-        diagnosticConfidence: 'high',
+        confidence: 'high',
         nextActions: [
           { when: 'if this is a symbol or path', tool: 'search_context', args: { query: scope.query ?? scope.raw } },
           { when: 'to browse from the repository root', tool: 'map_context', args: { scope: 'all', view: 'summary' } },
@@ -174,7 +174,7 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
   for (const pointer of obligationPointers.slice(0, 8)) {
     if (pointer.id) navigation.deeper.push(nav('inspect_node', { nodeId: pointer.id }, `Inspect ${pointer.id} — integrationPoints dependency carrying a consumer-scoped risk (must-inspect).`));
   }
-  const drillDown = Array.isArray(result.drill_down) ? result.drill_down as Array<{ id?: string; label?: string; type?: string; investigate?: unknown }> : [];
+  const drillDown = Array.isArray(result.drillDown) ? result.drillDown as Array<{ id?: string; label?: string; type?: string; investigate?: unknown }> : [];
   for (const child of drillDown.slice(0, 8)) {
     if (child.id) navigation.deeper.push(nav('inspect_node', { nodeId: child.id }, `Inspect child ${child.label ?? child.id}.`));
   }

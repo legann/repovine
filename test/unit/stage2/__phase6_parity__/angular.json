@@ -485,7 +485,7 @@
       "view": {
         "id": "domain:angular-fixture",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -501,7 +501,7 @@
       "view": {
         "id": "domain:angular-fixture/users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:angular-fixture",
@@ -517,7 +517,7 @@
       "view": {
         "id": "domain:auth",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -528,7 +528,7 @@
       "view": {
         "id": "domain:capitalize",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -539,7 +539,7 @@
       "view": {
         "id": "domain:highlight",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -550,7 +550,7 @@
       "view": {
         "id": "domain:routing",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -561,7 +561,7 @@
       "view": {
         "id": "domain:user-list",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -572,7 +572,7 @@
       "view": {
         "id": "domain:users",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -583,7 +583,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/app.component/AppComponent",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -594,7 +594,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/app.module/AppModule",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -605,7 +605,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/auth/auth.guard/AuthGuard",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -616,7 +616,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -627,7 +627,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -638,7 +638,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -649,7 +649,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -660,7 +660,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/users/user.model/User",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -671,7 +671,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/users/users.component/UsersComponent",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -682,7 +682,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/users/users.module/UsersModule",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -693,7 +693,7 @@
       "view": {
         "id": "export:angular-fixture/src/app/users/users.service/UsersService",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -712,7 +712,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/app.component",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/app.component/AppComponent",
             "type": "export-symbol"
@@ -746,7 +746,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/app.module",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/app.module/AppModule",
             "type": "export-symbol"
@@ -786,7 +786,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/auth/auth.guard",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/auth/auth.guard/AuthGuard",
             "type": "export-symbol"
@@ -825,7 +825,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/auth/auth.interceptor",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor",
             "type": "export-symbol"
@@ -864,7 +864,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/shared/directives/highlight.directive",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective",
             "type": "export-symbol"
@@ -903,7 +903,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/shared/pipes/capitalize.pipe",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe",
             "type": "export-symbol"
@@ -951,7 +951,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/users/pages/user-list/user-list.component",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent",
             "type": "export-symbol"
@@ -1002,7 +1002,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/users/user.model",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/users/user.model/User",
             "type": "export-symbol"
@@ -1049,7 +1049,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/users/users.component",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/users/users.component/UsersComponent",
             "type": "export-symbol"
@@ -1100,7 +1100,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/users/users.module",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/users/users.module/UsersModule",
             "type": "export-symbol"
@@ -1152,7 +1152,7 @@
       "view": {
         "id": "mod:angular-fixture/src/app/users/users.service",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:angular-fixture/src/app/users/users.service/UsersService",
             "type": "export-symbol"
@@ -1188,7 +1188,7 @@
       "view": {
         "id": "mod:angular-fixture/src/main",
         "level": 2,
-        "drill_down": [],
+        "drillDown": [],
         "links": [
           {
             "to": "domain:angular-fixture",
@@ -1218,7 +1218,7 @@
       "view": {
         "id": "pkg:angular-fixture",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:angular-fixture/src/main",
             "type": "module"
@@ -1280,7 +1280,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:angular-fixture",
             "type": "package"

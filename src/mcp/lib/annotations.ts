@@ -25,6 +25,10 @@ import { computeRiskScopeCandidates } from '../../annotations/risk-scope-candida
 import { computeCarrierLinkGaps } from '../../annotations/carrier-links.js';
 import { carrierTargetRiskHash, readCarrierReviewFile, readValidSuppressedTargets } from '../../annotations/carrier-review.js';
 import { limitFrom, offsetFrom, DEFAULT_SEMANTIC_LIMIT } from '../response/pagination.js';
+import { narrowTruncation, pageTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
+
+/** Ranking cut on the unannotated-module anomaly list, applied before the page limit sees it. */
+const TOP_UNANNOTATED_MODULE_CAP = 20;
 import { outsideRepoReport } from './refresh-summary.js';
 import { type McpToolRuntime } from '../types.js';
 import { resolveScope } from '../scope/resolve.js';
@@ -238,7 +242,14 @@ export function getAnnotationQueue(ctx: McpToolRuntime, args: Record<string, unk
   const needsWork = paged.needsWork;
   const totalRemaining = paged.totalRemaining;
   const returned = items.length;
-  const nextOffset = offset + returned < totalRemaining ? offset + returned : undefined;
+  const queueBound = pageTruncation({
+    shown: returned,
+    total: totalRemaining,
+    offset,
+    noun: 'queued node',
+    hint: `${totalRemaining} node(s) still need work. Pass offset ${offset + returned} with the same limit for the next page, or annotate the returned items and re-call.`,
+  });
+  const nextOffset = queueBound?.more.kind === 'page' ? queueBound.more.nextOffset : undefined;
   let hint: string;
   if (totalRemaining > 0) {
     const statusParts: string[] = [];
@@ -279,7 +290,7 @@ export function getAnnotationQueue(ctx: McpToolRuntime, args: Record<string, unk
       : 'queue',
     totalRemaining,
     needsWork,
-    ...(nextOffset !== undefined ? { nextOffset } : {}),
+    ...(queueBound ? { truncation: { items: queueBound } } : {}),
     counts: {
       stale: counts.stale,
       unannotated: counts.unannotated,
@@ -553,6 +564,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
   unannotatedDomains.sort((a, b) => b.unannotated - a.unannotated);
 
   const topUnannotatedModules: Array<{ nodeId: string; label: string; downstreamCount: number }> = [];
+  let unannotatedModuleCandidates = 0;
   if (full.unannotated > 0) {
     const annotationsData = annotations.getAll();
     const scored: Array<{ nodeId: string; label: string; downstreamCount: number }> = [];
@@ -563,7 +575,8 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
       scored.push({ nodeId: mod.id, label, downstreamCount });
     }
     scored.sort((a, b) => b.downstreamCount - a.downstreamCount);
-    topUnannotatedModules.push(...scored.slice(0, 20));
+    unannotatedModuleCandidates = scored.length;
+    topUnannotatedModules.push(...scored.slice(0, TOP_UNANNOTATED_MODULE_CAP));
   }
 
   const modulesBucket = {
@@ -593,6 +606,24 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
   };
 
   const inconsistentNotes = computeInconsistentModuleAnnotations(annotations, modulesById);
+  const anomalyPreview = (shown: number, total: number) => total > shown
+    ? narrowTruncation({
+      shown,
+      total,
+      hint: 'Anomaly lists are previewed on the coverage view; raise limit, or call get_annotation_status({view:"queue"}) for the whole backlog.',
+    })
+    : undefined;
+  const anomalyBounds = truncationMap({
+    staleDomains: anomalyPreview(Math.min(limit, staleDomains.length), staleDomains.length),
+    unannotatedDomains: anomalyPreview(Math.min(limit, unannotatedDomains.length), unannotatedDomains.length),
+    topUnannotatedModules: anomalyPreview(
+      Math.min(limit, topUnannotatedModules.length),
+      // The list was already cut to the ranking cap before the page limit saw it, so the honest
+      // total is how many candidates were scored, not how many survived the first cut.
+      Math.max(unannotatedModuleCandidates, topUnannotatedModules.length),
+    ),
+    inconsistent: anomalyPreview(Math.min(limit, inconsistentNotes.length), inconsistentNotes.length),
+  });
 
   const compact: Record<string, unknown> = {
     allNodeTypes,
@@ -612,20 +643,15 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
       unannotatedDomains: unannotatedDomains.slice(0, limit),
       topUnannotatedModules: topUnannotatedModules.slice(0, limit),
       inconsistent: {
-        total: inconsistentNotes.length,
         sample: inconsistentNotes.slice(0, limit).map(n => ({
           nodeId: n.nodeId,
           issues: n.issues.map(i => `${i.field}:${i.detail}`),
         })),
         note: 'Recomputed from annotation × current graph; advisory only (not a QueueStatus, does not affect freshness/coverage). Fix by re-running write_annotation with corrected fields.',
       },
-      pagination: {
-        limit,
-        staleDomainsTotal: staleDomains.length,
-        unannotatedDomainsTotal: unannotatedDomains.length,
-        topUnannotatedModulesTotal: topUnannotatedModules.length,
-        inconsistentTotal: inconsistentNotes.length,
-      },
+      // Four previews of one backlog, each cut to the same limit. The queue view is what returns
+      // them in full, so the bound points there rather than at an offset these previews do not take.
+      ...(anomalyBounds ? { truncation: anomalyBounds } : {}),
       ...(lightweightStaleSuppressed + lightweightUnannotatedSuppressed > 0 ? {
         lightweightSuppressed: {
           stale: lightweightStaleSuppressed,
@@ -646,13 +672,14 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
         totalModules: tierInfo.totalModules,
       }]),
     );
-    compact.domainPagination = {
+    const byDomainBound = pageTruncation({
+      shown: page.length,
       total: domainEntries.length,
-      returned: page.length,
       offset,
-      truncated: offset + page.length < domainEntries.length,
-      ...(offset + page.length < domainEntries.length ? { nextOffset: offset + page.length } : {}),
-    };
+      noun: 'domain',
+      hint: `${domainEntries.length} domain(s). Pass offset ${offset + page.length} with the same limit for the next page.`,
+    });
+    if (byDomainBound) compact.truncation = { byDomain: byDomainBound };
   } else if (domainsFilter && domainsFilter.length > 0) {
     const filtered: typeof full.byDomain = {};
     for (const d of domainsFilter) {
@@ -718,12 +745,7 @@ export function getOrphanedAnnotations(ctx: McpToolRuntime, args: Record<string,
       total: filtered.length,
       orphaned: page,
       byType: { [nodeType]: filtered.length },
-      pagination: {
-        total: filtered.length,
-        returned: page.length,
-        offset,
-        truncated: offset + page.length < filtered.length,
-      },
+      ...(orphanBound(page.length, filtered.length, offset) ?? {}),
     };
   }
 
@@ -732,13 +754,36 @@ export function getOrphanedAnnotations(ctx: McpToolRuntime, args: Record<string,
     total: report.total,
     orphaned: page,
     byType: report.byType,
-    pagination: {
-      total: report.total,
-      returned: page.length,
-      offset,
-      truncated: offset + page.length < report.total,
-    },
+    ...(orphanBound(page.length, report.total, offset) ?? {}),
   };
+}
+
+/** The bound on one page of an advisory `items` list, keyed by the list it bounds. */
+function itemsBound(shown: number, total: number, offset: number, noun: string): { truncation?: TruncationMap } {
+  const truncation = truncationMap({
+    items: pageTruncation({
+      shown,
+      total,
+      offset,
+      noun,
+      hint: `${total} ${noun}(s). Pass offset ${offset + shown} with the same limit for the next page.`,
+    }),
+  });
+  return truncation ? { truncation } : {};
+}
+
+/** The bound on one page of orphaned annotations, keyed by the list it bounds. */
+function orphanBound(shown: number, total: number, offset: number): { truncation: TruncationMap } | undefined {
+  const truncation = truncationMap({
+    orphaned: pageTruncation({
+      shown,
+      total,
+      offset,
+      noun: 'orphaned annotation',
+      hint: `${total} orphaned annotation(s). Pass offset ${offset + shown} with the same limit for the next page.`,
+    }),
+  });
+  return truncation ? { truncation } : undefined;
 }
 
 export function getRiskScopeCandidateStatus(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
@@ -764,13 +809,7 @@ export function getRiskScopeCandidateStatus(ctx: McpToolRuntime, args: Record<st
     boundary: candidates.boundary,
     byReason: candidates.byReason,
     items: candidates.items ?? [],
-    pagination: {
-      limit,
-      offset,
-      total: candidates.totalItems ?? candidates.total,
-      returned: candidates.items?.length ?? 0,
-      nextOffset: candidates.nextOffset ?? null,
-    },
+    ...itemsBound(candidates.items?.length ?? 0, candidates.totalItems ?? candidates.total, offset, 'candidate'),
     note: 'Advisory only: candidates are review prompts for plain/local risks, not stale items and not proof. Inspect the node/source before rewriting via write_annotation.',
   };
 }
@@ -833,13 +872,8 @@ export function getCarrierGapStatus(ctx: McpToolRuntime, args: Record<string, un
     suppressedTargets: current.suppressedTargets,
     totalTargets: targetIds.length,
     items,
-    pagination: {
-      limit,
-      offset,
-      total: targetIds.length,
-      returned: items.length,
-      nextOffset: offset + items.length < targetIds.length ? offset + items.length : null,
-    },
+    total: targetIds.length,
+    ...itemsBound(items.length, targetIds.length, offset, 'carrier-link target'),
     note: 'Advisory only: each target groups runtime 2-hop delegation candidates. Name the SSOT in the importer\'s integrationPoints where it delegates, or record reviewed-not-a-gap via decline_advisory({ "kind": "carrier-link-gaps" }). Suppression is workspace-local (.repovine/carrier-review.json) and re-surfaces when the target\'s consumer risks change.',
   };
 }

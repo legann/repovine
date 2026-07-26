@@ -1,6 +1,7 @@
 /**
  * Shared pagination / summary helpers for domain MCP tools.
  */
+import { argTruncation, pageTruncation, type Truncation } from '../response/truncation.js';
 
 export const DOMAIN_TOP_MODULES_DEFAULT = 15;
 export const DOMAIN_MODULE_LIMIT_MAX = 200;
@@ -18,13 +19,9 @@ export type DomainPaginationInput = {
   summaryOnly?: boolean;
 };
 
-export type DomainPaginationResult = {
-  totalModules: number;
-  returned: number;
-  offset: number;
-  truncated: boolean;
+export type DomainModuleSlice = {
   summaryOnly: boolean;
-  hint?: string;
+  truncation?: Truncation;
 };
 
 export function parseDomainPaginationArgs(args: Record<string, unknown>): DomainPaginationInput {
@@ -52,7 +49,7 @@ export function sortModulesByConnectivity(modules: DomainModuleRow[]): DomainMod
 export function paginateDomainModules(
   modules: DomainModuleRow[],
   input: DomainPaginationInput,
-): { modules: DomainModuleRow[]; topModules?: DomainModuleRow[]; pagination: DomainPaginationResult } {
+): { modules: DomainModuleRow[]; topModules?: DomainModuleRow[]; pagination: DomainModuleSlice } {
   const total = modules.length;
   const summaryOnly = input.summaryOnly === true;
   const offset = Math.max(0, input.offset ?? 0);
@@ -66,51 +63,42 @@ export function paginateDomainModules(
       modules: [],
       topModules,
       pagination: {
-        totalModules: total,
-        returned: topModules.length,
-        offset: 0,
-        truncated: total > topModules.length,
         summaryOnly: true,
-        hint:
-          total > topModules.length
-            ? `${total} modules in domain. summaryOnly returns top ${topModules.length} by link count. Set summaryOnly:false with moduleLimit/offset for a paginated list, or narrow the domain tag.`
-            : undefined,
+        // A summary is a mode, not a page: the rest is behind the flag, not behind an offset.
+        ...(total > topModules.length
+          ? {
+            truncation: argTruncation({
+              shown: topModules.length,
+              total,
+              arg: 'view',
+              value: 'modules',
+              hint: `A domain summary returns the top ${topModules.length} modules by link count; view:"modules" pages the whole list with limit/offset, or narrow the domain tag.`,
+            }),
+          }
+          : {}),
       },
     };
   }
 
   if (input.moduleLimit === undefined) {
-    return {
-      modules: sorted,
-      pagination: {
-        totalModules: total,
-        returned: total,
-        offset: 0,
-        truncated: false,
-        summaryOnly: false,
-      },
-    };
+    return { modules: sorted, pagination: { summaryOnly: false } };
   }
 
   const limit = Math.min(input.moduleLimit, DOMAIN_MODULE_LIMIT_MAX);
   const page = sorted.slice(offset, offset + limit);
-  const truncated = offset + page.length < total;
-  const start = total === 0 ? 0 : offset + 1;
   const end = offset + page.length;
 
   return {
     modules: page,
     pagination: {
-      totalModules: total,
-      returned: page.length,
-      offset,
-      truncated,
       summaryOnly: false,
-      hint: truncated
-        ? `${total} modules. Showing ${start}-${end}. Pass offset:${end} with the same moduleLimit for the next page.`
-        : offset > 0
-          ? `Showing modules ${start}-${end} of ${total}.`
-          : undefined,
+      truncation: pageTruncation({
+        shown: page.length,
+        total,
+        offset,
+        noun: 'module',
+        hint: `${total} modules. Showing ${total === 0 ? 0 : offset + 1}-${end}. Pass offset ${end} with the same limit for the next page.`,
+      }),
     },
   };
 }

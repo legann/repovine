@@ -1,4 +1,5 @@
 import type { GraphNode, GraphEdge, GraphEdgeMetadata, NodeType, EdgeKind, RepositoryGraph, NodeView, ExportSymbolNodeData } from '../types.js';
+import { narrowTruncation, unavailableTruncation, type Truncation } from '../response/truncation.js';
 
 export function createEmptyGraph(): RepositoryGraph {
   return {
@@ -79,7 +80,7 @@ function uniqueNodeViewLinks(links: NonNullable<NodeView['links']>): NonNullable
 }
 
 function fillExportSymbolEntry(
-  entry: NodeView['drill_down'][number],
+  entry: NodeView['drillDown'][number],
   d: ExportSymbolNodeData,
 ): void {
   if (d.signature) entry.signature = d.signature;
@@ -88,8 +89,27 @@ function fillExportSymbolEntry(
   if (d.fields) entry.fields = d.fields;
   if (d.implementsInterfaces) entry.implementsInterfaces = d.implementsInterfaces;
   if (d.calls) entry.calls = d.calls;
-  if (d.callsTotal) entry.callsTotal = d.callsTotal;
+  const calls = callsTruncation(d);
+  if (calls) entry.truncation = { calls };
   if (d.lineRange) entry.lineRange = d.lineRange;
+}
+
+/**
+ * The bound on a declaration's callee names, applied while extracting.
+ *
+ * Names past the cap are discarded there, so only their count reaches the graph — no call returns
+ * them, and raising the cap needs a rebuild.
+ */
+export function callsTruncation(d: ExportSymbolNodeData): Truncation | undefined {
+  const total = d.callsTotal;
+  const shown = d.calls?.length ?? 0;
+  if (!total || total <= shown) return undefined;
+  return unavailableTruncation({
+    shown,
+    total,
+    unit: 'name',
+    hint: 'Call names are capped per declaration while extracting; the dropped names are not in the graph.',
+  });
 }
 
 export function buildNodeView(graph: RepositoryGraph, nodeId: string): NodeView | null {
@@ -105,30 +125,28 @@ export function buildNodeView(graph: RepositoryGraph, nodeId: string): NodeView 
   const allLinks = uniqueNodeViewLinks(getLinks(graph, nodeId));
   const links = allLinks.slice(0, MAX_NODE_VIEW_LINKS);
 
-  const drill_down: NodeView['drill_down'] = children.map(c => {
-    const entry: NodeView['drill_down'][number] = { id: c.id, label: c.label, type: c.type };
+  const drillDown: NodeView['drillDown'] = children.map(c => {
+    const entry: NodeView['drillDown'][number] = { id: c.id, label: c.label, type: c.type };
     if (c.type === 'export-symbol' && c.data) fillExportSymbolEntry(entry, c.data);
     return entry;
   });
+
+  const linksTruncation = allLinks.length > links.length
+    ? narrowTruncation({
+      shown: links.length,
+      total: allLinks.length,
+      hint: `Links are capped at ${MAX_NODE_VIEW_LINKS} in node views; use analyze_dependencies or trace_flow for complete traversal.`,
+    })
+    : undefined;
 
   const view: NodeView = {
     id: node.id,
     level: levelMap[node.type] ?? 2,
     label: node.label,
     description: node.description,
-    drill_down,
+    drillDown,
     links: links.length > 0 ? links : undefined,
-    ...(allLinks.length > links.length
-      ? {
-          linksPagination: {
-            total: allLinks.length,
-            returned: links.length,
-            offset: 0 as const,
-            truncated: true as const,
-            hint: 'Links are capped in node views; use analyze_dependencies or trace_flow for complete traversal.',
-          },
-        }
-      : {}),
+    ...(linksTruncation ? { truncation: { links: linksTruncation } } : {}),
   };
 
   if (node.type === 'export-symbol' && node.data) {
@@ -141,6 +159,8 @@ export function buildNodeView(graph: RepositoryGraph, nodeId: string): NodeView 
     view.fields = node.data.fields;
     view.implementsInterfaces = node.data.implementsInterfaces;
     view.calls = node.data.calls;
+    const calls = callsTruncation(node.data);
+    if (calls) view.truncation = { ...view.truncation, calls };
   }
   if (node.type === 'module' && node.data) {
     if (node.data.envVars) view.envVars = node.data.envVars;

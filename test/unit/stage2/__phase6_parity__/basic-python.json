@@ -395,7 +395,7 @@
       "view": {
         "id": "domain:basic-python",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -406,7 +406,7 @@
       "view": {
         "id": "domain:config",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -417,7 +417,7 @@
       "view": {
         "id": "domain:gateway",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -428,7 +428,7 @@
       "view": {
         "id": "domain:helpers",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -439,7 +439,7 @@
       "view": {
         "id": "domain:models",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -450,7 +450,7 @@
       "view": {
         "id": "domain:services",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -461,7 +461,7 @@
       "view": {
         "id": "domain:sharedlib",
         "level": 1,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -472,7 +472,7 @@
       "view": {
         "id": "export:basic-python/app/API_VERSION",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -483,7 +483,7 @@
       "view": {
         "id": "export:basic-python/app/App",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -494,7 +494,7 @@
       "view": {
         "id": "export:basic-python/app/handler",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -505,7 +505,7 @@
       "view": {
         "id": "export:basic-python/models/User",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -516,7 +516,7 @@
       "view": {
         "id": "export:basic-python/services/fetch_remote",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -527,7 +527,7 @@
       "view": {
         "id": "export:basic-python/services/load_user",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -538,7 +538,7 @@
       "view": {
         "id": "export:basic-python/services/run_job",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -549,7 +549,7 @@
       "view": {
         "id": "export:basic-python/utils/greet",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -560,7 +560,7 @@
       "view": {
         "id": "export:sharedlib/gateway/entry",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -571,7 +571,7 @@
       "view": {
         "id": "export:sharedlib/sharedlib/format_label",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -582,7 +582,7 @@
       "view": {
         "id": "export:sharedlib/sharedlib/helpers/format_label",
         "level": 3,
-        "drill_down": [],
+        "drillDown": [],
         "links": []
       }
     },
@@ -624,7 +624,7 @@
       "view": {
         "id": "mod:basic-python/app",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:basic-python/app/API_VERSION",
             "type": "export-symbol"
@@ -695,7 +695,7 @@
       "view": {
         "id": "mod:basic-python/models",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:basic-python/models/User",
             "type": "export-symbol"
@@ -749,7 +749,7 @@
       "view": {
         "id": "mod:basic-python/services",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:basic-python/services/load_user",
             "type": "export-symbol"
@@ -804,7 +804,7 @@
       "view": {
         "id": "mod:basic-python/utils",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:basic-python/utils/greet",
             "type": "export-symbol"
@@ -847,7 +847,7 @@
       "view": {
         "id": "mod:sharedlib/gateway",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sharedlib/gateway/entry",
             "type": "export-symbol"
@@ -889,7 +889,7 @@
       "view": {
         "id": "mod:sharedlib/sharedlib",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sharedlib/sharedlib/format_label",
             "type": "export-symbol"
@@ -928,7 +928,7 @@
       "view": {
         "id": "mod:sharedlib/sharedlib/helpers",
         "level": 2,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "export:sharedlib/sharedlib/helpers/format_label",
             "type": "export-symbol"
@@ -959,7 +959,7 @@
       "view": {
         "id": "pkg:basic-python",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:basic-python/app",
             "type": "module"
@@ -991,7 +991,7 @@
       "view": {
         "id": "pkg:sharedlib",
         "level": 1,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "mod:sharedlib/gateway",
             "type": "module"
@@ -1018,7 +1018,7 @@
       "view": {
         "id": "root",
         "level": 0,
-        "drill_down": [
+        "drillDown": [
           {
             "id": "pkg:basic-python",
             "type": "package"

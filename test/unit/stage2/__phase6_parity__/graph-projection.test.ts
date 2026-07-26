@@ -113,7 +113,7 @@ function stableView(view: ReturnType<typeof buildNodeView>): unknown {
   return {
     id: view.id,
     level: view.level,
-    drill_down: view.drill_down.map(d => ({ id: d.id, type: d.type })),
+    drillDown: view.drillDown.map(d => ({ id: d.id, type: d.type })),
     links: (view.links ?? []).map(l => ({ to: l.targetId, kind: l.relation })),
     ...(view.envVars ? { envVars: view.envVars } : {}),
     ...(view.hasRoutes ? { hasRoutes: view.hasRoutes } : {}),

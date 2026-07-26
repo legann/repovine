@@ -16,6 +16,7 @@ import {
   MAX_ARCHITECTURE_LIMIT,
 } from '../response/pagination.js';
 import { architectureEmptyDiagnostic } from '../response/empty-diagnostics.js';
+import { argTruncation } from '../../response/truncation.js';
 
 /** Report-mode finding nodes are a preview; the full set lives in detail mode (maxNodes-bounded). */
 const REPORT_FINDING_NODE_PREVIEW = 10;
@@ -57,7 +58,16 @@ export const handleAnalyzeArchitecture: ToolHandler = (ctx, args) => {
   const totalFindings = responseResult.totalFindings;
   const returnedFindings = responseResult.returnedFindings;
   if (typeof totalFindings === 'number' && typeof returnedFindings === 'number' && totalFindings > returnedFindings) {
-    gaps.push(`${totalFindings} architecture finding(s) matched; showing ${returnedFindings}. Narrow scope/categories or pass a higher limit when you need more.`);
+    // The report has no offset: a higher `limit` is what returns more, up to the report ceiling.
+    responseResult.truncation = {
+      findings: argTruncation({
+        shown: returnedFindings,
+        total: totalFindings,
+        arg: 'limit',
+        value: Math.min(MAX_ARCHITECTURE_LIMIT, totalFindings),
+        hint: `Findings are capped at ${MAX_ARCHITECTURE_LIMIT} per report; narrow scope or categories when more than that matched.`,
+      }),
+    };
   }
   const emptyDiagnostic = architectureEmptyDiagnostic(ctx, scope, args, mode, responseResult);
   if (emptyDiagnostic && !gaps.length) gaps.push(emptyDiagnostic.message);
@@ -84,8 +94,15 @@ function publicFinding(finding: RefactoringFinding, preview: boolean): Record<st
   return {
     ...rest,
     nodes: finding.nodes.slice(0, REPORT_FINDING_NODE_PREVIEW),
-    nodeCount: finding.nodes.length,
-    truncatedNodes: finding.nodes.length - REPORT_FINDING_NODE_PREVIEW,
+    truncation: {
+      nodes: argTruncation({
+        shown: REPORT_FINDING_NODE_PREVIEW,
+        total: finding.nodes.length,
+        arg: 'detailFindingId',
+        value: finding.id,
+        hint: 'Report mode previews a finding\'s nodes; detail mode returns the full maxNodes-bounded set.',
+      }),
+    },
   };
 }
 
