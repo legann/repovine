@@ -13,14 +13,21 @@ const IGNORED_CALLS = new Set([
 ]);
 
 /** Max call names kept per bucket (per exported declaration, and the module bucket). */
-const PER_BUCKET_CAP = 50;
+export const PER_BUCKET_CAP = 50;
 
 /** Attribution of a module's forward calls. Calls inside an exported declaration are keyed by that
  * declaration's compiler node; everything else (top-level statements, non-exported helpers) lands in
  * `module`. Both are deduped, `IGNORED_CALLS`-filtered, and capped at `PER_BUCKET_CAP`. */
+export interface CallBucket {
+  /** Names kept after dedupe, `IGNORED_CALLS` filtering and the `PER_BUCKET_CAP` slice. */
+  names: string[];
+  /** Size before the slice, so consumers can report what was dropped instead of inferring it. */
+  total: number;
+}
+
 export interface ModuleCallAttribution {
-  byDecl: Map<ts.Node, string[]>;
-  module: string[];
+  byDecl: Map<ts.Node, CallBucket>;
+  module: CallBucket;
 }
 
 /** Record the callee name of one CallExpression into a bucket. Plain `f()` and `obj.m()` /
@@ -75,13 +82,15 @@ export function collectModuleCalls(sf: SourceFile, exportedDecls: Set<ts.Node>):
   };
   walk(sf, undefined);
 
-  const finalize = (s: Set<string>): string[] =>
-    [...s].filter(c => !IGNORED_CALLS.has(c)).slice(0, PER_BUCKET_CAP);
+  const finalize = (s: Set<string>): CallBucket => {
+    const kept = [...s].filter(c => !IGNORED_CALLS.has(c));
+    return { names: kept.slice(0, PER_BUCKET_CAP), total: kept.length };
+  };
 
-  const byDeclArr = new Map<ts.Node, string[]>();
+  const byDeclArr = new Map<ts.Node, CallBucket>();
   for (const [decl, set] of byDecl) {
-    const arr = finalize(set);
-    if (arr.length > 0) byDeclArr.set(decl, arr);
+    const bucket = finalize(set);
+    if (bucket.names.length > 0) byDeclArr.set(decl, bucket);
   }
   return { byDecl: byDeclArr, module: finalize(moduleCalls) };
 }

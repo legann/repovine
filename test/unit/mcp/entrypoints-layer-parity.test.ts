@@ -67,7 +67,7 @@ describe('collectEntrypoints layer parity', () => {
       }),
       mod('mod:app/api', {
         hasRoutes: true,
-        routes: [{ path: '/api/items', component: '(file-route)', source: 'file', kind: 'api', framework: 'nextjs-app', fileType: 'route' }],
+        routes: [{ path: '/api/items', component: '(file-route)', source: 'file', kind: 'api', method: 'POST', framework: 'nextjs-app', fileType: 'route' }],
       }),
     ];
     const snapshot: RepositoryFactsSnapshot = {
@@ -133,10 +133,11 @@ describe('collectEntrypoints layer parity', () => {
         fileType: 'page',
       },
       {
-        id: 'entrypoint:file:mod:app/api:/api/items:route',
+        id: 'entrypoint:file:mod:app/api:/api/items:route:POST',
         kind: 'api',
-        layer: 'frontend',
+        layer: 'backend',
         path: '/api/items',
+        method: 'POST',
         moduleId: 'mod:app/api',
         source: 'nextjs-app',
         fileType: 'route',

@@ -1,0 +1,803 @@
+{
+  "stats": {
+    "totalNodes": 20,
+    "totalEdges": 28,
+    "nodesByType": {
+      "domain": 7,
+      "export-symbol": 6,
+      "module": 5,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 12,
+      "tagged": 16
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:tanstack-router-fixture",
+      "domain:routetree",
+      "domain:admin",
+      "domain:files",
+      "domain:postid",
+      "domain:posts",
+      "domain:routing"
+    ],
+    "export-symbol": [
+      "export:tanstack-router-fixture/src/routeTree/rootRoute",
+      "export:tanstack-router-fixture/src/routeTree/settingsRoute",
+      "export:tanstack-router-fixture/src/routes/admin/users/Route",
+      "export:tanstack-router-fixture/src/routes/files/$/Route",
+      "export:tanstack-router-fixture/src/routes/posts/$postId/Route",
+      "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route"
+    ],
+    "module": [
+      "mod:tanstack-router-fixture/src/routeTree",
+      "mod:tanstack-router-fixture/src/routes/admin/users",
+      "mod:tanstack-router-fixture/src/routes/files/$",
+      "mod:tanstack-router-fixture/src/routes/posts/$postId",
+      "mod:tanstack-router-fixture/src/routes/posts/{-$category}"
+    ],
+    "package": [
+      "pkg:tanstack-router-fixture"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:admin",
+      "type": "domain",
+      "label": "admin",
+      "description": "Domain: admin",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:files",
+      "type": "domain",
+      "label": "files",
+      "description": "Domain: files",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:postid",
+      "type": "domain",
+      "label": "postid",
+      "description": "Domain: postid",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:posts",
+      "type": "domain",
+      "label": "posts",
+      "description": "Domain: posts",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:routetree",
+      "type": "domain",
+      "label": "routetree",
+      "description": "Domain: routetree",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:tanstack-router-fixture",
+      "type": "domain",
+      "label": "tanstack-router-fixture",
+      "description": "Domain: tanstack-router-fixture",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/admin/users/Route",
+      "type": "export-symbol",
+      "label": "Route",
+      "description": "const Route",
+      "data": {
+        "symbolKind": "const",
+        "calls": [
+          "createFileRoute"
+        ],
+        "lineRange": {
+          "start": 7,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/files/$/Route",
+      "type": "export-symbol",
+      "label": "Route",
+      "description": "const Route",
+      "data": {
+        "symbolKind": "const",
+        "calls": [
+          "createFileRoute"
+        ],
+        "lineRange": {
+          "start": 7,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route",
+      "type": "export-symbol",
+      "label": "Route",
+      "description": "const Route",
+      "data": {
+        "symbolKind": "const",
+        "calls": [
+          "createFileRoute"
+        ],
+        "lineRange": {
+          "start": 7,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/posts/$postId/Route",
+      "type": "export-symbol",
+      "label": "Route",
+      "description": "const Route",
+      "data": {
+        "symbolKind": "const",
+        "calls": [
+          "createFileRoute"
+        ],
+        "lineRange": {
+          "start": 7,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routeTree/rootRoute",
+      "type": "export-symbol",
+      "label": "rootRoute",
+      "description": "const rootRoute",
+      "data": {
+        "symbolKind": "const",
+        "calls": [
+          "createRootRoute"
+        ],
+        "lineRange": {
+          "start": 11,
+          "end": 13
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routeTree/settingsRoute",
+      "type": "export-symbol",
+      "label": "settingsRoute",
+      "description": "const settingsRoute",
+      "data": {
+        "symbolKind": "const",
+        "calls": [
+          "createRoute"
+        ],
+        "lineRange": {
+          "start": 15,
+          "end": 19
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/admin/users",
+      "type": "module",
+      "label": "…/admin/users",
+      "description": "Module src/routes/admin/users.tsx in tanstack-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/routes/admin/users.tsx",
+        "relativeFilePath": "src/routes/admin/users.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/files/$",
+      "type": "module",
+      "label": "…/files/$",
+      "description": "Module src/routes/files/$.tsx in tanstack-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/routes/files/$.tsx",
+        "relativeFilePath": "src/routes/files/$.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/posts/{-$category}",
+      "type": "module",
+      "label": "…/posts/{-$category}",
+      "description": "Module src/routes/posts/{-$category}.tsx in tanstack-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/routes/posts/{-$category}.tsx",
+        "relativeFilePath": "src/routes/posts/{-$category}.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/posts/$postId",
+      "type": "module",
+      "label": "…/posts/$postId",
+      "description": "Module src/routes/posts/$postId.tsx in tanstack-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/routes/posts/$postId.tsx",
+        "relativeFilePath": "src/routes/posts/$postId.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routeTree",
+      "type": "module",
+      "label": "src/routeTree",
+      "description": "Module src/routeTree.tsx in tanstack-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/src/routeTree.tsx",
+        "relativeFilePath": "src/routeTree.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:tanstack-router-fixture",
+      "type": "package",
+      "label": "tanstack-router-fixture",
+      "description": "Package tanstack-router-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:admin",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:admin",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:files",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:files",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:postid",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:postid",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:posts",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:posts",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routetree",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routetree",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:tanstack-router-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:tanstack-router-fixture",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/admin/users/Route",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:tanstack-router-fixture/src/routes/admin/users/Route",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/files/$/Route",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:tanstack-router-fixture/src/routes/files/$/Route",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routes/posts/$postId/Route",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:tanstack-router-fixture/src/routes/posts/$postId/Route",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routeTree/rootRoute",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:tanstack-router-fixture/src/routeTree/rootRoute",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:tanstack-router-fixture/src/routeTree/settingsRoute",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:tanstack-router-fixture/src/routeTree/settingsRoute",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/admin/users",
+      "links": [
+        {
+          "to": "domain:tanstack-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:admin",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:tanstack-router-fixture/src/routes/admin/users/Route"
+      ],
+      "view": {
+        "id": "mod:tanstack-router-fixture/src/routes/admin/users",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:tanstack-router-fixture/src/routes/admin/users/Route",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:tanstack-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:admin",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/files/$",
+      "links": [
+        {
+          "to": "domain:tanstack-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:files",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:tanstack-router-fixture/src/routes/files/$/Route"
+      ],
+      "view": {
+        "id": "mod:tanstack-router-fixture/src/routes/files/$",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:tanstack-router-fixture/src/routes/files/$/Route",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:tanstack-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:files",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/posts/{-$category}",
+      "links": [
+        {
+          "to": "domain:tanstack-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:posts",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route"
+      ],
+      "view": {
+        "id": "mod:tanstack-router-fixture/src/routes/posts/{-$category}",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:tanstack-router-fixture/src/routes/posts/{-$category}/Route",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:tanstack-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:posts",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routes/posts/$postId",
+      "links": [
+        {
+          "to": "domain:tanstack-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:postid",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:posts",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:tanstack-router-fixture/src/routes/posts/$postId/Route"
+      ],
+      "view": {
+        "id": "mod:tanstack-router-fixture/src/routes/posts/$postId",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:tanstack-router-fixture/src/routes/posts/$postId/Route",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:tanstack-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:postid",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:posts",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:tanstack-router-fixture/src/routeTree",
+      "links": [
+        {
+          "to": "domain:tanstack-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routetree",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:tanstack-router-fixture/src/routeTree/rootRoute",
+        "export:tanstack-router-fixture/src/routeTree/settingsRoute"
+      ],
+      "view": {
+        "id": "mod:tanstack-router-fixture/src/routeTree",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:tanstack-router-fixture/src/routeTree/rootRoute",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:tanstack-router-fixture/src/routeTree/settingsRoute",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:tanstack-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routetree",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:tanstack-router-fixture",
+      "links": [],
+      "children": [
+        "mod:tanstack-router-fixture/src/routeTree",
+        "mod:tanstack-router-fixture/src/routes/admin/users",
+        "mod:tanstack-router-fixture/src/routes/files/$",
+        "mod:tanstack-router-fixture/src/routes/posts/$postId",
+        "mod:tanstack-router-fixture/src/routes/posts/{-$category}"
+      ],
+      "view": {
+        "id": "pkg:tanstack-router-fixture",
+        "level": 1,
+        "drill_down": [
+          {
+            "id": "mod:tanstack-router-fixture/src/routeTree",
+            "type": "module"
+          },
+          {
+            "id": "mod:tanstack-router-fixture/src/routes/admin/users",
+            "type": "module"
+          },
+          {
+            "id": "mod:tanstack-router-fixture/src/routes/files/$",
+            "type": "module"
+          },
+          {
+            "id": "mod:tanstack-router-fixture/src/routes/posts/$postId",
+            "type": "module"
+          },
+          {
+            "id": "mod:tanstack-router-fixture/src/routes/posts/{-$category}",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:tanstack-router-fixture"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drill_down": [
+          {
+            "id": "pkg:tanstack-router-fixture",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": [
+    {
+      "id": "entrypoint:route:mod:tanstack-router-fixture/src/routeTree:/settings",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/settings",
+      "component": "SettingsPage",
+      "moduleId": "mod:tanstack-router-fixture/src/routeTree",
+      "source": "tanstack-router",
+      "webFramework": "tanstack-router"
+    },
+    {
+      "id": "entrypoint:file:mod:tanstack-router-fixture/src/routes/admin/users:/admin/users:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/admin/users",
+      "moduleId": "mod:tanstack-router-fixture/src/routes/admin/users",
+      "source": "tanstack-router",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:tanstack-router-fixture/src/routes/files/$:/files/$:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/files/$",
+      "moduleId": "mod:tanstack-router-fixture/src/routes/files/$",
+      "source": "tanstack-router",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:tanstack-router-fixture/src/routes/posts/$postId:/posts/$postId:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/posts/$postId",
+      "moduleId": "mod:tanstack-router-fixture/src/routes/posts/$postId",
+      "source": "tanstack-router",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:tanstack-router-fixture/src/routes/posts/{-$category}:/posts/{-$category}:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/posts/{-$category}",
+      "moduleId": "mod:tanstack-router-fixture/src/routes/posts/{-$category}",
+      "source": "tanstack-router",
+      "fileType": "page"
+    }
+  ]
+}

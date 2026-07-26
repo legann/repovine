@@ -1,7 +1,7 @@
 {
   "scope": "all",
-  "totalFindings": 3,
-  "returnedFindings": 3,
+  "totalFindings": 1,
+  "returnedFindings": 1,
   "summary": {
     "duplicate-like": 1,
     "boundary": 0,
@@ -21,7 +21,7 @@
     "event-driven-boundary": 0,
     "secret-config-boundary": 0,
     "authorization-policy-drift": 0,
-    "trust-boundary-validation": 2,
+    "trust-boundary-validation": 0,
     "privileged-client-side-effect": 0,
     "sensitive-browser-storage": 0,
     "server-client-boundary": 0,
@@ -48,42 +48,6 @@
         "Examples: …/auth/auth-client, src/auth-handler"
       ],
       "suggestion": "Compare their annotations and public exports; consider extracting a shared abstraction only if their invariants and side effects truly match."
-    },
-    {
-      "id": "trust-boundary-validation:mod:@hybrid/lambda-functions/src/auth-handler",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:@hybrid/lambda-functions/src/auth-handler"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/auth-handler.ts",
-        "Exports: handler",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:@hybrid/lambda-functions/src/users-handler",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:@hybrid/lambda-functions/src/users-handler"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/users-handler.ts",
-        "Exports: handler",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
     }
   ]
 }

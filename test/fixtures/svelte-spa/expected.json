@@ -1,6 +1,6 @@
 {
   "_description": "Svelte SPA with SFC extractor: .svelte files parsed via extractor. PascalCase basenames → lightweight. App.svelte rejected (app reserved).",
-  "heavyDomains": ["cluster", "svelte-spa-fixture"],
+  "heavyDomains": ["svelte-spa-fixture"],
   "lightweightDomains": ["button", "stores", "usercard", "userlist", "users"],
   "rejectedAsDomain": ["app", "App", "main"],
   "modulesInDomain": {

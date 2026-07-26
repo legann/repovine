@@ -86,18 +86,11 @@ describe('TanStack Router routes', () => {
     });
   });
 
-  it('detects code-based createRoute and createRootRoute', () => {
+  it('detects code-based createRoute without exposing createRootRoute as a URL', () => {
     const sf = makeSf(fixtureSource('src/routeTree.tsx'), '/virtual/src/routeTree.tsx');
     const h = collectSemanticHints(sf, 'src/routeTree.tsx');
     expect(h?.webFramework).toBe('tanstack-router');
-    expect(h?.routes).toEqual(expect.arrayContaining([
-      {
-        path: '/',
-        component: 'RootLayout',
-        source: 'ast',
-        kind: 'frontend',
-        framework: 'tanstack-router',
-      },
+    expect(h?.routes).toEqual([
       {
         path: '/settings',
         component: 'SettingsPage',
@@ -105,7 +98,7 @@ describe('TanStack Router routes', () => {
         kind: 'frontend',
         framework: 'tanstack-router',
       },
-    ]));
+    ]);
   });
 
   it('does not treat createRoute as TanStack when @tanstack/react-router is not imported', () => {

@@ -7,25 +7,21 @@ import {
   suggestVocabulary,
   type SearchIndex,
 } from './search-index.js';
+import {
+  DEFAULT_SEMANTIC_FUSION_POLICY,
+  semanticRankBoost,
+  type SemanticFusionPolicy,
+} from '../../semantic/relevance.js';
 
 export { WEAK_SEARCH_TOKENS, searchTokenize };
 
 /** Per-token score contribution of an annotation-text match (below label=3, equal to id=2). */
 const ANNOTATION_MATCH_SCORE = 2;
 
-/** RRF-style boost for semantic hits: rank 0 -> 10, 1 -> 7.5, 2 -> 6, 5 -> 3.75. */
-const SEMANTIC_RRF_WEIGHT = 30;
-const SEMANTIC_RRF_K = 3;
-/** Cosine similarity multiplier (0.55 similarity -> +11). */
-const SEMANTIC_COSINE_WEIGHT = 20;
 /** Top-N window for export-symbol flood detection (mirrors context-quality capRatio on topResults). */
 const EXPORT_SYMBOL_FLOOD_MIN_WINDOW = 5;
 /** Score multiplier applied to export symbols when flood ratio exceeds threshold. */
 const EXPORT_SYMBOL_DAMPEN_FACTOR = 0.35;
-
-function semanticBoost(rank: number): number {
-  return SEMANTIC_RRF_WEIGHT / (SEMANTIC_RRF_K + rank);
-}
 
 function compareSearchMatches(a: SearchMatch, b: SearchMatch): number {
   return b.score - a.score
@@ -48,22 +44,36 @@ export function isSuggestedScopeCandidate(m: SearchMatch): boolean {
 }
 
 function suggestedScopeReason(m: SearchMatch): string {
-  if (m.semanticRank !== undefined && m.matchedTokens.length === 0) return 'Semantic match';
+  if (m.semanticRank !== undefined && m.matchedTokens.length === 0) {
+    return `Advisory semantic similarity (${m.semanticScore?.toFixed(2) ?? 'unknown'} cosine; no token match)`;
+  }
   if (m.semanticRank !== undefined && m.matchedTokens.length > 0) {
     return `Semantic + token match (${m.matchedTokens.join(', ')})`;
   }
   return `Matched ${m.matchedTokens.length > 0 ? m.matchedTokens.join(', ') : 'query token(s)'}`;
 }
 
-/** Downrank export symbols when they dominate token hits while semantic search is active. */
+/**
+ * Downrank export symbols when they dominate token hits, so the modules and domains they belong to
+ * are still reachable in the top window.
+ *
+ * This used to run only while semantic search was active. `@huggingface/transformers` is an
+ * optional peer, so that gate made ranking depend on whether an optional dependency happened to be
+ * installed: the same query on the same repository ranked differently for two users. The flood
+ * condition below is about token hits and needs no vectors to be true, so it is evaluated either
+ * way, and `exportSymbolDampened` reports when it fired.
+ */
 export function applyExportSymbolDampeningIfNeeded(
   matches: SearchMatch[],
-  semanticUsed: boolean,
   floodRatio: number,
   maxResults: number,
 ): boolean {
-  if (!semanticUsed || matches.length === 0 || maxResults <= 0) return false;
+  if (matches.length === 0 || maxResults <= 0) return false;
   const window = Math.min(maxResults, matches.length);
+  // A handful of hits cannot crowd anything out: with one match the ratio is 1 and "the whole top
+  // block is export symbols" is trivially true, which would dampen a result set that has nothing
+  // to promote in their place. Domination needs a window wide enough to be dominated.
+  if (window < EXPORT_SYMBOL_FLOOD_MIN_WINDOW) return false;
   const preview = matches.slice(0, window);
   const exportSymbolCount = preview.filter(m => m.type === 'export-symbol').length;
   const exportSymbolRatio = exportSymbolCount / preview.length;
@@ -113,7 +123,11 @@ type SearchMatch = {
 /** Precomputed semantic ranking passed in by the caller (search_context embeds the query asynchronously). */
 export type SemanticRanking = Array<{ id: string; score: number }>;
 
-export function searchGraph(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
+export function searchGraph(
+  ctx: McpToolRuntime,
+  args: Record<string, unknown>,
+  semanticPolicy: SemanticFusionPolicy = DEFAULT_SEMANTIC_FUSION_POLICY,
+): unknown {
   const { graph, searchIndex } = ctx.getState();
   const rawQuery = (args.query as string).trim();
   const normalized = rawQuery.replace(/\.(tsx?|jsx?)$/, '').replace(/\/index$/, '');
@@ -124,9 +138,25 @@ export function searchGraph(ctx: McpToolRuntime, args: Record<string, unknown>):
   const requestedMatch = args.match === 'and' || args.match === 'or' || args.match === 'auto'
     ? args.match as SearchMatchMode
     : 'auto';
-  const perTokenLimit = Math.max(1, Math.min(100, (args.perTokenLimit as number | undefined) ?? Math.max(12, max * 2)));
+  // Per-token candidate budget before global ranking. `topTokenCandidates` scores every candidate
+  // in the posting list either way, so this bounds the size of the union handed to global ranking,
+  // not the scoring work.
+  //
+  // Measured posting-list sizes: on repovine 3.6% of tokens exceed 20 and 1.6% exceed 50; on a
+  // 1979-module app repo, 3.7% and 2.0%. The band between those two is where a discriminating token
+  // loses real candidates. Above it the tail is extreme (thousands of nodes for the top tokens) and
+  // truncating is correct — a token matching a third of the graph carries no signal. Hence 50, not
+  // 20 and not unbounded. `postingLists` reports every token where the budget still bit.
+  const perTokenLimit = Math.max(1, Math.min(100, (args.perTokenLimit as number | undefined) ?? Math.max(30, max * 5)));
   const includeLightweight = args.includeLightweight === true;
   const semantic = Array.isArray(args.semantic) ? args.semantic as SemanticRanking : [];
+  const postingLists: Record<string, {
+    total: number;
+    considered: number;
+    limit: number;
+    truncated: boolean;
+    weakToken: boolean;
+  }> = {};
   const semanticRankById = new Map<string, { rank: number; score: number }>();
   semantic.forEach((hit, rank) => {
     if (!semanticRankById.has(hit.id)) semanticRankById.set(hit.id, { rank, score: hit.score });
@@ -172,12 +202,19 @@ export function searchGraph(ctx: McpToolRuntime, args: Record<string, unknown>):
   const topTokenCandidates = (token: string): string[] => {
     const candidates = [...(searchIndex.tokens.get(token) ?? [])];
     const tokenLimit = WEAK_SEARCH_TOKENS.has(token) ? Math.max(3, Math.floor(perTokenLimit / 3)) : perTokenLimit;
-    return candidates
+    const ranked = candidates
       .map(id => ({ id, score: scoreNodeForToken(id, token) }))
       .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, tokenLimit)
-      .map(item => item.id);
+      .sort((a, b) => b.score - a.score);
+    const considered = Math.min(tokenLimit, ranked.length);
+    postingLists[token] = {
+      total: ranked.length,
+      considered,
+      limit: tokenLimit,
+      truncated: ranked.length > considered,
+      weakToken: WEAK_SEARCH_TOKENS.has(token),
+    };
+    return ranked.slice(0, tokenLimit).map(item => item.id);
   };
 
   const candidatesForAnd = (): Set<string> => {
@@ -276,8 +313,8 @@ export function searchGraph(ctx: McpToolRuntime, args: Record<string, unknown>):
     }
     const semanticHit = semanticRankById.get(nodeId);
     if (semanticHit) {
-      score += semanticBoost(semanticHit.rank);
-      score += semanticHit.score * SEMANTIC_COSINE_WEIGHT;
+      score += semanticRankBoost(semanticHit.rank, semanticPolicy);
+      score += semanticHit.score * semanticPolicy.cosineWeight;
     }
     if (score > 0) {
       const linksCount = linksCountFor(node.id);
@@ -298,7 +335,6 @@ export function searchGraph(ctx: McpToolRuntime, args: Record<string, unknown>):
     ?? DEFAULT_CONTEXT_QUALITY_CONFIG.exportSymbolFloodRatio;
   const exportSymbolDampened = applyExportSymbolDampeningIfNeeded(
     allMatches,
-    semantic.length > 0,
     exportSymbolFloodRatio,
     max,
   );
@@ -333,13 +369,27 @@ export function searchGraph(ctx: McpToolRuntime, args: Record<string, unknown>):
     tokens,
     perTokenLimit,
     strongTokens,
+    // `exportSymbolDampened` is reported on both branches: the flood rule now runs without the
+    // embedder, so hiding the flag behind `semantic.used` would reorder a token-only result set
+    // and say nothing about it.
     semantic: semantic.length > 0
       ? {
         used: true,
         candidates: semantic.length,
         ...(exportSymbolDampened ? { exportSymbolDampened: true } : {}),
       }
-      : { used: false },
+      : {
+        used: false,
+        ...(exportSymbolDampened ? { exportSymbolDampened: true } : {}),
+      },
+    ...(Object.keys(postingLists).length > 0
+      ? {
+        postingLists: {
+          truncated: Object.values(postingLists).some(item => item.truncated),
+          tokens: postingLists,
+        },
+      }
+      : {}),
     ...(relaxedFrom ? { relaxedFrom } : {}),
     ...(weakTokenOnlySuppressed ? { weakTokenOnlySuppressed } : {}),
   };

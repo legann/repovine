@@ -75,6 +75,13 @@ export function envelope(
   summary: string,
   result: unknown,
   options: {
+    /**
+     * Whether the request resolved to something, not how much the answer is to be trusted.
+     * `high` means the scope resolved and the tool produced a result; `low` means it did not.
+     *
+     * Completeness, recall ceilings and unread evidence are separate facts and belong in `gaps`,
+     * where a reader can act on them. Grading trust here would need a per-tool signal no tool has.
+     */
     confidence?: Confidence;
     gaps?: string[];
     navigation?: Partial<Navigation>;
@@ -86,13 +93,26 @@ export function envelope(
   for (const [section, items] of Object.entries(options.navigation ?? {}) as Array<[NavigationSection, NavigationItem[] | undefined]>) {
     if (items?.length) baseNav[section] = items;
   }
-  const attention = options.attention?.slice(0, ATTENTION_LIMIT);
+  const allAttention = options.attention ?? [];
+  const attention = allAttention.slice(0, ATTENTION_LIMIT);
+  // The block is hoisted for primacy, so the ones that did not fit are the ones a reader would
+  // never learn about. Say how many were dropped and where to see the rest.
+  const attentionTruncated = allAttention.length > attention.length
+    ? {
+      attentionTruncated: {
+        shown: attention.length,
+        total: allAttention.length,
+        hint: 'Attention items beyond the first few are omitted; the same obligations stay on the referenced nodes.',
+      },
+    }
+    : {};
   return {
     scope: rawScope,
     resolvedScope: publicResolvedScope(scope),
     summary,
     confidence: options.confidence ?? 'medium',
-    ...(attention?.length ? { attention } : {}),
+    ...(attention.length ? { attention } : {}),
+    ...attentionTruncated,
     result,
     gaps: options.gaps ?? [],
     navigation: dedupeNavigation(baseNav),

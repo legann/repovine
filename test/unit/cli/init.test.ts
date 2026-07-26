@@ -101,7 +101,6 @@ describe('ensureWorkspaceBootstrap', () => {
           pretty: false,
         },
       },
-      semantic_search_embeddings: true,
       analyze_architecture: {
         strictness: 'normal',
         thresholds: {},
@@ -677,9 +676,9 @@ describe('initCodex', () => {
     expect(workflowSkill).toContain('name: repovine-workflow');
     expect(workflowSkill).toContain('Main-agent implementation playbook');
     expect(workflowSkill).toContain('Relationship to Subagent Orchestration');
-    // Codex carries the full main-agent delegation policy inline; AGENTS.md stays thin.
+    expect(workflowSkill).toContain("Use the active client's native agent surface");
     expect(workflowSkill).toContain('You are the **main agent**');
-    expect(workflowSkill).toContain('Codex: `.codex/agents/*.toml`');
+    expect(workflowSkill).not.toContain('Codex: `.codex/agents/*.toml`');
     expect(workflowSkill).toContain('delegate to **project-subagent-sample**');
     expect(workflowSkill).not.toContain('For Codex delegation rules');
     expect(workflowSkill).toContain('Project-specific skills usually belong');
@@ -935,8 +934,9 @@ describe('initCursor — onboarding distribution', () => {
     expect(workflowSkill).toContain('name: repovine-workflow');
     expect(workflowSkill).toContain('Main-agent implementation playbook');
     expect(workflowSkill).toContain('Relationship to Subagent Orchestration');
-    expect(workflowSkill).toContain('For Cursor delegation rules');
-    expect(workflowSkill).toContain('.cursor/rules/repovine-subagent-orchestration.mdc');
+    expect(workflowSkill).toContain("Use the active client's native agent surface");
+    expect(workflowSkill).toContain('delegate to **project-subagent-sample**');
+    expect(workflowSkill).not.toContain('For Cursor delegation rules');
     expect(workflowSkill).not.toContain('Claude Code');
     expect(workflowSkill).not.toContain('Codex');
     expect(workflowSkill).toContain('local project skills');

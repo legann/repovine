@@ -63,6 +63,7 @@ export type {
   IaCParser,
   IaCDocFormat,
   IaCFileMatch,
+  InfraAccessMode,
   InfraEnvRef,
   InfraKind,
   InfraModuleInfo,

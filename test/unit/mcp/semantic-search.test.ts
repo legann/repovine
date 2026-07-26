@@ -16,7 +16,12 @@ import {
 } from '../../../src/mcp/lib/search-index.js';
 import { searchGraph, isSuggestedScopeCandidate, applyExportSymbolDampeningIfNeeded } from '../../../src/mcp/lib/search-graph.js';
 import { SemanticIndex, cardHash, semanticIndexFilePath } from '../../../src/semantic/store.js';
-import { buildNodeCard, projectNodeCards } from '../../../src/semantic/cards.js';
+import {
+  buildNodeCard,
+  buildNodeCardProjection,
+  projectNodeCards,
+  SEMANTIC_CARD_CHAR_BUDGET,
+} from '../../../src/semantic/cards.js';
 import { createEmbedder, type Embedder } from '../../../src/semantic/embedder.js';
 import { createEmptyGraph, addNode, addEdge } from '../../../src/graph/index.js';
 import { DEFAULT_THRESHOLDS } from '../../../src/analysis/architecture/config.js';
@@ -186,6 +191,62 @@ describe('searchGraph vocabulary surfacing', () => {
   });
 });
 
+describe('searchGraph posting-list truncation', () => {
+  function makePostingGraph(): RepositoryGraph {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: 'root', type: 'root', label: 'root', description: '' });
+    addNode(graph, { id: 'pkg:alpha-beta', type: 'package', label: 'alpha-beta', description: '' });
+    addNode(graph, { id: 'mod:test/alpha', type: 'module', label: 'alpha', description: '' });
+    addNode(graph, { id: 'mod:test/beta', type: 'module', label: 'beta', description: '' });
+    return graph;
+  }
+
+  // The default budget is a measured choice, not an arbitrary constant: at 20 the posting lists of
+  // 3.6% of repovine's tokens (3.7% of a 1979-module app repo) were truncated; at 50 that halves,
+  // while the extreme tail — tokens matching thousands of nodes — stays cut, which is correct.
+  it('defaults the per-token budget to 50 for the default result size', () => {
+    const graph = makePostingGraph();
+    const ctx = makeCtx({ graph, searchIndex: buildTokenIndex(graph, {}) });
+    const result = searchGraph(ctx, { query: 'alpha beta', match: 'or' }) as Record<string, unknown>;
+    expect((result.strategy as { perTokenLimit: number }).perTokenLimit).toBe(50);
+  });
+
+  it('scales the per-token budget with maxResults and caps it at 100', () => {
+    const graph = makePostingGraph();
+    const ctx = makeCtx({ graph, searchIndex: buildTokenIndex(graph, {}) });
+    const wide = searchGraph(ctx, { query: 'alpha beta', match: 'or', maxResults: 40 }) as Record<string, unknown>;
+    expect((wide.strategy as { perTokenLimit: number }).perTokenLimit).toBe(100);
+  });
+
+  it('exposes when perTokenLimit drops the globally best multi-token node', () => {
+    const graph = makePostingGraph();
+    const ctx = makeCtx({ graph, searchIndex: buildTokenIndex(graph, {}) });
+    const unbounded = searchGraph(ctx, {
+      query: 'alpha beta',
+      match: 'or',
+      perTokenLimit: 100,
+    }) as Record<string, unknown>;
+    const truncated = searchGraph(ctx, {
+      query: 'alpha beta',
+      match: 'or',
+      perTokenLimit: 1,
+    }) as Record<string, unknown>;
+
+    expect((unbounded.topResults as Array<{ id: string }>)[0].id).toBe('pkg:alpha-beta');
+    expect((truncated.topResults as Array<{ id: string }>).map(item => item.id))
+      .not.toContain('pkg:alpha-beta');
+    expect((truncated.strategy as {
+      postingLists: { truncated: boolean; tokens: Record<string, Record<string, unknown>> };
+    }).postingLists).toEqual({
+      truncated: true,
+      tokens: {
+        alpha: expect.objectContaining({ total: 2, considered: 1, limit: 1, truncated: true }),
+        beta: expect.objectContaining({ total: 2, considered: 1, limit: 1, truncated: true }),
+      },
+    });
+  });
+});
+
 // ── semantic fusion ──
 
 describe('searchGraph semantic fusion', () => {
@@ -208,11 +269,11 @@ describe('searchGraph semantic fusion', () => {
     const rrfOnly = searchGraph(ctx, {
       query: 'zzzunknownconcept',
       semantic: [{ id: 'mod:test/formatting', score: 0 }],
-    }) as Record<string, unknown>;
+    }, { minCosine: 0, rrfWeight: 15, rrfK: 1, cosineWeight: 20 }) as Record<string, unknown>;
     const withCosine = searchGraph(ctx, {
       query: 'zzzunknownconcept',
       semantic: [{ id: 'mod:test/formatting', score: 0.75 }],
-    }) as Record<string, unknown>;
+    }, { minCosine: 0, rrfWeight: 15, rrfK: 1, cosineWeight: 20 }) as Record<string, unknown>;
     const rrfScore = (rrfOnly.topResults as Array<{ score: number }>)[0].score;
     const fusedScore = (withCosine.topResults as Array<{ score: number }>)[0].score;
     expect(fusedScore - rrfScore).toBeCloseTo(0.75 * 20, 4);
@@ -303,21 +364,53 @@ describe('searchGraph export-symbol dampening', () => {
     return g;
   }
 
-  it('dampens export symbols when they flood the top window during semantic search', () => {
+  it('dampens an export-symbol flood on a token-only search, with no embedder involved', () => {
+    // The flood is a property of the token hits, so it is dampened whether or not the optional
+    // embedder peer is installed. Gating this on semantic availability used to rank the same query
+    // on the same repository differently for two users.
     const graph = makeExportSymbolFloodGraph();
     const index = buildTokenIndex(graph, FIXTURE_ANNOTATIONS);
     const ctx = makeCtx({ graph, searchIndex: index });
-    const withoutDampen = searchGraph(ctx, { query: 'handle user authentication', maxResults: 10 }) as Record<string, unknown>;
+    const tokenOnly = searchGraph(ctx, { query: 'handle user authentication', maxResults: 10 }) as Record<string, unknown>;
+
+    expect((tokenOnly.strategy as { semantic: { used: boolean } }).semantic.used).toBe(false);
+    expect((tokenOnly.strategy as { semantic: { exportSymbolDampened?: boolean } }).semantic.exportSymbolDampened).toBe(true);
+    expect((tokenOnly.topResults as Array<{ id: string }>)[0].id).toMatch(/^domain:|^mod:/);
+  });
+
+  it('still dampens when semantic candidates are fused in', () => {
+    const graph = makeExportSymbolFloodGraph();
+    const index = buildTokenIndex(graph, FIXTURE_ANNOTATIONS);
+    const ctx = makeCtx({ graph, searchIndex: index });
     const withSemantic = searchGraph(ctx, {
       query: 'handle user authentication',
       maxResults: 10,
       semantic: [{ id: 'domain:auth', score: 0.9 }, { id: 'mod:test/session-store', score: 0.85 }],
     }) as Record<string, unknown>;
-    const tokenTop = (withoutDampen.topResults as Array<{ type: string }>)[0].type;
-    expect(tokenTop).toBe('export-symbol');
+
     expect((withSemantic.strategy as { semantic: { exportSymbolDampened?: boolean } }).semantic.exportSymbolDampened).toBe(true);
-    const semanticTop = (withSemantic.topResults as Array<{ id: string }>)[0].id;
-    expect(semanticTop).toMatch(/^domain:|^mod:/);
+    expect((withSemantic.topResults as Array<{ id: string }>)[0].id).toMatch(/^domain:|^mod:/);
+  });
+
+  it('leaves a non-flooding result set alone', () => {
+    // Restraint: dampening must fire on the flood condition, not on every query that happens to
+    // match an export symbol. Nothing measures how often a wanted symbol gets buried, so the guard
+    // is that a single export-symbol hit is untouched.
+    const graph = createEmptyGraph();
+    addNode(graph, { id: 'root', type: 'root', label: 'root', description: '' });
+    addNode(graph, { id: 'mod:test/solo', type: 'module', label: 'solo', description: '' });
+    addNode(graph, {
+      id: 'export:test/parseLedger', type: 'export-symbol', label: 'parseLedger', description: '',
+      data: { signature: 'function parseLedger(): void', symbolKind: 'function', lineRange: { start: 1, end: 2 } },
+    });
+    addEdge(graph, 'root', 'mod:test/solo', 'contains');
+    addEdge(graph, 'mod:test/solo', 'export:test/parseLedger', 'contains');
+    const ctx = makeCtx({ graph, searchIndex: buildTokenIndex(graph, FIXTURE_ANNOTATIONS) });
+
+    const result = searchGraph(ctx, { query: 'parseLedger', maxResults: 10 }) as Record<string, unknown>;
+    expect((result.strategy as { semantic: { exportSymbolDampened?: boolean } }).semantic.exportSymbolDampened)
+      .toBeUndefined();
+    expect((result.topResults as Array<{ id: string }>)[0].id).toBe('export:test/parseLedger');
   });
 
   it('applyExportSymbolDampeningIfNeeded mirrors context-quality capRatio threshold', () => {
@@ -330,7 +423,7 @@ describe('searchGraph export-symbol dampening', () => {
       linksCount: 0, matchedTokens: [], annotationMatched: false,
     });
     matches.sort((a, b) => b.score - a.score);
-    const dampened = applyExportSymbolDampeningIfNeeded(matches, true, 0.7, 10);
+    const dampened = applyExportSymbolDampeningIfNeeded(matches, 0.7, 10);
     expect(dampened).toBe(true);
     expect(matches[0].type).toBe('export-symbol');
     expect(matches[matches.length - 1].score).toBe(5);
@@ -349,7 +442,7 @@ describe('searchGraph export-symbol dampening', () => {
       });
     }
     matches.sort((a, b) => b.score - a.score);
-    expect(applyExportSymbolDampeningIfNeeded(matches, true, 0.7, 10)).toBe(true);
+    expect(applyExportSymbolDampeningIfNeeded(matches, 0.7, 10)).toBe(true);
   });
 });
 
@@ -402,6 +495,21 @@ describe('SemanticIndex', () => {
     expect(hits[0].score).toBeGreaterThan(hits[1].score);
   });
 
+  it('reports when every persisted vector has incompatible dimensions', async () => {
+    const embedder = new MockEmbedder();
+    const index = new SemanticIndex(filePathIn(dir), embedder, 8);
+    await index.sync(new Map([['a', 'auth login'], ['b', 'date format']]));
+
+    const report = index.queryDetailed(new Float32Array([1, 0, 0]), 10);
+
+    expect(report).toEqual({
+      hits: [],
+      indexed: 2,
+      compared: 0,
+      dimensionMismatches: 2,
+    });
+  });
+
   it('persists vectors and reloads them for the same embedder only', async () => {
     const embedder = new MockEmbedder();
     const index = new SemanticIndex(filePathIn(dir), embedder, 8);
@@ -447,7 +555,9 @@ describe('createEmbedder', () => {
 
   it('builds a local embedder with a fixed model id when enabled', () => {
     const local = createEmbedder(true);
-    expect(local!.id).toBe('local:Xenova/all-MiniLM-L6-v2');
+    expect(local!.id).toMatch(
+      /^local:Xenova\/all-MiniLM-L6-v2;transformers@\d+\.\d+\.\d+;dtype=fp32$/,
+    );
   });
 });
 
@@ -503,6 +613,58 @@ describe('node cards', () => {
   it('buildNodeCard is deterministic', () => {
     const node = { id: 'mod:test/x', type: 'module', label: 'x', description: 'desc' };
     expect(buildNodeCard(node, undefined, undefined)).toBe(buildNodeCard(node, undefined, undefined));
+  });
+
+  it('fits the model-window budget and preserves behavioural fields before verbose export prose', () => {
+    const stored = makeStoredAnnotation('mod:test/x', 'Short summary.', {
+      invariants: ['TAIL_ONLY_AUTHORIZATION_GUARD must hold'],
+      keyExports: Object.fromEntries(
+        Array.from({ length: 30 }, (_, index) => [
+          `verboseExport${index}`,
+          `Long descriptive export prose ${index} ${'x'.repeat(80)}`,
+        ]),
+      ),
+    });
+    const projection = buildNodeCardProjection(
+      { id: 'mod:test/x', type: 'module', label: 'x', description: '' },
+      undefined,
+      stored,
+    );
+
+    expect(projection.text.length).toBe(SEMANTIC_CARD_CHAR_BUDGET);
+    expect(projection.truncated).toBe(true);
+    expect(projection.text).toContain('TAIL_ONLY_AUTHORIZATION_GUARD');
+    expect(projection.retainedByField.invariants).toBeGreaterThan(0);
+    expect(projection.retainedAnnotationChars).toBeLessThan(projection.annotationChars);
+  });
+
+  it('keeps a behavioural phrase retrievable when verbose export prose would have pushed it past the window', async () => {
+    const stored = makeStoredAnnotation('mod:test/x', 'Short summary.', {
+      invariants: ['TAIL_ONLY_AUTHORIZATION_GUARD must hold'],
+      keyExports: Object.fromEntries(
+        Array.from({ length: 30 }, (_, index) => [
+          `verboseExport${index}`,
+          `Long descriptive export prose ${index} ${'x'.repeat(80)}`,
+        ]),
+      ),
+    });
+    const targetCard = buildNodeCard(
+      { id: 'mod:test/x', type: 'module', label: 'x', description: '' },
+      undefined,
+      stored,
+    );
+    const tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'repovine-card-tail-'));
+    try {
+      const index = new SemanticIndex(semanticIndexFilePath(tempDir), new MockEmbedder(), 8);
+      await index.sync(new Map([
+        ['mod:test/x', targetCard],
+        ['mod:test/other', 'date formatting and localization'],
+      ]));
+      const query = await index.embedQuery('authorization guard');
+      expect(index.query(query, 1)[0].id).toBe('mod:test/x');
+    } finally {
+      await fsPromises.rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('skips identifier-only nodes that carry no exports or annotation', () => {
@@ -578,10 +740,75 @@ describe('search_context handler with semantic backend', () => {
       const matches = (envelope.result as { matches: Record<string, unknown> }).matches;
       const top = (matches.topResults as Array<Record<string, unknown>>)[0];
       expect(top.id).toBe('mod:test/formatting');
-      expect((matches.strategy as { semantic: { used: boolean } }).semantic.used).toBe(true);
+      const semanticStrategy = (matches.strategy as { semantic: Record<string, unknown> }).semantic;
+      expect(semanticStrategy.used).toBe(true);
+      // The handler enriches what the ranker reported; it must not replace it. `candidates` is
+      // set by searchGraph and is the only signal saying how many nodes the fusion actually saw.
+      expect(semanticStrategy.candidates).toBeGreaterThan(0);
+      expect(semanticStrategy.minCosine).toBeDefined();
     } finally {
       await fsPromises.rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it('labels a semantic-only nearest neighbour as advisory rather than evidence of an answer', async () => {
+    const semanticIndex = {
+      size: 1,
+      embedQuery: async () => new Float32Array([1]),
+      queryDetailed: () => ({
+        hits: [{ id: 'mod:test/formatting', score: 0.91 }],
+        indexed: 1,
+        compared: 1,
+        dimensionMismatches: 0,
+      }),
+    } as unknown as RepovineState['semanticIndex'];
+    const ctx = makeCtx({ semanticIndex });
+
+    const response = await toolHandlers['search_context'](ctx, {
+      query: 'quantum payroll blockchain',
+    }) as Record<string, unknown>;
+    const result = response.result as {
+      matches: { suggestedScopes: Array<{ reason: string }> };
+      emptyDiagnostic?: unknown;
+    };
+
+    expect(response.confidence).toBe('low');
+    expect(response.summary).toContain('No token-backed match');
+    expect((response.gaps as string[]).some(gap => gap.includes('not evidence'))).toBe(true);
+    expect(result.matches.suggestedScopes[0].reason).toContain('Advisory semantic similarity');
+    expect(result.emptyDiagnostic).toBeUndefined();
+  });
+
+  it('reports an empty dimension-mismatched semantic ranking instead of silently hiding it', async () => {
+    const semanticIndex = {
+      size: 2,
+      embedQuery: async () => new Float32Array([1, 0, 0]),
+      queryDetailed: () => ({
+        hits: [],
+        indexed: 2,
+        compared: 0,
+        dimensionMismatches: 2,
+      }),
+    } as unknown as RepovineState['semanticIndex'];
+    const ctx = makeCtx({ semanticIndex });
+
+    const response = await toolHandlers['search_context'](ctx, {
+      query: 'quantum payroll blockchain',
+    }) as Record<string, unknown>;
+    const result = response.result as {
+      matches: { strategy: { semantic: Record<string, unknown> } };
+      emptyDiagnostic?: Record<string, unknown>;
+    };
+
+    expect(response.confidence).toBe('low');
+    expect(result.emptyDiagnostic).toEqual(expect.objectContaining({ reason: 'no_token_hits' }));
+    expect(result.matches.strategy.semantic).toEqual(expect.objectContaining({
+      attempted: true,
+      used: false,
+      incompatibleDimensions: true,
+      dimensionMismatches: 2,
+    }));
+    expect((response.gaps as string[]).some(gap => gap.includes('incompatible'))).toBe(true);
   });
 
   it('surfaces repository vocabulary for unknown tokens in gaps', async () => {
@@ -589,6 +816,33 @@ describe('search_context handler with semantic backend', () => {
     const envelope = await toolHandlers['search_context'](ctx, { query: 'formating' }) as Record<string, unknown>;
     const gaps = envelope.gaps as string[];
     expect(gaps.some(g => g.includes("Token 'formating' is unknown") && g.includes('formatting'))).toBe(true);
+  });
+
+  it('lowers confidence and reports posting-list truncation before global ranking', async () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: 'root', type: 'root', label: 'root', description: '' });
+    addNode(graph, { id: 'pkg:alpha-beta', type: 'package', label: 'alpha-beta', description: '' });
+    addNode(graph, { id: 'mod:test/alpha', type: 'module', label: 'alpha', description: '' });
+    addNode(graph, { id: 'mod:test/beta', type: 'module', label: 'beta', description: '' });
+    const ctx = makeCtx({ graph, searchIndex: buildTokenIndex(graph, {}) });
+
+    const response = await toolHandlers['search_context'](ctx, {
+      query: 'alpha beta',
+      match: 'or',
+      perTokenLimit: 1,
+    }) as Record<string, unknown>;
+    const result = response.result as {
+      matches: { strategy: { postingLists: { truncated: boolean } } };
+    };
+
+    expect(response.confidence).toBe('low');
+    expect(response.summary).toContain('truncated before global ranking');
+    expect((response.gaps as string[]).some(gap => (
+      gap.includes('posting lists were truncated')
+      && gap.includes('alpha (1/2)')
+      && gap.includes('beta (1/2)')
+    ))).toBe(true);
+    expect(result.matches.strategy.postingLists.truncated).toBe(true);
   });
 
   it('returns type_filter_excluded when node hits are removed by the requested type filter', async () => {
@@ -658,7 +912,12 @@ describe('search_context handler with semantic backend', () => {
     const semanticIndex = {
       size: 1,
       embedQuery: async () => { swapped = true; return new Float32Array([0, 1, 0, 0.1]); }, // swap mid-await
-      query: () => [{ id: 'mod:test/formatting', score: 0.9 }],
+      queryDetailed: () => ({
+        hits: [{ id: 'mod:test/formatting', score: 0.9 }],
+        indexed: 1,
+        compared: 1,
+        dimensionMismatches: 0,
+      }),
     } as unknown as RepovineState['semanticIndex'];
 
     const state0 = makeCtx({ graph: graph0, searchIndex: buildTokenIndex(graph0, {}), semanticIndex }).getState();

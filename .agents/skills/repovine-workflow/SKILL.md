@@ -11,13 +11,9 @@ repovine does not decide how this repository should build backend, frontend, or 
 
 ## Relationship to Subagent Orchestration
 
-This workflow scopes a repo change and verifies it after edits. Main-agent delegation policy:
+This workflow scopes a repo change and verifies it after edits.
 
-You are the **main agent**. Project leaf subagents live in client agent dirs:
-
-- Cursor: `.cursor/agents/*.md` (`@project-subagent-sample`)
-- Claude Code: `.claude/agents/*.md` (`@project-subagent-sample` or "Use the project-subagent-sample subagent")
-- Codex: `.codex/agents/*.toml` (delegate by `name`)
+You are the **main agent**. Use the active client's native agent surface for delegation.
 
 The default implementer after `repovine setup` is **project-subagent-sample**. Specialist agents are repo-owned copies of `_TEMPLATE.project-subagent.*`. Agent identity comes from frontmatter/TOML `name`, not filename.
 
@@ -110,12 +106,12 @@ Use `get_config_surface` for env/config changes and `trace_flow` for runtime dis
 6. Treat architecture reports as review candidates:
 
 ```json
-analyze_architecture({ "scope": "pkg:package-name", "mode": "report", "categories": ["boundary", "god-module"], "minConfidence": 0.6, "annotationReasoning": "on", "limit": 12 })
-analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"], "minConfidence": 0.6 })
+analyze_architecture({ "scope": "pkg:package-name", "mode": "report", "categories": ["boundary", "god-module"], "annotationReasoning": "on", "limit": 12 })
+analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"] })
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id", "maxNodes": 30 })
 ```
 
-Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise before `minConfidence` post-filtering (apply with `refresh_context({ "reloadConfig": true })`).
+Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise (apply with `refresh_context({ "reloadConfig": true })`).
 
 7. Prefer local project skills when present:
 

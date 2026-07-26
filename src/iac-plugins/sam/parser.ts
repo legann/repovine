@@ -1,5 +1,6 @@
 import type {
   IaCParser,
+  InfraAccessMode,
   InfraEnvRef,
   InfraKind,
   SemanticInfraDelta,
@@ -223,63 +224,250 @@ function extractSecretRef(
   return targetLogicalId ? { refType: 'ref', targetLogicalId } : null;
 }
 
-function logicalIdIsDynamoDbTable(logicalId: string, allResourceTypes: Map<string, string>): boolean {
-  return allResourceTypes.get(logicalId) === 'AWS::DynamoDB::Table';
+/**
+ * Resource types an IAM policy grants access to and this parser models as a runtime resource.
+ * Roles, APIs and functions are excluded: a grant names them as the subject, not the target.
+ *
+ * `AWS::KMS::Key` is absent because `samResourceKindMap` does not model KMS, so `kmsdecryptpolicy`
+ * stays unreachable until a KMS key becomes a resource node.
+ */
+const GRANT_TARGET_RESOURCE_TYPES = new Set([
+  'AWS::DynamoDB::Table',
+  'AWS::S3::Bucket',
+  'AWS::SQS::Queue',
+  'AWS::SNS::Topic',
+  'AWS::SecretsManager::Secret',
+  'AWS::SSM::Parameter',
+]);
+
+function logicalIdIsGrantTarget(logicalId: string, allResourceTypes: Map<string, string>): boolean {
+  const type = allResourceTypes.get(logicalId);
+  return type !== undefined && GRANT_TARGET_RESOURCE_TYPES.has(type);
 }
 
 function looksLikeResourceReferenceAlias(logicalId: string): boolean {
   return /(TableName|TableArn|QueueUrl|QueueArn|TopicArn|FunctionName|FunctionArn)$/.test(logicalId);
 }
 
-function collectDynamoTableRefsInValue(
+/**
+ * Logical ids a scalar can name. `CLOUDFORMATION_SAFE_SCHEMA` collapses CFN short tags to their
+ * payload, so `!GetAtt Table.Arn` arrives as `"Table.Arn"` and `!Sub "${Table.Arn}"` as the body.
+ */
+function logicalIdCandidatesFromString(value: string): string[] {
+  const out = [value];
+  const dot = value.indexOf('.');
+  if (dot > 0) out.push(value.slice(0, dot));
+  const subRefRe = /\$\{([^}]+)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = subRefRe.exec(value)) !== null) out.push(match[1].trim().split('.')[0]);
+  return out;
+}
+
+function collectGrantTargetsInValue(
   node: unknown,
   allResourceTypes: Map<string, string>,
   out: Set<string>,
 ): void {
   if (node === null || node === undefined) return;
   if (typeof node === 'string') {
-    if (logicalIdIsDynamoDbTable(node, allResourceTypes)) out.add(node);
+    for (const candidate of logicalIdCandidatesFromString(node)) {
+      if (logicalIdIsGrantTarget(candidate, allResourceTypes)) out.add(candidate);
+    }
     return;
   }
   if (Array.isArray(node)) {
-    for (const x of node) collectDynamoTableRefsInValue(x, allResourceTypes, out);
+    for (const x of node) collectGrantTargetsInValue(x, allResourceTypes, out);
     return;
   }
   if (typeof node !== 'object') return;
   const o = node as Record<string, unknown>;
-  if ('Ref' in o && typeof o.Ref === 'string' && logicalIdIsDynamoDbTable(o.Ref, allResourceTypes)) {
+  if ('Ref' in o && typeof o.Ref === 'string' && logicalIdIsGrantTarget(o.Ref, allResourceTypes)) {
     out.add(o.Ref);
   }
   if ('Fn::GetAtt' in o) {
     const ga = o['Fn::GetAtt'];
     const first = Array.isArray(ga) && typeof ga[0] === 'string' ? ga[0]
       : typeof ga === 'string' ? ga.split('.')[0] : undefined;
-    if (first && logicalIdIsDynamoDbTable(first, allResourceTypes)) out.add(first);
+    if (first && logicalIdIsGrantTarget(first, allResourceTypes)) out.add(first);
   }
-  for (const v of Object.values(o)) collectDynamoTableRefsInValue(v, allResourceTypes, out);
+  for (const v of Object.values(o)) collectGrantTargetsInValue(v, allResourceTypes, out);
 }
 
-function appendDynamoRefsFromLambdaPolicies(
-  policies: unknown,
-  policyIdToTables: Map<string, string[]>,
+/**
+ * SAM policy templates name their access in the template id. The engine maps the id to a mode so a
+ * `DynamoDBReadPolicy` grant is reported as read even though the expanded actions never appear in
+ * the template file.
+ */
+const SAM_POLICY_TEMPLATE_ACCESS: Record<string, InfraAccessMode> = {
+  dynamodbreadpolicy: 'read',
+  dynamodbstreamreadpolicy: 'read',
+  dynamodbwritepolicy: 'write',
+  dynamodbcrudpolicy: 'read-write',
+  dynamodbrestorepolicy: 'write',
+  dynamodbreconfigurepolicy: 'write',
+  s3readpolicy: 'read',
+  s3writepolicy: 'write',
+  s3crudpolicy: 'read-write',
+  sqspollerpolicy: 'read',
+  sqssendmessagepolicy: 'write',
+  snspublishmessagepolicy: 'write',
+  kmsdecryptpolicy: 'read',
+  ssmparameterreadpolicy: 'read',
+  secretsmanagergetsecretvaluepolicy: 'read',
+};
+
+/** Action verb prefixes that only observe state. Checked before the write list. */
+const READ_ACTION_PREFIXES = [
+  'batchget', 'get', 'list', 'describe', 'query', 'scan', 'head', 'read', 'select', 'view',
+  'conditioncheck', 'receive', 'peek', 'poll', 'search', 'lookup',
+];
+
+/** Action verb prefixes that change state. */
+const WRITE_ACTION_PREFIXES = [
+  'batchwrite', 'put', 'post', 'update', 'delete', 'create', 'write', 'send', 'publish', 'invoke',
+  'set', 'add', 'remove', 'modify', 'tag', 'untag', 'purge', 'import', 'restore', 'upload',
+  'abort', 'complete', 'copy', 'start', 'stop', 'enable', 'disable', 'attach', 'detach',
+];
+
+/** Read plus write is read-write; an unknown side leaves the known one standing. */
+function mergeAccess(a: InfraAccessMode | undefined, b: InfraAccessMode | undefined): InfraAccessMode | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return a === b ? a : 'read-write';
+}
+
+/** Access one IAM action grants: `dynamodb:GetItem` → read, `dynamodb:*` → read-write. */
+function accessForIamAction(action: string): InfraAccessMode | undefined {
+  const colon = action.indexOf(':');
+  const verb = (colon >= 0 ? action.slice(colon + 1) : action).trim().toLowerCase();
+  if (verb === '' || verb === '*') return 'read-write';
+  const stem = verb.replace(/\*+$/, '');
+  if (READ_ACTION_PREFIXES.some(prefix => stem.startsWith(prefix))) return 'read';
+  if (WRITE_ACTION_PREFIXES.some(prefix => stem.startsWith(prefix))) return 'write';
+  return undefined;
+}
+
+function statementList(document: unknown): Record<string, unknown>[] {
+  if (!document || typeof document !== 'object' || Array.isArray(document)) return [];
+  const raw = (document as Record<string, unknown>).Statement;
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return list.filter((s): s is Record<string, unknown> => !!s && typeof s === 'object' && !Array.isArray(s));
+}
+
+function accessForStatement(statement: Record<string, unknown>): InfraAccessMode | undefined {
+  const raw = statement.Action;
+  const actions = (Array.isArray(raw) ? raw : [raw]).filter((a): a is string => typeof a === 'string');
+  let access: InfraAccessMode | undefined;
+  for (const action of actions) access = mergeAccess(access, accessForIamAction(action));
+  return access;
+}
+
+/**
+ * Read a policy document's `Statement` list into per-target grants. `Deny` statements are skipped:
+ * they subtract, and a subtraction the engine cannot evaluate must not widen a reported grant.
+ * Returns false when the value carries no statement list, so the caller can try other shapes.
+ */
+function collectGrantsFromPolicyDocument(
+  document: unknown,
   allResourceTypes: Map<string, string>,
+  out: Map<string, InfraAccessMode | undefined>,
+): boolean {
+  const statements = statementList(document);
+  if (statements.length === 0) return false;
+  for (const statement of statements) {
+    if (typeof statement.Effect === 'string' && statement.Effect.toLowerCase() === 'deny') continue;
+    const access = accessForStatement(statement);
+    const targets = new Set<string>();
+    collectGrantTargetsInValue(statement.Resource, allResourceTypes, targets);
+    // A statement may name its target through Condition keys or Fn::Sub bodies rather than
+    // Resource; widen to the whole statement only when Resource itself named nothing.
+    if (targets.size === 0) collectGrantTargetsInValue(statement, allResourceTypes, targets);
+    for (const target of targets) out.set(target, mergeAccess(out.get(target), access));
+  }
+  return true;
+}
+
+/**
+ * Logical id a `Policies` entry names. Both the object form `{ Ref: X }` and the bare scalar that
+ * `!Ref X` collapses to reach here; a scalar naming something other than a managed policy simply
+ * finds no document.
+ */
+function managedPolicyReference(policy: unknown): string | undefined {
+  if (typeof policy === 'string') return policy;
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) return undefined;
+  const ref = (policy as Record<string, unknown>).Ref;
+  return typeof ref === 'string' ? ref : undefined;
+}
+
+/** Access declared by a SAM policy-template entry, keyed by the template id it uses. */
+function samPolicyTemplateAccess(policy: unknown): InfraAccessMode | undefined {
+  if (typeof policy === 'string') return SAM_POLICY_TEMPLATE_ACCESS[policy.toLowerCase()];
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) return undefined;
+  let access: InfraAccessMode | undefined;
+  for (const key of Object.keys(policy as Record<string, unknown>)) {
+    access = mergeAccess(access, SAM_POLICY_TEMPLATE_ACCESS[key.toLowerCase()]);
+  }
+  return access;
+}
+
+/**
+ * Grants a Lambda's `Policies` list hands to DynamoDB tables, as target → access. A target with an
+ * `undefined` value was granted by a shape whose verb the engine could not read; the key is still
+ * present, so the binding is reported with the access left unread.
+ */
+function collectPolicyGrants(
+  policies: unknown,
+  managedPolicyDocuments: Map<string, unknown>,
+  allResourceTypes: Map<string, string>,
+): Map<string, InfraAccessMode | undefined> {
+  const out = new Map<string, InfraAccessMode | undefined>();
+  if (!Array.isArray(policies)) return out;
+
+  for (const policy of policies) {
+    // Inline policy document: statements carry both the target and the verb.
+    if (collectGrantsFromPolicyDocument(policy, allResourceTypes, out)) continue;
+
+    // `!Ref SomeManagedPolicy`: the statements live on the referenced resource.
+    const managedPolicyId = managedPolicyReference(policy);
+    if (managedPolicyId !== undefined
+      && collectGrantsFromPolicyDocument(managedPolicyDocuments.get(managedPolicyId), allResourceTypes, out)) {
+      continue;
+    }
+
+    // SAM policy template (`{ DynamoDBCrudPolicy: { TableName: !Ref Table } }`) or an
+    // unrecognized shape: the target still resolves, the verb only when the template is known.
+    const templateAccess = samPolicyTemplateAccess(policy);
+    const targets = new Set<string>();
+    collectGrantTargetsInValue(policy, allResourceTypes, targets);
+    for (const target of targets) out.set(target, mergeAccess(out.get(target), templateAccess));
+  }
+  return out;
+}
+
+/**
+ * Stamp parsed grants onto the env refs that already name the target, then add one ref per
+ * grant-only target. A target named by both an env var and a policy keeps its single ref and gains
+ * the access — the grant is the same fact whichever way the template surfaced the id.
+ */
+function applyPolicyGrantsToEnvRefs(
+  grants: Map<string, InfraAccessMode | undefined>,
   envRefs: InfraEnvRef[],
-  seenTableIds: Set<string>,
 ): void {
-  if (!Array.isArray(policies)) return;
-  for (const pol of policies) {
-    const fromPol = new Set<string>();
-    collectDynamoTableRefsInValue(pol, allResourceTypes, fromPol);
-    if (pol && typeof pol === 'object' && 'Ref' in pol && typeof (pol as { Ref: unknown }).Ref === 'string') {
-      const pid = (pol as { Ref: string }).Ref;
-      const extra = policyIdToTables.get(pid);
-      if (extra) for (const t of extra) fromPol.add(t);
-    }
-    for (const tid of fromPol) {
-      if (seenTableIds.has(tid)) continue;
-      seenTableIds.add(tid);
-      envRefs.push({ varName: `iamPolicy:${tid}`, refType: 'ref', targetLogicalId: tid });
-    }
+  const alreadyReferenced = new Set<string>();
+  for (const ref of envRefs) {
+    if (!ref.targetLogicalId || !grants.has(ref.targetLogicalId)) continue;
+    alreadyReferenced.add(ref.targetLogicalId);
+    const access = grants.get(ref.targetLogicalId);
+    if (access) ref.access = access;
+  }
+  for (const [targetLogicalId, access] of grants) {
+    if (alreadyReferenced.has(targetLogicalId)) continue;
+    envRefs.push({
+      varName: `iamPolicy:${targetLogicalId}`,
+      refType: 'ref',
+      targetLogicalId,
+      ...(access ? { access } : {}),
+    });
   }
 }
 
@@ -570,14 +758,12 @@ export const samParser: IaCParser = {
         allResourceTypes.set(logicalId, type);
       }
 
-      const policyIdToTables = new Map<string, string[]>();
+      const managedPolicyDocuments = new Map<string, unknown>();
       for (const [logicalId, res] of Object.entries(root.Resources)) {
         const type = (res?.Type as string) ?? 'other';
         if (type !== 'AWS::IAM::ManagedPolicy') continue;
         const mpProps = (res?.Properties ?? {}) as Record<string, unknown>;
-        const set = new Set<string>();
-        collectDynamoTableRefsInValue(mpProps.PolicyDocument, allResourceTypes, set);
-        if (set.size > 0) policyIdToTables.set(logicalId, [...set].sort());
+        managedPolicyDocuments.set(logicalId, mpProps.PolicyDocument);
       }
 
       const standaloneTriggers = collectStandaloneTriggers(root.Resources, allResourceTypes);
@@ -614,15 +800,9 @@ export const samParser: IaCParser = {
         }
 
         if (kind === 'lambda') {
-          const seenTableIds = new Set(
-            envRefs.map(r => r.targetLogicalId).filter((x): x is string => Boolean(x)),
-          );
-          appendDynamoRefsFromLambdaPolicies(
-            props.Policies,
-            policyIdToTables,
-            allResourceTypes,
+          applyPolicyGrantsToEnvRefs(
+            collectPolicyGrants(props.Policies, managedPolicyDocuments, allResourceTypes),
             envRefs,
-            seenTableIds,
           );
         }
 

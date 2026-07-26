@@ -1,5 +1,9 @@
 import type { RepositoryFactsSnapshot, RepositoryGraph, ModuleInfo } from '../types.js';
 import { loadDomainsConfig, type DomainsConfig } from './domains-schema.js';
+// Side-effect import: the built-in source plugins must be registered before this module asks the
+// registry which extensions to strip, so a Python path reduces the same way a TypeScript one does.
+import '../stage1/source/bootstrap.js';
+import { stripSourceExtension } from '../stage1/source/registry.js';
 
 export { DOMAINS_CONFIG_MERGE_STRATEGY, DomainsConfigSchema, compileGlob, loadDomainsConfig, type DomainsConfig, type GlobMatcher } from './domains-schema.js';
 
@@ -133,7 +137,7 @@ export function splitBasename(basename: string): { stem: string; suffix?: string
  * e.g. "src/auth/session-manager.ts" → ["auth"], "shared/oauth/client.ts" → ["oauth"]
  */
 export function getPathBasedDomains(relativeFilePath: string, extraStructural?: Set<string>): string[] {
-  const withoutExt = relativeFilePath.replace(/\.(tsx?|jsx?|mts|cts|vue|svelte)$/i, '');
+  const withoutExt = stripSourceExtension(relativeFilePath);
   const allSegments = withoutExt.split(/[/\\]/).filter(Boolean);
   // Drop the basename — only directory segments become domains.
   const dirSegments = allSegments.slice(0, -1);
@@ -153,7 +157,8 @@ export function getPathBasedDomains(relativeFilePath: string, extraStructural?: 
 /**
  * Decide whether the basename of a file should be a domain candidate, and what its label is.
  *
- * Universal JS/TS heuristic (no framework-specific rules):
+ * Universal basename heuristic (no framework-specific rules). The extension comes off through the
+ * registered source plugins, so `main.py` and `main.ts` reach the same verdict:
  * - PascalCase / contains uppercase → reject (React component, class file).
  * - Reserved basename (`index`, `main`, `app`, ...) → reject.
  * - Starts with `_` → reject (Next.js `_app`, `_document`, private).
@@ -188,7 +193,7 @@ export function evaluateBasenameCandidate(
   packageName?: string,
   options?: EvaluateBasenameOptions,
 ): BasenameDecision {
-  const withoutExt = relativeFilePath.replace(/\.(tsx?|jsx?|mts|cts|vue|svelte)$/i, '');
+  const withoutExt = stripSourceExtension(relativeFilePath);
   const segments = withoutExt.split(/[/\\]/).filter(Boolean);
   if (segments.length === 0) return { rejected: true, highConfidence: false };
   const basename = segments[segments.length - 1];
@@ -396,12 +401,15 @@ function labelPropagation(
 }
 
 /**
- * Name a cluster by the most common non-structural path segment among its modules.
+ * Name a cluster by the most common non-structural path segment among its modules. Returns
+ * undefined when every member sits under structural directories only: a cluster whose members
+ * share no path segment has no name in the tree, and inventing one puts a label in the graph that
+ * matches nothing in the repository.
  */
 function nameCluster(
   modIds: string[],
   modulesById: Map<string, ModuleInfo>,
-): string {
+): string | undefined {
   const segmentCounts = new Map<string, number>();
   for (const modId of modIds) {
     const mod = modulesById.get(modId);
@@ -411,7 +419,7 @@ function nameCluster(
       segmentCounts.set(d, (segmentCounts.get(d) ?? 0) + 1);
     }
   }
-  let best = 'cluster';
+  let best: string | undefined;
   let bestCount = 0;
   for (const [seg, c] of segmentCounts) {
     if (c > bestCount) { bestCount = c; best = seg; }
@@ -441,6 +449,7 @@ export function getClusterDomains(
   const modToDomain = new Map<string, string>();
   for (const [, modIdsInCluster] of clusterToMods) {
     const domainName = nameCluster(modIdsInCluster, modulesById);
+    if (!domainName) continue;
     for (const id of modIdsInCluster) {
       modToDomain.set(id, domainName);
     }
@@ -584,7 +593,7 @@ export function collectAllDomainTags(
     });
     if (override === 'include') {
       // Force basename to be a domain regardless of heuristic verdict.
-      const withoutExt = mod.relativeFilePath.replace(/\.(tsx?|jsx?|mts|cts|vue|svelte)$/i, '');
+      const withoutExt = stripSourceExtension(mod.relativeFilePath);
       const basename = withoutExt.split(/[/\\]/).filter(Boolean).pop() ?? '';
       const { stem, suffix } = splitBasename(basename);
       const label = suffix && DOMAIN_SUFFIXES.has(suffix) ? stem : basename;

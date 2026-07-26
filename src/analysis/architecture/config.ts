@@ -145,6 +145,12 @@ export interface RefactoringThresholds {
     /** Require at least one syntactic authz signal in the group. */
     requireAuthzSignal: boolean;
   };
+  /**
+   * `isTrustBoundaryModule` admits a module on its directory name alone (`api/`, `routes/`,
+   * `handlers/`, …). With `requireRouteOrSideEffect: false` the evidence score then clears its floor
+   * on the mere existence of exports, so the finding rests on the path and nothing else. Requiring a
+   * route, a side effect or an authz signal is what makes it evidence-led rather than name-led.
+   */
   trustBoundaryValidation: {
     /** Min composite evidence score before emitting a missing-validation finding. */
     minEvidenceScore: number;
@@ -225,7 +231,7 @@ export const STRICTNESS_PROFILES: Record<RefactoringStrictness, RefactoringThres
     unclearArchitecture:  { minDomainTags: 3 },
     secretConfigBoundary: { minEvidenceScore: 1, flagGenericPublicAuthEnv: true },
     authorizationPolicyDrift: { minModules: 2, minFeatureGroups: 2, allowGeneralSubject: true, requireAuthzSignal: false },
-    trustBoundaryValidation: { minEvidenceScore: 1, requireRouteOrSideEffect: false },
+    trustBoundaryValidation: { minEvidenceScore: 1, requireRouteOrSideEffect: true },
     privilegedClientSideEffect: { minEvidenceScore: 1, includeMutationOnly: true, allowGenericStorageName: true },
     sensitiveBrowserStorage: { requireSensitiveKey: false, minAnnotationStorageSignals: 1 },
     serverClientBoundary: { minTargets: 1, allowGenericStorageName: true },
@@ -261,7 +267,7 @@ export const STRICTNESS_PROFILES: Record<RefactoringStrictness, RefactoringThres
     unclearArchitecture:  { minDomainTags: 5 },
     secretConfigBoundary: { minEvidenceScore: 1, flagGenericPublicAuthEnv: true },
     authorizationPolicyDrift: { minModules: 2, minFeatureGroups: 2, allowGeneralSubject: true, requireAuthzSignal: false },
-    trustBoundaryValidation: { minEvidenceScore: 1, requireRouteOrSideEffect: false },
+    trustBoundaryValidation: { minEvidenceScore: 1, requireRouteOrSideEffect: true },
     privilegedClientSideEffect: { minEvidenceScore: 1, includeMutationOnly: true, allowGenericStorageName: true },
     sensitiveBrowserStorage: { requireSensitiveKey: false, minAnnotationStorageSignals: 1 },
     serverClientBoundary: { minTargets: 1, allowGenericStorageName: true },

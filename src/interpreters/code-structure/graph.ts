@@ -109,6 +109,7 @@ function pass3ExportSymbols(graph: RepositoryGraph, snapshot: RepositoryFactsSna
           fields: exp.fields,
           implementsInterfaces: exp.implementsInterfaces,
           calls: exp.calls,
+          callsTotal: exp.callsTotal,
           privateMembers: exp.privateMembers,
           internals: exp.internals,
           lineRange: exp.lineRange,

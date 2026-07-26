@@ -81,6 +81,45 @@ export function getKnownExtensions(): string[] {
   return [...exts];
 }
 
+/**
+ * Suffixes to strip when a path is reduced to a module name: the extensions plugins own plus the
+ * suffixes they declare for module-id normalization. Sorted longest-first so a compound suffix
+ * (`.d.ts`) strips whole instead of leaving a `.d` tail.
+ */
+export function getSourceStripSuffixes(): string[] {
+  const suffixes = new Set<string>();
+  for (const p of plugins) {
+    for (const ext of p.capabilities?.extensions ?? []) suffixes.add(ext.toLowerCase());
+    for (const suffix of p.capabilities?.moduleIdNormalize?.stripSuffixes ?? []) suffixes.add(suffix.toLowerCase());
+  }
+  return [...suffixes].sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Basenames registered plugins declare as package/module markers (`index`, `__init__`). The name
+ * marks a slot in the ecosystem's layout, so it carries no responsibility of its own.
+ */
+export function getSourceIndexBasenames(): string[] {
+  const names = new Set<string>();
+  for (const p of plugins) {
+    for (const name of p.capabilities?.moduleIdNormalize?.indexBasenames ?? []) names.add(name.toLowerCase());
+  }
+  return [...names];
+}
+
+/**
+ * Strip a registered source extension from a path or basename. Language-agnostic by construction:
+ * every ecosystem is stripped by what its own plugin declares, so `main.py` reduces the same way
+ * `main.ts` does and a name-derived label never carries an extension.
+ */
+export function stripSourceExtension(value: string): string {
+  const lower = value.toLowerCase();
+  for (const suffix of getSourceStripSuffixes()) {
+    if (lower.endsWith(suffix)) return value.slice(0, -suffix.length);
+  }
+  return value;
+}
+
 /** True when the module's owning plugin produces frontend surfaces. `undefined` id → true: a module
  *  with no source plugin is treated as frontend-capable, preserving module-kind's legacy
  *  `sourcePluginId === undefined` (TS-default) branch. */

@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 34,
-    "totalEdges": 48,
+    "totalNodes": 33,
+    "totalEdges": 43,
     "nodesByType": {
-      "domain": 12,
+      "domain": 11,
       "export-symbol": 7,
       "module": 10,
       "package": 4,
@@ -11,7 +11,7 @@
     },
     "edgesByKind": {
       "contains": 21,
-      "tagged": 27
+      "tagged": 22
     }
   },
   "byType": {
@@ -20,7 +20,6 @@
       "domain:client-react",
       "domain:useauth",
       "domain:authcontext",
-      "domain:cluster",
       "domain:siteheader",
       "domain:auth-handler",
       "domain:lambda-functions",
@@ -109,16 +108,6 @@
       "data": {
         "weight": "heavy",
         "tier": "feature"
-      }
-    },
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "heavy",
-        "tier": "business"
       }
     },
     {
@@ -510,17 +499,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:lambda-functions",
       "links": [],
       "children": [],
@@ -807,11 +785,6 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:siteheader",
           "kind": "tagged",
           "tagSource": "path"
@@ -835,10 +808,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:siteheader",
             "kind": "tagged"
           }
@@ -853,11 +822,6 @@
           "to": "domain:client-react",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -869,10 +833,6 @@
           {
             "to": "domain:client-react",
             "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
           }
         ],
         "sourcePluginId": "typescript"
@@ -881,11 +841,6 @@
     {
       "id": "mod:@hybrid/lambda-functions/src/auth-handler",
       "links": [
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
         {
           "to": "domain:auth-handler",
           "kind": "tagged",
@@ -911,10 +866,6 @@
         ],
         "links": [
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:auth-handler",
             "kind": "tagged"
           },
@@ -929,11 +880,6 @@
     {
       "id": "mod:@hybrid/lambda-functions/src/users-handler",
       "links": [
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
         {
           "to": "domain:users-handler",
           "kind": "tagged",
@@ -958,10 +904,6 @@
           }
         ],
         "links": [
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
           {
             "to": "domain:users-handler",
             "kind": "tagged"
@@ -1063,11 +1005,6 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:basebutton",
           "kind": "tagged",
           "tagSource": "path"
@@ -1081,10 +1018,6 @@
         "links": [
           {
             "to": "domain:vue-shared",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           },
           {

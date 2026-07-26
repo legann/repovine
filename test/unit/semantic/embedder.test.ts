@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import {
   createEmbedder,
   importTransformersFromWorkspace,
+  localEmbedderId,
   resolveModelCacheDir,
   resolveTransformersFromWorkspace,
   __setTransformersModuleForTest,
@@ -57,6 +58,14 @@ describe('LocalTransformersEmbedder module-scoped inference', () => {
 
     expect(maxActiveInference).toBe(1); // shared serializer → inference never overlaps across generations
     expect(pipelineCreations).toBe(1); // shared per-model memo → the model loads once, not once per instance
+  });
+});
+
+describe('embedder cache identity', () => {
+  it('includes the resolved transformers runtime and dtype', () => {
+    expect(localEmbedderId('Xenova/all-MiniLM-L6-v2', process.cwd())).toMatch(
+      /^local:Xenova\/all-MiniLM-L6-v2;transformers@\d+\.\d+\.\d+;dtype=fp32$/,
+    );
   });
 });
 

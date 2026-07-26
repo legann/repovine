@@ -1,7 +1,7 @@
 {
   "_description": "K8s CronJob: scheduled workload container image links to in-repo Dockerfile.",
   "heavyDomains": ["infra-dockerfile", "infra-k8s"],
-  "lightweightDomains": ["cluster", "job", "k8s-cronjob-fixture"],
+  "lightweightDomains": ["job", "k8s-cronjob-fixture"],
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "Dockerfile", "kind": "other", "provider": "generic" },

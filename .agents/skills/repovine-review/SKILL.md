@@ -105,7 +105,6 @@ analyze_architecture({
   "scope": "pkg:package-name",
   "mode": "report",
   "categories": ["boundary", "god-module"],
-  "minConfidence": 0.6,
   "annotationReasoning": "on",
   "limit": 12
 })
@@ -186,4 +185,4 @@ Lead with findings, ordered by severity, with file/line or graph node references
 - whether the review was delegated to `repovine-code-reviewer`
 - whether an architecture audit was delegated to `repovine-architecture-auditor`
 
-Never claim review completeness; report what was checked and what remains uncertain. Do not present `analyze_architecture` findings as proof; say what was verified and what remains a hypothesis. `minConfidence` is a post-filter. Detector behavior is configured by `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json`.
+Never claim review completeness; report what was checked and what remains uncertain. Do not present `analyze_architecture` findings as proof; say what was verified and what remains a hypothesis. Detector behavior is configured by `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json`.

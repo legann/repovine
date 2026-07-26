@@ -1,0 +1,27 @@
+{
+  "_description": "TanStack Router: createRootRoute defines the root layout, while createRoute/createFileRoute define public entrypoints. Dollar and brace syntax is preserved in route paths.",
+  "heavyDomains": ["routing", "tanstack-router-fixture"],
+  "lightweightDomains": ["admin", "files", "postid", "posts", "routetree"],
+  "rejectedAsDomain": ["Route"],
+  "modulesInDomain": {
+    "admin": ["src/routes/admin/users.tsx"],
+    "files": ["src/routes/files/$.tsx"],
+    "posts": ["src/routes/posts/$postId.tsx", "src/routes/posts/{-$category}.tsx"],
+    "routetree": ["src/routeTree.tsx"]
+  },
+  "entrypoints": [
+    { "path": "/admin/users", "kind": "page", "layer": "frontend" },
+    { "path": "/settings", "kind": "route", "layer": "frontend" }
+  ],
+  "entrypointEdgeCases": {
+    "dynamic-segment": [
+      { "path": "/posts/$postId", "kind": "page", "layer": "frontend" }
+    ],
+    "splat-segment": [
+      { "path": "/files/$", "kind": "page", "layer": "frontend" }
+    ],
+    "optional-segment": [
+      { "path": "/posts/{-$category}", "kind": "page", "layer": "frontend" }
+    ]
+  }
+}

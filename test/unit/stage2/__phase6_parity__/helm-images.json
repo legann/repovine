@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 16,
-    "totalEdges": 23,
+    "totalNodes": 15,
+    "totalEdges": 22,
     "nodesByType": {
-      "domain": 5,
+      "domain": 4,
       "export-symbol": 1,
       "module": 4,
       "package": 1,
@@ -13,7 +13,7 @@
     "edgesByKind": {
       "contains": 10,
       "infra": 1,
-      "tagged": 11,
+      "tagged": 10,
       "uses_env": 1
     }
   },
@@ -22,8 +22,7 @@
       "domain:infra-helm",
       "domain:infra-dockerfile",
       "domain:placeholder",
-      "domain:helm-images-fixture",
-      "domain:cluster"
+      "domain:helm-images-fixture"
     ],
     "export-symbol": [
       "export:helm-images-fixture/src/placeholder/placeholder"
@@ -48,16 +47,6 @@
     ]
   },
   "nodes": [
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
     {
       "id": "domain:helm-images-fixture",
       "type": "domain",
@@ -177,7 +166,10 @@
         ],
         "contentHash": "d7589dce6277fa7b",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/values.yaml"
+        ]
       }
     },
     {
@@ -188,7 +180,10 @@
       "data": {
         "contentHash": "2ee90219437b686a",
         "kind": "helm-release",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/Chart.yaml"
+        ]
       }
     },
     {
@@ -199,7 +194,10 @@
       "data": {
         "contentHash": "717f3948ae501ee7",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/Dockerfile"
+        ]
       }
     },
     {
@@ -210,7 +208,10 @@
       "data": {
         "contentHash": "c9c591c9e3a07274",
         "kind": "secret",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/values.yaml"
+        ]
       }
     },
     {
@@ -222,17 +223,6 @@
     }
   ],
   "links": [
-    {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
     {
       "id": "domain:helm-images-fixture",
       "links": [],
@@ -389,11 +379,6 @@
           "to": "domain:helm-images-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -415,10 +400,6 @@
           },
           {
             "to": "domain:helm-images-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

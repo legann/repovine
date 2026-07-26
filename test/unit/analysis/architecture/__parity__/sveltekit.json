@@ -1,7 +1,7 @@
 {
   "scope": "all",
-  "totalFindings": 8,
-  "returnedFindings": 8,
+  "totalFindings": 1,
+  "returnedFindings": 1,
   "summary": {
     "duplicate-like": 0,
     "boundary": 0,
@@ -21,7 +21,7 @@
     "event-driven-boundary": 0,
     "secret-config-boundary": 0,
     "authorization-policy-drift": 0,
-    "trust-boundary-validation": 8,
+    "trust-boundary-validation": 1,
     "privileged-client-side-effect": 0,
     "sensitive-browser-storage": 0,
     "server-client-boundary": 0,
@@ -44,132 +44,6 @@
       "evidence": [
         "Trust-boundary path or export: src/routes/api/users/+server.ts",
         "1 API route marker(s)",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:sveltekit-fixture/src/lib/server/auth",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:sveltekit-fixture/src/lib/server/auth"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/lib/server/auth.ts",
-        "Exports: checkAuth",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:sveltekit-fixture/src/lib/server/db",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:sveltekit-fixture/src/lib/server/db"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/lib/server/db.ts",
-        "Exports: connect",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:sveltekit-fixture/src/routes/+layout",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:sveltekit-fixture/src/routes/+layout"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/routes/+layout.ts",
-        "Exports: load",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:sveltekit-fixture/src/routes/+page",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:sveltekit-fixture/src/routes/+page"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/routes/+page.ts",
-        "Exports: load",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:sveltekit-fixture/src/routes/blog/[slug]/+page"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/routes/blog/[slug]/+page.ts",
-        "Exports: load",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:sveltekit-fixture/src/routes/dashboard/+page.server",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:sveltekit-fixture/src/routes/dashboard/+page.server"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/routes/dashboard/+page.server.ts",
-        "Exports: actions",
-        "No direct schema/validator/guard import or validation call was detected",
-        "No mutation/runtime side-effect hint detected"
-      ],
-      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
-    },
-    {
-      "id": "trust-boundary-validation:mod:sveltekit-fixture/src/routes/dashboard/+page",
-      "category": "trust-boundary-validation",
-      "confidence": 0.58,
-      "severity": "low",
-      "impact": "medium",
-      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
-      "nodes": [
-        "mod:sveltekit-fixture/src/routes/dashboard/+page"
-      ],
-      "evidence": [
-        "Trust-boundary path or export: src/routes/dashboard/+page.ts",
-        "Exports: load",
         "No direct schema/validator/guard import or validation call was detected",
         "No mutation/runtime side-effect hint detected"
       ],

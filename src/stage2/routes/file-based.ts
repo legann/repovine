@@ -5,6 +5,7 @@ export interface FileBasedRoute {
   framework: string;
   moduleId: string;
   fileType: string;
+  method?: string;
 }
 
 /**
@@ -19,7 +20,13 @@ export function inferFileBasedRoutes(snapshot: Pick<RepositoryFactsSnapshot, 'mo
   for (const mod of snapshot.modules) {
     for (const route of mod.semanticHints?.routes ?? []) {
       if (route.source !== 'file' || !route.framework || !route.fileType) continue;
-      out.push({ path: route.path, framework: route.framework, moduleId: mod.id, fileType: route.fileType });
+      out.push({
+        path: route.path,
+        framework: route.framework,
+        moduleId: mod.id,
+        fileType: route.fileType,
+        ...(route.method ? { method: route.method } : {}),
+      });
     }
   }
   return out;

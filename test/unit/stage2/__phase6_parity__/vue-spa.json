@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 25,
-    "totalEdges": 41,
+    "totalNodes": 24,
+    "totalEdges": 35,
     "nodesByType": {
-      "domain": 10,
+      "domain": 9,
       "export-symbol": 4,
       "module": 9,
       "package": 1,
@@ -12,7 +12,7 @@
     "edgesByKind": {
       "contains": 14,
       "imports": 2,
-      "tagged": 25
+      "tagged": 19
     }
   },
   "byType": {
@@ -20,7 +20,6 @@
       "domain:vue-spa-fixture",
       "domain:users",
       "domain:useauth",
-      "domain:cluster",
       "domain:usetheme",
       "domain:cart",
       "domain:user",
@@ -71,16 +70,6 @@
       "data": {
         "weight": "lightweight",
         "tier": "technical"
-      }
-    },
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "heavy",
-        "tier": "feature"
       }
     },
     {
@@ -362,17 +351,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:useauth",
       "links": [],
       "children": [],
@@ -500,11 +478,6 @@
           "to": "domain:vue-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -515,10 +488,6 @@
         "links": [
           {
             "to": "domain:vue-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -534,11 +503,6 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:basebutton",
           "kind": "tagged",
           "tagSource": "path"
@@ -552,10 +516,6 @@
         "links": [
           {
             "to": "domain:vue-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           },
           {
@@ -575,11 +535,6 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:usercard",
           "kind": "tagged",
           "tagSource": "path"
@@ -593,10 +548,6 @@
         "links": [
           {
             "to": "domain:vue-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           },
           {
@@ -672,11 +623,6 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:usetheme",
           "kind": "tagged",
           "tagSource": "path"
@@ -700,10 +646,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:usetheme",
             "kind": "tagged"
           }
@@ -718,11 +660,6 @@
           "to": "domain:vue-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -733,10 +670,6 @@
         "links": [
           {
             "to": "domain:vue-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -750,11 +683,6 @@
           "to": "domain:vue-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:cart",
@@ -777,10 +705,6 @@
         "links": [
           {
             "to": "domain:vue-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           },
           {

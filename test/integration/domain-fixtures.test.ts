@@ -36,6 +36,8 @@ interface ExpectedDomains {
   runtimeResourceNodes?: Array<{ label: string; kind?: string; k8sKind?: string; provider?: string }>;
   /** Execution entrypoints the fixture must surface (get_entrypoints contract): routes/apis with layer + method. */
   entrypoints?: Array<{ path: string; kind: string; layer: string; method?: string }>;
+  /** Named documentation-derived edge-case groups, kept distinct in the fixture oracle. */
+  entrypointEdgeCases?: Record<string, Array<{ path: string; kind: string; layer: string; method?: string }>>;
 }
 
 function makeEntrypointCtx(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot): McpToolRuntime {
@@ -58,7 +60,7 @@ function projectEntrypoints(items: Array<Record<string, unknown>>): EntrypointSh
       layer: String(e.layer),
       ...(e.method ? { method: String(e.method) } : {}),
     }))
-    .sort((a, b) => `${a.layer}:${a.kind}:${a.path}:${a.method ?? ''}`.localeCompare(`${b.layer}:${b.kind}:${b.path}:${b.method ?? ''}`));
+    .sort((a, b) => `${a.path}:${a.kind}:${a.layer}:${a.method ?? ''}`.localeCompare(`${b.path}:${b.kind}:${b.layer}:${b.method ?? ''}`));
 }
 
 function sorted(values: Iterable<string>): string[] {
@@ -179,9 +181,12 @@ describe('Domain heuristic — fixture suite', () => {
     });
 
     it('surfaces exactly the expected entrypoints (routes/apis with layer + method)', () => {
-      if (!expected.entrypoints) return;
+      if (!expected.entrypoints && !expected.entrypointEdgeCases) return;
       const items = collectEntrypoints(makeEntrypointCtx(graph, snapshot), { scope: 'all', limit: 200 }).items;
-      expect(projectEntrypoints(items)).toEqual(projectEntrypoints(expected.entrypoints as Array<Record<string, unknown>>));
+      const edgeCases = Object.values(expected.entrypointEdgeCases ?? {}).flat();
+      const expectedItems = [...(expected.entrypoints ?? []), ...edgeCases];
+      expect(projectEntrypoints(items)).toEqual(projectEntrypoints(expectedItems as Array<Record<string, unknown>>));
+      expect(items.filter(item => Object.keys(item).some(key => key.startsWith('__repovine')))).toEqual([]);
     });
 
     it('creates exactly the expected runtime-resource nodes from IaC resources', () => {

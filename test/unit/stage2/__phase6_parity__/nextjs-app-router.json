@@ -1,20 +1,20 @@
 {
   "stats": {
-    "totalNodes": 37,
-    "totalEdges": 66,
+    "totalNodes": 46,
+    "totalEdges": 80,
     "nodesByType": {
-      "domain": 11,
-      "export-symbol": 9,
-      "module": 10,
+      "domain": 14,
+      "export-symbol": 12,
+      "module": 13,
       "package": 1,
       "root": 1,
       "runtime-resource": 5
     },
     "edgesByKind": {
-      "contains": 25,
+      "contains": 31,
       "imports": 2,
       "infra": 1,
-      "tagged": 37,
+      "tagged": 45,
       "uses_env": 1
     }
   },
@@ -24,12 +24,15 @@
       "domain:nextjs-app-router-fixture",
       "domain:posts",
       "domain:users",
-      "domain:blog",
+      "domain:about",
+      "domain:marketing",
       "domain:slug",
+      "domain:blog",
       "domain:dashboard",
+      "domain:docs",
+      "domain:shop",
       "domain:error-fallback",
       "domain:ui",
-      "domain:cluster",
       "domain:routing"
     ],
     "export-symbol": [
@@ -37,9 +40,12 @@
       "export:nextjs-app-router-fixture/app/api/users/route/GET",
       "export:nextjs-app-router-fixture/app/layout/default",
       "export:nextjs-app-router-fixture/app/page/default",
+      "export:nextjs-app-router-fixture/app/(marketing)/about/page/default",
       "export:nextjs-app-router-fixture/app/blog/[slug]/page/default",
       "export:nextjs-app-router-fixture/app/dashboard/loading/default",
       "export:nextjs-app-router-fixture/app/dashboard/page/default",
+      "export:nextjs-app-router-fixture/app/docs/[...slug]/page/default",
+      "export:nextjs-app-router-fixture/app/shop/[[...slug]]/page/default",
       "export:nextjs-app-router-fixture/components/error-fallback/ServerErrorFallback",
       "export:nextjs-app-router-fixture/components/ui/button/Button"
     ],
@@ -48,9 +54,12 @@
       "mod:nextjs-app-router-fixture/app/api/users/route",
       "mod:nextjs-app-router-fixture/app/layout",
       "mod:nextjs-app-router-fixture/app/page",
+      "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
       "mod:nextjs-app-router-fixture/app/blog/[slug]/page",
       "mod:nextjs-app-router-fixture/app/dashboard/loading",
       "mod:nextjs-app-router-fixture/app/dashboard/page",
+      "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+      "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page",
       "mod:nextjs-app-router-fixture/components/error-fallback",
       "mod:nextjs-app-router-fixture/components/ui/button",
       "infra:vercel:vercel.json"
@@ -71,20 +80,20 @@
   },
   "nodes": [
     {
-      "id": "domain:blog",
+      "id": "domain:about",
       "type": "domain",
-      "label": "blog",
-      "description": "Domain: blog",
+      "label": "about",
+      "description": "Domain: about",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
       }
     },
     {
-      "id": "domain:cluster",
+      "id": "domain:blog",
       "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
+      "label": "blog",
+      "description": "Domain: blog",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
@@ -98,6 +107,16 @@
       "data": {
         "weight": "heavy",
         "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:docs",
+      "type": "domain",
+      "label": "docs",
+      "description": "Domain: docs",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
       }
     },
     {
@@ -117,6 +136,16 @@
       "description": "Domain: infra-vercel (Vercel project configuration)",
       "data": {
         "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:marketing",
+      "type": "domain",
+      "label": "marketing",
+      "description": "Domain: marketing",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
       }
     },
     {
@@ -149,13 +178,23 @@
       }
     },
     {
+      "id": "domain:shop",
+      "type": "domain",
+      "label": "shop",
+      "description": "Domain: shop",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
       "id": "domain:slug",
       "type": "domain",
       "label": "slug",
       "description": "Domain: slug",
       "data": {
-        "weight": "lightweight",
-        "tier": "technical"
+        "weight": "heavy",
+        "tier": "feature"
       }
     },
     {
@@ -176,6 +215,22 @@
       "data": {
         "weight": "lightweight",
         "tier": "technical"
+      }
+    },
+    {
+      "id": "export:nextjs-app-router-fixture/app/(marketing)/about/page/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 3
+        },
+        "isDefault": true
       }
     },
     {
@@ -259,6 +314,22 @@
       }
     },
     {
+      "id": "export:nextjs-app-router-fixture/app/docs/[...slug]/page/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 3
+        },
+        "isDefault": true
+      }
+    },
+    {
       "id": "export:nextjs-app-router-fixture/app/layout/default",
       "type": "export-symbol",
       "label": "default",
@@ -291,6 +362,22 @@
         "lineRange": {
           "start": 1,
           "end": 1
+        },
+        "isDefault": true
+      }
+    },
+    {
+      "id": "export:nextjs-app-router-fixture/app/shop/[[...slug]]/page/default",
+      "type": "export-symbol",
+      "label": "default",
+      "description": "function default: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 3
         },
         "isDefault": true
       }
@@ -348,6 +435,18 @@
       }
     },
     {
+      "id": "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
+      "type": "module",
+      "label": "…/about/page",
+      "description": "Module app/(marketing)/about/page.tsx in nextjs-app-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/app/(marketing)/about/page.tsx",
+        "relativeFilePath": "app/(marketing)/about/page.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
       "id": "mod:nextjs-app-router-fixture/app/api/posts/route",
       "type": "module",
       "label": "…/posts/route",
@@ -391,7 +490,6 @@
       "data": {
         "filePath": "<FIXTURE>/app/dashboard/loading.tsx",
         "relativeFilePath": "app/dashboard/loading.tsx",
-        "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
     },
@@ -408,6 +506,18 @@
       }
     },
     {
+      "id": "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+      "type": "module",
+      "label": "…/[...slug]/page",
+      "description": "Module app/docs/[...slug]/page.tsx in nextjs-app-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/app/docs/[...slug]/page.tsx",
+        "relativeFilePath": "app/docs/[...slug]/page.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
       "id": "mod:nextjs-app-router-fixture/app/layout",
       "type": "module",
       "label": "app/layout",
@@ -415,7 +525,6 @@
       "data": {
         "filePath": "<FIXTURE>/app/layout.tsx",
         "relativeFilePath": "app/layout.tsx",
-        "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
     },
@@ -427,6 +536,18 @@
       "data": {
         "filePath": "<FIXTURE>/app/page.tsx",
         "relativeFilePath": "app/page.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page",
+      "type": "module",
+      "label": "…/[[...slug]]/page",
+      "description": "Module app/shop/[[...slug]]/page.tsx in nextjs-app-router-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/app/shop/[[...slug]]/page.tsx",
+        "relativeFilePath": "app/shop/[[...slug]]/page.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -480,7 +601,10 @@
         ],
         "contentHash": "67d50baca7cc254d",
         "kind": "vercel-cron",
-        "provider": "vercel"
+        "provider": "vercel",
+        "declaredIn": [
+          "vercel.json"
+        ]
       }
     },
     {
@@ -492,7 +616,10 @@
         "handler": "app/api/users/route.ts",
         "contentHash": "30c089da4a38e1cc",
         "kind": "vercel-function",
-        "provider": "vercel"
+        "provider": "vercel",
+        "declaredIn": [
+          "vercel.json"
+        ]
       }
     },
     {
@@ -513,7 +640,10 @@
         ],
         "contentHash": "acae0d42cf8ec443",
         "kind": "other",
-        "provider": "vercel"
+        "provider": "vercel",
+        "declaredIn": [
+          "vercel.json"
+        ]
       }
     },
     {
@@ -524,7 +654,10 @@
       "data": {
         "contentHash": "63d700200d6b3068",
         "kind": "vercel-route",
-        "provider": "vercel"
+        "provider": "vercel",
+        "declaredIn": [
+          "vercel.json"
+        ]
       }
     },
     {
@@ -535,7 +668,10 @@
       "data": {
         "contentHash": "81c824f8968baf59",
         "kind": "secret",
-        "provider": "vercel"
+        "provider": "vercel",
+        "declaredIn": [
+          "vercel.json"
+        ]
       }
     },
     {
@@ -548,6 +684,17 @@
   ],
   "links": [
     {
+      "id": "domain:about",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:about",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
       "id": "domain:blog",
       "links": [],
       "children": [],
@@ -559,22 +706,22 @@
       }
     },
     {
-      "id": "domain:cluster",
+      "id": "domain:dashboard",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:cluster",
+        "id": "domain:dashboard",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:dashboard",
+      "id": "domain:docs",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:dashboard",
+        "id": "domain:docs",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -597,6 +744,17 @@
       "children": [],
       "view": {
         "id": "domain:infra-vercel",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:marketing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:marketing",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -636,6 +794,17 @@
       }
     },
     {
+      "id": "domain:shop",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:shop",
+        "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
       "id": "domain:slug",
       "links": [],
       "children": [],
@@ -664,6 +833,17 @@
       "view": {
         "id": "domain:users",
         "level": 1,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nextjs-app-router-fixture/app/(marketing)/about/page/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nextjs-app-router-fixture/app/(marketing)/about/page/default",
+        "level": 3,
         "drill_down": [],
         "links": []
       }
@@ -724,6 +904,17 @@
       }
     },
     {
+      "id": "export:nextjs-app-router-fixture/app/docs/[...slug]/page/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nextjs-app-router-fixture/app/docs/[...slug]/page/default",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
       "id": "export:nextjs-app-router-fixture/app/layout/default",
       "links": [],
       "children": [],
@@ -740,6 +931,17 @@
       "children": [],
       "view": {
         "id": "export:nextjs-app-router-fixture/app/page/default",
+        "level": 3,
+        "drill_down": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nextjs-app-router-fixture/app/shop/[[...slug]]/page/default",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nextjs-app-router-fixture/app/shop/[[...slug]]/page/default",
         "level": 3,
         "drill_down": [],
         "links": []
@@ -813,6 +1015,63 @@
             "kind": "tagged"
           }
         ]
+      }
+    },
+    {
+      "id": "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
+      "links": [
+        {
+          "to": "domain:nextjs-app-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:about",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:marketing",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nextjs-app-router-fixture/app/(marketing)/about/page/default"
+      ],
+      "view": {
+        "id": "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nextjs-app-router-fixture/app/(marketing)/about/page/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nextjs-app-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:about",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:marketing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
       }
     },
     {
@@ -915,17 +1174,17 @@
       "id": "mod:nextjs-app-router-fixture/app/blog/[slug]/page",
       "links": [
         {
+          "to": "domain:slug",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
           "to": "domain:nextjs-app-router-fixture",
           "kind": "tagged",
           "tagSource": "package"
         },
         {
           "to": "domain:blog",
-          "kind": "tagged",
-          "tagSource": "path"
-        },
-        {
-          "to": "domain:slug",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -948,15 +1207,15 @@
         ],
         "links": [
           {
+            "to": "domain:slug",
+            "kind": "tagged"
+          },
+          {
             "to": "domain:nextjs-app-router-fixture",
             "kind": "tagged"
           },
           {
             "to": "domain:blog",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:slug",
             "kind": "tagged"
           },
           {
@@ -980,10 +1239,6 @@
           "to": "domain:nextjs-app-router-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:routing",
-          "kind": "tagged"
         }
       ],
       "children": [
@@ -1006,13 +1261,8 @@
           {
             "to": "domain:nextjs-app-router-fixture",
             "kind": "tagged"
-          },
-          {
-            "to": "domain:routing",
-            "kind": "tagged"
           }
         ],
-        "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
     },
@@ -1073,21 +1323,69 @@
       }
     },
     {
-      "id": "mod:nextjs-app-router-fixture/app/layout",
+      "id": "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
       "links": [
+        {
+          "to": "domain:slug",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
         {
           "to": "domain:nextjs-app-router-fixture",
           "kind": "tagged",
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
+          "to": "domain:docs",
           "kind": "tagged",
-          "tagSource": "cluster"
+          "tagSource": "path"
         },
         {
           "to": "domain:routing",
           "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nextjs-app-router-fixture/app/docs/[...slug]/page/default"
+      ],
+      "view": {
+        "id": "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nextjs-app-router-fixture/app/docs/[...slug]/page/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:slug",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nextjs-app-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:docs",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nextjs-app-router-fixture/app/layout",
+      "links": [
+        {
+          "to": "domain:nextjs-app-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
         }
       ],
       "children": [
@@ -1106,17 +1404,8 @@
           {
             "to": "domain:nextjs-app-router-fixture",
             "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:routing",
-            "kind": "tagged"
           }
         ],
-        "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
     },
@@ -1127,11 +1416,6 @@
           "to": "domain:nextjs-app-router-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:routing",
@@ -1156,7 +1440,60 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page",
+      "links": [
+        {
+          "to": "domain:slug",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nextjs-app-router-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:shop",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nextjs-app-router-fixture/app/shop/[[...slug]]/page/default"
+      ],
+      "view": {
+        "id": "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page",
+        "level": 2,
+        "drill_down": [
+          {
+            "id": "export:nextjs-app-router-fixture/app/shop/[[...slug]]/page/default",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:slug",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nextjs-app-router-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:shop",
             "kind": "tagged"
           },
           {
@@ -1280,9 +1617,12 @@
         "mod:nextjs-app-router-fixture/app/api/users/route",
         "mod:nextjs-app-router-fixture/app/layout",
         "mod:nextjs-app-router-fixture/app/page",
+        "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
         "mod:nextjs-app-router-fixture/app/blog/[slug]/page",
         "mod:nextjs-app-router-fixture/app/dashboard/loading",
         "mod:nextjs-app-router-fixture/app/dashboard/page",
+        "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+        "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page",
         "mod:nextjs-app-router-fixture/components/error-fallback",
         "mod:nextjs-app-router-fixture/components/ui/button"
       ],
@@ -1307,6 +1647,10 @@
             "type": "module"
           },
           {
+            "id": "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
+            "type": "module"
+          },
+          {
             "id": "mod:nextjs-app-router-fixture/app/blog/[slug]/page",
             "type": "module"
           },
@@ -1316,6 +1660,14 @@
           },
           {
             "id": "mod:nextjs-app-router-fixture/app/dashboard/page",
+            "type": "module"
+          },
+          {
+            "id": "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+            "type": "module"
+          },
+          {
+            "id": "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page",
             "type": "module"
           },
           {
@@ -1501,31 +1853,24 @@
   ],
   "entrypoints": [
     {
-      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/api/posts/route:/api/posts:route",
+      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/api/posts/route:/api/posts:route:GET",
       "kind": "api",
-      "layer": "frontend",
+      "layer": "backend",
       "path": "/api/posts",
+      "method": "GET",
       "moduleId": "mod:nextjs-app-router-fixture/app/api/posts/route",
       "source": "nextjs-app",
       "fileType": "route"
     },
     {
-      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/api/users/route:/api/users:route",
+      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/api/users/route:/api/users:route:GET",
       "kind": "api",
-      "layer": "frontend",
+      "layer": "backend",
       "path": "/api/users",
+      "method": "GET",
       "moduleId": "mod:nextjs-app-router-fixture/app/api/users/route",
       "source": "nextjs-app",
       "fileType": "route"
-    },
-    {
-      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/layout:/:layout",
-      "kind": "page",
-      "layer": "frontend",
-      "path": "/",
-      "moduleId": "mod:nextjs-app-router-fixture/app/layout",
-      "source": "nextjs-app",
-      "fileType": "layout"
     },
     {
       "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/page:/:page",
@@ -1533,6 +1878,15 @@
       "layer": "frontend",
       "path": "/",
       "moduleId": "mod:nextjs-app-router-fixture/app/page",
+      "source": "nextjs-app",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/(marketing)/about/page:/about:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/about",
+      "moduleId": "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
       "source": "nextjs-app",
       "fileType": "page"
     },
@@ -1546,20 +1900,29 @@
       "fileType": "page"
     },
     {
-      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/dashboard/loading:/dashboard:loading",
-      "kind": "route",
-      "layer": "frontend",
-      "path": "/dashboard",
-      "moduleId": "mod:nextjs-app-router-fixture/app/dashboard/loading",
-      "source": "nextjs-app",
-      "fileType": "loading"
-    },
-    {
       "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/dashboard/page:/dashboard:page",
       "kind": "page",
       "layer": "frontend",
       "path": "/dashboard",
       "moduleId": "mod:nextjs-app-router-fixture/app/dashboard/page",
+      "source": "nextjs-app",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/docs/[...slug]/page:/docs/[...slug]:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/docs/[...slug]",
+      "moduleId": "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+      "source": "nextjs-app",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page:/shop/[[...slug]]:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/shop/[[...slug]]",
+      "moduleId": "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page",
       "source": "nextjs-app",
       "fileType": "page"
     },

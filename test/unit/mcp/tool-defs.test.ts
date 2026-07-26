@@ -216,6 +216,9 @@ describe('public MCP tool definitions', () => {
     expect(architecture?.description).toContain('emptyDiagnostic');
     expect(architecture?.description).toContain('truncatedNodes'); // report-mode node preview documented
     expect(architecture?.schema.shape.annotationReasoning.description).toContain('verification obligations');
+    expect('minConfidence' in (architecture?.schema.shape ?? {})).toBe(false);
+    expect(architecture?.schema.shape.limit.safeParse(30).success).toBe(true);
+    expect(architecture?.schema.shape.limit.safeParse(31).success).toBe(false);
     // The advertised category filter must accept exactly the engine's RefactoringCategory union
     // (the enum is SSOT-derived from REFACTORING_CATEGORIES; this guards against a re-hardcode drift).
     expect(architecture?.schema.safeParse({ categories: [...REFACTORING_CATEGORIES] }).success).toBe(true);

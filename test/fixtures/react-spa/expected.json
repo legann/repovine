@@ -1,6 +1,6 @@
 {
   "_description": "React SPA: PascalCase components → lightweight basenames; useX hooks → no domain; features/<name>/ → directory domain",
-  "heavyDomains": ["billing", "cluster", "react-spa-fixture", "react-spa-fixture/billing"],
+  "heavyDomains": ["billing", "react-spa-fixture", "react-spa-fixture/billing", "routing"],
   "lightweightDomains": ["billingform", "billingpage", "dashboard", "dashboardpage", "navbar", "siteheader", "useauth", "usetheme"],
   "rejectedAsDomain": ["App", "main", "billing-api"],
   "modulesInDomain": {
@@ -8,6 +8,20 @@
       "src/features/billing/BillingPage.tsx",
       "src/features/billing/BillingForm.tsx",
       "src/features/billing/billing-api.ts"
+    ]
+  },
+  "entrypoints": [
+    { "path": "/", "kind": "route", "layer": "frontend" }
+  ],
+  "entrypointEdgeCases": {
+    "dynamic-segment": [
+      { "path": "/projects/:projectId", "kind": "route", "layer": "frontend" }
+    ],
+    "optional-segment": [
+      { "path": "/:lang?/categories", "kind": "route", "layer": "frontend" }
+    ],
+    "splat-segment": [
+      { "path": "/files/*", "kind": "route", "layer": "frontend" }
     ]
   }
 }

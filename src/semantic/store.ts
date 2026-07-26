@@ -42,6 +42,13 @@ export interface SemanticHit {
   score: number;
 }
 
+export interface SemanticQueryReport {
+  hits: SemanticHit[];
+  indexed: number;
+  compared: number;
+  dimensionMismatches: number;
+}
+
 function normalize(vector: number[]): Float32Array {
   let sumSquares = 0;
   for (const v of vector) sumSquares += v * v;
@@ -160,17 +167,31 @@ export class SemanticIndex {
     return normalize(vector);
   }
 
-  /** Brute-force cosine top-k. Entries with mismatched dims (mid-migration) are skipped. */
-  query(queryVector: Float32Array, k: number): SemanticHit[] {
+  /** Brute-force cosine top-k plus visibility into entries skipped during a dimension migration. */
+  queryDetailed(queryVector: Float32Array, k: number): SemanticQueryReport {
     const hits: SemanticHit[] = [];
+    let dimensionMismatches = 0;
     for (const [nodeId, entry] of this.entries) {
-      if (entry.vector.length !== queryVector.length) continue;
+      if (entry.vector.length !== queryVector.length) {
+        dimensionMismatches++;
+        continue;
+      }
       let dot = 0;
       for (let i = 0; i < queryVector.length; i++) dot += queryVector[i] * entry.vector[i];
       hits.push({ id: nodeId, score: dot });
     }
     hits.sort((a, b) => b.score - a.score);
-    return hits.slice(0, Math.max(0, k));
+    return {
+      hits: hits.slice(0, Math.max(0, k)),
+      indexed: this.entries.size,
+      compared: hits.length,
+      dimensionMismatches,
+    };
+  }
+
+  /** Backward-compatible hit-only view used by callers that do not need diagnostics. */
+  query(queryVector: Float32Array, k: number): SemanticHit[] {
+    return this.queryDetailed(queryVector, k).hits;
   }
 
   private async save(): Promise<void> {

@@ -35,6 +35,7 @@ export interface NodeView {
     fields?: FieldInfo[];
     implementsInterfaces?: string[];
     calls?: string[];
+    callsTotal?: number;
     lineRange?: { start: number; end: number };
   }>;
   links?: Array<{ targetId: string; relation: EdgeKind; label: string; tagSource?: TagEdgeSource; /** Reasons to inspect the linked node before treating it unchanged. */ investigate?: InvestigateTag[] }>;
@@ -54,6 +55,8 @@ export interface NodeView {
   fields?: FieldInfo[];
   implementsInterfaces?: string[];
   calls?: string[];
+  /** Distinct callee names before the producer cap; set only when it exceeds `calls.length`. */
+  callsTotal?: number;
   lineRange?: { start: number; end: number };
   symbolKind?: SymbolKind;
   // content-based enrichments (module nodes)
@@ -67,7 +70,15 @@ export interface NodeView {
   annotationMeta?: {
     pass: number;
     updatedAt: string;
-    fresh: boolean;
+    /**
+     * Whether the stored content hash still matches the node's current hash. Omitted when no
+     * comparison is possible — `write_annotation` stores `contentHash: 'unknown'` for node types it
+     * cannot hash (export symbols, packages, root), and reporting `fresh: true` there would state a
+     * verification that never ran. Read together with `freshnessSource`.
+     */
+    fresh?: boolean;
+    /** How `fresh` was decided, or why it is absent. */
+    freshnessSource?: 'content-hash' | 'not-comparable';
     /** Inferred module kind (types/ui/api-handler/adapter/service-mgr/infra/runtime-resource/template/domain/generic). */
     moduleKind?: string;
     /** Annotation quality scoring (omitted for non-module nodes that lack export/line metrics). */
@@ -111,8 +122,11 @@ export interface NodeViewDetail extends NodeView {
    * Targets named in this node's `integrationPoints` that it transitively depends on (bounded
    * forward-import closure) and that carry a consumer-scoped risk. A non-structural sibling of a
    * flagged `links`/`drill_down` ref: must-inspect under the same closure.
+   *
+   * Membership is decided by a closure of depth {@link INVESTIGATE_DEP_GUARD_DEPTH}, which records
+   * no per-target distance, so no hop count is emitted.
    */
-  investigatePointers?: Array<{ id: string; investigate: InvestigateTag[]; via: 'integrationPoints'; hops: 1 }>;
+  investigatePointers?: Array<{ id: string; investigate: InvestigateTag[]; via: 'integrationPoints' }>;
 }
 
 /** One entry in drill_down[]; may include private/internal metadata from MCP options */

@@ -7,6 +7,8 @@ export const DEFAULT_MAP_LIMIT = 10;
 export const DEFAULT_INSPECT_CHILD_LIMIT = 20;
 export const DEFAULT_LIST_LIMIT = 20;
 export const DEFAULT_ARCHITECTURE_LIMIT = 12;
+/** Keeps a broad architecture report below the MCP response ceiling; use category/scope narrowing beyond it. */
+export const MAX_ARCHITECTURE_LIMIT = 30;
 export const DEFAULT_SEMANTIC_LIMIT = 10;
 export const DEFAULT_VALIDATE_LIMIT = 10;
 export const DEFAULT_BODY_LIMIT = 12_000;

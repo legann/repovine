@@ -16,7 +16,34 @@ import { normalizeRisks } from '../annotations/format.js';
 export const SEMANTIC_CARD_NODE_TYPES: ReadonlySet<string> = new Set(['module', 'runtime-resource', 'template', 'package', 'domain'] as const satisfies readonly NodeType[]);
 
 const MAX_EXPORTS_PER_CARD = 30;
-const MAX_CARD_CHARS = 2000;
+/**
+ * Xenova/all-MiniLM-L6-v2 has a roughly 256-token input window. A conservative
+ * character budget makes our truncation deterministic instead of delegating a
+ * silent second truncation to the tokenizer.
+ */
+export const SEMANTIC_CARD_CHAR_BUDGET = 1000;
+
+export type SemanticCardField =
+  | 'identity'
+  | 'description'
+  | 'exports'
+  | 'summary'
+  | 'invariants'
+  | 'risks'
+  | 'flow'
+  | 'integration'
+  | 'keyExports';
+
+export interface NodeCardProjection {
+  text: string;
+  fullText: string;
+  fullChars: number;
+  retainedChars: number;
+  truncated: boolean;
+  annotationChars: number;
+  retainedAnnotationChars: number;
+  retainedByField: Partial<Record<SemanticCardField, number>>;
+}
 
 function stringValues(value: string | Record<string, string> | undefined): string[] {
   if (!value) return [];
@@ -24,18 +51,79 @@ function stringValues(value: string | Record<string, string> | undefined): strin
   return Object.entries(value).map(([k, v]) => `${k}: ${v}`);
 }
 
-function annotationCardLines(annotation: AnnotationContent): string[] {
-  const lines: string[] = [];
-  if (annotation.summary) lines.push(annotation.summary);
-  for (const [name, description] of Object.entries(annotation.keyExports ?? {})) {
-    lines.push(`${name}: ${description}`);
+type CardSegment = { field: SemanticCardField; text: string; annotation: boolean };
+
+function annotationCardSegments(annotation: AnnotationContent): CardSegment[] {
+  const lines: CardSegment[] = [];
+  // Order is deliberate: preserve the behavioural contract before descriptive
+  // export prose when the model window cannot hold the whole annotation.
+  if (annotation.summary) lines.push({ field: 'summary', text: annotation.summary, annotation: true });
+  for (const invariant of annotation.invariants ?? []) {
+    lines.push({ field: 'invariants', text: `invariant: ${invariant}`, annotation: true });
   }
-  for (const risk of normalizeRisks(annotation.risks)) lines.push(`risk: ${risk.text}`);
-  for (const invariant of annotation.invariants ?? []) lines.push(`invariant: ${invariant}`);
-  if (annotation.flowDescription) lines.push(annotation.flowDescription);
-  for (const flow of stringValues(annotation.dataFlow)) lines.push(`data flow: ${flow}`);
-  for (const point of stringValues(annotation.integrationPoints)) lines.push(`integration: ${point}`);
+  for (const risk of normalizeRisks(annotation.risks)) {
+    lines.push({ field: 'risks', text: `risk: ${risk.text}`, annotation: true });
+  }
+  if (annotation.flowDescription) {
+    lines.push({ field: 'flow', text: annotation.flowDescription, annotation: true });
+  }
+  for (const flow of stringValues(annotation.dataFlow)) {
+    lines.push({ field: 'flow', text: `data flow: ${flow}`, annotation: true });
+  }
+  for (const point of stringValues(annotation.integrationPoints)) {
+    lines.push({ field: 'integration', text: `integration: ${point}`, annotation: true });
+  }
+  for (const [name, description] of Object.entries(annotation.keyExports ?? {})) {
+    lines.push({ field: 'keyExports', text: `${name}: ${description}`, annotation: true });
+  }
   return lines;
+}
+
+export function buildNodeCardProjection(
+  node: { id: string; type: string; label: string; description: string },
+  moduleInfo: ModuleInfo | undefined,
+  stored: StoredAnnotation | undefined,
+): NodeCardProjection {
+  const segments: CardSegment[] = [];
+  segments.push({ field: 'identity', text: `${node.label} (${node.type})`, annotation: false });
+  const pathish = node.id.replace(/^[^:]+:/, '').replace(/[/\-_.:]/g, ' ');
+  segments.push({ field: 'identity', text: pathish, annotation: false });
+  if (node.description) {
+    segments.push({ field: 'description', text: node.description, annotation: false });
+  }
+  if (moduleInfo && moduleInfo.exports.length > 0) {
+    const names = moduleInfo.exports.slice(0, MAX_EXPORTS_PER_CARD).map(e => e.name).join(', ');
+    segments.push({ field: 'exports', text: `exports: ${names}`, annotation: false });
+  }
+  if (stored) segments.push(...annotationCardSegments(stored.annotation));
+
+  const fullText = segments.map(segment => segment.text).join('\n');
+  const text = fullText.slice(0, SEMANTIC_CARD_CHAR_BUDGET);
+  const retainedByField: Partial<Record<SemanticCardField, number>> = {};
+  let cursor = 0;
+  let annotationChars = 0;
+  let retainedAnnotationChars = 0;
+  for (const [index, segment] of segments.entries()) {
+    const start = cursor + (index === 0 ? 0 : 1);
+    const end = start + segment.text.length;
+    const retained = Math.max(0, Math.min(text.length, end) - Math.min(text.length, start));
+    retainedByField[segment.field] = (retainedByField[segment.field] ?? 0) + retained;
+    if (segment.annotation) {
+      annotationChars += segment.text.length;
+      retainedAnnotationChars += retained;
+    }
+    cursor = end;
+  }
+  return {
+    text,
+    fullText,
+    fullChars: fullText.length,
+    retainedChars: text.length,
+    truncated: fullText.length > text.length,
+    annotationChars,
+    retainedAnnotationChars,
+    retainedByField,
+  };
 }
 
 export function buildNodeCard(
@@ -43,17 +131,7 @@ export function buildNodeCard(
   moduleInfo: ModuleInfo | undefined,
   stored: StoredAnnotation | undefined,
 ): string {
-  const lines: string[] = [];
-  lines.push(`${node.label} (${node.type})`);
-  const pathish = node.id.replace(/^[^:]+:/, '').replace(/[/\-_.:]/g, ' ');
-  lines.push(pathish);
-  if (node.description) lines.push(node.description);
-  if (moduleInfo && moduleInfo.exports.length > 0) {
-    const names = moduleInfo.exports.slice(0, MAX_EXPORTS_PER_CARD).map(e => e.name).join(', ');
-    lines.push(`exports: ${names}`);
-  }
-  if (stored) lines.push(...annotationCardLines(stored.annotation));
-  return lines.join('\n').slice(0, MAX_CARD_CHARS);
+  return buildNodeCardProjection(node, moduleInfo, stored).text;
 }
 
 /**
@@ -70,7 +148,7 @@ function cardHasSemanticSignal(
   stored: StoredAnnotation | undefined,
 ): boolean {
   if (moduleInfo && moduleInfo.exports.length > 0) return true;
-  if (stored && annotationCardLines(stored.annotation).length > 0) return true;
+  if (stored && annotationCardSegments(stored.annotation).length > 0) return true;
   return false;
 }
 

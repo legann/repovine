@@ -1,10 +1,33 @@
 {
   "_description": "SvelteKit: +page.ts / +server.ts / +layout.ts are framework slots, never domains. Routing directories give the actual domain names (users, dashboard, blog).",
-  "heavyDomains": ["cluster", "routing", "sveltekit-fixture"],
-  "lightweightDomains": ["auth", "blog", "dashboard", "db", "slug", "users"],
+  "heavyDomains": ["dashboard", "routing", "sveltekit-fixture", "sveltekit-fixture/dashboard"],
+  "lightweightDomains": ["about", "auth", "blog", "db", "docs", "home", "lang", "marketing", "path", "slug", "users"],
   "rejectedAsDomain": ["+page", "+server", "+layout", "+page.server"],
   "modulesInDomain": {
     "users": ["src/routes/api/users/+server.ts"],
-    "dashboard": ["src/routes/dashboard/+page.ts", "src/routes/dashboard/+page.server.ts"]
+    "dashboard": [
+      "src/routes/dashboard/+page.svelte",
+      "src/routes/dashboard/+page.ts",
+      "src/routes/dashboard/+page.server.ts"
+    ]
+  },
+  "entrypoints": [
+    { "path": "/", "kind": "page", "layer": "frontend" },
+    { "path": "/api/users", "kind": "api", "layer": "backend", "method": "GET" },
+    { "path": "/dashboard", "kind": "page", "layer": "frontend" }
+  ],
+  "entrypointEdgeCases": {
+    "dynamic-segment": [
+      { "path": "/blog/[slug]", "kind": "page", "layer": "frontend" }
+    ],
+    "rest-segment": [
+      { "path": "/docs/[...path]", "kind": "page", "layer": "frontend" }
+    ],
+    "optional-segment": [
+      { "path": "/[[lang]]/home", "kind": "page", "layer": "frontend" }
+    ],
+    "route-group": [
+      { "path": "/about", "kind": "page", "layer": "frontend" }
+    ]
   }
 }

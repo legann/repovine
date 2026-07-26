@@ -25,8 +25,10 @@ export interface IndexBuildStatus {
   pct?: number;
   /** Seconds since start of build. */
   elapsedSec?: number;
-  /** Seconds remaining (best-effort estimate). */
-  etaSec?: number;
+  /** Seconds remaining in the current stage only (best-effort estimate). */
+  stageEtaSec?: number;
+  /** Pipeline stages after the current one (stage1→2, stage2→1, stage3→0). */
+  remainingStages?: number;
   /** Suggested next poll delay in seconds. */
   retryAfterSec: number;
   /** Human-friendly message. */
@@ -280,25 +282,26 @@ export class IndexBuildController {
 
     const elapsedSec = Math.round((Date.now() - this.startedAt) / 1000);
     let pct: number | undefined;
-    let etaSec: number | undefined;
+    let stageEtaSec: number | undefined;
     if (this.stage === 'stage1' && this.totalModules > 0) {
       pct = Math.round((this.doneModules / this.totalModules) * 100);
       if (this.doneModules > 0 && elapsedSec > 0) {
         const rate = this.doneModules / elapsedSec;
-        if (rate > 0) etaSec = Math.round((this.totalModules - this.doneModules) / rate);
+        if (rate > 0) stageEtaSec = Math.round((this.totalModules - this.doneModules) / rate);
       }
     } else if (this.stage === 'stage3' && this.totalSemanticCards > 0) {
       pct = Math.round((this.doneSemanticCards / this.totalSemanticCards) * 100);
       const embedElapsedSec = Math.max(1, Math.round((Date.now() - this.semanticEmbedStartedAt) / 1000));
       if (this.doneSemanticCards > 0) {
         const rate = this.doneSemanticCards / embedElapsedSec;
-        if (rate > 0) etaSec = Math.round((this.totalSemanticCards - this.doneSemanticCards) / rate);
+        if (rate > 0) stageEtaSec = Math.round((this.totalSemanticCards - this.doneSemanticCards) / rate);
       }
     } else if (this.stage === 'stage2') {
       pct = undefined;
     }
 
-    const retryAfterSec = Math.min(30, Math.max(2, Math.ceil((etaSec ?? 30) / 4)));
+    const retryAfterSec = Math.min(30, Math.max(2, Math.ceil((stageEtaSec ?? 30) / 4)));
+    const remainingStages = this.stage === 'stage1' ? 2 : this.stage === 'stage2' ? 1 : 0;
     const stageLabel: Record<IndexBuildStage, string> = {
       pending: 'pending',
       stage1: 'repository facts snapshot',
@@ -315,7 +318,7 @@ export class IndexBuildController {
     if (this.stage === 'stage3' && this.totalSemanticCards > 0) {
       parts.push(`[${this.doneSemanticCards}/${this.totalSemanticCards} cards]`);
     }
-    if (etaSec !== undefined) parts.push(`ETA ~${formatDuration(etaSec)}`);
+    if (stageEtaSec !== undefined) parts.push(`stage ETA ~${formatDuration(stageEtaSec)}`);
     const message = parts.join(' ');
 
     return {
@@ -330,7 +333,8 @@ export class IndexBuildController {
       totalSemanticCards: this.totalSemanticCards > 0 ? this.totalSemanticCards : undefined,
       pct,
       elapsedSec,
-      etaSec,
+      stageEtaSec,
+      remainingStages,
       retryAfterSec,
       message,
     };

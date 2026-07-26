@@ -127,7 +127,9 @@ const baseToolDefs: ToolDef[] = [
       'When hits exist after OR-relax, read result.matches.strategy (used, relaxedFrom, strongTokens, weakTokenOnlySuppressed), gaps, topResults[].matchedTokenCount/score, and summary/confidence before inspect_node. ' +
       'When topResults[].annotationMatched is true, annotation fields are omitted — use inspect_node on that nodeId before source-only reasoning. ' +
       'Weak/common tokens (package, route, handler, module, …) match at reduced weight; auto may suppress OR noise via weakTokenOnlySuppressed. ' +
-      'Responses include matchedTokens, strategy.semantic.used, semanticRank/semanticScore on fused hits, suggestedScopes, navigation, and emptyDiagnostic reasons such as no_token_hits, strict_and_no_single_node, weak_token_only_suppressed, type_filter_excluded.',
+      'A semantic-only nearest neighbour has low confidence, no matched tokens, and an advisory suggestedScope reason; it is not evidence that the requested functionality exists. ' +
+      'When perTokenLimit truncates an OR posting list before global ranking, strategy.postingLists and gaps expose each affected token and considered/total counts, and confidence is low. ' +
+      'Responses include matchedTokens, strategy.semantic.used/attempted, semanticRank/semanticScore on fused hits, suggestedScopes, navigation, and emptyDiagnostic reasons such as no_token_hits, strict_and_no_single_node, weak_token_only_suppressed, type_filter_excluded.',
     schema: z.object({
       query: z.string().describe('Task keyword, feature name, symbol, route, package, config name, or other search text.'),
       types: z.array(NodeTypeSchema).optional().describe('Optional result type filter.'),
@@ -215,7 +217,7 @@ const baseToolDefs: ToolDef[] = [
     description:
       'Analyze import/export contracts and dependency risk. Replaces impact, cross-package dependencies, interface implementations, and import-map style queries. ' +
       'Use before changing exported APIs, types, package boundaries, interfaces, or shared modules. Empty or mode/scope-mismatch results include emptyDiagnostic with reason and conditional nextActions. ' +
-      'impact on an export-symbol scope (or a module scope plus exportName) resolves reverse callers: precise resolved-import callers carry uses; callers matched by call name carry unresolved:true (grep-parity, spans re-export barrels), reported via nameMatchedCallers. ' +
+      'impact on an export-symbol scope (or a module scope plus exportName) resolves reverse callers: precise resolved-import callers carry uses; callers matched by call name carry unresolved:true (spans re-export barrels), reported via nameMatchedCallers. The name index is capped per declaration at extraction, so it is a completeness backstop, not grep parity — the response reports the cap in nameMatchLimits. ' +
       'impact, interface-implementations, and package-boundaries cap every returned list and paginate with total/nextOffset; page the rest with offset/limit. Oversized results are withheld behind a responseTruncated marker with narrowing guidance.',
     schema: z.object({
       scope: ScopeSchema,
@@ -255,11 +257,10 @@ const baseToolDefs: ToolDef[] = [
       mode: z.enum(['report', 'detail']).optional().describe('report returns findings; detail expands a findingId. Default report.'),
       findingId: z.string().optional().describe('Finding id to expand when mode is detail.'),
       detailFindingId: z.string().optional().describe('Alias that expands a finding without also passing mode: detail.'),
-      categories: z.array(RefactoringReportCategorySchema).optional().describe('Optional category filter for report mode.'),
-      minConfidence: z.number().min(0).max(1).optional().describe('Post-filter confidence threshold. Default 0.5.'),
+      categories: z.array(RefactoringReportCategorySchema).optional().describe('Optional category filter for report mode. duplicate-like, god-module and authorization-policy-drift each fired on a clean-code counterexample, so they run only when named here.'),
       annotationReasoning: z.enum(['off', 'on']).optional().describe('Attach annotation context packets for the agent to judge as verification obligations, not background prose. Default off.'),
       includeComponentEntrypoints: z.boolean().optional().describe('For deep frontend flow-convergence analysis. Default false.'),
-      limit: LimitSchema,
+      limit: z.number().int().min(1).max(30).optional().describe('Maximum report findings. Default 12, hard maximum 30; narrow scope/categories for more.'),
       maxNodes: z.number().int().min(1).max(100).optional().describe('Max affected node summaries in detail mode. Default 30.'),
     }),
   },
@@ -398,12 +399,13 @@ const baseToolDefs: ToolDef[] = [
     name: 'get_context_session_quality',
     description:
       'Return the deterministic Context Session Quality report for a contextSessionId/sessionId recorded from repovine MCP tool responses. '
-      + 'The score is computed from returned tool JSON and shaped response byte volume, not from agent prose. Use before accepting a subagent handoff. '
-      + 'Harness mode (assignment.contextSession.mode="harness" or contextQuality.enforcement.mode) hard-gates compliance when required=true; client mode emits warnings and requiredFollowups instead.',
+      + 'The report is computed from returned tool JSON and shaped response byte volume, not from agent prose. Use before accepting a subagent handoff. '
+      + 'overall is an observation, not a graded assessment: shipped weights reduce it to 1 when the session called inspect_node and 0 otherwise, because the former 14-weight score failed its outcome-labelled falsification. '
+      + 'acceptHandoff and rejectReasons are advisory in every mode, including harness — they emit warnings and requiredFollowups and never fail compliance. docs/context-quality.md states the return bar a hard gate must clear first.',
     schema: z.object({
       sessionId: RequiredSessionIdSchema,
       phase: z.enum(CONTEXT_PHASES).optional().describe('Policy phase override. Default explore.'),
-      mode: z.enum(CONTEXT_ENFORCEMENT_MODES).optional().describe('Enforcement mode override: harness strict vs client advisory.'),
+      mode: z.enum(CONTEXT_ENFORCEMENT_MODES).optional().describe('Enforcement mode override. Selects warning wording and followups; both modes are advisory until the documented return bar is met.'),
       qualityThreshold: z.number().min(0).max(1).optional().describe('Override minimum overall score for acceptHandoff.'),
       warningThreshold: z.number().min(0).max(1).optional().describe('Override soft score threshold for advisory warnings.'),
       minAnchors: z.number().int().min(0).optional().describe('Override minimum stable anchors required for acceptHandoff.'),
@@ -418,7 +420,7 @@ const baseToolDefs: ToolDef[] = [
   {
     name: 'get_build_status',
     description:
-      'Report the current build status of the repository graph. Use when other tools return a `status:"building"` payload to discover the current stage, progress, and recommended retry delay. Stage 1 reports package/module counts; stage 3 reports semantic search embed card counts when `semantic_search_embeddings` is enabled. Always callable; returns immediately by default. Pass waitSec to long-poll: the call holds server-side and returns the moment the build settles (ready or failed) or the wait expires — one waiting call instead of a polling loop. Pass cancel:true to stop an in-flight startup build (mutating): Stage 1 worker threads terminate at the next package boundary and the response is the post-cancel status — `cancelled` (bare tree, no graph; tools then return a cancelled payload, not an error) when no prior graph exists, or `ready` when a prior graph keeps serving. cancel ignores waitSec and is a no-op returning the current status when no build is running.',
+      'Report the current build status of the repository graph. Use when other tools return a `status:"building"` payload to discover the current stage, remaining stage count, progress, and recommended retry delay. stageEtaSec/stage_eta_sec estimates only the current stage, not time until ready. Stage 1 reports package/module counts; stage 3 reports semantic search embed card counts when `semantic_search_embeddings` is enabled. Always callable; returns immediately by default. Pass waitSec to long-poll: the call holds server-side and returns the moment the build settles (ready or failed) or the wait expires — one waiting call instead of a polling loop. Pass cancel:true to stop an in-flight startup build (mutating): Stage 1 worker threads terminate at the next package boundary and the response is the post-cancel status — `cancelled` (bare tree, no graph; tools then return a cancelled payload, not an error) when no prior graph exists, or `ready` when a prior graph keeps serving. cancel ignores waitSec and is a no-op returning the current status when no build is running.',
     schema: z.object({
       waitSec: z
         .number()

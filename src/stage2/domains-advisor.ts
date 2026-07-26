@@ -209,7 +209,7 @@ export function applyDomainsKeep(
 }
 
 /**
- * Structural edges do not witness a resource's necessity (D6): `contains` ties it to its IaC
+ * Structural edges do not witness a resource's necessity: `contains` ties it to its IaC
  * module, `tagged` to its infra domain. Every materialized runtime-resource has both regardless of
  * whether anything reads it. A resource is *witnessed* only by a load-bearing edge — anything else.
  */
@@ -243,7 +243,7 @@ function escapeRegex(input: string): string {
 }
 
 /**
- * Witness-aware infra-noise advisor (D6): only ever proposes hiding resources that no load-bearing
+ * Witness-aware infra-noise advisor: only ever proposes hiding resources that no load-bearing
  * edge witnesses. A suffix that is entirely inert plumbing gets a blanket `excludeSuffixes`; a
  * *mixed* suffix (some resources are witnessed, e.g. managed `Policy` carrying `uses_env`) never
  * gets a blanket suffix — instead an anchored `excludePatterns` over the inert labels only, so the

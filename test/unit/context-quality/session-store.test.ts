@@ -54,6 +54,41 @@ describe('ContextSessionStore', () => {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   });
 
+  it('ships the inspect_node baseline while the 14-weight score is unvalidated', () => {
+    expect(DEFAULT_CONTEXT_QUALITY_CONFIG.weights).toEqual({
+      or: 0,
+      cap: 0,
+      volume: 0,
+      low: 0,
+      unresolved: 0,
+      test: 0,
+      bytes: 0,
+      chain: 0,
+      map: 0,
+      inspect: 1,
+      impact: 0,
+      anchor: 0,
+      recover: 0,
+      end: 0,
+    });
+
+    const store = new ContextSessionStore({ repoRoot });
+    const sessionId = 'sess-baseline';
+    const result = envelope({ id: 'mod:prod/src/a' }, 'high', 'module', 'mod:prod/src/a');
+    store.recordToolCall({
+      sessionId,
+      tool: 'inspect_node',
+      args: { nodeId: 'mod:prod/src/a', contextSessionId: sessionId },
+      result,
+      responseText: JSON.stringify(result),
+    });
+
+    const report = store.getReport(sessionId);
+    expect(report?.overall).toBe(1);
+    expect(report?.structureBonus).toBe(1);
+    expect(report?.noisePenalty).toBe(0);
+  });
+
   it('rejects a noisy search-only session with deterministic followups', () => {
     const store = new ContextSessionStore({ repoRoot });
     const result = searchEnvelope({ used: 'or', relaxed: true, cap: true, total: 1000 });
@@ -216,7 +251,13 @@ describe('ContextSessionStore', () => {
   });
 
   it('flags belowWarningThreshold when score is above hard threshold but under soft bar', () => {
-    const store = new ContextSessionStore({ repoRoot });
+    const store = new ContextSessionStore({
+      repoRoot,
+      config: {
+        ...DEFAULT_CONTEXT_QUALITY_CONFIG,
+        weights: { ...DEFAULT_CONTEXT_QUALITY_CONFIG.weights, inspect: 0.5 },
+      },
+    });
     const sessionId = 'sess-soft-warn';
     const calls = [
       { tool: 'search_context', args: { query: 'audit route', contextSessionId: sessionId }, result: searchEnvelope({ used: 'or', relaxed: true, cap: true, total: 50 }) },

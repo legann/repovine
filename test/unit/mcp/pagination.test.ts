@@ -2,7 +2,12 @@ import { describe, expect, it } from '@jest/globals';
 import { CONFIG_DEFAULTS } from '../../../src/config.js';
 import { addEdge, addNode, createEmptyGraph } from '../../../src/graph/index.js';
 import { buildTokenIndex } from '../../../src/mcp/lib/search-index.js';
-import { paginateList } from '../../../src/mcp/response/pagination.js';
+import {
+  DEFAULT_ARCHITECTURE_LIMIT,
+  MAX_ARCHITECTURE_LIMIT,
+  limitFrom,
+  paginateList,
+} from '../../../src/mcp/response/pagination.js';
 import { toolHandlers } from '../../../src/mcp/tools/registry.js';
 import type { McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
 import type { ModuleInfo, RepositoryGraph } from '../../../src/types.js';
@@ -75,6 +80,16 @@ describe('paginateList', () => {
     const { pagination } = paginateList(items, { limit: 2, offset: 0 });
     expect(pagination.hint).toContain('5 item(s)');
     expect(pagination.hint).toContain('narrow the scope or reduce depth');
+  });
+});
+
+describe('architecture report limit', () => {
+  it('caps broad reports at 30 findings even when a larger limit reaches the handler', () => {
+    expect(limitFrom(
+      { limit: 200 },
+      DEFAULT_ARCHITECTURE_LIMIT,
+      MAX_ARCHITECTURE_LIMIT,
+    )).toBe(30);
   });
 });
 

@@ -1,7 +1,7 @@
 {
   "_description": "K8s Deployment with container image linked to in-repo Dockerfile via runtime container linking.",
   "heavyDomains": ["infra-dockerfile", "infra-k8s"],
-  "lightweightDomains": ["cluster", "handler", "k8s-operator-fixture"],
+  "lightweightDomains": ["handler", "k8s-operator-fixture"],
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "Dockerfile", "kind": "other", "provider": "generic" },

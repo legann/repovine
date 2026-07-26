@@ -12,7 +12,12 @@ import { MemoryProfiler } from '../perf/memory-profiler.js';
 import { formatPackageProgressLine, formatPipelineDetail, formatPipelineStageDone, logPipeline, logPipelineProgress, logPipelineProgressEnd, logPipelineWarn } from '../cli/ui.js';
 import { makeModuleId, modulePathResolverPriority, extractPackageName, packageJobKey } from './utils.js';
 import { PackageWorkerPool, chooseWorkerCount, effectiveTotalMemBytes, type PackageJob, type PackageJobResult } from './worker-pool.js';
-import { adviseFromCalibration, loadCalibration, saveCalibration } from './calibration.js';
+import {
+  adviseFromCalibration,
+  isRepresentativeCalibrationRun,
+  loadCalibration,
+  saveCalibration,
+} from './calibration.js';
 import { getSourcePlugin, getSourcePlugins } from './source/registry.js';
 import { runSourceExtraction } from './source/extract-runner.js';
 import { applyPluginConfig, type PluginsConfigInput } from './plugin-loader.js';
@@ -566,7 +571,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
     && extractionConfigMatches;
   if (previousSnapshot && !canReusePreviousSnapshot) {
     const reason = !versionMatches
-      ? `analysisVersion ${previousSnapshot.analysisVersion ?? 'none'} != ${STAGE1_ANALYSIS_VERSION}`
+      ? 'analysis version changed'
       : !engineBuildOk
         ? 'engine build changed'
         : 'extraction config changed';
@@ -620,7 +625,7 @@ function finalize(
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
   outsideRepoPaths: string[],
   profiler: MemoryProfiler,
-): RepositoryFactsSnapshot {
+): { snapshot: RepositoryFactsSnapshot; reused: number; rescanned: number } {
   const allModules: ModuleInfo[] = [];
   const { reused, rescanned } = mergeResults(results, packages, allModules);
   if (hasPreviousSnapshot) {
@@ -633,7 +638,7 @@ function finalize(
   resolveRemainingImports(allModules, packages);
   profiler.phase('stage1:after-import-resolution');
 
-  return buildSnapshot(
+  const snapshot = buildSnapshot(
     repoRoot,
     packages,
     allModules,
@@ -643,6 +648,7 @@ function finalize(
     outsideRepoPaths,
     profiler,
   );
+  return { snapshot, reused, rescanned };
 }
 
 export interface SnapshotOptions {
@@ -747,13 +753,15 @@ export async function collectRepositoryFactsAsync(
 
   // Peak RSS tracker — sampled while extraction runs so calibration captures the real
   // process-wide footprint (not just heap).
-  let peakRssMb = Math.max(1, Math.round(process.memoryUsage().rss / 1024 / 1024));
+  const baselineRssMb = Math.max(1, Math.round(process.memoryUsage().rss / 1024 / 1024));
+  let peakRssMb = baselineRssMb;
   const rssTicker = setInterval(() => {
     const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
     if (rss > peakRssMb) peakRssMb = rss;
   }, 250);
 
   let snap: RepositoryFactsSnapshot;
+  let reuseStats: { reused: number; rescanned: number };
   try {
     let results: Map<string, PackageJobResult[]>;
     if (workerCount <= 1) {
@@ -772,7 +780,7 @@ export async function collectRepositoryFactsAsync(
       );
     }
     logPipelineProgressEnd();
-    snap = finalize(
+    const finalized = finalize(
       repoRoot,
       prep.packages,
       results,
@@ -783,6 +791,8 @@ export async function collectRepositoryFactsAsync(
       prep.outsideRepoPaths,
       prep.profiler,
     );
+    snap = finalized.snapshot;
+    reuseStats = { reused: finalized.reused, rescanned: finalized.rescanned };
   } finally {
     logPipelineProgressEnd();
     // Always stop the RSS sampler — a throw above would otherwise leak the interval and keep
@@ -797,7 +807,12 @@ export async function collectRepositoryFactsAsync(
   // the run is unrepresentative (forced single-worker, no shards) — saving those
   // numbers would attribute the full process peak to one worker and starve future
   // auto-picks.
-  const isRepresentativeRun = workerCount >= 2 && jobs.length >= 2;
+  const isRepresentativeRun = isRepresentativeCalibrationRun({
+    workerCount,
+    totalShards: jobs.length,
+    reusedModules: reuseStats.reused,
+    rescannedModules: reuseStats.rescanned,
+  });
   if (isRepresentativeRun) {
     try {
       saveCalibration(calibrationCacheDir, {
@@ -807,10 +822,15 @@ export async function collectRepositoryFactsAsync(
           totalRamMb,
           workerCount,
           shardTargetSize,
+          baselineRssMb,
           peakRssMb,
+          incrementalPeakRssMb: Math.max(1, peakRssMb - baselineRssMb),
           wallSec,
           totalModules: snap.modules.length,
           totalShards: jobs.length,
+          reusedModules: reuseStats.reused,
+          rescannedModules: reuseStats.rescanned,
+          runKind: 'cold',
         },
       });
     } catch (e) {

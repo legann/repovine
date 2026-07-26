@@ -1,6 +1,6 @@
 {
   "_description": "AWS Lambda monorepo: flat handlers in lambda-functions/src/, directory domains in lambda-shared/src/<domain>/",
-  "heavyDomains": ["auth", "cluster", "lambda-functions", "lambda-shared", "monday"],
+  "heavyDomains": ["auth", "lambda-functions", "lambda-shared", "monday"],
   "lightweightDomains": ["tenant-manager", "oauth-callback"],
   "rejectedAsDomain": ["index", "monday-session-rate-limit", "monday-session-rate-limit-http", "audit-log", "middleware", "session-manager", "jwt-manager"],
   "modulesInDomain": {

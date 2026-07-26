@@ -29,9 +29,7 @@ interface ExpectedTypescriptImport {
 }
 
 interface ExpectedTypescript {
-  importEdges: Array<{ from: string; to: string }>;
-  reExportEdges?: Array<{ from: string; to: string }>;
-  redirectedImportEdges?: Array<{ from: string; to: string; usedNames: string[] }>;
+  codeEdges: Array<{ from: string; to: string; kind: 'imports' | 'reexports' }>;
   resolvedImports: ExpectedTypescriptImport[];
 }
 
@@ -53,13 +51,20 @@ function listFixtures(): string[] {
     .sort();
 }
 
-function graphImportEdges(graph: RepositoryGraph): Set<string> {
-  const edges = new Set<string>();
-  for (const edge of graph.edges) {
-    if (edge.kind !== 'imports') continue;
-    edges.add(`${edge.from}\t${edge.to}`);
-  }
-  return edges;
+interface CodeEdge {
+  from: string;
+  to: string;
+  kind: 'imports' | 'reexports';
+}
+
+function projectCodeEdges(graph: RepositoryGraph): CodeEdge[] {
+  return graph.edges
+    .filter((edge): edge is typeof edge & CodeEdge => {
+      if (edge.kind !== 'imports' && edge.kind !== 'reexports') return false;
+      return graph.nodes.get(edge.from)?.type === 'module' && graph.nodes.get(edge.to)?.type === 'module';
+    })
+    .map(({ from, to, kind }) => ({ from, to, kind }))
+    .sort((a, b) => `${a.from}:${a.to}:${a.kind}`.localeCompare(`${b.from}:${b.to}:${b.kind}`));
 }
 
 describe('tsconfig paths — fixture suite', () => {
@@ -105,30 +110,10 @@ describe('tsconfig paths — fixture suite', () => {
       }
     });
 
-    it('emits import graph edges as declared in expected.json', () => {
-      const edges = graphImportEdges(graph);
-      for (const { from, to } of typescript.importEdges) {
-        expect(edges.has(`${from}\t${to}`)).toBe(true);
-      }
-    });
-
-    it('emits re-export graph edges as declared in expected.json', () => {
-      const edges = new Set(
-        graph.edges
-          .filter(edge => edge.kind === 'reexports')
-          .map(edge => `${edge.from}\t${edge.to}`),
-      );
-      for (const { from, to } of typescript.reExportEdges ?? []) {
-        expect(edges.has(`${from}\t${to}`)).toBe(true);
-      }
-    });
-
-    it('emits barrel-redirected import edges with used names as declared in expected.json', () => {
-      for (const { from, to, usedNames } of typescript.redirectedImportEdges ?? []) {
-        const edge = graph.edges.find(item => item.kind === 'imports' && item.from === from && item.to === to);
-        expect(edge).toBeDefined();
-        expect(edge?.metadata?.usedNames).toEqual(usedNames);
-      }
+    it('emits exactly the hand-derived module code edges declared in expected.json', () => {
+      const expectedEdges = [...typescript.codeEdges]
+        .sort((a, b) => `${a.from}:${a.to}:${a.kind}`.localeCompare(`${b.from}:${b.to}:${b.kind}`));
+      expect(projectCodeEdges(graph)).toEqual(expectedEdges);
     });
   });
 });

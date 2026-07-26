@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 23,
-    "totalEdges": 35,
+    "totalNodes": 22,
+    "totalEdges": 29,
     "nodesByType": {
-      "domain": 7,
+      "domain": 6,
       "export-symbol": 4,
       "module": 6,
       "package": 5,
@@ -13,12 +13,11 @@
       "contains": 15,
       "imports": 4,
       "reexports": 1,
-      "tagged": 15
+      "tagged": 9
     }
   },
   "byType": {
     "domain": [
-      "domain:cluster",
       "domain:handler",
       "domain:fixture-api",
       "domain:util",
@@ -60,16 +59,6 @@
       "data": {
         "weight": "lightweight",
         "tier": "technical"
-      }
-    },
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "heavy",
-        "tier": "business"
       }
     },
     {
@@ -333,17 +322,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:fixture-api",
       "links": [],
       "children": [],
@@ -446,11 +424,6 @@
       "id": "mod:fixture-api/src/handler",
       "links": [
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:handler",
           "kind": "tagged",
           "tagSource": "path"
@@ -475,10 +448,6 @@
         ],
         "links": [
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:handler",
             "kind": "tagged"
           },
@@ -498,11 +467,6 @@
           "kind": "reexports"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:fixture-shared",
           "kind": "tagged",
           "tagSource": "package"
@@ -519,10 +483,6 @@
             "kind": "reexports"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:fixture-shared",
             "kind": "tagged"
           }
@@ -533,11 +493,6 @@
     {
       "id": "mod:fixture-shared/src/lib/util",
       "links": [
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
         {
           "to": "domain:util",
           "kind": "tagged",
@@ -563,10 +518,6 @@
         ],
         "links": [
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:util",
             "kind": "tagged"
           },
@@ -585,11 +536,6 @@
           "to": "domain:fixture-web",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:button",
@@ -615,10 +561,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:button",
             "kind": "tagged"
           }
@@ -637,11 +579,6 @@
           "to": "domain:fixture-web",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -656,10 +593,6 @@
           },
           {
             "to": "domain:fixture-web",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -685,11 +618,6 @@
           "to": "domain:fixture-web",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -719,10 +647,6 @@
           },
           {
             "to": "domain:fixture-web",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

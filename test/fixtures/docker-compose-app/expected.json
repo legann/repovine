@@ -1,7 +1,7 @@
 {
   "_description": "Docker Compose: build.context services link to in-repo Dockerfiles; image-only services stay unlinked. Top-level secrets: become kind='secret' nodes (file-based + external); services consume them via secrets: (short/long), *_FILE env (/run/secrets/<name>), and env_file (synthesized external secret) -> uses_env edges.",
   "heavyDomains": ["infra-docker-compose", "infra-dockerfile"],
-  "lightweightDomains": ["cluster", "docker-compose-app-fixture"],
+  "lightweightDomains": ["docker-compose-app-fixture"],
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "api", "kind": "other", "provider": "generic" },

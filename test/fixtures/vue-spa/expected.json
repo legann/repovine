@@ -1,6 +1,6 @@
 {
   "_description": "Vue SPA with SFC extractor: .vue files visible in graph. App.vue rejected (app reserved). PascalCase components → lightweight. composables/ structural; useX hooks rejected. stores/<name>.ts → lightweight basename domains. views/users/ → users domain.",
-  "heavyDomains": ["cluster", "users", "vue-spa-fixture"],
+  "heavyDomains": ["users", "vue-spa-fixture"],
   "lightweightDomains": ["basebutton", "cart", "useauth", "user", "usercard", "userlistview", "usetheme"],
   "rejectedAsDomain": ["App", "app", "main"],
   "modulesInDomain": {
@@ -11,14 +11,16 @@
     ]
   },
   "typescript": {
-    "importEdges": [
+    "codeEdges": [
       {
         "from": "mod:vue-spa-fixture/src/views/users/UserListView.vue",
-        "to": "mod:vue-spa-fixture/src/composables/useAuth"
+        "to": "mod:vue-spa-fixture/src/composables/useAuth",
+        "kind": "imports"
       },
       {
         "from": "mod:vue-spa-fixture/src/composables/useAuth",
-        "to": "mod:vue-spa-fixture/src/stores/user"
+        "to": "mod:vue-spa-fixture/src/stores/user",
+        "kind": "imports"
       }
     ],
     "resolvedImports": [

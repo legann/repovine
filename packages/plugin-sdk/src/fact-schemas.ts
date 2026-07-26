@@ -56,6 +56,7 @@ export const zSemanticModuleDelta = z
     exports: z.array(zExportInfo),
     reExports: z.array(zReExportInfo).optional(),
     calls: z.array(z.string()).optional(),
+    callsTotal: z.number().optional(),
     semanticHints: zSemanticHints.optional(),
     transient: z.boolean().optional(),
   })

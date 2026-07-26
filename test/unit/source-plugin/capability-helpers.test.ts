@@ -21,8 +21,9 @@ function stubPlugin(id: string, capabilities?: SourcePlugin['capabilities']): So
 
 describe('capability helpers — built-in plugins', () => {
   it('getKnownExtensions returns the built-in source extension union', () => {
+    // `.vue`/`.svelte` are TypeScript-plugin-owned: discovery reaches them through the SFC walk.
     expect(new Set(getKnownExtensions())).toEqual(
-      new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py']),
+      new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte', '.py']),
     );
   });
 

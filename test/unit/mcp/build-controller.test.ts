@@ -9,7 +9,7 @@ describe('IndexBuildController stage1/stage2 progress (get_build_status cold-bui
     jest.useRealTimers();
   });
 
-  it('reports stage1 pct, etaSec, package counts and eta-derived retryAfterSec', () => {
+  it('reports stage1 pct, stageEtaSec, remaining stages, and an ETA-derived retry delay', () => {
     jest.useFakeTimers();
     jest.setSystemTime(0);
     const controller = new IndexBuildController();
@@ -28,15 +28,16 @@ describe('IndexBuildController stage1/stage2 progress (get_build_status cold-bui
     expect(snap.totalModules).toBe(100);
     expect(snap.pct).toBe(50); // 50/100
     expect(snap.elapsedSec).toBe(10);
-    expect(snap.etaSec).toBe(10); // (100-50) / (50/10)
+    expect(snap.stageEtaSec).toBe(10); // (100-50) / (50/10)
+    expect(snap.remainingStages).toBe(2);
     expect(snap.retryAfterSec).toBe(3); // clamp(ceil(eta/4)) = ceil(10/4)
     expect(snap.currentPackage).toBe('pkg-b');
     expect(snap.message).toContain('repository facts snapshot');
     expect(snap.message).toContain('[2/4 pkgs]');
-    expect(snap.message).toContain('ETA ~10s');
+    expect(snap.message).toContain('stage ETA ~10s');
   });
 
-  it('omits pct/etaSec on stage2 and falls back to the default retryAfterSec', () => {
+  it('omits pct/stageEtaSec on stage2 and reports one remaining stage', () => {
     const controller = new IndexBuildController();
     controller.start(hangingBuild).catch(() => undefined);
     controller.onStageEnter('stage2');
@@ -45,7 +46,8 @@ describe('IndexBuildController stage1/stage2 progress (get_build_status cold-bui
     expect(snap.status).toBe('building');
     expect(snap.stage).toBe('stage2');
     expect(snap.pct).toBeUndefined();
-    expect(snap.etaSec).toBeUndefined();
+    expect(snap.stageEtaSec).toBeUndefined();
+    expect(snap.remainingStages).toBe(1);
     expect(snap.retryAfterSec).toBe(8); // clamp(ceil((eta ?? 30)/4)) = ceil(30/4)
     expect(snap.message).toContain('repository graph');
   });
@@ -63,6 +65,7 @@ describe('IndexBuildController semantic embed progress', () => {
     expect(snap.doneSemanticCards).toBe(80);
     expect(snap.totalSemanticCards).toBe(160);
     expect(snap.pct).toBe(50);
+    expect(snap.remainingStages).toBe(0);
     expect(snap.message).toContain('semantic search embeddings');
     expect(snap.message).toContain('[80/160 cards]');
   });

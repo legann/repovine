@@ -63,9 +63,17 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
   };
 
   for (const mod of snapshot.modules) {
+    const envKinds = new Map(
+      (mod.semanticHints?.security ?? [])
+        .filter(signal => signal.name && (signal.kind === 'secret-env' || signal.kind === 'public-env'))
+        .map(signal => [
+          signal.name!,
+          signal.kind === 'secret-env' ? 'secret' : 'public-config',
+        ]),
+    );
     for (const envName of mod.semanticHints?.envVars ?? []) {
       push({
-        kind: 'env',
+        kind: envKinds.get(envName) ?? 'env',
         name: envName,
         moduleId: mod.id,
         moduleLabel: graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath,

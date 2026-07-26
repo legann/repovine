@@ -12,8 +12,8 @@ checks:
     fail_if: the call errors, hangs past waitSec without returning, or omits status/stage/pct fields while building
     severity: fail
   - id: building-state-shape
-    assert:  while building, responses are a SUCCESSFUL payload with status:"building" plus eta_sec / retry_after_sec / pct (not an error)
-    fail_if: a building response is returned as an MCP error, or lacks eta_sec/retry_after_sec
+    assert:  while building, responses are a SUCCESSFUL payload with status:"building" plus stage/remaining_stages, stage_eta_sec when the current stage has measurable progress, retry_after_sec, and pct when available (not an error)
+    fail_if: a building response is returned as an MCP error, labels stage_eta_sec as time-until-ready, or lacks stage/remaining_stages/retry_after_sec
     na_if:   graph is already warm — building state is never observed this run
     severity: warn
   - id: refresh-sync
@@ -45,7 +45,7 @@ Honor the shared preamble in `_PREAMBLE.md`. Session id e.g. `build-sync-YYYY-MM
 
 1. **Build status** → `build-status-callable`, `building-state-shape`.
    `get_build_status({ waitSec: 45, contextSessionId })`. If a prior tool returned `status:"building"`,
-   confirm it was a success payload with `eta_sec`/`retry_after_sec`/`pct`, and that the long-poll
+   confirm it was a success payload with `stage`/`remaining_stages`/`retry_after_sec` plus stage-local `stage_eta_sec`/`pct` when available, and that the long-poll
    returned when the build settled — do not tight-loop.
 
 2. **Refresh barrier** → `refresh-sync`, `orphans-reported`.

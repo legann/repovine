@@ -3,7 +3,7 @@ import type { DomainsConfig } from './domains-schema.js';
 import { matchesInfraResourceExclude } from './domains.js';
 
 /**
- * Structural edges that do not witness a runtime-resource's necessity (D6): `contains` ties it to
+ * Structural edges that do not witness a runtime-resource's necessity: `contains` ties it to
  * its IaC module, `tagged` to its infra/domain. Every materialized resource has both regardless of
  * whether any query reads it — so a resource carrying *only* these is inert.
  */

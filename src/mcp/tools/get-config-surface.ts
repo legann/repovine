@@ -23,9 +23,15 @@ export const handleGetConfigSurface: ToolHandler = (ctx, args) => {
     ...result,
     ...(result.total === 0 ? { emptyDiagnostic: configSurfaceEmptyDiagnostic(ctx, scope, args) } : {}),
   };
-  return envelope(scope, `Found ${result.total} config/resource surface item(s).`, responseResult, {
+  return envelope(scope, `Found ${result.total} extracted config/resource surface item(s).`, responseResult, {
+    // Envelope confidence answers "did the request resolve", the same question it answers on every
+    // other tool. Completeness is a separate fact and it is stated in `gaps`: presence is proven,
+    // coverage is not, because source plugins do not guess computed env keys and an aliased or
+    // wrapped access can sit outside a plugin's syntax vocabulary.
     confidence: result.total > 0 ? 'high' : 'low',
-    gaps: result.total > 0 ? [] : ['No config/resource surface items matched this scope and filter.'],
+    gaps: result.total > 0
+      ? ['Config-surface coverage is best-effort; computed, aliased, or wrapped config accesses may be omitted.']
+      : ['No config/resource surface items matched this scope and filter.'],
     navigation,
   });
 };

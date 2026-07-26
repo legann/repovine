@@ -220,17 +220,15 @@ state?
 - `review.verdict="approve"` is invalid when blocker/major findings exist, when
   test coverage is not `adequate`, or when `testReview.missingTests` contains a
   blocker/major entry;
-- when `assignment.contextSession.required=true`, harness mode hard-fails
-  compliance only when `result.contextSessionId` is missing or when the recorded
-  session's recomputed `ContextQualityReport.acceptHandoff` is false — and only
-  when the repo has prior annotated context (a greenfield first pass downgrades
-  all context errors to warnings). A declared but unrecorded session id is
-  advisory in every mode (warning `Context session not found`), as is an
-  unreadable session store; a context-skipping agent is still caught via
-  `NO_RECORDED_EVENTS` on a recorded empty session. In client mode a weak session
-  yields warnings and `requiredFollowups` instead of errors;
-- `warningThreshold` (soft) vs `qualityThreshold` / phase `threshold` (hard
-  `acceptHandoff` gate) — see `repovine/docs/context-quality.md`;
+- when `assignment.contextSession.required=true`, repovine recomputes the
+  recorded `ContextQualityReport` instead of trusting self-report. Missing,
+  unreadable, and rejected sessions currently emit warnings and
+  `requiredFollowups` in both modes: the original weighted score failed its
+  outcome-labelled falsification, so context quality cannot fail compliance
+  until the return bar in `repovine/docs/context-quality.md` is met.
+  Evidence-backed annotation and protocol checks remain enforceable;
+- `warningThreshold` and `qualityThreshold` / phase `threshold` still shape the
+  reported advisory verdict — see `repovine/docs/context-quality.md`;
 - `assignment.contextSession.maxRecoveryAttempts` is harness-owned retry
   metadata: repovine validates/echoes it, but the harness counts attempts and
   stops retry loops;

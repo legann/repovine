@@ -184,7 +184,7 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
   const ann = annotations.get(nodeId);
   if (ann) {
     const { snapshot } = ctx.getState();
-    let fresh: boolean;
+    let fresh: boolean | undefined;
     const mod = modulesById.get(nodeId);
     if (mod) {
       fresh = ann.contentHash === mod.contentHash;
@@ -211,10 +211,19 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
         && ann.contentHash === currentHash
         && (ann.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
     } else {
-      fresh = true;
+      // No hash source for this node type. `write_annotation` stored `contentHash: 'unknown'` here,
+      // so there is nothing to compare against and `fresh` is left unset rather than asserted.
+      fresh = undefined;
     }
+    // A stored 'unknown' hash cannot match anything meaningfully, whichever branch resolved above.
+    if (ann.contentHash === 'unknown') fresh = undefined;
     view.annotation = ann.annotation;
-    const meta: Record<string, unknown> = { pass: ann.pass, updatedAt: ann.updatedAt, fresh };
+    const meta: Record<string, unknown> = {
+      pass: ann.pass,
+      updatedAt: ann.updatedAt,
+      ...(fresh === undefined ? {} : { fresh }),
+      freshnessSource: fresh === undefined ? 'not-comparable' : 'content-hash',
+    };
     const moduleKind = inferModuleKind({ mod, node });
     if (moduleKind !== 'generic' || mod) meta.moduleKind = moduleKind;
     if (mod) {

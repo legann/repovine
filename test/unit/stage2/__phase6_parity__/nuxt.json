@@ -1,32 +1,33 @@
 {
   "stats": {
-    "totalNodes": 31,
-    "totalEdges": 46,
+    "totalNodes": 34,
+    "totalEdges": 52,
     "nodesByType": {
-      "domain": 11,
+      "domain": 12,
       "export-symbol": 9,
-      "module": 9,
+      "module": 11,
       "package": 1,
       "root": 1
     },
     "edgesByKind": {
-      "contains": 19,
-      "tagged": 27
+      "contains": 21,
+      "tagged": 31
     }
   },
   "byType": {
     "domain": [
       "domain:nuxt-fixture",
+      "domain:files",
       "domain:products",
       "domain:users",
-      "domain:cluster",
       "domain:auth",
       "domain:logger",
       "domain:useauth",
       "domain:usefetch",
       "domain:cart",
       "domain:user",
-      "domain:routing"
+      "domain:routing",
+      "domain:nuxt-fixture/users"
     ],
     "export-symbol": [
       "export:nuxt-fixture/server/api/products/default",
@@ -40,7 +41,9 @@
       "export:nuxt-fixture/stores/user.store/useUserStore"
     ],
     "module": [
+      "mod:nuxt-fixture/server/api/files/[...path]",
       "mod:nuxt-fixture/server/api/products",
+      "mod:nuxt-fixture/server/api/users/[id].get",
       "mod:nuxt-fixture/server/api/users/create",
       "mod:nuxt-fixture/server/api/users",
       "mod:nuxt-fixture/server/middleware/auth",
@@ -79,13 +82,13 @@
       }
     },
     {
-      "id": "domain:cluster",
+      "id": "domain:files",
       "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
+      "label": "files",
+      "description": "Domain: files",
       "data": {
-        "weight": "heavy",
-        "tier": "feature"
+        "weight": "lightweight",
+        "tier": "technical"
       }
     },
     {
@@ -105,7 +108,20 @@
       "description": "Domain: nuxt-fixture",
       "data": {
         "weight": "heavy",
-        "tier": "feature"
+        "tier": "feature",
+        "subdomains": [
+          "domain:nuxt-fixture/users"
+        ]
+      }
+    },
+    {
+      "id": "domain:nuxt-fixture/users",
+      "type": "domain",
+      "label": "nuxt-fixture/users",
+      "description": "Subdomain: nuxt-fixture/users (3 modules)",
+      "data": {
+        "tier": "feature",
+        "parent": "domain:nuxt-fixture"
       }
     },
     {
@@ -163,8 +179,8 @@
       "label": "users",
       "description": "Domain: users",
       "data": {
-        "weight": "lightweight",
-        "tier": "technical"
+        "weight": "heavy",
+        "tier": "feature"
       }
     },
     {
@@ -334,6 +350,18 @@
       }
     },
     {
+      "id": "mod:nuxt-fixture/server/api/files/[...path]",
+      "type": "module",
+      "label": "…/files/[...path]",
+      "description": "Module server/api/files/[...path].ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/server/api/files/[...path].ts",
+        "relativeFilePath": "server/api/files/[...path].ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
       "id": "mod:nuxt-fixture/server/api/products",
       "type": "module",
       "label": "…/products/index",
@@ -353,6 +381,18 @@
       "data": {
         "filePath": "<FIXTURE>/server/api/users/index.ts",
         "relativeFilePath": "server/api/users/index.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/users/[id].get",
+      "type": "module",
+      "label": "…/users/[id].get",
+      "description": "Module server/api/users/[id].get.ts in nuxt-fixture",
+      "data": {
+        "filePath": "<FIXTURE>/server/api/users/[id].get.ts",
+        "relativeFilePath": "server/api/users/[id].get.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -456,11 +496,11 @@
       }
     },
     {
-      "id": "domain:cluster",
+      "id": "domain:files",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:cluster",
+        "id": "domain:files",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -486,6 +526,27 @@
         "level": 1,
         "drill_down": [],
         "links": []
+      }
+    },
+    {
+      "id": "domain:nuxt-fixture/users",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "domain:nuxt-fixture/users",
+        "level": 1,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          }
+        ]
       }
     },
     {
@@ -662,11 +723,6 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:useauth",
           "kind": "tagged",
           "tagSource": "path"
@@ -690,10 +746,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:useauth",
             "kind": "tagged"
           }
@@ -708,11 +760,6 @@
           "to": "domain:nuxt-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:usefetch",
@@ -738,14 +785,51 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:usefetch",
             "kind": "tagged"
           }
         ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/files/[...path]",
+      "links": [
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:files",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:nuxt-fixture/server/api/files/[...path]",
+        "level": 2,
+        "drill_down": [],
+        "links": [
+          {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:files",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
     },
@@ -801,17 +885,21 @@
       "id": "mod:nuxt-fixture/server/api/users",
       "links": [
         {
-          "to": "domain:nuxt-fixture",
-          "kind": "tagged",
-          "tagSource": "package"
-        },
-        {
           "to": "domain:users",
           "kind": "tagged",
           "tagSource": "path"
         },
         {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
           "to": "domain:routing",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:nuxt-fixture/users",
           "kind": "tagged"
         }
       ],
@@ -829,15 +917,68 @@
         ],
         "links": [
           {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
             "to": "domain:nuxt-fixture",
             "kind": "tagged"
           },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nuxt-fixture/users",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nuxt-fixture/server/api/users/[id].get",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:nuxt-fixture/users",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:nuxt-fixture/server/api/users/[id].get",
+        "level": 2,
+        "drill_down": [],
+        "links": [
           {
             "to": "domain:users",
             "kind": "tagged"
           },
           {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
             "to": "domain:routing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nuxt-fixture/users",
             "kind": "tagged"
           }
         ],
@@ -849,17 +990,21 @@
       "id": "mod:nuxt-fixture/server/api/users/create",
       "links": [
         {
-          "to": "domain:nuxt-fixture",
-          "kind": "tagged",
-          "tagSource": "package"
-        },
-        {
           "to": "domain:users",
           "kind": "tagged",
           "tagSource": "path"
         },
         {
+          "to": "domain:nuxt-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
           "to": "domain:routing",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:nuxt-fixture/users",
           "kind": "tagged"
         }
       ],
@@ -877,15 +1022,19 @@
         ],
         "links": [
           {
-            "to": "domain:nuxt-fixture",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:users",
             "kind": "tagged"
           },
           {
+            "to": "domain:nuxt-fixture",
+            "kind": "tagged"
+          },
+          {
             "to": "domain:routing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nuxt-fixture/users",
             "kind": "tagged"
           }
         ],
@@ -900,11 +1049,6 @@
           "to": "domain:nuxt-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:auth",
@@ -930,10 +1074,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:auth",
             "kind": "tagged"
           }
@@ -948,11 +1088,6 @@
           "to": "domain:nuxt-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:logger",
@@ -978,10 +1113,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:logger",
             "kind": "tagged"
           }
@@ -1001,11 +1132,6 @@
           "to": "domain:nuxt-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -1028,10 +1154,6 @@
           {
             "to": "domain:nuxt-fixture",
             "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
           }
         ],
         "sourcePluginId": "typescript"
@@ -1049,11 +1171,6 @@
           "to": "domain:nuxt-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -1076,10 +1193,6 @@
           {
             "to": "domain:nuxt-fixture",
             "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
           }
         ],
         "sourcePluginId": "typescript"
@@ -1089,7 +1202,9 @@
       "id": "pkg:nuxt-fixture",
       "links": [],
       "children": [
+        "mod:nuxt-fixture/server/api/files/[...path]",
         "mod:nuxt-fixture/server/api/products",
+        "mod:nuxt-fixture/server/api/users/[id].get",
         "mod:nuxt-fixture/server/api/users/create",
         "mod:nuxt-fixture/server/api/users",
         "mod:nuxt-fixture/server/middleware/auth",
@@ -1104,7 +1219,15 @@
         "level": 1,
         "drill_down": [
           {
+            "id": "mod:nuxt-fixture/server/api/files/[...path]",
+            "type": "module"
+          },
+          {
             "id": "mod:nuxt-fixture/server/api/products",
+            "type": "module"
+          },
+          {
+            "id": "mod:nuxt-fixture/server/api/users/[id].get",
             "type": "module"
           },
           {
@@ -1164,18 +1287,37 @@
   ],
   "entrypoints": [
     {
+      "id": "entrypoint:file:mod:nuxt-fixture/server/api/files/[...path]:/api/files/[...path]:server-api",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/files/[...path]",
+      "moduleId": "mod:nuxt-fixture/server/api/files/[...path]",
+      "source": "nuxt",
+      "fileType": "server-api"
+    },
+    {
       "id": "entrypoint:file:mod:nuxt-fixture/server/api/products:/api/products:server-api",
       "kind": "api",
-      "layer": "frontend",
+      "layer": "backend",
       "path": "/api/products",
       "moduleId": "mod:nuxt-fixture/server/api/products",
       "source": "nuxt",
       "fileType": "server-api"
     },
     {
+      "id": "entrypoint:file:mod:nuxt-fixture/server/api/users/[id].get:/api/users/[id]:server-api:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users/[id]",
+      "method": "GET",
+      "moduleId": "mod:nuxt-fixture/server/api/users/[id].get",
+      "source": "nuxt",
+      "fileType": "server-api"
+    },
+    {
       "id": "entrypoint:file:mod:nuxt-fixture/server/api/users/create:/api/users/create:server-api",
       "kind": "api",
-      "layer": "frontend",
+      "layer": "backend",
       "path": "/api/users/create",
       "moduleId": "mod:nuxt-fixture/server/api/users/create",
       "source": "nuxt",
@@ -1184,7 +1326,7 @@
     {
       "id": "entrypoint:file:mod:nuxt-fixture/server/api/users:/api/users:server-api",
       "kind": "api",
-      "layer": "frontend",
+      "layer": "backend",
       "path": "/api/users",
       "moduleId": "mod:nuxt-fixture/server/api/users",
       "source": "nuxt",

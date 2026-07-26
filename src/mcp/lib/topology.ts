@@ -1,5 +1,6 @@
 import type { McpToolRuntime } from '../types.js';
 import type { EdgeKind } from '../../types.js';
+import { resolveInfraRef } from '../../graph/resolve-infra-ref.js';
 
 export function publishTypeForRuntimeResource(serviceId: string): string {
   if (serviceId.startsWith('resource:aws-sqs:')) return 'sqs';
@@ -99,8 +100,17 @@ export function projectRuntimeTopology(ctx: McpToolRuntime, args: Record<string,
       .map(e => graph.nodes.get(e.to)?.label)
       .filter((d): d is string => d != null);
 
-    const infraMods = outEdges.filter(e => e.kind === 'infra').map(e => e.to);
-    const handler = infraMods.length > 0 ? graph.nodes.get(infraMods[0])?.label : svcData?.handler;
+    // Two different facts used to share the name `handler`: what the IaC document declares, and
+    // which code the resolver bound the resource to. They answer different questions and can
+    // disagree, so they are reported separately. A resource can also carry several infra edges —
+    // a container with more than one image reaches more than one Dockerfile — and naming the first
+    // one `handler` was a guess. Only `mod:` targets are code; `infra:dockerfile:*` is a build
+    // artifact, not the module that runs.
+    const handlerModules = outEdges
+      .filter(e => e.kind === 'infra' && e.to.startsWith('mod:'))
+      .map(e => graph.nodes.get(e.to)?.label)
+      .filter((label): label is string => label != null)
+      .sort();
 
     const triggers: unknown[] = [];
     if (svcData?.triggers) {
@@ -110,17 +120,31 @@ export function projectRuntimeTopology(ctx: McpToolRuntime, args: Record<string,
       }
     }
 
+    // References resolve against the document that declares this service, the same scope the graph
+    // builder used. A global label scan here would re-introduce the cross-template match the
+    // builder refused.
+    const refScope = {
+      declaredIn: svcData?.declaredIn,
+      namespace: svcData?.namespace,
+      provider: svcData?.provider,
+    };
+
     const resources: unknown[] = [];
     if (svcData?.envRefs) {
       for (const ref of svcData.envRefs) {
         if (ref.targetLogicalId) {
-          const targetNode = [...(graph.byType.get('runtime-resource') ?? [])].find(id => graph.nodes.get(id)?.label === ref.targetLogicalId);
+          const resolution = resolveInfraRef(graph, ref.targetLogicalId, refScope);
+          const targetNode = resolution.status === 'resolved' ? resolution.serviceId : undefined;
           if (targetNode) {
             const targetGraphNode = graph.nodes.get(targetNode);
             resources.push({
               id: targetNode,
               logicalId: ref.targetLogicalId,
-              access: 'read-write',
+              // `access` reports the grant the IaC document declares. When no grant document was
+              // parsed for this target the mode stays 'unknown' — a binding without a readable
+              // verb is an unread fact, and reporting a default here would state one.
+              access: ref.access ?? 'unknown',
+              accessSource: ref.access ? 'iam-policy' : 'not-declared',
               envVar: ref.varName,
             });
             if (!resourceMap.has(targetNode)) {
@@ -182,22 +206,32 @@ export function projectRuntimeTopology(ctx: McpToolRuntime, args: Record<string,
       label: node.label,
       kind: svcData?.kind,
       provider: svcData?.provider,
-      handler,
+      // As the IaC document declares it (`handlers/user.main`), absent when it declares none.
+      handler: svcData?.handler,
+      // Code the resolver bound this resource to; empty when nothing resolved.
+      handlerModules: handlerModules.length > 0 ? handlerModules : undefined,
       domains,
       triggers: triggers.length > 0 ? triggers : undefined,
       resources: resources.length > 0 ? resources : undefined,
+      // References the declaring document names but resolution refused to bind. Reported so the
+      // absence of an edge reads as a known gap rather than as an absent reference.
+      unresolvedRefs: svcData?.unresolvedRefs?.length ? svcData.unresolvedRefs : undefined,
       publishes: publishes.length > 0 ? publishes : undefined,
       routesTo: routesTo.length > 0 ? routesTo : undefined,
       routedFrom: routedFrom.length > 0 ? routedFrom : undefined,
     });
   }
 
+  // Every producer of a shared resource is paired with every consumer of it. Each pair is a real
+  // static possibility — the producer writes where the consumer reads — but nothing here observes
+  // that a given message travels from this producer to this consumer. `relation` carries that
+  // distinction so the pair is not read as a witnessed route.
   for (const [queueId, entry] of resourceMap) {
     if (entry.producers.length > 0 && entry.flowConsumers.length > 0) {
       for (const from of entry.producers) {
         for (const to of entry.flowConsumers) {
           if (from !== to) {
-            dataFlows.push({ from, through: queueId, to });
+            dataFlows.push({ from, through: queueId, to, relation: 'possible-via-shared-resource' });
           }
         }
       }

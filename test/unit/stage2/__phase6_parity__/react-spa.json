@@ -1,7 +1,7 @@
 {
   "stats": {
     "totalNodes": 33,
-    "totalEdges": 51,
+    "totalEdges": 46,
     "nodesByType": {
       "domain": 12,
       "export-symbol": 9,
@@ -11,14 +11,13 @@
     },
     "edgesByKind": {
       "contains": 20,
-      "tagged": 31
+      "tagged": 26
     }
   },
   "byType": {
     "domain": [
       "domain:billing",
       "domain:react-spa-fixture",
-      "domain:cluster",
       "domain:useauth",
       "domain:usetheme",
       "domain:navbar",
@@ -27,6 +26,7 @@
       "domain:billingpage",
       "domain:dashboard",
       "domain:dashboardpage",
+      "domain:routing",
       "domain:react-spa-fixture/billing"
     ],
     "export-symbol": [
@@ -91,16 +91,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "heavy",
-        "tier": "feature"
-      }
-    },
-    {
       "id": "domain:dashboard",
       "type": "domain",
       "label": "dashboard",
@@ -154,6 +144,15 @@
       }
     },
     {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
       "id": "domain:siteheader",
       "type": "domain",
       "label": "siteheader",
@@ -193,8 +192,8 @@
         "signature": "()",
         "params": [],
         "lineRange": {
-          "start": 1,
-          "end": 1
+          "start": 19,
+          "end": 28
         },
         "isDefault": true
       }
@@ -335,6 +334,7 @@
       "data": {
         "filePath": "<FIXTURE>/src/App.tsx",
         "relativeFilePath": "src/App.tsx",
+        "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
     },
@@ -491,17 +491,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:dashboard",
       "links": [],
       "children": [],
@@ -564,6 +553,17 @@
             "kind": "tagged"
           }
         ]
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drill_down": [],
+        "links": []
       }
     },
     {
@@ -707,9 +707,8 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
+          "to": "domain:routing",
+          "kind": "tagged"
         }
       ],
       "children": [
@@ -730,10 +729,11 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
+            "to": "domain:routing",
             "kind": "tagged"
           }
         ],
+        "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
     },
@@ -744,11 +744,6 @@
           "to": "domain:react-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:navbar",
@@ -774,10 +769,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:navbar",
             "kind": "tagged"
           }
@@ -792,11 +783,6 @@
           "to": "domain:react-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:siteheader",
@@ -819,10 +805,6 @@
         "links": [
           {
             "to": "domain:react-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           },
           {
@@ -1049,11 +1031,6 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
           "to": "domain:useauth",
           "kind": "tagged",
           "tagSource": "path"
@@ -1077,10 +1054,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:useauth",
             "kind": "tagged"
           }
@@ -1095,11 +1068,6 @@
           "to": "domain:react-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:usetheme",
@@ -1125,10 +1093,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:usetheme",
             "kind": "tagged"
           }
@@ -1143,11 +1107,6 @@
           "to": "domain:react-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -1158,10 +1117,6 @@
         "links": [
           {
             "to": "domain:react-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -1250,5 +1205,46 @@
       }
     }
   ],
-  "entrypoints": []
+  "entrypoints": [
+    {
+      "id": "entrypoint:route:mod:react-spa-fixture/src/App:/",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/",
+      "component": "HomePage",
+      "moduleId": "mod:react-spa-fixture/src/App",
+      "source": "react-router",
+      "webFramework": "react-router"
+    },
+    {
+      "id": "entrypoint:route:mod:react-spa-fixture/src/App:/projects/:projectId",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/projects/:projectId",
+      "component": "ProjectPage",
+      "moduleId": "mod:react-spa-fixture/src/App",
+      "source": "react-router",
+      "webFramework": "react-router"
+    },
+    {
+      "id": "entrypoint:route:mod:react-spa-fixture/src/App:/:lang?/categories",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/:lang?/categories",
+      "component": "CategoriesPage",
+      "moduleId": "mod:react-spa-fixture/src/App",
+      "source": "react-router",
+      "webFramework": "react-router"
+    },
+    {
+      "id": "entrypoint:route:mod:react-spa-fixture/src/App:/files/*",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/files/*",
+      "component": "FilesPage",
+      "moduleId": "mod:react-spa-fixture/src/App",
+      "source": "react-router",
+      "webFramework": "react-router"
+    }
+  ]
 }

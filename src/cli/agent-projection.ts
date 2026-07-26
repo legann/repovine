@@ -283,12 +283,12 @@ Honesty rules (repovine re-checks all of this against the real graph):
 - contractsChanged MUST describe your delta, not a replacement product spec. Mark removals/narrowing clearly and only when the user explicitly requested them; otherwise preserve existing graph-observed contracts.
 - Set dependencyImpactChecked / configSurfaceChecked / flowChecked / architectureChecked true ONLY for checks the assignment requested AND you actually performed.
 - Report ONLY files and node ids you truly touched. Invented nodes are rejected.
-- graphNodesTouched carries canonical ids COPIED from a tool response (refresh_context / map_context / inspect_node). Never compose an id by hand from a file path. The graph excludes test and spec sources, so src/foo.test.ts has no node; a workspace root that is not a package has no pkg: node. A file the graph does not return belongs in filesChanged only.`;
+- graphNodesTouched carries canonical ids COPIED from a tool response (refresh_context / map_context / inspect_node). Never compose an id by hand from a file path. The bundled source plugins exclude their conventional test/spec files and test directories by default, but filtering is plugin-specific, so verify absence in a tool response. Package identity also comes from plugin markers, not package.json alone: a workspace root with tsconfig.json or pyproject.toml may have a pkg: node. A file the graph does not return belongs in filesChanged only.`;
 }
 
 /** Context Session Quality guidance for AGENTS.md and client rules. */
 export function renderContextQualityGuidance(): string {
-  return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine agents compliance\`. Hard gates use \`threshold\` / \`qualityThreshold\`; soft gates use \`warningThreshold\`. Harness mode can fail weak required sessions; client mode emits warnings. Reference: \`docs/context-quality.md\` in the repovine source repository.`;
+  return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine agents compliance\`. The score and its thresholds are advisory until the labelled-corpus return bar in \`docs/context-quality.md\` is met; evidence-backed annotation checks remain enforceable.`;
 }
 
 /** Markers/snippets the doctor expects in every protocol-governed asset. */

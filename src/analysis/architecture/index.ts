@@ -36,6 +36,7 @@ import {
 } from './detail.js';
 import {
   REFACTORING_CATEGORIES,
+  DEFAULT_REFACTORING_CATEGORIES,
   type RefactoringCategory,
   type RefactoringFinding,
   type RefactoringScope,
@@ -130,7 +131,7 @@ function collectSortedFindings(state: RefactoringState, args: RefactoringReportA
   const thresholds = state.refactoringThresholds ?? DEFAULT_THRESHOLDS;
   const scopeArg = args.scope ?? 'all';
   const requestedCategories = new Set(
-    (args.categories ?? REFACTORING_CATEGORIES)
+    (args.categories ?? DEFAULT_REFACTORING_CATEGORIES)
       .filter(c => REFACTORING_CATEGORIES.includes(c)),
   );
   const minConfidence = typeof args.minConfidence === 'number' ? args.minConfidence : 0.5;

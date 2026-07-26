@@ -134,6 +134,8 @@ export interface ExportSymbolNodeData {
   fields?: FieldInfo[];
   implementsInterfaces?: string[];
   calls?: string[];
+  /** Distinct callee names before the producer cap; set only when it exceeds `calls.length`. */
+  callsTotal?: number;
   privateMembers?: MemberInfo[];
   internals?: InternalInfo[];
   lineRange?: { start: number; end: number };
@@ -170,6 +172,31 @@ export interface RuntimeResourceNodeData {
   k8sKind?: string;
   /** Provider that declared the resource (aws/k8s/terraform/vercel/generic). */
   provider?: 'aws' | 'k8s' | 'generic' | 'terraform' | 'vercel';
+  /**
+   * Repo-relative paths of the IaC documents declaring this resource. Scopes logical-id
+   * resolution: a reference prefers a target its own document declares. More than one entry means
+   * separate documents declare the same id and collapse onto this node.
+   */
+  declaredIn?: string[];
+  /** Kubernetes namespace from the manifest. Absent when the manifest declares none. */
+  namespace?: string;
+  /**
+   * References the declaring document names that resolution refused to bind. Present when the
+   * label matched candidates the reference's own scope does not reach.
+   */
+  unresolvedRefs?: UnresolvedInfraRef[];
+}
+
+/** A logical-id reference left unbound because scope did not single out one target. */
+export interface UnresolvedInfraRef {
+  /** Logical id named by the declaring document. */
+  logicalId: string;
+  /** Env var carrying the reference, when it came from one. */
+  envVar?: string;
+  /** `ambiguous`: several in-scope targets. `out-of-scope`: targets exist, none this scope reaches. */
+  reason: 'ambiguous' | 'out-of-scope';
+  /** Node ids that matched the label. */
+  candidates: string[];
 }
 
 /** Template/rendered-surface node data. */
@@ -216,8 +243,8 @@ export const NODE_DATA_KEYS = {
   root: [],
   package: ['path', 'version', 'sourcePluginId'],
   module: ['filePath', 'relativeFilePath', 'hasRoutes', 'envVars', 'ssr', 'sourcePluginId'],
-  'export-symbol': ['symbolKind', 'signature', 'params', 'returnType', 'typeValue', 'fields', 'implementsInterfaces', 'calls', 'privateMembers', 'internals', 'lineRange', 'isDefault'],
-  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'k8sKind', 'provider'],
+  'export-symbol': ['symbolKind', 'signature', 'params', 'returnType', 'typeValue', 'fields', 'implementsInterfaces', 'calls', 'callsTotal', 'privateMembers', 'internals', 'lineRange', 'isDefault'],
+  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'k8sKind', 'provider', 'declaredIn', 'namespace', 'unresolvedRefs'],
   domain: ['tier', 'weight', 'parent', 'subdomains'],
   template: ['relPath', 'contentHash', 'engine', 'blocks'],
 } as const satisfies Record<NodeType, readonly string[]>;

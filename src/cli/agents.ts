@@ -329,7 +329,10 @@ export async function runAgentsCli(argv: string[], env: AgentsCliEnv): Promise<n
         return 1;
       }
       print(report);
-      return report.acceptHandoff || report.policy.mode === 'client' ? 0 : 1;
+      // Context-quality is advisory until the weighted score clears its
+      // outcome-labelled validation bar. The JSON still exposes
+      // acceptHandoff/rejectReasons; it must not become a process gate yet.
+      return 0;
     }
 
     default:

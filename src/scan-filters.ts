@@ -1,4 +1,7 @@
-import { compileGlob, type GlobMatcher } from './stage2/domains.js';
+// Imported from the schema module, not the `stage2/domains` barrel: scanning runs before any
+// source plugin is registered, and routing through the barrel would pull the plugin bootstrap
+// into the scanner's own import cycle.
+import { compileGlob, type GlobMatcher } from './stage2/domains-schema.js';
 import { REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS } from './paths.js';
 
 /** Repo-root-relative glob or scoped pattern entry from `repovine.config.json` → `build.scan`. */

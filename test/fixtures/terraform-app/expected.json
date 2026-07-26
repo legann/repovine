@@ -1,7 +1,7 @@
 {
   "_description": "Terraform monorepo: HCL parser extracts resource/data/module blocks across providers. AWS types map to lambda/table/queue/bucket/role; module blocks become InfraResources too. Declared secrets (SecretsManager, SSM SecureString, GCP Secret Manager) become kind='secret'; SSM plain String stays 'other'. Lambda env interpolations (${type.name.attr}) become envRefs -> generic uses_env edges, including cross-file (main.tf -> storage.tf). output/variable/provider/locals are skipped (not infra entities).",
   "heavyDomains": ["infra-terraform", "users"],
-  "lightweightDomains": ["cluster", "terraform-app-fixture"],
+  "lightweightDomains": ["terraform-app-fixture"],
   "rejectedAsDomain": ["main"],
   "modulesInDomain": {},
   "runtimeResourceNodes": [

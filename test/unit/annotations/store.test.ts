@@ -634,7 +634,7 @@ describe('AnnotationStore', () => {
       }
     });
 
-    // C1 guard: two writers to the SAME node changing DIFFERENT fields must not clobber each other.
+    // Two writers to the SAME node changing DIFFERENT fields must not clobber each other.
     // Mutation-verified: red with the old whole-record touched overlay.
     it('field-level merge keeps a concurrent writer\'s other fields on the same node', () => {
       const base = makeAnnotation('mod:shared');

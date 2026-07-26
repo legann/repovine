@@ -1,7 +1,7 @@
 {
   "_description": "K8s StatefulSet + Service + Ingress: workload images link to Dockerfile; Ingress routes to Service.",
   "heavyDomains": ["infra-dockerfile", "infra-k8s"],
-  "lightweightDomains": ["cluster", "k8s-statefulset-fixture", "worker"],
+  "lightweightDomains": ["k8s-statefulset-fixture", "worker"],
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "Dockerfile", "kind": "other", "provider": "generic" },

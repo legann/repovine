@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 13,
-    "totalEdges": 16,
+    "totalNodes": 12,
+    "totalEdges": 15,
     "nodesByType": {
-      "domain": 5,
+      "domain": 4,
       "export-symbol": 1,
       "module": 3,
       "package": 1,
@@ -13,7 +13,7 @@
     "edgesByKind": {
       "contains": 7,
       "infra": 1,
-      "tagged": 8
+      "tagged": 7
     }
   },
   "byType": {
@@ -21,8 +21,7 @@
       "domain:infra-dockerfile",
       "domain:infra-k8s",
       "domain:job",
-      "domain:k8s-cronjob-fixture",
-      "domain:cluster"
+      "domain:k8s-cronjob-fixture"
     ],
     "export-symbol": [
       "export:k8s-cronjob-fixture/src/job/tick"
@@ -44,16 +43,6 @@
     ]
   },
   "nodes": [
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
     {
       "id": "domain:infra-dockerfile",
       "type": "domain",
@@ -159,7 +148,10 @@
       "data": {
         "contentHash": "edcb105218c15649",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "Dockerfile"
+        ]
       }
     },
     {
@@ -171,7 +163,10 @@
         "contentHash": "9d1a9b4dde4e4a7f",
         "kind": "k8s-deployment",
         "k8sKind": "CronJob",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/cronjob.yaml"
+        ]
       }
     },
     {
@@ -183,17 +178,6 @@
     }
   ],
   "links": [
-    {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
     {
       "id": "domain:infra-dockerfile",
       "links": [],
@@ -317,11 +301,6 @@
           "to": "domain:k8s-cronjob-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -343,10 +322,6 @@
           },
           {
             "to": "domain:k8s-cronjob-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

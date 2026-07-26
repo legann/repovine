@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 13,
-    "totalEdges": 26,
+    "totalNodes": 12,
+    "totalEdges": 24,
     "nodesByType": {
-      "domain": 4,
+      "domain": 3,
       "export-symbol": 1,
       "module": 2,
       "package": 1,
@@ -14,7 +14,7 @@
       "binds_to": 3,
       "contains": 8,
       "infra": 1,
-      "tagged": 11,
+      "tagged": 9,
       "uses_env": 3
     }
   },
@@ -22,8 +22,7 @@
     "domain": [
       "domain:infra-sam",
       "domain:handler",
-      "domain:sam-lambda-app-fixture",
-      "domain:cluster"
+      "domain:sam-lambda-app-fixture"
     ],
     "export-symbol": [
       "export:sam-lambda-app-fixture/src/handler/main"
@@ -46,16 +45,6 @@
     ]
   },
   "nodes": [
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
     {
       "id": "domain:handler",
       "type": "domain",
@@ -171,7 +160,10 @@
         ],
         "contentHash": "1bbd383988ba338f",
         "kind": "lambda",
-        "provider": "aws"
+        "provider": "aws",
+        "declaredIn": [
+          "template.yaml"
+        ]
       }
     },
     {
@@ -182,7 +174,10 @@
       "data": {
         "contentHash": "57850879901aa6dd",
         "kind": "secret",
-        "provider": "aws"
+        "provider": "aws",
+        "declaredIn": [
+          "template.yaml"
+        ]
       }
     },
     {
@@ -193,7 +188,10 @@
       "data": {
         "contentHash": "41f8626fe28802a2",
         "kind": "secret",
-        "provider": "aws"
+        "provider": "aws",
+        "declaredIn": [
+          "template.yaml"
+        ]
       }
     },
     {
@@ -204,7 +202,10 @@
       "data": {
         "contentHash": "e894bdea319ebfc5",
         "kind": "secret",
-        "provider": "aws"
+        "provider": "aws",
+        "declaredIn": [
+          "template.yaml"
+        ]
       }
     },
     {
@@ -216,17 +217,6 @@
     }
   ],
   "links": [
-    {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
     {
       "id": "domain:handler",
       "links": [],
@@ -338,11 +328,6 @@
           "to": "domain:sam-lambda-app-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -376,10 +361,6 @@
           },
           {
             "to": "domain:sam-lambda-app-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -434,10 +415,6 @@
         {
           "to": "domain:sam-lambda-app-fixture",
           "kind": "tagged"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged"
         }
       ],
       "children": [],
@@ -472,10 +449,6 @@
           },
           {
             "to": "domain:sam-lambda-app-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ]

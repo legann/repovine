@@ -19,7 +19,7 @@ function callsOf(source: string, exportName: string): string[] {
 }
 
 function moduleCalls(source: string): string[] {
-  return collectExports(makeSf(source)).moduleCalls;
+  return collectExports(makeSf(source)).moduleCalls.names;
 }
 
 describe('collectExports — forward-call attribution per host shape', () => {
@@ -195,5 +195,79 @@ ${bigBody}
       ]),
     });
     expect(byName.get('big')?.calls).toBeUndefined();
+  });
+});
+
+// The per-declaration cap drops call names at extraction, so the true total is unrecoverable
+// downstream. A list sitting exactly on the cap is the observable trace, and both consumers of the
+// capped data now say so instead of presenting a capped list as the whole set.
+describe('PER_BUCKET_CAP is disclosed to callers', () => {
+  it('is exported so consumers can compare against it rather than hardcode 50', async () => {
+    const { PER_BUCKET_CAP } = await import('../../../src/source-plugins/typescript/call-graph.js');
+    expect(PER_BUCKET_CAP).toBe(50);
+  });
+
+  it('analyze_dependencies callgraph reports the exact dropped count', async () => {
+    const { analyzeCallgraph } = await import('../../../src/mcp/lib/dependencies/callgraph.js');
+    const { PER_BUCKET_CAP } = await import('../../../src/source-plugins/typescript/call-graph.js');
+    const { createEmptyGraph, addNode } = await import('../../../src/graph/index.js');
+
+    const graph = createEmptyGraph();
+    addNode(graph, {
+      id: 'export:app/wide', type: 'export-symbol', label: 'wide', description: '',
+      data: { calls: Array.from({ length: PER_BUCKET_CAP }, (_, i) => `callee${i}`), callsTotal: 87 },
+    });
+    addNode(graph, {
+      id: 'export:app/narrow', type: 'export-symbol', label: 'narrow', description: '',
+      data: { calls: ['one', 'two'] },
+    });
+    const ctx = { getState: () => ({ graph }) } as never;
+
+    const atCap = analyzeCallgraph(ctx, { nodeId: 'export:app/wide' }) as Record<string, unknown>;
+    expect(atCap.callsTruncated).toEqual({
+      shown: PER_BUCKET_CAP,
+      total: 87,
+      limit: PER_BUCKET_CAP,
+      hint: expect.stringContaining('not in the graph'),
+    });
+
+    const belowCap = analyzeCallgraph(ctx, { nodeId: 'export:app/narrow' }) as Record<string, unknown>;
+    expect(belowCap).not.toHaveProperty('callsTruncated');
+  });
+
+  // The test above hands `callsTotal` straight to addNode, so it passes whether or not graph
+  // composition carries the field. It did not: the producer emitted `callsTotal`, the fact
+  // snapshot kept it, and pass3 dropped it, leaving `callsTruncated` unreachable on every real
+  // build. This walks the composition path instead.
+  it('graph composition carries callsTotal from the fact snapshot onto the export-symbol node', async () => {
+    const { contributeStructural } = await import('../../../src/interpreters/code-structure/graph.js');
+    const { analyzeCallgraph } = await import('../../../src/mcp/lib/dependencies/callgraph.js');
+    const { PER_BUCKET_CAP } = await import('../../../src/source-plugins/typescript/call-graph.js');
+    const { createEmptyGraph } = await import('../../../src/graph/index.js');
+
+    const graph = createEmptyGraph();
+    contributeStructural(graph, {
+      packages: [{ name: 'app', path: 'app', sourcePluginId: 'typescript' }],
+      modules: [{
+        id: 'mod:app/wide',
+        packageName: 'app',
+        relativeFilePath: 'app/wide.ts',
+        imports: [],
+        exports: [{
+          name: 'wide',
+          kind: 'function',
+          calls: Array.from({ length: PER_BUCKET_CAP }, (_, i) => `callee${i}`),
+          callsTotal: 87,
+        }],
+      }],
+    } as never);
+
+    const composed = graph.nodes.get('export:app/wide/wide');
+    expect(composed?.type).toBe('export-symbol');
+    expect((composed?.data as { callsTotal?: number } | undefined)?.callsTotal).toBe(87);
+
+    const ctx = { getState: () => ({ graph }) } as never;
+    const result = analyzeCallgraph(ctx, { nodeId: 'export:app/wide/wide' }) as Record<string, unknown>;
+    expect(result.callsTruncated).toMatchObject({ shown: PER_BUCKET_CAP, total: 87 });
   });
 });

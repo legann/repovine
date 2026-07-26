@@ -2,7 +2,8 @@
  * Local embedding backend for the semantic search layer.
  *
  * In-process ONNX inference via the OPT-IN `@huggingface/transformers` peer
- * dependency (~23 MB quantized MiniLM, downloaded on first use, offline after).
+ * dependency. `PIPELINE_DTYPE` is fp32, so the download is the full-precision MiniLM (~91 MB
+ * of model cache, not the quantized build), fetched on first use and offline after.
  * Installing repovine does not pull it; its ONNX runtime weighs ~700 MB.
  * No cloud APIs, no external daemons.
  *
@@ -10,16 +11,24 @@
  * stay deterministic.
  */
 
-import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DEFAULT_EMBEDDING_MODEL } from '../config.js';
 import { createSerializer } from './serialize.js';
+import {
+  TRANSFORMERS_PACKAGE,
+  describeTransformersInstall,
+  resolveTransformersFromWorkspace,
+  type TransformersInstallInfo,
+} from './transformers-install.js';
+
+export { describeTransformersInstall, resolveTransformersFromWorkspace };
+export type { TransformersInstallInfo };
 
 export interface Embedder {
-  /** Stable identity used for cache invalidation: `local:${model}`. */
+  /** Stable identity used for cache invalidation; includes model, runtime version, and dtype. */
   readonly id: string;
   /** Embed a batch of texts; returns one vector per input, in input order. */
   embed(texts: string[]): Promise<number[][]>;
@@ -43,9 +52,13 @@ type TransformersModule = {
   ) => Promise<unknown>;
 };
 
-const TRANSFORMERS_PACKAGE = '@huggingface/transformers';
 /** Explicit CPU dtype — avoids transformers.js "dtype not specified" console.warn on load. */
 const PIPELINE_DTYPE = 'fp32';
+
+export function localEmbedderId(model: string, workspaceRoot: string): string {
+  const runtime = describeTransformersInstall(workspaceRoot);
+  return `local:${model};transformers@${runtime.version ?? 'unresolved'};dtype=${PIPELINE_DTYPE}`;
+}
 
 // Module-scoped so every embedder instance shares them. A refresh / reloadConfig can leave two
 // generations' embedders live at once; per-instance state would run concurrent ONNX inference and
@@ -71,71 +84,6 @@ export function __setTransformersModuleForTest(mod: TransformersModule | undefin
  * from the workspace root is what makes `npm install @huggingface/transformers` take effect
  * for MCP clients that launch repovine through npx.
  */
-export function resolveTransformersFromWorkspace(workspaceRoot: string): string | undefined {
-  try {
-    const requireFromWorkspace = createRequire(path.join(workspaceRoot, 'package.json'));
-    return requireFromWorkspace.resolve(TRANSFORMERS_PACKAGE);
-  } catch {
-    return undefined;
-  }
-}
-
-export interface TransformersInstallInfo {
-  resolved: boolean;
-  source?: 'repovine' | 'workspace';
-  entryPath?: string;
-  version?: string;
-}
-
-/**
- * Diagnostic view of which transformers install the runtime would load, mirroring
- * the `importTransformers` order: next to repovine first, workspace second.
- * Resolution and fs reads only — the module is never imported (its ONNX runtime
- * init weighs ~700MB). `createRequire` resolution can differ from ESM `import()`
- * conditions in exotic setups; acceptable for a diagnostic.
- */
-export function describeTransformersInstall(workspaceRoot: string): TransformersInstallInfo {
-  let bare: string | undefined;
-  try {
-    bare = createRequire(import.meta.url).resolve(TRANSFORMERS_PACKAGE);
-  } catch {
-    bare = undefined;
-  }
-  if (bare) {
-    return { resolved: true, source: 'repovine', entryPath: bare, version: readTransformersVersion(bare) };
-  }
-  const fromWorkspace = resolveTransformersFromWorkspace(workspaceRoot);
-  if (fromWorkspace) {
-    return { resolved: true, source: 'workspace', entryPath: fromWorkspace, version: readTransformersVersion(fromWorkspace) };
-  }
-  return { resolved: false };
-}
-
-/**
- * Package version read by walking up from the resolved entry path. The package's
- * exports map does not expose `./package.json` (ERR_PACKAGE_PATH_NOT_EXPORTED),
- * so `require.resolve('@huggingface/transformers/package.json')` is not an option.
- */
-function readTransformersVersion(entryPath: string): string | undefined {
-  let dir = path.dirname(entryPath);
-  for (let i = 0; i < 6; i++) {
-    try {
-      const raw = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8');
-      const parsed = JSON.parse(raw) as { name?: unknown; version?: unknown };
-      if (parsed.name === TRANSFORMERS_PACKAGE) {
-        return typeof parsed.version === 'string' ? parsed.version : undefined;
-      }
-    } catch {
-      /* no readable package.json at this level — keep walking up */
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return undefined;
-}
-
-/** Load the transformers module from the workspace, or undefined when it is not installed there. */
 export async function importTransformersFromWorkspace(workspaceRoot: string): Promise<TransformersModule | undefined> {
   const resolved = resolveTransformersFromWorkspace(workspaceRoot);
   if (!resolved) return undefined;
@@ -258,7 +206,7 @@ class LocalTransformersEmbedder implements Embedder {
   constructor(model: string, workspaceRoot: string) {
     this.model = model;
     this.workspaceRoot = workspaceRoot;
-    this.id = `local:${model}`;
+    this.id = localEmbedderId(model, workspaceRoot);
   }
 
   async embed(texts: string[]): Promise<number[][]> {

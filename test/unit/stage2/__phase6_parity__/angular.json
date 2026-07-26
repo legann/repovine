@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 34,
-    "totalEdges": 59,
+    "totalNodes": 33,
+    "totalEdges": 54,
     "nodesByType": {
-      "domain": 9,
+      "domain": 8,
       "export-symbol": 11,
       "module": 12,
       "package": 1,
@@ -11,7 +11,7 @@
     },
     "edgesByKind": {
       "contains": 24,
-      "tagged": 35
+      "tagged": 30
     }
   },
   "byType": {
@@ -19,7 +19,6 @@
       "domain:auth",
       "domain:angular-fixture",
       "domain:highlight",
-      "domain:cluster",
       "domain:capitalize",
       "domain:users",
       "domain:user-list",
@@ -102,16 +101,6 @@
       "data": {
         "weight": "heavy",
         "tier": "technical"
-      }
-    },
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "heavy",
-        "tier": "feature"
       }
     },
     {
@@ -544,17 +533,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:highlight",
       "links": [],
       "children": [],
@@ -726,11 +704,6 @@
           "to": "domain:angular-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -749,10 +722,6 @@
           {
             "to": "domain:angular-fixture",
             "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
           }
         ],
         "sourcePluginId": "typescript"
@@ -765,11 +734,6 @@
           "to": "domain:angular-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:routing",
@@ -791,10 +755,6 @@
         "links": [
           {
             "to": "domain:angular-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           },
           {
@@ -896,11 +856,6 @@
           "to": "domain:angular-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -923,10 +878,6 @@
           {
             "to": "domain:angular-fixture",
             "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
           }
         ],
         "sourcePluginId": "typescript"
@@ -944,11 +895,6 @@
           "to": "domain:angular-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -970,10 +916,6 @@
           },
           {
             "to": "domain:angular-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -1240,11 +1182,6 @@
           "to": "domain:angular-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -1255,10 +1192,6 @@
         "links": [
           {
             "to": "domain:angular-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

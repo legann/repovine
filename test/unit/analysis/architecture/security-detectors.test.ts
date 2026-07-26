@@ -259,10 +259,13 @@ describe('security refactoring detectors', () => {
       makeAnn(semanticStorage.id, { summary: 'Caches auth session token information in the browser.' }),
     ]);
     const modulesById = new Map(modules.map(mod => [mod.id, mod]));
+    // `trust-boundary-validation` is absent on purpose: no module here declares a route, a side
+    // effect or an authz signal, and the default profile no longer treats a directory named `api/`
+    // or an export named `handler` as evidence on its own. The route-backed fixture above still
+    // exercises it.
     const categories = [
       'secret-config-boundary',
       'authorization-policy-drift',
-      'trust-boundary-validation',
       'privileged-client-side-effect',
       'sensitive-browser-storage',
       'server-client-boundary',
@@ -296,5 +299,54 @@ describe('security refactoring detectors', () => {
       minConfidence: 0,
     });
     expect(strictReport.totalFindings).toBe(0);
+  });
+});
+
+// `isTrustBoundaryModule` admits a module on its path or on an export named `handler`/`POST`/…
+// That is an admission test, not evidence. Without a route, a side effect or an authz signal the
+// default profile must stay silent, or the finding rests on a directory name.
+describe('trust-boundary findings are evidence-led, not name-led', () => {
+  function reportFor(mod: ModuleInfo, profile = STRICTNESS_PROFILES.normal): string[] {
+    const graph = createEmptyGraph();
+    addModule(graph, mod.packageName, mod);
+    const report = runRefactoringReport({
+      graph,
+      modulesById: new Map([[mod.id, mod]]),
+      annotations: makeStore([]),
+      domainsConfig: null,
+      refactoringThresholds: profile,
+    }, { scope: 'all', categories: ['trust-boundary-validation'], limit: 50, minConfidence: 0 });
+    return (report.findings as Array<{ category: string }>).map(f => f.category);
+  }
+
+  it('stays silent on an api/ path whose only evidence is that it exports something', () => {
+    expect(reportFor(makeMod('mod:app/src/api/orders/route', 'app', 'src/api/orders/route.ts', {
+      exports: [{ name: 'POST', kind: 'function', lineRange: { start: 1, end: 40 }, isDefault: false }],
+    }))).toEqual([]);
+  });
+
+  it('stays silent on a module admitted only by an export named handler', () => {
+    expect(reportFor(makeMod('mod:app/src/health', 'app', 'src/health.ts', {
+      exports: [{ name: 'handler', kind: 'function', lineRange: { start: 1, end: 12 }, isDefault: false }],
+    }))).toEqual([]);
+  });
+
+  it('reports the same path once it declares a real api route', () => {
+    expect(reportFor(makeMod('mod:app/src/api/orders/route', 'app', 'src/api/orders/route.ts', {
+      exports: [{ name: 'POST', kind: 'function', lineRange: { start: 1, end: 40 }, isDefault: false }],
+      semanticHints: { hasRoutes: true, routes: [{ path: '/api/orders', component: '(file-route)', kind: 'api' }] },
+    }))).toEqual(['trust-boundary-validation']);
+  });
+
+  // Every other boolean knob in the profiles runs `loose == normal` and moves only at `strict`.
+  // `requireRouteOrSideEffect` is a mode switch, not a bar: `false` admits a module on its directory
+  // name alone, so a `loose` profile shipping it would emit findings resting on the path — on a
+  // Kibana-scale tree that is 8837 of 9350, sampling to type files, mocks and mapping assets.
+  it.each([['loose'], ['normal'], ['strict']] as const)('is evidence-led under the %s profile', (name) => {
+    const profile = STRICTNESS_PROFILES[name];
+    expect(profile.trustBoundaryValidation.requireRouteOrSideEffect).toBe(true);
+    expect(reportFor(makeMod('mod:app/src/api/orders/route', 'app', 'src/api/orders/route.ts', {
+      exports: [{ name: 'POST', kind: 'function', lineRange: { start: 1, end: 40 }, isDefault: false }],
+    }), profile)).toEqual([]);
   });
 });

@@ -100,7 +100,6 @@ function extractFromSvelte(content: string): ExtractedScript {
     const isTs = lang === 'ts' || lang === 'typescript' || type === 'text/typescript';
     blocks.push({ content: body, isTs });
   }
-  if (blocks.length === 0) return { ts: '', isTypeScript: false };
   const template = content.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
   const ts = appendTemplateHint(blocks.map(b => b.content).join('\n'), template);
   const isTypeScript = blocks.some(b => b.isTs);

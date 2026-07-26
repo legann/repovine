@@ -16,20 +16,23 @@ import type {
 
 export const DEFAULT_CONTEXT_QUALITY_CONFIG: ContextQualityConfig = {
   weights: {
-    or: 0.22,
-    cap: 0.18,
-    volume: 0.12,
-    low: 0.16,
-    unresolved: 0.14,
-    test: 0.10,
-    bytes: 0.18,
-    chain: 0.10,
-    map: 0.18,
-    inspect: 0.18,
-    impact: 0.22,
-    anchor: 0.22,
-    recover: 0.10,
-    end: 0.15,
+    // Measured against outcome-labelled sessions, the 14-weight score ranked passing runs below
+    // failing ones and lost to "did the agent call inspect_node". The weights stay configurable for
+    // experiments; the shipped default is that single observable fact.
+    or: 0,
+    cap: 0,
+    volume: 0,
+    low: 0,
+    unresolved: 0,
+    test: 0,
+    bytes: 0,
+    chain: 0,
+    map: 0,
+    inspect: 1,
+    impact: 0,
+    anchor: 0,
+    recover: 0,
+    end: 0,
   },
   thresholds: {
     explore: { threshold: 0.40, warningThreshold: 0.55, minAnchors: 1, byteBudget: 80_000 },
@@ -524,7 +527,7 @@ function calculateStructureBonus(aggregates: ContextSessionAggregates, config: C
     && !!aggregates.lastResolvedScope;
   return clamp01(
     w.map * Math.min(1, aggregates.mapCallCount / 2)
-    + w.inspect * Math.min(1, aggregates.inspectCallCount / 2)
+    + w.inspect * Math.min(1, aggregates.inspectCallCount)
     + w.impact * (aggregates.hadImpactOnModule ? 1 : 0)
     + w.anchor * Math.min(1, aggregates.stableAnchors.length / 3)
     + w.recover * (aggregates.recoveredFromNoise ? 1 : 0)

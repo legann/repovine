@@ -958,15 +958,16 @@ describe('compliance validation', () => {
     expect(report.missingFields).toEqual(expect.arrayContaining(['summary', 'filesChanged', 'graphNodesTouched']));
   });
 
-  it('requires contextSessionId when assignment requires context quality in harness mode', () => {
+  it('keeps a missing required contextSessionId advisory while the score is unvalidated', () => {
     const report = checkCompliance({
       result: makeResult(),
       // Prior annotated context exists (not written this run) → enforcement applies.
       assignment: makeAssignment({ contextSession: { required: true, mode: 'harness', phase: 'explore' } }),
       state: state({ annotated: ['mod:prior'] }),
     });
-    expect(report.valid).toBe(false);
-    expect(report.errors.join(' ')).toMatch(/contextSessionId is missing/);
+    expect(report.valid).toBe(true);
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join(' ')).toMatch(/contextSessionId is missing/);
   });
 
   it('exempts a greenfield first pass (no prior annotated context) from harness context enforcement', () => {
@@ -983,8 +984,7 @@ describe('compliance validation', () => {
   it('greenfieldRun holds the context exemption when a sibling already wrote annotations', () => {
     // The exact multi-sub-agent failure: an earlier sibling wrote mod:prior into the shared
     // store, so from this leaf's view "prior context" exists and its weak first-pass session
-    // (0.2, rejected) would hard-fail. greenfieldRun says the RUN started empty, so those
-    // annotations are run-local, not prior — enforcement must downgrade to advisory.
+    // (0.2, rejected) remains advisory while the score is unvalidated.
     const rejected = qualityReport({
       acceptHandoff: false,
       overall: 0.2,
@@ -996,18 +996,15 @@ describe('compliance validation', () => {
       assignment: makeAssignment({ contextSession: { required: true, mode: 'harness' as const } }),
       state: state({ annotated: ['mod:prior', 'mod:mine'], contextQualityReport: rejected }),
     };
-    // Without the flag: sibling's mod:prior reads as prior context → hard fail (the regression).
-    expect(checkCompliance(args).valid).toBe(false);
-    // With the flag: run started greenfield → exemption holds → advisory, not a hard fail.
+    // Both paths are advisory until the score clears the labelled-corpus return bar.
+    expect(checkCompliance(args).valid).toBe(true);
     const exempt = checkCompliance({ ...args, greenfieldRun: true });
     expect(exempt.valid).toBe(true);
     expect(exempt.errors.join(' ')).not.toMatch(/Context session quality rejected/);
     expect(exempt.warnings.join(' ')).toMatch(/greenfield run/);
   });
 
-  it('greenfieldRun does not mask enforcement in an established repo', () => {
-    // Guard against over-application: greenfieldRun is only ever passed by the harness when the
-    // RUN started empty. This test documents that when it is NOT passed, prior context still bites.
+  it('keeps a rejected context report advisory in an established repo', () => {
     const rejected = qualityReport({
       acceptHandoff: false,
       overall: 0.3,
@@ -1019,11 +1016,12 @@ describe('compliance validation', () => {
       assignment: makeAssignment({ contextSession: { required: true, mode: 'harness' } }),
       state: state({ annotated: ['mod:prior'], contextQualityReport: rejected }),
     });
-    expect(report.valid).toBe(false);
-    expect(report.errors.join(' ')).toMatch(/Context session quality rejected/);
+    expect(report.valid).toBe(true);
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join(' ')).toMatch(/did not accept handoff/);
   });
 
-  it('gates required context sessions using the recomputed report in harness mode', () => {
+  it('reports the recomputed context result without gating harness compliance', () => {
     const rejected = qualityReport({
       acceptHandoff: false,
       overall: 0.2,
@@ -1036,14 +1034,15 @@ describe('compliance validation', () => {
       assignment: makeAssignment({ contextSession: { required: true, mode: 'harness', qualityThreshold: 0.55 } }),
       state: state({ annotated: ['mod:prior'], contextQualityReport: rejected }),
     });
-    expect(report.valid).toBe(false);
+    expect(report.valid).toBe(true);
     expect(report.contextQuality?.overall).toBe(0.2);
-    expect(report.errors.join(' ')).toMatch(/Context session quality rejected/);
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join(' ')).toMatch(/did not accept handoff/);
     expect(report.warnings.join(' ')).toMatch(/Self-reported contextQuality/);
     expect(report.requiredFollowups).toContain('Repeat search_context with types:["package","module"].');
   });
 
-  it('keeps a hard-failed context session available for a compliance retry', () => {
+  it('keeps a rejected advisory context session available for review', () => {
     const consumed: string[] = [];
     const rejected = qualityReport({
       acceptHandoff: false,
@@ -1064,8 +1063,8 @@ describe('compliance validation', () => {
       state: complianceState,
     };
 
-    expect(checkCompliance(input).valid).toBe(false);
-    expect(checkCompliance(input).valid).toBe(false);
+    expect(checkCompliance(input).valid).toBe(true);
+    expect(checkCompliance(input).valid).toBe(true);
     expect(consumed).toEqual([]);
   });
 

@@ -40,6 +40,11 @@ import {
 import { getManifest } from './manifests.js';
 import type { ContextQualityReport, ContextSessionPolicy, ContextQualityConfig } from '../context-quality/types.js';
 
+// The weighted context-quality score was measured against outcome-labelled sessions and did not
+// beat a trivial baseline, so it may not reject a handoff. The report is still emitted in full;
+// only its authority is withheld. See docs/context-quality.md for the bar a hard gate must clear.
+const CONTEXT_QUALITY_HARD_GATE_VALIDATED = false;
+
 // ── Shared shapes ──
 
 /** Observable repository state the compliance layer reads. */
@@ -353,7 +358,9 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
   // bite. Computed once up front so the annotation section and the context-session
   // section share it. Source of truth: assignment.contextSession.mode, else the
   // repo's contextQuality.enforcement.mode, else client. Client mode preserves the
-  // pre-existing warning-only behavior — only harness mode hard-fails.
+  // pre-existing warning-only behavior. Harness mode still hard-fails the
+  // evidence-backed annotation checks; the unvalidated context score is
+  // explicitly advisory below.
   const contextPolicy = assignment?.contextSession;
   const contextRequired = contextPolicy?.required === true;
   const enforcementMode = contextPolicy?.mode ?? state.contextQualityConfig?.enforcement.mode ?? 'client';
@@ -810,7 +817,8 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
   // Greenfield exemption (harness-level, NOT harness-specific). Context Session
   // Quality measures how well the agent used EXISTING context. On the first pass
   // of a fresh repo there is no prior annotated context to use, so a required
-  // session cannot fairly be hard-failed. "Prior context" = annotated nodes this
+  // session could not fairly be enforced once a validated score is restored.
+  // "Prior context" = annotated nodes this
   // run did not itself write; when there are none, context enforcement downgrades
   // to advisory regardless of which harness set required=true. This lets every
   // harness unconditionally request a context session and rely on repovine to not
@@ -833,14 +841,15 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
 
   // Context Session Quality is opt-in for Agent Protocol v1. When an assignment marks
   // it required, repovine recomputes the report from the session store instead
-  // of trusting the agent's optional self-report. Harness mode hard-fails weak
-  // sessions; client mode emits warnings + requiredFollowups instead.
+  // of trusting the agent's optional self-report. Both modes currently emit
+  // warnings + requiredFollowups: the weighted score never beat a trivial baseline on
+  // outcome-labelled sessions, so the hard gate stays disabled until that bar is met.
   if (contextRequired || result.contextSessionId) {
     if (!result.contextSessionId) {
       const message = 'assignment.contextSession.required=true but result.contextSessionId is missing.';
-      if (harnessStrict && contextEnforceable) errors.push(message);
+      if (CONTEXT_QUALITY_HARD_GATE_VALIDATED && harnessStrict && contextEnforceable) errors.push(message);
       else if (contextRequired) warnings.push(message);
-      requiredFollowups.push('Run repovine context tools with a shared contextSessionId and include it in AgentRunResult.');
+      requiredFollowups.push('Call the repovine MCP context tools with a shared contextSessionId and include it in AgentRunResult.');
     } else if (!state.getContextQualityReport) {
       // Environmental, not a quality failure: we cannot read the session store
       // (e.g. compliance ran in a different process than the agent's MCP server).
@@ -860,16 +869,20 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
         // Session id was declared but no session was recorded under it. This is
         // ambiguous (agent may not have threaded the id, or the provider's MCP
         // server did not persist events where compliance can read them), so it is
-        // advisory — we only HARD-fail context on a session we actually scored as
-        // low quality (the acceptHandoff=false branch below). A genuinely
-        // context-skipping agent is still caught there via NO_RECORDED_EVENTS.
+        // advisory. A genuinely context-skipping agent is still made observable
+        // through NO_RECORDED_EVENTS once an empty recorded session exists.
         warnings.push(`Context session not found: ${result.contextSessionId}.`);
         requiredFollowups.push('Pass the same contextSessionId on repovine MCP calls before handoff validation.');
       } else {
         for (const warning of contextQuality.warnings) {
           warnings.push(warning);
         }
-        if (strict && contextEnforceable && !contextQuality.acceptHandoff) {
+        if (
+          CONTEXT_QUALITY_HARD_GATE_VALIDATED
+          && strict
+          && contextEnforceable
+          && !contextQuality.acceptHandoff
+        ) {
           errors.push(
             `Context session quality rejected handoff: overall=${contextQuality.overall}, `
             + `reasons=${contextQuality.rejectReasons.join(', ') || 'none'}.`,
@@ -950,10 +963,15 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
     }
   }
 
-  // A failed report must remain retryable. Consuming only after every compliance gate has run
-  // prevents a hard-failed harness retry from seeing a missing session and degrading to the
-  // advisory "not found" branch.
-  if (errors.length === 0 && result.contextSessionId && state.consumeContextQualitySession) {
+  // A rejected report remains available for review even though the score is
+  // advisory. Accepted reports are consumed only after every evidence-backed
+  // compliance gate has run.
+  if (
+    errors.length === 0
+    && contextQuality?.acceptHandoff !== false
+    && result.contextSessionId
+    && state.consumeContextQualitySession
+  ) {
     state.consumeContextQualitySession(result.contextSessionId, {
       retain: contextPolicy?.retain === true,
     });

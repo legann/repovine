@@ -256,18 +256,14 @@ export function runAgentAssetDoctor(input: AgentAssetDoctorInput): DoctorAgentAs
   return doctorAgentAssets(input);
 }
 
+/**
+ * Remediation line for one finding. Every branch must name a command the argv router dispatches:
+ * an unreachable branch is still a latent string, and the one a reader trusts is the one that
+ * looks specific. `managed-asset-remediation.test.ts` holds the branches to that.
+ */
 function agentAssetDoctorCliAction(finding: AgentAssetFinding): string | undefined {
   if (finding.code === 'mixed-cursor-instruction-surfaces') {
     return 'Expected in mixed repos (setup all). Cursor scorecards exclude AGENTS.md; remove AGENTS.md only if you want a Cursor-only instruction surface.';
-  }
-  if (finding.code === 'stale-managed-content' && finding.file.includes('handoff')) {
-    return 'Run repovine agents run-brief --write-handoff --out <path>.';
-  }
-  if (finding.code === 'stale-managed-content' && finding.file.includes('lib/agents/')) {
-    return 'Run repovine agents render-harness-briefs --write.';
-  }
-  if (finding.code === 'missing-harness-brief-section') {
-    return 'Run repovine agents render-harness-briefs --write.';
   }
   if (finding.severity === 'error') {
     return 'Rerun repovine setup (or repovine setup --force) after reviewing repovine doctor findings.';

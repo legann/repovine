@@ -64,11 +64,11 @@ When the user asks for smells, refactoring candidates, duplicated responsibiliti
 
 ```json
 analyze_architecture({ "scope": "pkg:package-name", "categories": ["boundary", "god-module"], "limit": 12 })
-analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"], "minConfidence": 0.6 })
+analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"] })
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id" })
 ```
 
-Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise before `minConfidence` post-filtering (apply with `refresh_context({ "reloadConfig": true })`).
+Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise (apply with `refresh_context({ "reloadConfig": true })`).
 
 ## Relationship to Subagent Orchestration
 

@@ -22,7 +22,7 @@ export const DomainsConfigSchema = z.object({
     }).optional(),
     /** When true, runtime-resource nodes that no load-bearing edge witnesses (only structural
      * contains/tagged) are pruned from the graph after it builds — the builder-level form of the
-     * witness rule (D6). Off by default; `infra.keep` overrides it per resource. */
+     * witness rule. Off by default; `infra.keep` overrides it per resource. */
     pruneInert: z.boolean().optional(),
   }).optional(),
   basename: z.object({

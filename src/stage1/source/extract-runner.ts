@@ -89,6 +89,7 @@ export async function runSourceExtraction(args: RunSourceExtractionArgs): Promis
       exports: delta.exports,
       ...(delta.reExports?.length ? { reExports: delta.reExports } : {}),
       ...(delta.calls?.length ? { calls: delta.calls } : {}),
+      ...(delta.callsTotal ? { callsTotal: delta.callsTotal } : {}),
       ...(delta.semanticHints ? { semanticHints: delta.semanticHints } : {}),
       sourcePluginId: pending.sourcePluginId ?? pending.pkg.sourcePluginId,
     });

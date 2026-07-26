@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 17,
-    "totalEdges": 25,
+    "totalNodes": 16,
+    "totalEdges": 24,
     "nodesByType": {
-      "domain": 5,
+      "domain": 4,
       "export-symbol": 1,
       "module": 5,
       "package": 1,
@@ -14,7 +14,7 @@
       "contains": 11,
       "infra": 1,
       "routes_to": 1,
-      "tagged": 12
+      "tagged": 11
     }
   },
   "byType": {
@@ -22,8 +22,7 @@
       "domain:infra-dockerfile",
       "domain:infra-k8s",
       "domain:worker",
-      "domain:k8s-statefulset-fixture",
-      "domain:cluster"
+      "domain:k8s-statefulset-fixture"
     ],
     "export-symbol": [
       "export:k8s-statefulset-fixture/src/worker/run"
@@ -49,16 +48,6 @@
     ]
   },
   "nodes": [
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
     {
       "id": "domain:infra-dockerfile",
       "type": "domain",
@@ -184,7 +173,10 @@
       "data": {
         "contentHash": "edcb105218c15649",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "Dockerfile"
+        ]
       }
     },
     {
@@ -196,7 +188,10 @@
         "contentHash": "9144c73ccf1a2592",
         "kind": "k8s-service",
         "k8sKind": "Ingress",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/ingress.yaml"
+        ]
       }
     },
     {
@@ -208,7 +203,10 @@
         "contentHash": "7113a35c3b900705",
         "kind": "k8s-service",
         "k8sKind": "Service",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/service.yaml"
+        ]
       }
     },
     {
@@ -220,7 +218,10 @@
         "contentHash": "a8c26a3a405ffc17",
         "kind": "k8s-deployment",
         "k8sKind": "StatefulSet",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/statefulset.yaml"
+        ]
       }
     },
     {
@@ -232,17 +233,6 @@
     }
   ],
   "links": [
-    {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
     {
       "id": "domain:infra-dockerfile",
       "links": [],
@@ -422,11 +412,6 @@
           "to": "domain:k8s-statefulset-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -448,10 +433,6 @@
           },
           {
             "to": "domain:k8s-statefulset-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

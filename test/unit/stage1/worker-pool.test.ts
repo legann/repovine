@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync, mergeResults, packageJobKey } from '../../../src/stage1/index.js';
+import { loadCalibration } from '../../../src/stage1/calibration.js';
 import { composeRepositoryGraph } from '../../../src/stage2/index.js';
 import { chooseWorkerCount, effectiveTotalMemBytes } from '../../../src/stage1/worker-pool.js';
 import { spawn } from 'node:child_process';
@@ -93,6 +94,57 @@ describe('collectRepositoryFactsAsync worker-pool parity', () => {
     expect(normalizeGraph(composeRepositoryGraph(sharded))).toEqual(
       normalizeGraph(composeRepositoryGraph(unsharded)),
     );
+  });
+
+  it('emits the same graph across the worker-count × sharding matrix', async () => {
+    const repoRoot = copyFixture('tsconfig-references-monorepo');
+    const variants: RepositoryFactsSnapshot[] = [];
+    for (const options of [
+      { maxPackageWorkers: 1, shardTargetSize: 1000 },
+      { maxPackageWorkers: 1, shardTargetSize: 1 },
+      { maxPackageWorkers: 2, shardTargetSize: 1000 },
+      { maxPackageWorkers: 2, shardTargetSize: 1 },
+    ]) {
+      variants.push(await collectSilently(repoRoot, options));
+    }
+    const referenceSnapshot = normalizeSnapshotContract(variants[0]);
+    const referenceGraph = normalizeGraph(composeRepositoryGraph(variants[0]));
+
+    for (const variant of variants.slice(1)) {
+      expect(normalizeSnapshotContract(variant)).toEqual(referenceSnapshot);
+      expect(normalizeGraph(composeRepositoryGraph(variant))).toEqual(referenceGraph);
+    }
+  });
+
+  it('keeps the last cold calibration across a warm increment and replaces it on the next cold run', async () => {
+    const repoRoot = copyFixture('tsconfig-references-monorepo');
+    const options = { maxPackageWorkers: 2, shardTargetSize: 1 };
+    const cacheDir = path.join(repoRoot, '.repovine', '.cache');
+
+    const firstCold = await collectSilently(repoRoot, options);
+    const firstCalibration = loadCalibration(cacheDir);
+    expect(firstCalibration?.lastRun.observed).toMatchObject({
+      runKind: 'cold',
+      reusedModules: 0,
+      rescannedModules: firstCold.modules.length,
+    });
+
+    fs.appendFileSync(
+      path.join(repoRoot, 'packages', 'api', 'src', 'handler.ts'),
+      '\nexport const calibrationProbe = true;\n',
+    );
+    await collectSilently(repoRoot, { ...options, previousSnapshot: firstCold });
+    expect(loadCalibration(cacheDir)).toEqual(firstCalibration);
+
+    await new Promise(resolve => setTimeout(resolve, 2));
+    const secondCold = await collectSilently(repoRoot, options);
+    const secondCalibration = loadCalibration(cacheDir);
+    expect(secondCalibration?.lastRun.observed).toMatchObject({
+      runKind: 'cold',
+      reusedModules: 0,
+      rescannedModules: secondCold.modules.length,
+    });
+    expect(secondCalibration?.lastRun.at).not.toBe(firstCalibration?.lastRun.at);
   });
 });
 

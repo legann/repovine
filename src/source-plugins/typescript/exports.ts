@@ -3,7 +3,7 @@ import type {
   ExportInfo, SymbolKind, ParamInfo, FieldInfo, MemberInfo, InternalInfo,
 } from '@repovine/plugin-sdk';
 import { getFunctionNode } from './ts-utils.js';
-import { collectModuleCalls } from './call-graph.js';
+import { collectModuleCalls, type CallBucket } from './call-graph.js';
 import { functionTypeLabel, paramTypeLabel, syntaxReturnTypeText, syntaxTypeText } from './type-syntax.js';
 
 /** Exports plus the module-level calls not attributed to any exported declaration (top-level
@@ -11,7 +11,7 @@ import { functionTypeLabel, paramTypeLabel, syntaxReturnTypeText, syntaxTypeText
  * calls visible to the reverse-by-name index. */
 export interface CollectedExports {
   exports: ExportInfo[];
-  moduleCalls: string[];
+  moduleCalls: CallBucket;
 }
 
 export function collectExports(sf: SourceFile): CollectedExports {
@@ -60,8 +60,11 @@ export function collectExports(sf: SourceFile): CollectedExports {
 
     const lineCount = info.lineRange.end - info.lineRange.start;
     if (lineCount <= 500) {
-      const calls = byDecl.get(decl.compilerNode);
-      if (calls && calls.length > 0) info.calls = calls;
+      const bucket = byDecl.get(decl.compilerNode);
+      if (bucket && bucket.names.length > 0) {
+        info.calls = bucket.names;
+        if (bucket.total > bucket.names.length) info.callsTotal = bucket.total;
+      }
     }
 
     result.push(info);

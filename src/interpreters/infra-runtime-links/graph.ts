@@ -1,13 +1,16 @@
 import type {
   InfraModuleInfo,
+  InfraResource,
   ModuleInfo,
   RepositoryGraph,
   RuntimeAction,
   RepositoryFactsSnapshot,
+  UnresolvedInfraRef,
 } from '../../types.js';
 import type { HandlerResolveContext } from '@repovine/plugin-sdk';
 import { addNode, addEdge } from '../../graph/index.js';
 import { makeRuntimeResourceId } from '../../graph/make-runtime-resource-id.js';
+import { resolveInfraRef, type InfraRefScope } from '../../graph/resolve-infra-ref.js';
 import { matchesInfraResourceExclude, type DomainsConfig } from '../../stage2/domains.js';
 import {
   linkContainerRuntimeTargets,
@@ -197,12 +200,14 @@ function linkDeferredInfraEdges(graph: RepositoryGraph, infraModules: InfraModul
       const serviceId = makeRuntimeResourceId(res);
       if (!graph.nodes.has(serviceId)) continue;
 
+      const scope = refScopeFor(infraMod, res);
+
       if (res.kind === 'lambda' && res.triggers) {
         for (const trigger of res.triggers) {
           // Sources that drive a consumer Lambda: SQS queue, DynamoDB stream, Kinesis stream.
           const isStreamLike = !!getTriggerTypeMeta(trigger.type)?.isStreamLike;
           if (!isStreamLike || !trigger.queueRef) continue;
-          const queueServiceId = findServiceIdByLogicalId(graph, trigger.queueRef);
+          const queueServiceId = findServiceIdByLogicalId(graph, trigger.queueRef, serviceId, scope);
           if (queueServiceId && graph.nodes.has(queueServiceId) && !hasConsumesEdge(graph, queueServiceId, serviceId)) {
             addEdge(graph, queueServiceId, serviceId, 'consumes');
           }
@@ -212,7 +217,7 @@ function linkDeferredInfraEdges(graph: RepositoryGraph, infraModules: InfraModul
       if (res.envRefs) {
         for (const envRef of res.envRefs) {
           if (!envRef.targetLogicalId) continue;
-          const targetServiceId = findServiceIdByLogicalId(graph, envRef.targetLogicalId);
+          const targetServiceId = findServiceIdByLogicalId(graph, envRef.targetLogicalId, serviceId, scope, envRef.varName);
           if (!targetServiceId || !graph.nodes.has(targetServiceId)) continue;
           if (!hasUsesEnvEdge(graph, serviceId, targetServiceId)) {
             addEdge(graph, serviceId, targetServiceId, 'uses_env');
@@ -243,9 +248,10 @@ function linkHandlerModuleEnvBindings(graph: RepositoryGraph, infraModules: Infr
       const handlerNode = graph.nodes.get(handlerModId);
       if (!handlerNode || handlerNode.type !== 'module') continue;
 
+      const scope = refScopeFor(infraMod, res);
       for (const envRef of res.envRefs) {
         if (!envRef.targetLogicalId) continue;
-        const targetServiceId = findServiceIdByLogicalId(graph, envRef.targetLogicalId);
+        const targetServiceId = findServiceIdByLogicalId(graph, envRef.targetLogicalId, serviceId, scope, envRef.varName);
         if (!targetServiceId || !graph.nodes.has(targetServiceId)) continue;
         // Every env-ref target is a generic `binds_to` resource binding. Secret targets are not a
         // distinct edge — config-surface reports kind:'secret' by reading target.data.kind.
@@ -276,8 +282,9 @@ function linkRuntimePublishes(
       const actions = collectRuntimeActionsForModule(handlerModId, modulesById);
       if (actions.length === 0) continue;
 
+      const scope = refScopeFor(infraMod, res);
       for (const action of actions) {
-        const targetServiceId = findPublishTargetForAction(graph, res.envRefs ?? [], action.action, action.envVar);
+        const targetServiceId = findPublishTargetForAction(graph, serviceId, scope, res.envRefs ?? [], action.action, action.envVar);
         if (!targetServiceId || hasPublishesEdge(graph, serviceId, targetServiceId)) continue;
         addEdge(graph, serviceId, targetServiceId, 'publishes');
       }
@@ -314,6 +321,8 @@ function collectRuntimeActionsForModule(
 
 function findPublishTargetForAction(
   graph: RepositoryGraph,
+  fromServiceId: string,
+  scope: InfraRefScope,
   envRefs: NonNullable<InfraModuleInfo['resources'][number]['envRefs']>,
   action: RuntimeActionName,
   envVar?: string,
@@ -321,7 +330,7 @@ function findPublishTargetForAction(
   const refs = envVar ? envRefs.filter(ref => ref.varName === envVar) : envRefs;
   for (const ref of refs) {
     if (!ref.targetLogicalId) continue;
-    const targetServiceId = findServiceIdByLogicalId(graph, ref.targetLogicalId);
+    const targetServiceId = findServiceIdByLogicalId(graph, ref.targetLogicalId, fromServiceId, scope, ref.varName);
     if (targetServiceId && serviceMatchesRuntimeAction(targetServiceId, action)) return targetServiceId;
   }
   return undefined;
@@ -346,6 +355,13 @@ function pass2Infra(
   const infraModules = snapshot.infraModules ?? [];
   if (infraModules.length === 0) return;
   const deferredComposeDockerfileInfraEdges: Array<{ fromServiceId: string; toDockerfileModuleId: string }> = [];
+  const deferredLogicalIdRefs: Array<{
+    logicalId: string;
+    serviceId: string;
+    scope: InfraRefScope;
+    kind: 'consumes' | 'uses_env';
+    varName?: string;
+  }> = [];
 
   // Resource filtering driven by repovine.domains.json. Whatever the user lists in
   // `infra.excludeSuffixes` / `excludePatterns` is dropped here — never becomes a
@@ -388,6 +404,12 @@ function pass2Infra(
       if (shouldExcludeResource(res.id)) continue;
 
       const serviceId = makeRuntimeResourceId(res);
+      // Two documents declaring the same logical id collapse onto one node. Keep both paths so a
+      // reference from either document still sees a target its own scope declares.
+      const previous = graph.nodes.get(serviceId);
+      const previouslyDeclaredIn = previous?.type === 'runtime-resource'
+        ? previous.data?.declaredIn ?? []
+        : [];
       addNode(graph, {
         id: serviceId,
         type: 'runtime-resource',
@@ -402,6 +424,8 @@ function pass2Infra(
           kind: res.kind,
           k8sKind: res.provider === 'k8s' ? res.attributes.kind : undefined,
           provider: res.provider,
+          declaredIn: uniqueStrings([...previouslyDeclaredIn, infraMod.relativeFilePath]),
+          namespace: res.attributes.namespace,
         },
       });
       addEdge(graph, infraModuleId, serviceId, 'contains');
@@ -426,14 +450,13 @@ function pass2Infra(
         deferredComposeDockerfileInfraEdges.push({ fromServiceId: serviceId, toDockerfileModuleId: dockerfileModuleId });
       }
 
+      const scope = refScopeFor(infraMod, res);
+
       if (res.triggers) {
         for (const trigger of res.triggers) {
           const isStreamLike = !!getTriggerTypeMeta(trigger.type)?.isStreamLike;
           if (isStreamLike && trigger.queueRef) {
-            const queueServiceId = findServiceIdByLogicalId(graph, trigger.queueRef);
-            if (queueServiceId) {
-              addEdge(graph, queueServiceId, serviceId, 'consumes');
-            }
+            deferredLogicalIdRefs.push({ logicalId: trigger.queueRef, serviceId, scope, kind: 'consumes' });
           }
         }
       }
@@ -441,14 +464,42 @@ function pass2Infra(
       if (res.envRefs) {
         for (const envRef of res.envRefs) {
           if (envRef.targetLogicalId) {
-            const targetServiceId = findServiceIdByLogicalId(graph, envRef.targetLogicalId);
-            if (targetServiceId) {
-              addEdge(graph, serviceId, targetServiceId, 'uses_env');
-            }
+            deferredLogicalIdRefs.push({
+              logicalId: envRef.targetLogicalId,
+              serviceId,
+              scope,
+              kind: 'uses_env',
+              varName: envRef.varName,
+            });
           }
         }
       }
     }
+  }
+
+  // Resolve after every resource node exists. Resolving inside the loop above reads a half-built
+  // graph: when the colliding declarations straddle the referencing document in scan order, only
+  // one candidate is visible yet, the repo-wide-unique branch fires, and the same reference is both
+  // bound by an edge and recorded as ambiguous — the scan-order coin toss this scoping removed.
+  // Every ref resolves on its own so an unresolved one is recorded against its own env var, but a
+  // relationship is emitted once: two variables naming the same target are one link, and `addEdge`
+  // does not deduplicate.
+  const emittedEdges = new Set<string>();
+  for (const ref of deferredLogicalIdRefs) {
+    const targetServiceId = findServiceIdByLogicalId(
+      graph, ref.logicalId, ref.serviceId, ref.scope, ref.varName,
+    );
+    if (!targetServiceId) continue;
+    const [from, to] = ref.kind === 'consumes'
+      ? [targetServiceId, ref.serviceId]
+      : [ref.serviceId, targetServiceId];
+    const key = `${from}|${to}|${ref.kind}`;
+    if (emittedEdges.has(key)) continue;
+    emittedEdges.add(key);
+    // Edge kinds stay literal at the call site: `edge-witness-producer` scans for them statically,
+    // and a variable here would erase the kind from the producer vocabulary.
+    if (ref.kind === 'consumes') addEdge(graph, from, to, 'consumes');
+    else addEdge(graph, from, to, 'uses_env');
   }
 
   // Compose modules can appear before Dockerfile modules in scan order.
@@ -466,38 +517,45 @@ function pass2Infra(
   linkK8sIngressRoutes(graph, snapshot);
 }
 
-/**
- * Nested SAM stacks pass DynamoDB identifiers as parameters (`FooTableName`, `FooTableArn`);
- * the actual `AWS::DynamoDB::Table` resource is often `FooTable` in another template (e.g. data.yaml).
- */
-function resourceLogicalIdAliases(logicalId: string): string[] {
-  const suffixes: Array<[suffix: string, replacement: string]> = [
-    ['TableName', 'Table'],
-    ['TableArn', 'Table'],
-    ['QueueUrl', 'Queue'],
-    ['QueueArn', 'Queue'],
-    ['TopicArn', 'Topic'],
-    ['FunctionName', 'Function'],
-    ['FunctionArn', 'Function'],
-  ];
-  const out: string[] = [];
-  for (const [suffix, replacement] of suffixes) {
-    if (logicalId.endsWith(suffix)) {
-      out.push(logicalId.slice(0, -suffix.length) + replacement);
-    }
-  }
-  return out;
+/** The document and namespace a resource's own references are made from. */
+function refScopeFor(infraMod: InfraModuleInfo, res: InfraResource): InfraRefScope {
+  return {
+    declaredIn: [infraMod.relativeFilePath],
+    namespace: res.attributes.namespace,
+    provider: res.provider,
+  };
 }
 
-function findServiceIdByLogicalId(graph: RepositoryGraph, logicalId: string): string | undefined {
-  const serviceSet = graph.byType.get('runtime-resource');
-  if (!serviceSet) return undefined;
-  const tryLabels = [logicalId, ...resourceLogicalIdAliases(logicalId)];
-  for (const label of tryLabels) {
-    for (const id of serviceSet) {
-      const node = graph.nodes.get(id);
-      if (node?.label === label) return id;
-    }
+/**
+ * Resolve a logical id for a resource's own reference, recording the refusal on the referencing
+ * node when scope leaves several candidates standing. `missing` stays silent: a reference to
+ * something the repository never declares is an external id, not a resolution failure.
+ */
+function findServiceIdByLogicalId(
+  graph: RepositoryGraph,
+  logicalId: string,
+  fromServiceId: string,
+  scope: InfraRefScope,
+  envVar?: string,
+): string | undefined {
+  const resolution = resolveInfraRef(graph, logicalId, scope);
+  if (resolution.status === 'resolved') return resolution.serviceId;
+  if (resolution.reason !== 'missing') {
+    recordUnresolvedRef(graph, fromServiceId, {
+      logicalId,
+      ...(envVar ? { envVar } : {}),
+      reason: resolution.reason,
+      candidates: resolution.candidates,
+    });
   }
   return undefined;
+}
+
+function recordUnresolvedRef(graph: RepositoryGraph, serviceId: string, entry: UnresolvedInfraRef): void {
+  const node = graph.nodes.get(serviceId);
+  if (node?.type !== 'runtime-resource') return;
+  const data = node.data ?? (node.data = {});
+  const existing = data.unresolvedRefs ?? (data.unresolvedRefs = []);
+  if (existing.some(ref => ref.logicalId === entry.logicalId && ref.envVar === entry.envVar)) return;
+  existing.push(entry);
 }

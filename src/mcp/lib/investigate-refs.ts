@@ -160,7 +160,7 @@ export function applyInvestigateTags(
     for (const id of parseIntegrationPointTargets(options.selfAnnotation.integrationPoints, { nodeExists })) {
       if (structuralIds.has(id)) continue; // structural channel owns it
       if (!dependsOn(id)) continue; // direction guard: inherit only from what we depend on
-      collect(id, (tags) => { pointers.push({ id, investigate: tags, via: 'integrationPoints', hops: 1 }); });
+      collect(id, (tags) => { pointers.push({ id, investigate: tags, via: 'integrationPoints' }); });
     }
   }
 

@@ -71,6 +71,9 @@ export interface ExportInfo {
   fields?: FieldInfo[];
   implementsInterfaces?: string[];
   calls?: string[];
+  /** Distinct callee names found before the producer's per-declaration cap. Present only when it
+   * exceeds `calls.length`, so a consumer can report the dropped count instead of inferring it. */
+  callsTotal?: number;
   privateMembers?: MemberInfo[];
   internals?: InternalInfo[];
   lineRange: { start: number; end: number };
@@ -116,6 +119,9 @@ export interface ModuleInfo {
    * statements, non-exported local helpers). Per-export calls live on `ExportInfo.calls`; this
    * bucket is what makes a non-exported helper's calls visible to reverse-by-name lookup. */
   calls?: string[];
+  /** Distinct callee names found before the producer's cap; present only when it exceeds
+   * `calls.length`. */
+  callsTotal?: number;
   semanticHints?: SemanticHints;
   /** Logical id of the source plugin that produced this module ('typescript' | 'python' | …).
    * Lets language-specific downstream layers (frontend route inference, UI detectors) stay
@@ -141,6 +147,8 @@ export interface SemanticModuleDelta {
   /** Module-level forward calls (see `ModuleInfo.calls`). Producer-owned semantics; the engine
    * carries it onto the assembled `ModuleInfo` unchanged. */
   calls?: string[];
+  /** See `ModuleInfo.callsTotal`. */
+  callsTotal?: number;
   semanticHints?: SemanticHints;
   /**
    * Set when this extraction is incomplete and must not be cached (e.g. a transient subprocess
@@ -448,10 +456,19 @@ export interface InfraTrigger {
   queueRef?: string;
 }
 
+/** Access a declaring resource holds on a referenced resource, read from grant verbs. */
+export type InfraAccessMode = 'read' | 'write' | 'read-write';
+
 export interface InfraEnvRef {
   varName: string;
   refType: 'ref' | 'getatt' | 'sub' | 'literal';
   targetLogicalId?: string;
+  /**
+   * Access granted to `targetLogicalId`, derived from the declaring resource's grant document
+   * (policy-template name, inline `Statement` actions, or a referenced managed policy). Absent
+   * means no grant was parsed for this target — consumers report that as unread, never as a mode.
+   */
+  access?: InfraAccessMode;
 }
 
 export interface InfraResource {

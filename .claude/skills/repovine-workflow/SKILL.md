@@ -110,12 +110,12 @@ Use `get_config_surface` for env/config changes and `trace_flow` for runtime dis
 6. Treat architecture reports as review candidates:
 
 ```json
-analyze_architecture({ "scope": "pkg:package-name", "mode": "report", "categories": ["boundary", "god-module"], "minConfidence": 0.6, "annotationReasoning": "on", "limit": 12 })
-analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"], "minConfidence": 0.6 })
+analyze_architecture({ "scope": "pkg:package-name", "mode": "report", "categories": ["boundary", "god-module"], "annotationReasoning": "on", "limit": 12 })
+analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"] })
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id", "maxNodes": 30 })
 ```
 
-Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise before `minConfidence` post-filtering (apply with `refresh_context({ "reloadConfig": true })`).
+Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise (apply with `refresh_context({ "reloadConfig": true })`).
 
 7. Prefer local project skills when present:
 

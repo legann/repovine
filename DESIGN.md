@@ -421,7 +421,9 @@ pool. This keeps cold-build concurrency and peak memory bounded on large
 monorepos. The MCP server
 connects its transport **before** building, so tools return `status:"building"`
 while loading and `get_build_status` stays callable — with `waitSec` it long-polls,
-returning the moment the build settles instead of forcing a polling loop. `repovine setup`
+returning the moment the build settles instead of forcing a polling loop.
+`stage_eta_sec` is deliberately only the current-stage estimate; `stage` and
+`remaining_stages` expose how much of the pipeline still follows it. `repovine setup`
 builds the graph by default (`--no-build` defers to first MCP start), so the cold
 window normally exists only after an upgrade invalidates the cache.
 
@@ -441,8 +443,10 @@ pulls cross-package files in), loading `lib.*`, and any long-lived repo-wide
 - **Worker pool.** Each shard builds a short-lived `Project` and drops it, so peak
   RAM scales with `workers × per-shard footprint`, not total module count.
 - **Calibration.** A representative cold run writes `build-calibration.json`
-  (per-machine, gitignored); later runs size the pool within the calibrated CPU
-  and memory envelope. Explicit build limits take precedence.
+  (per-machine, gitignored); warm runs with reused modules do not replace it.
+  Worker RAM is the observed peak minus the main-process baseline, divided by
+  concurrently active shards. Later runs size the pool within that calibrated
+  CPU and memory envelope. Explicit build limits take precedence.
 - **Cache.** Warm cache is `repository-facts-snapshot.json`, invalidated by
   analysis version, engine identity where applicable, content, and extraction
   configuration. Build-status payloads are memoized so polling does not repeat
@@ -620,7 +624,18 @@ The token index is always available for exact symbol, path, domain, annotation, 
 
 Both indexes return stable graph node ids. Semantic scores orient the first hop; subsequent map, inspect, impact, flow, and configuration queries operate on graph facts. Card hashes make embedding updates incremental, and embedding failure degrades to persisted vectors plus token search.
 
-`search_context` performs exact matching first, bounded relaxation when needed, then optional semantic rank fusion. Its response exposes the strategy, matched tokens, confidence, gaps, and suggested graph scopes so callers can distinguish strong matches from fuzzy recovery.
+Node cards are capped at 1000 characters before tokenization, matching the
+roughly 256-token MiniLM input window instead of relying on silent tokenizer
+truncation. Within annotation prose the retained order is summary, invariants,
+risks, flow, integration points, then verbose per-export descriptions.
+
+`search_context` performs exact matching first, bounded relaxation when needed,
+then optional semantic rank fusion. Its response exposes the strategy, matched
+tokens, confidence, gaps, and suggested graph scopes so callers can distinguish
+strong matches from fuzzy recovery. A nearest semantic neighbour with no token
+match is explicitly low-confidence advisory evidence, not proof that the
+requested functionality exists. Dimension-incompatible persisted vectors are
+reported rather than disappearing as an unexplained empty ranking.
 
 Configuration and cache behavior are documented in [Workspace files](docs/workspace-files.md#semantic_search_embeddings).
 
@@ -894,6 +909,23 @@ These risks do not imply an automatic refactoring roadmap. Resolver, coverage,
 or freshness changes should be justified by concrete query failures and treated
 as behavior changes. Expanding plugin coverage and maintaining annotations are
 independent maturity work.
+
+### Known gaps in 0.1.0
+
+The table above grades the architecture. This one records measured shortfalls in
+what 0.1.0 actually emits, and the response each one already carries. They ship
+as listed.
+
+| # | Gap | Measured | Response in 0.1.0 |
+|---|---|---|---|
+| 1 | `analyze_architecture` findings are often false | 31% of a 42-finding adjudicated sample were factually true about the named module; the sample is not retained | numeric `confidence` withdrawn from the MCP contract on input and output, report capped at 30, and `duplicate-like`, `god-module`, `authorization-policy-drift` excluded from the default category set |
+| 2 | Semantic fusion constants are fitted to one repository | cosine floor and RRF weights chosen in-sample over 25 queries from a single codebase; that corpus is not retained | the four constants live in `semantic/relevance.ts` and reach the ranker by import, so recalibrating the semantic half is a one-file edit; lexical token scores stay in `mcp/lib/search-graph.ts` |
+| 3 | Secret/public env classification is TypeScript-only | the Python producer fills `envVars` and framework hints; the `security` slot stays empty | a Python `os.getenv("DB_PASSWORD")` returns `kind: 'env'` and `get_config_surface({kind:'secret'})` omits it; `gaps` names only computed and aliased accesses, so the omission carries no signal |
+| 4 | Same logical id in two IaC templates collapses to one node | node identity is `provider:kind:logicalId`, plus namespace for k8s; the second declaration overwrites the node payload while `declaredIn` accumulates both paths | annotation freshness hashes the set of declarations, and reference resolution reads `declaredIn` to prefer a target the referencing document declares. The set stays internal: no MCP response emits it, the merge carries no `gap`, and a reference from either document sees one in-scope candidate and resolves. `ambiguous` is returned only for candidates that stayed separate nodes |
+| 5 | The CLI build-progress ETA extrapolates per package | package jobs span one module to the ~1600-module sharding threshold and the CLI weights every job equally, so early estimates on large monorepos are wrong by a similar factor | the MCP contract reports `stage_eta_sec` for the current stage only, and clients wait via one `get_build_status` long-poll rather than reading an ETA; the CLI progress line is display-only and stays wrong |
+
+Rows 1 and 2 need a labelled corpus spanning several repositories before either
+number can move. Rows 3 to 5 are engineering, unblocked.
 
 ## Related documentation
 

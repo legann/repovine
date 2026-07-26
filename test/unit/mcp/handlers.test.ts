@@ -20,6 +20,7 @@ import { analyzeImpact } from '../../../src/mcp/lib/dependencies/impact.js';
 import { toCallToolMcpResult } from '../../../src/mcp/response-format.js';
 import { buildDomainContext, buildDomainModulesSlice } from '../../../src/mcp/lib/domain-map.js';
 import { projectRuntimeTopology } from '../../../src/mcp/lib/topology.js';
+import { handleTraceFlow } from '../../../src/mcp/tools/trace-flow.js';
 import { analyzePackageBoundaries } from '../../../src/mcp/lib/dependencies/package-boundaries.js';
 import { inferFileBasedRoutes } from '../../../src/stage2/routes/file-based.js';
 import { createEmptyGraph, addNode, addEdge } from '../../../src/graph/index.js';
@@ -472,13 +473,13 @@ describe('inspect_node investigate tags', () => {
     const ctx = makeCtx({ graph: g, modulesById, annotations });
     const view = (await buildInspectNodeDetail(ctx, { nodeId: 'mod:test/gamma' })) as {
       links?: Array<{ targetId: string; investigate?: string[] }>;
-      investigatePointers?: Array<{ id: string; investigate: string[]; via: string; hops: number }>;
+      investigatePointers?: Array<{ id: string; investigate: string[]; via: string }>;
     };
 
     // beta is the 1-hop structural link and carries no risk; alpha arrives via the integrationPoints channel.
     expect(view.links?.find((l) => l.targetId === 'mod:test/beta')?.investigate).toBeUndefined();
     expect(view.investigatePointers).toEqual([
-      { id: 'mod:test/alpha', investigate: ['risk'], via: 'integrationPoints', hops: 1 },
+      { id: 'mod:test/alpha', investigate: ['risk'], via: 'integrationPoints' },
     ]);
 
     // the pointer is also surfaced as a must-inspect navigation hint via the full handler.
@@ -721,7 +722,7 @@ describe('inspect_node salience ordering + attention', () => {
 
     const pointers = (env.result as { investigatePointers?: Array<{ id: string; investigate: string[] }> }).investigatePointers;
     expect(pointers).toEqual([
-      { id: 'mod:test/alpha', investigate: ['wiring'], via: 'integrationPoints', hops: 1 },
+      { id: 'mod:test/alpha', investigate: ['wiring'], via: 'integrationPoints' },
     ]);
     const navigation = env.navigation as Record<string, Array<{ reason?: string; args: Record<string, unknown> }>>;
     const mustInspect = navigation.deeper.filter((n) => (n.reason ?? '').includes('must-inspect'));
@@ -800,6 +801,40 @@ describe('inspect_node domain freshness', () => {
       annotationMeta?: { fresh?: boolean };
     };
     expect(view.annotationMeta!.fresh).toBe(true);
+  });
+
+  // write_annotation stores `contentHash: 'unknown'` for node types it cannot hash (export symbols,
+  // packages, root). Reporting `fresh: true` there stated a comparison that never ran.
+  it('omits fresh and says not-comparable when the stored hash is unknown', async () => {
+    const { graph, modulesById } = buildSearchModeFixture();
+    const snapshot = makeSnapshot([...modulesById.values()]);
+    const ctx = makeCtx({
+      graph,
+      modulesById,
+      snapshot,
+      annotations: domainAnnotations('unknown'),
+    });
+    const view = (await buildInspectNodeDetail(ctx, { nodeId: 'domain:order' })) as {
+      annotationMeta?: { fresh?: boolean; freshnessSource?: string };
+    };
+    expect(view.annotationMeta).toBeDefined();
+    expect(view.annotationMeta!.fresh).toBeUndefined();
+    expect(view.annotationMeta!.freshnessSource).toBe('not-comparable');
+  });
+
+  it('names content-hash as the source when a comparison did run', async () => {
+    const { graph, modulesById } = buildSearchModeFixture();
+    const snapshot = makeSnapshot([...modulesById.values()]);
+    const ctx = makeCtx({
+      graph,
+      modulesById,
+      snapshot,
+      annotations: domainAnnotations('stale-deliberately-wrong-hash'),
+    });
+    const view = (await buildInspectNodeDetail(ctx, { nodeId: 'domain:order' })) as {
+      annotationMeta?: { freshnessSource?: string };
+    };
+    expect(view.annotationMeta!.freshnessSource).toBe('content-hash');
   });
 });
 
@@ -2569,6 +2604,7 @@ describe('get_refactoring_report', () => {
       category: 'boundary',
       nodes: ['mod:shared/src/internal/rules', 'mod:app/src/page'],
     });
+    expect(boundary).not.toHaveProperty('confidence');
     expect(boundary.evidence).toEqual(expect.arrayContaining([
       expect.stringContaining('1 importer(s) reach src/internal/rules directly'),
       expect.stringContaining('Imported symbols: applyRules'),
@@ -2582,6 +2618,7 @@ describe('get_refactoring_report', () => {
     expect(godModule.evidence).toEqual(expect.arrayContaining([
       expect.stringContaining('12 export(s)'),
     ]));
+    expect(godModule).not.toHaveProperty('confidence');
   });
 
   it('reports event-driven boundary candidates', async () => {
@@ -2876,6 +2913,37 @@ describe('get_refactoring_report', () => {
     }) as Record<string, unknown>;
 
     expect(result.totalFindings).toBe(0);
+  });
+
+  it('reports unclear architecture at five distinct root domains', async () => {
+    const { graph, modulesById } = buildRefactoringFixture();
+    for (const id of ['auth', 'billing', 'config', 'orders', 'shared']) {
+      addNode(graph, { id: `domain:${id}`, type: 'domain', label: id, description: '' });
+      addEdge(graph, 'mod:shared/src/internal/rules', `domain:${id}`, 'tagged');
+    }
+    const ctx = makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]) });
+
+    const result = await architectureResult(ctx, {
+      scope: 'pkg:shared',
+      categories: ['unclear-architecture'],
+    }) as Record<string, unknown>;
+    const findings = result.findings as Array<Record<string, unknown>>;
+
+    expect(result.totalFindings).toBe(1);
+    expect(expectFinding(
+      findings,
+      'unclear-architecture:mod:shared/src/internal/rules:domains',
+    )).toMatchObject({
+      category: 'unclear-architecture',
+      nodes: expect.arrayContaining([
+        'mod:shared/src/internal/rules',
+        'domain:auth',
+        'domain:billing',
+        'domain:config',
+        'domain:orders',
+        'domain:shared',
+      ]),
+    });
   });
 
   it('filters generic tooling, sdk client, and design-system modules from client-business-logic', async () => {
@@ -5221,13 +5289,103 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     const result = projectRuntimeTopology(ctx, {}) as Record<string, unknown>;
 
     expect(result.dataFlows).toEqual([
-      { from: 'ProducerFunction', through: 'resource:aws-sqs:WorkQueue', to: 'WorkerFunction' },
+      {
+        from: 'ProducerFunction',
+        through: 'resource:aws-sqs:WorkQueue',
+        to: 'WorkerFunction',
+        // The pair is a static possibility through the shared queue, not an observed route.
+        relation: 'possible-via-shared-resource',
+      },
     ]);
     expect(result.dataFlows).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ from: 'ProducerFunction', to: 'EnvOnlyFunction' }),
       ]),
     );
+  });
+
+  it('separates the declared handler from the modules the infra edge resolved to', () => {
+    const g = createEmptyGraph();
+    addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
+    addNode(g, {
+      id: 'resource:k8s:_/Deployment/api',
+      type: 'runtime-resource',
+      label: 'api',
+      description: 'Deployment',
+      data: { handler: 'src/server.main', provider: 'k8s', kind: 'k8s-deployment' },
+    });
+    addNode(g, { id: 'mod:app/worker', type: 'module', label: 'worker.ts', description: 'worker' });
+    addNode(g, { id: 'mod:app/api', type: 'module', label: 'api.ts', description: 'api' });
+    addNode(g, { id: 'infra:dockerfile:docker/Dockerfile', type: 'module', label: 'Dockerfile', description: 'Dockerfile' });
+    // A container with several images reaches several infra targets; one of them is a build
+    // artifact, not code.
+    addEdge(g, 'resource:k8s:_/Deployment/api', 'mod:app/worker', 'infra');
+    addEdge(g, 'resource:k8s:_/Deployment/api', 'mod:app/api', 'infra');
+    addEdge(g, 'resource:k8s:_/Deployment/api', 'infra:dockerfile:docker/Dockerfile', 'infra');
+
+    const annotations = {
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+    } as unknown as RepovineState['annotations'];
+    const state: RepovineState = {
+      graph: g,
+      snapshot: { repoRoot: '/repo', timestamp: '2024-01-01', packages: [], modules: [] },
+      modulesById: new Map(),
+      searchIndex: { tokens: new Map(), annotationText: new Map() },
+      semanticIndex: null,
+      semanticSearchRefresh: { status: 'disabled' },
+      annotations,
+      domainsConfig: null,
+      domainsSuggestions: defaultDomainsSuggestions(),
+      refactoringThresholds: defaultRefactoringThresholds(),
+      builtAt: '2024-01-01',
+    };
+    const result = projectRuntimeTopology(wrapTestRuntime(state), {}) as Record<string, unknown>;
+    const service = (result.services as Array<Record<string, unknown>>)[0];
+
+    // The declaration stays what the manifest says, whatever resolution found.
+    expect(service.handler).toBe('src/server.main');
+    // Every resolved module, sorted — not the first edge, and not the Dockerfile.
+    expect(service.handlerModules).toEqual(['api.ts', 'worker.ts']);
+  });
+
+  it('discloses that a many-to-many dataFlows listing is a product, not that many routes', () => {
+    const g = createEmptyGraph();
+    addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
+    for (const name of ['ProducerA', 'ProducerB', 'WorkerA', 'WorkerB']) {
+      addNode(g, { id: `resource:aws-lambda:${name}`, type: 'runtime-resource', label: name, description: 'Lambda' });
+    }
+    addNode(g, { id: 'resource:aws-sqs:WorkQueue', type: 'runtime-resource', label: 'WorkQueue', description: 'Queue' });
+    addEdge(g, 'resource:aws-lambda:ProducerA', 'resource:aws-sqs:WorkQueue', 'publishes');
+    addEdge(g, 'resource:aws-lambda:ProducerB', 'resource:aws-sqs:WorkQueue', 'publishes');
+    addEdge(g, 'resource:aws-sqs:WorkQueue', 'resource:aws-lambda:WorkerA', 'consumes');
+    addEdge(g, 'resource:aws-sqs:WorkQueue', 'resource:aws-lambda:WorkerB', 'consumes');
+
+    const annotations = {
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+    } as unknown as RepovineState['annotations'];
+    const state: RepovineState = {
+      graph: g,
+      snapshot: { repoRoot: '/repo', timestamp: '2024-01-01', packages: [], modules: [] },
+      modulesById: new Map(),
+      searchIndex: { tokens: new Map(), annotationText: new Map() },
+      semanticIndex: null,
+      semanticSearchRefresh: { status: 'disabled' },
+      annotations,
+      domainsConfig: null,
+      domainsSuggestions: defaultDomainsSuggestions(),
+      refactoringThresholds: defaultRefactoringThresholds(),
+      builtAt: '2024-01-01',
+    };
+    const ctx = wrapTestRuntime(state);
+
+    const projected = projectRuntimeTopology(ctx, {}) as Record<string, unknown>;
+    const flows = projected.dataFlows as Array<Record<string, unknown>>;
+    // 2 producers x 2 consumers; every pair carries the possibility marker, none is a witnessed route.
+    expect(flows).toHaveLength(4);
+    expect(flows.every(f => f.relation === 'possible-via-shared-resource')).toBe(true);
+
+    const response = handleTraceFlow(ctx, {}) as { gaps?: string[] };
+    expect(response.gaps?.some(g => g.includes('2x2 producer-consumer product'))).toBe(true);
   });
 });
 

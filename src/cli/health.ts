@@ -540,7 +540,7 @@ function annotationFindings(env: HealthCliEnv): HealthFinding[] {
       area: 'annotations',
       severity: 'error',
       message: `${annotationsFile} contains merge conflict markers.`,
-      action: 'Run repovine annotations merge, then repovine annotations validate.',
+      action: 'Call the repovine MCP tool merge_annotations, then validate_annotations.',
     }];
   }
   if (status.file.exists && !status.file.parseOk) {
@@ -556,7 +556,7 @@ function annotationFindings(env: HealthCliEnv): HealthFinding[] {
       area: 'annotations',
       severity: 'warning',
       message: `${annotationsFile} does not exist yet.`,
-      action: 'Run repovine annotations plan after the graph is built to see onboarding work.',
+      action: 'Call the repovine MCP tool get_annotation_status after the graph is built to see onboarding work.',
     }];
   }
   return [{

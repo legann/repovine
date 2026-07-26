@@ -1,8 +1,43 @@
 # repovine Context Session Quality
 
-Context Session Quality is a deterministic score for the repovine MCP context an
-agent collected before handoff. It scores repovine tool responses, not the
+Context Session Quality is a deterministic report for the repovine MCP context
+an agent collected before handoff. It scores repovine tool responses, not the
 agent's prose.
+
+The original 14-weight `overall` failed its first outcome-labelled
+falsification (ROC AUC 0.408 versus 0.500 for the binary `inspect_node`
+baseline and 0.633 for the number of distinct MCP tools). The shipped default
+therefore collapses `overall` to the observable baseline: `1` after at least
+one `inspect_node`, otherwise `0`. All reject reasons and aggregate diagnostics
+remain available. Context-quality verdicts are advisory until a labelled
+session corpus reaches AUC >= 0.75 with false-reject <= 10% and false-accept
+<= 25% at the shipped thresholds.
+
+## Current validation evidence
+
+The published outcome-labelled corpus currently contains 17 reconstructable
+sessions from one correctness task (12 pass, 5 DQ). This is an external outcome
+proxy, not a manual judgement that context itself was sufficient.
+
+At the shipped defaults:
+
+- binary `overall` AUC is 0.500;
+- `acceptHandoff` accepts 11 and rejects 6 sessions;
+- false-reject is 5/12 (41.67%);
+- false-accept is 4/5 (80%).
+
+All three return bars therefore fail. The rejected sessions are not reliable
+evidence of insufficient context: five of the six produced a passing final
+outcome. `SEARCH_WITHOUT_MAP` accounts for four rejections,
+`BYTE_BUDGET_EXCEEDED` for one, and `ENDED_ON_SEARCH` for one.
+
+Replay determinism is guarded separately. One semantic workflow produces the
+same verdict in a fresh process, after compact-session reload, with concise
+versus debug response shapes, and after a post-edit `refresh_context`. The
+documented `search_context -> map_context -> inspect_node` funnel also scores 1
+and passes the reported default policy for explore, implement, and annotate
+under small, medium, and Kibana-scale cardinality stress profiles. These are
+mechanical consistency checks, not evidence that the score predicts outcomes.
 
 ## Workflow
 
@@ -60,7 +95,7 @@ Persisted files: `.repovine/.cache/sessions/<sessionId>.json`. There is no TTL.
 | Trigger | Who | When |
 |---|---|---|
 | **MCP process start (client default)** | MCP server on boot | `purgeSessionsOnMcpStart=true` (default when `enforcement.mode=client`) deletes all session files before serving tools — automatic, not an MCP tool call. |
-| **Harness compliance** | `repovine agents compliance` | Consumes the session after a passing compliance report (no errors) when `result.contextSessionId` is present (unless retain flags); a hard-failed report keeps the session so a retry can re-score it. Default for `enforcement.mode=harness`: no startup purge. |
+| **Harness compliance** | `repovine agents compliance` | Recomputes the report and emits warnings/follow-ups. An accepted report is consumed after the remaining compliance checks pass; a rejected advisory report is retained for review. Default for `enforcement.mode=harness`: no startup purge. |
 | **Manual** | Agent or harness | `get_context_session_quality({ consume: true })` or `repovine agents session-quality … --consume`. |
 
 Config knobs: `contextQuality.purgeSessionsOnMcpStart`, `contextQuality.retainSessions`,
@@ -72,7 +107,7 @@ Two thresholds serve different purposes:
 
 | Config field | Role |
 |---|---|
-| `threshold` / `qualityThreshold` | Hard minimum for `acceptHandoff` |
+| `threshold` / `qualityThreshold` | Minimum for the reported `acceptHandoff` field; advisory to compliance until the validation bar above is met |
 | `warningThreshold` | Soft bar: below it triggers warnings + `requiredFollowups`; may still accept when above the hard threshold |
 
 The full default configuration appears under [What Is Scored](#what-is-scored).
@@ -80,12 +115,14 @@ The report includes `belowWarningThreshold`, `warnings`, and `requiredFollowups`
 
 ## Enforcement modes
 
-repovine hard-gates harnesses and advises developers:
+Context-quality is currently advisory in both modes. The mode remains in the
+contract so harnesses can reproduce policy and so strict enforcement can return
+without another schema change:
 
 | Mode | Where set | Behavior when session is weak or missing |
 |---|---|---|
-| `harness` | `assignment.contextSession.mode` or `contextQuality.enforcement.mode` | `required=true` + missing `contextSessionId` or a recorded session scoring `acceptHandoff=false` => compliance **errors**. A declared-but-unrecorded session id warns in all modes (`Context session not found`). |
-| `client` (default) | repo default | low score / missing session => **warnings** + `requiredFollowups`, compliance may still be `valid: true` |
+| `harness` | `assignment.contextSession.mode` or `contextQuality.enforcement.mode` | Recomputes the same report and emits warnings + `requiredFollowups`; context quality alone does not fail compliance while the score is unvalidated. Evidence-backed annotation and protocol checks are unaffected. |
+| `client` (default) | repo default | Low score / missing session => warnings + `requiredFollowups`. |
 
 Context enforcement applies only when the repo has prior annotated context not
 written by the current run; a greenfield first pass downgrades all context errors
@@ -119,13 +156,18 @@ attempts across assignments and decides when to stop retrying.
 
 ## What Is Scored
 
-Noise signals include relaxed OR searches, export-symbol-heavy search hits, large
-result volume, low confidence, unresolved scopes, test/fixture anchors, byte
-budget overflow, and ending on search without map/inspect recovery.
+The session still records noise signals including relaxed OR searches,
+export-symbol-heavy search hits, large result volume, low confidence,
+unresolved scopes, test/fixture anchors, byte budget overflow, and ending on
+search without map/inspect recovery.
 
-Structure signals include high-confidence `map_context` / `inspect_node`
-anchors, dependency impact on a module/export-symbol, recovery after an initially
-noisy search, and ending on a scoped inspect/impact call.
+It also records structure signals including high-confidence `map_context` /
+`inspect_node` anchors, dependency impact on a module/export-symbol, recovery
+after an initially noisy search, and ending on a scoped inspect/impact call.
+These diagnostics continue to drive factual `rejectReasons`, provenance, and
+follow-ups, but the shipped `overall` uses only the binary `inspect_node`
+baseline. Non-zero custom weights are experimental and must not be used as a
+hard gate before the return bar is met.
 
 Defaults are general-purpose and configurable in `repovine.config.json`:
 

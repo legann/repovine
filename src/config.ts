@@ -13,6 +13,7 @@ import {
 import type { ContextQualityConfig } from './context-quality/types.js';
 import { formatPipelineMuted, logPipeline, logPipelineWarn } from './cli/ui.js';
 import { ANNOTATIONS_FILENAME, resolveAnnotationsFilePath } from './paths.js';
+import { describeTransformersInstall } from './semantic/transformers-install.js';
 import type { ScanPatternInput } from './scan-filters.js';
 
 // ── Schema ──
@@ -554,7 +555,7 @@ function resolveConfig(file: RepoContextFileConfig, repoRoot: string): ResolvedC
         maxChars: mcpResponseMaxChars,
       },
     },
-    semanticSearchEmbeddings: resolveSemanticSearchEmbeddings(file),
+    semanticSearchEmbeddings: resolveSemanticSearchEmbeddings(file, repoRoot),
     analyze_architecture: analyzeArchitecture,
     contextQuality,
     annotations: {
@@ -568,8 +569,17 @@ function resolveConfig(file: RepoContextFileConfig, repoRoot: string): ResolvedC
   };
 }
 
-function resolveSemanticSearchEmbeddings(file: RepoContextFileConfig): boolean {
-  return file.semantic_search_embeddings ?? DEFAULTS.semanticSearchEmbeddings;
+/**
+ * Semantic search needs the optional `@huggingface/transformers` peer, so the default follows
+ * whether that peer resolves. A literal `true` named a capability that a plain `npm i repovine`
+ * never has: every default install then reported its own correct state as a sync failure.
+ *
+ * An explicit `semantic_search_embeddings` in the config file still wins either way, so forcing it
+ * on keeps producing the actionable "install the peer" error instead of silence.
+ */
+function resolveSemanticSearchEmbeddings(file: RepoContextFileConfig, repoRoot: string): boolean {
+  if (file.semantic_search_embeddings !== undefined) return file.semantic_search_embeddings;
+  return describeTransformersInstall(repoRoot).resolved;
 }
 
 type ContextQualityFileConfig = NonNullable<RepoContextFileConfig['contextQuality']>;

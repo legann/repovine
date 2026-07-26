@@ -227,7 +227,7 @@ export function collectSemanticHints(sf: SourceFile, relativeFilePath?: string):
   const tanStackRoutes = tanStackRouter ? collectTanStackRoutes(sf) : [];
   const angularRoutes = angularRouter ? collectAngularRoutes(sf) : [];
   const nestRoutes = nestCommon ? collectNestRoutes(sf) : [];
-  const fileRoutes = relativeFilePath ? collectFileRoutes(relativeFilePath) : [];
+  const fileRoutes = relativeFilePath ? collectFileRoutes(relativeFilePath, sf) : [];
   const fastifyRoutes = FASTIFY_MARKER_PATTERN.test(text) ? collectFastifyRoutes(sf) : [];
   const routes = [...jsxRoutes, ...configRoutes, ...tanStackRoutes, ...angularRoutes, ...nestRoutes, ...fileRoutes, ...fastifyRoutes];
   if (routes.length > 0) {
@@ -453,7 +453,6 @@ function componentFromTanStackOptions(node: import('ts-morph').ObjectLiteralExpr
 }
 
 function normalizeTanStackPath(path: string): string {
-  if (path === '$' || path === '/$') return '/';
   return path.startsWith('/') ? path : `/${path}`;
 }
 
@@ -503,13 +502,13 @@ function collectTanStackRoutes(sf: SourceFile): RouteInfo[] {
     const arg = node.getArguments()[0];
     if (!arg || !Node.isObjectLiteralExpression(arg)) return;
 
+    // A root route is the shared layout for the tree, not a public URL by itself. An index child
+    // created with createRoute({ path: '/' }) is the routable `/` entrypoint.
+    if (factoryName === 'createRootRoute') return;
     const pathProp = arg.getProperty('path');
-    let path: string | undefined;
-    if (pathProp && Node.isPropertyAssignment(pathProp)) {
-      path = stringLiteralArg(pathProp.getInitializer());
-    } else if (factoryName === 'createRootRoute') {
-      path = '/';
-    }
+    const path = pathProp && Node.isPropertyAssignment(pathProp)
+      ? stringLiteralArg(pathProp.getInitializer())
+      : undefined;
     if (!path) return;
 
     push(path, componentFromTanStackOptions(arg), 'ast');
@@ -874,6 +873,7 @@ function collectNestRoutes(sf: SourceFile): RouteInfo[] {
 
 const ROUTE_FILE_EXT_RE = /\.(?:tsx?|jsx?|vue|svelte|mts|cts)$/i;
 const NEXTJS_APP_FILE_RE = /^(page|layout|route|loading|error|not-found|template|default)$/;
+const FILE_ROUTE_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
 /** Folders that usually denote view/component trees, not Next.js App Router segments. */
 const VIEW_LIKE_PATH_SEGMENTS = new Set([
   'views', 'components', 'features', 'screens', 'containers', 'widgets',
@@ -892,7 +892,24 @@ function isLikelyNextAppRouterPath(parts: string[], appIdx: number, basename: st
   return between.length > 0 && !between.some(segment => VIEW_LIKE_PATH_SEGMENTS.has(segment.toLowerCase()));
 }
 
-function collectFileRoutes(relativeFilePath: string): RouteInfo[] {
+function exportedHttpMethods(sf: SourceFile): string[] {
+  return [...sf.getExportedDeclarations().keys()]
+    .filter(name => FILE_ROUTE_HTTP_METHODS.has(name))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function apiFileRoutes(
+  path: string,
+  framework: string,
+  fileType: string,
+  methods: string[],
+): RouteInfo[] {
+  return methods.length > 0
+    ? methods.map(method => fileRoute(path, framework, fileType, 'api', method))
+    : [fileRoute(path, framework, fileType, 'api')];
+}
+
+function collectFileRoutes(relativeFilePath: string, sf: SourceFile): RouteInfo[] {
   const rel = relativeFilePath.replace(/\\/g, '/');
   if (!ROUTE_FILE_EXT_RE.test(rel)) return [];
 
@@ -902,10 +919,13 @@ function collectFileRoutes(relativeFilePath: string): RouteInfo[] {
 
   const appIdx = parts.indexOf('app');
   if (appIdx >= 0 && isLikelyNextAppRouterPath(parts, appIdx, basename)) {
+    if (basename !== 'page' && basename !== 'route') return [];
     const segments = parts.slice(appIdx + 1, -1)
       .filter(s => !s.match(/^\(.+\)$/));
     const urlPath = '/' + segments.join('/');
-    return [fileRoute(urlPath || '/', 'nextjs-app', basename)];
+    return basename === 'route'
+      ? apiFileRoutes(urlPath || '/', 'nextjs-app', basename, exportedHttpMethods(sf))
+      : [fileRoute(urlPath || '/', 'nextjs-app', basename)];
   }
 
   const pagesIdx = parts.indexOf('pages');
@@ -922,19 +942,37 @@ function collectFileRoutes(relativeFilePath: string): RouteInfo[] {
 
   const skRoutesIdx = parts.indexOf('routes');
   if (skRoutesIdx >= 0 && skRoutesIdx + 1 < parts.length && basename.startsWith('+')) {
-    const segments = parts.slice(skRoutesIdx + 1, -1);
+    const segments = parts.slice(skRoutesIdx + 1, -1)
+      .filter(s => !s.match(/^\(.+\)$/));
     const urlPath = '/' + segments.join('/');
-    const slot = basename.replace(/^\+/, '').replace(/\.(server|client)$/, '');
-    return [fileRoute(urlPath || '/', 'sveltekit', slot)];
+    if (basename === '+server') {
+      return apiFileRoutes(urlPath || '/', 'sveltekit', 'server', exportedHttpMethods(sf));
+    }
+    if (basename === '+page' && rel.endsWith('.svelte')) {
+      return [fileRoute(urlPath || '/', 'sveltekit', 'page')];
+    }
+    return [];
   }
 
   const nuxtServerIdx = parts.indexOf('server');
   if (nuxtServerIdx >= 0 && parts[nuxtServerIdx + 1] === 'api') {
     const after = parts.slice(nuxtServerIdx + 2);
+    // `server/api` with nothing after it is a module named `api`, not a route directory.
+    if (after.length === 0) return [];
     const last = after[after.length - 1];
-    const routeSegments = last === 'index' ? after.slice(0, -1) : after;
+    const methodMatch = last.match(/^(.*)\.(get|post|put|patch|delete|options|head)$/i);
+    const routeFileName = methodMatch?.[1] ?? last;
+    const routeSegments = routeFileName === 'index'
+      ? after.slice(0, -1)
+      : [...after.slice(0, -1), routeFileName];
     const urlPath = '/api/' + routeSegments.join('/');
-    return [fileRoute(urlPath.replace(/\/+$/, '') || '/api', 'nuxt', 'server-api')];
+    return [fileRoute(
+      urlPath.replace(/\/+$/, '') || '/api',
+      'nuxt',
+      'server-api',
+      'api',
+      methodMatch?.[2].toUpperCase(),
+    )];
   }
 
   return [];
@@ -945,6 +983,7 @@ function fileRoute(
   framework: string,
   fileType: string,
   kind: 'frontend' | 'api' = fileRouteKind(fileType),
+  method?: string,
 ): RouteInfo {
   return {
     path,
@@ -953,6 +992,7 @@ function fileRoute(
     kind,
     framework,
     fileType,
+    ...(method ? { method } : {}),
   };
 }
 

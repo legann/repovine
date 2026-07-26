@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 29,
-    "totalEdges": 43,
+    "totalNodes": 28,
+    "totalEdges": 42,
     "nodesByType": {
-      "domain": 8,
+      "domain": 7,
       "export-symbol": 11,
       "module": 7,
       "package": 2,
@@ -12,18 +12,17 @@
     "edgesByKind": {
       "contains": 20,
       "imports": 6,
-      "tagged": 17
+      "tagged": 16
     }
   },
   "byType": {
     "domain": [
       "domain:basic-python",
       "domain:sharedlib",
-      "domain:app-py",
-      "domain:models-py",
-      "domain:services-py",
-      "domain:gateway-py",
-      "domain:helpers-py",
+      "domain:models",
+      "domain:services",
+      "domain:gateway",
+      "domain:helpers",
       "domain:config"
     ],
     "export-symbol": [
@@ -58,16 +57,6 @@
   },
   "nodes": [
     {
-      "id": "domain:app-py",
-      "type": "domain",
-      "label": "app-py",
-      "description": "Domain: app-py",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
-    {
       "id": "domain:basic-python",
       "type": "domain",
       "label": "basic-python",
@@ -87,40 +76,40 @@
       }
     },
     {
-      "id": "domain:gateway-py",
+      "id": "domain:gateway",
       "type": "domain",
-      "label": "gateway-py",
-      "description": "Domain: gateway-py",
+      "label": "gateway",
+      "description": "Domain: gateway",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
       }
     },
     {
-      "id": "domain:helpers-py",
+      "id": "domain:helpers",
       "type": "domain",
-      "label": "helpers-py",
-      "description": "Domain: helpers-py",
+      "label": "helpers",
+      "description": "Domain: helpers",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
       }
     },
     {
-      "id": "domain:models-py",
+      "id": "domain:models",
       "type": "domain",
-      "label": "models-py",
-      "description": "Domain: models-py",
+      "label": "models",
+      "description": "Domain: models",
       "data": {
         "weight": "lightweight",
-        "tier": "technical"
+        "tier": "layer"
       }
     },
     {
-      "id": "domain:services-py",
+      "id": "domain:services",
       "type": "domain",
-      "label": "services-py",
-      "description": "Domain: services-py",
+      "label": "services",
+      "description": "Domain: services",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
@@ -400,17 +389,6 @@
   ],
   "links": [
     {
-      "id": "domain:app-py",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:app-py",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:basic-python",
       "links": [],
       "children": [],
@@ -433,44 +411,44 @@
       }
     },
     {
-      "id": "domain:gateway-py",
+      "id": "domain:gateway",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:gateway-py",
+        "id": "domain:gateway",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:helpers-py",
+      "id": "domain:helpers",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:helpers-py",
+        "id": "domain:helpers",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:models-py",
+      "id": "domain:models",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:models-py",
+        "id": "domain:models",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:services-py",
+      "id": "domain:services",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:services-py",
+        "id": "domain:services",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -634,11 +612,6 @@
           "tagSource": "cluster"
         },
         {
-          "to": "domain:app-py",
-          "kind": "tagged",
-          "tagSource": "path"
-        },
-        {
           "to": "domain:config",
           "kind": "tagged"
         }
@@ -687,10 +660,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:app-py",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:config",
             "kind": "tagged"
           }
@@ -715,7 +684,7 @@
           "tagSource": "cluster"
         },
         {
-          "to": "domain:models-py",
+          "to": "domain:models",
           "kind": "tagged",
           "tagSource": "path"
         }
@@ -742,7 +711,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:models-py",
+            "to": "domain:models",
             "kind": "tagged"
           }
         ],
@@ -767,7 +736,7 @@
           "tagSource": "cluster"
         },
         {
-          "to": "domain:services-py",
+          "to": "domain:services",
           "kind": "tagged",
           "tagSource": "path"
         }
@@ -808,7 +777,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:services-py",
+            "to": "domain:services",
             "kind": "tagged"
           }
         ],
@@ -867,7 +836,7 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:gateway-py",
+          "to": "domain:gateway",
           "kind": "tagged",
           "tagSource": "path"
         }
@@ -894,7 +863,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:gateway-py",
+            "to": "domain:gateway",
             "kind": "tagged"
           }
         ],
@@ -948,7 +917,7 @@
           "tagSource": "path"
         },
         {
-          "to": "domain:helpers-py",
+          "to": "domain:helpers",
           "kind": "tagged",
           "tagSource": "path"
         }
@@ -971,7 +940,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:helpers-py",
+            "to": "domain:helpers",
             "kind": "tagged"
           }
         ],

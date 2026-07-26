@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 16,
-    "totalEdges": 27,
+    "totalNodes": 15,
+    "totalEdges": 26,
     "nodesByType": {
-      "domain": 4,
+      "domain": 3,
       "export-symbol": 1,
       "module": 3,
       "package": 1,
@@ -13,7 +13,7 @@
     "edgesByKind": {
       "contains": 11,
       "infra": 1,
-      "tagged": 11,
+      "tagged": 10,
       "uses_env": 4
     }
   },
@@ -21,8 +21,7 @@
     "domain": [
       "domain:infra-docker-compose",
       "domain:infra-dockerfile",
-      "domain:docker-compose-app-fixture",
-      "domain:cluster"
+      "domain:docker-compose-app-fixture"
     ],
     "export-symbol": [
       "export:docker-compose-app-fixture/src/ok"
@@ -48,16 +47,6 @@
     ]
   },
   "nodes": [
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
     {
       "id": "domain:docker-compose-app-fixture",
       "type": "domain",
@@ -167,7 +156,10 @@
         ],
         "contentHash": "500238ddf62d5d18",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
       }
     },
     {
@@ -178,7 +170,10 @@
       "data": {
         "contentHash": "36e0d722bdff1e1c",
         "kind": "secret",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
       }
     },
     {
@@ -189,7 +184,10 @@
       "data": {
         "contentHash": "62f1b6d6d54282c3",
         "kind": "secret",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
       }
     },
     {
@@ -207,7 +205,10 @@
         ],
         "contentHash": "881980cf526891d2",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
       }
     },
     {
@@ -218,7 +219,10 @@
       "data": {
         "contentHash": "48b69003a5625dc4",
         "kind": "secret",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
       }
     },
     {
@@ -229,7 +233,10 @@
       "data": {
         "contentHash": "312ce1336a190314",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "services/api/Dockerfile"
+        ]
       }
     },
     {
@@ -241,17 +248,6 @@
     }
   ],
   "links": [
-    {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
     {
       "id": "domain:docker-compose-app-fixture",
       "links": [],
@@ -379,11 +375,6 @@
           "to": "domain:docker-compose-app-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -401,10 +392,6 @@
         "links": [
           {
             "to": "domain:docker-compose-app-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -437,10 +424,6 @@
           "kind": "tagged"
         },
         {
-          "to": "infra:dockerfile:services/api/Dockerfile",
-          "kind": "infra"
-        },
-        {
           "to": "resource:generic:api_token",
           "kind": "uses_env"
         },
@@ -451,6 +434,10 @@
         {
           "to": "resource:generic:secret:.env.production",
           "kind": "uses_env"
+        },
+        {
+          "to": "infra:dockerfile:services/api/Dockerfile",
+          "kind": "infra"
         },
         {
           "to": "domain:infra-dockerfile",
@@ -468,10 +455,6 @@
             "kind": "tagged"
           },
           {
-            "to": "infra:dockerfile:services/api/Dockerfile",
-            "kind": "infra"
-          },
-          {
             "to": "resource:generic:api_token",
             "kind": "uses_env"
           },
@@ -482,6 +465,10 @@
           {
             "to": "resource:generic:secret:.env.production",
             "kind": "uses_env"
+          },
+          {
+            "to": "infra:dockerfile:services/api/Dockerfile",
+            "kind": "infra"
           },
           {
             "to": "domain:infra-dockerfile",

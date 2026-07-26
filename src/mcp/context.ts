@@ -13,6 +13,7 @@ import { semanticSearchRefreshFromSync } from './lib/refresh-summary.js';
 import { createEmbedder } from '../semantic/embedder.js';
 import { projectNodeCards } from '../semantic/cards.js';
 import { SemanticIndex, semanticIndexFilePath } from '../semantic/store.js';
+import { describeTransformersInstall } from '../semantic/transformers-install.js';
 import type { ResolvedConfig } from '../config.js';
 import { DEFAULT_EMBEDDING_BATCH_SIZE } from '../config.js';
 import { DEFAULT_THRESHOLDS, type RefactoringThresholds } from '../analysis/architecture/config.js';
@@ -100,7 +101,10 @@ export class RepovineRuntime {
       containers: { dockerfileRoots: [] },
     };
     this.pluginsConfig = config?.plugins ?? { defaults: true, add: [], disable: [] };
-    this.semanticSearchEmbeddingsEnabled = config?.semanticSearchEmbeddings ?? true;
+    // Falling back to `true` here would re-enable embeddings for a runtime constructed without a
+    // resolved config, defeating the peer-derived default that loadConfig computes.
+    this.semanticSearchEmbeddingsEnabled = config?.semanticSearchEmbeddings
+      ?? describeTransformersInstall(repoRoot).resolved;
     this.refactoringThresholds = config?.analyze_architecture?.thresholds ?? DEFAULT_THRESHOLDS;
     this.hooks = options?.hooks;
     this.signal = options?.signal;

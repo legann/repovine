@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 17,
-    "totalEdges": 27,
+    "totalNodes": 16,
+    "totalEdges": 26,
     "nodesByType": {
-      "domain": 5,
+      "domain": 4,
       "export-symbol": 1,
       "module": 4,
       "package": 1,
@@ -13,7 +13,7 @@
     "edgesByKind": {
       "contains": 11,
       "infra": 1,
-      "tagged": 12,
+      "tagged": 11,
       "uses_env": 3
     }
   },
@@ -22,8 +22,7 @@
       "domain:infra-dockerfile",
       "domain:infra-k8s",
       "domain:handler",
-      "domain:k8s-operator-fixture",
-      "domain:cluster"
+      "domain:k8s-operator-fixture"
     ],
     "export-symbol": [
       "export:k8s-operator-fixture/src/handler/handler"
@@ -49,16 +48,6 @@
     ]
   },
   "nodes": [
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
     {
       "id": "domain:handler",
       "type": "domain",
@@ -173,7 +162,10 @@
       "data": {
         "contentHash": "edcb105218c15649",
         "kind": "other",
-        "provider": "generic"
+        "provider": "generic",
+        "declaredIn": [
+          "Dockerfile"
+        ]
       }
     },
     {
@@ -202,7 +194,11 @@
         "contentHash": "1d93ac719151346a",
         "kind": "k8s-deployment",
         "k8sKind": "Deployment",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/deployment.yaml"
+        ],
+        "namespace": "demo-system"
       }
     },
     {
@@ -214,7 +210,11 @@
         "contentHash": "4f695ad56551cd28",
         "kind": "secret",
         "k8sKind": "Secret",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/secrets.yaml"
+        ],
+        "namespace": "demo-system"
       }
     },
     {
@@ -226,7 +226,11 @@
         "contentHash": "a9c21f82dff6fa6d",
         "kind": "secret",
         "k8sKind": "Secret",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/secrets.yaml"
+        ],
+        "namespace": "demo-system"
       }
     },
     {
@@ -238,7 +242,11 @@
         "contentHash": "214ab950a6b058d9",
         "kind": "secret",
         "k8sKind": "Secret",
-        "provider": "k8s"
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/secrets.yaml"
+        ],
+        "namespace": "demo-system"
       }
     },
     {
@@ -250,17 +258,6 @@
     }
   ],
   "links": [
-    {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
     {
       "id": "domain:handler",
       "links": [],
@@ -422,11 +419,6 @@
           "to": "domain:k8s-operator-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -448,10 +440,6 @@
           },
           {
             "to": "domain:k8s-operator-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

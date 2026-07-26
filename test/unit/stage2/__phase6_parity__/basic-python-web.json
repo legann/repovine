@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 65,
-    "totalEdges": 84,
+    "totalNodes": 63,
+    "totalEdges": 75,
     "nodesByType": {
-      "domain": 12,
+      "domain": 10,
       "export-symbol": 42,
       "module": 8,
       "package": 2,
@@ -11,22 +11,20 @@
     },
     "edgesByKind": {
       "contains": 52,
-      "tagged": 32
+      "tagged": 23
     }
   },
   "byType": {
     "domain": [
       "domain:django-app",
-      "domain:cluster",
-      "domain:drf-advanced-py",
-      "domain:drf-fbv-py",
-      "domain:drf-urls-py",
-      "domain:firstpass-urls-py",
-      "domain:nested-urls-py",
-      "domain:urls-py",
-      "domain:firstpass-py",
+      "domain:drf-advanced",
+      "domain:drf-fbv",
+      "domain:drf-urls",
+      "domain:firstpass-urls",
+      "domain:nested-urls",
+      "domain:urls",
+      "domain:firstpass",
       "domain:fastapi-app",
-      "domain:main-py",
       "domain:routing"
     ],
     "export-symbol": [
@@ -93,16 +91,6 @@
   },
   "nodes": [
     {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "heavy",
-        "tier": "business"
-      }
-    },
-    {
       "id": "domain:django-app",
       "type": "domain",
       "label": "django-app",
@@ -113,30 +101,30 @@
       }
     },
     {
-      "id": "domain:drf-advanced-py",
+      "id": "domain:drf-advanced",
       "type": "domain",
-      "label": "drf-advanced-py",
-      "description": "Domain: drf-advanced-py",
+      "label": "drf-advanced",
+      "description": "Domain: drf-advanced",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
       }
     },
     {
-      "id": "domain:drf-fbv-py",
+      "id": "domain:drf-fbv",
       "type": "domain",
-      "label": "drf-fbv-py",
-      "description": "Domain: drf-fbv-py",
+      "label": "drf-fbv",
+      "description": "Domain: drf-fbv",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
       }
     },
     {
-      "id": "domain:drf-urls-py",
+      "id": "domain:drf-urls",
       "type": "domain",
-      "label": "drf-urls-py",
-      "description": "Domain: drf-urls-py",
+      "label": "drf-urls",
+      "description": "Domain: drf-urls",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
@@ -153,40 +141,30 @@
       }
     },
     {
-      "id": "domain:firstpass-py",
+      "id": "domain:firstpass",
       "type": "domain",
-      "label": "firstpass-py",
-      "description": "Domain: firstpass-py",
+      "label": "firstpass",
+      "description": "Domain: firstpass",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
       }
     },
     {
-      "id": "domain:firstpass-urls-py",
+      "id": "domain:firstpass-urls",
       "type": "domain",
-      "label": "firstpass-urls-py",
-      "description": "Domain: firstpass-urls-py",
+      "label": "firstpass-urls",
+      "description": "Domain: firstpass-urls",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
       }
     },
     {
-      "id": "domain:main-py",
+      "id": "domain:nested-urls",
       "type": "domain",
-      "label": "main-py",
-      "description": "Domain: main-py",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
-    {
-      "id": "domain:nested-urls-py",
-      "type": "domain",
-      "label": "nested-urls-py",
-      "description": "Domain: nested-urls-py",
+      "label": "nested-urls",
+      "description": "Domain: nested-urls",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
@@ -202,10 +180,10 @@
       }
     },
     {
-      "id": "domain:urls-py",
+      "id": "domain:urls",
       "type": "domain",
-      "label": "urls-py",
-      "description": "Domain: urls-py",
+      "label": "urls",
+      "description": "Domain: urls",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
@@ -925,17 +903,6 @@
   ],
   "links": [
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:django-app",
       "links": [],
       "children": [],
@@ -947,33 +914,33 @@
       }
     },
     {
-      "id": "domain:drf-advanced-py",
+      "id": "domain:drf-advanced",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:drf-advanced-py",
+        "id": "domain:drf-advanced",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:drf-fbv-py",
+      "id": "domain:drf-fbv",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:drf-fbv-py",
+        "id": "domain:drf-fbv",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:drf-urls-py",
+      "id": "domain:drf-urls",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:drf-urls-py",
+        "id": "domain:drf-urls",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -991,44 +958,33 @@
       }
     },
     {
-      "id": "domain:firstpass-py",
+      "id": "domain:firstpass",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:firstpass-py",
+        "id": "domain:firstpass",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:firstpass-urls-py",
+      "id": "domain:firstpass-urls",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:firstpass-urls-py",
+        "id": "domain:firstpass-urls",
         "level": 1,
         "drill_down": [],
         "links": []
       }
     },
     {
-      "id": "domain:main-py",
+      "id": "domain:nested-urls",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:main-py",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
-      "id": "domain:nested-urls-py",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:nested-urls-py",
+        "id": "domain:nested-urls",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -1046,11 +1002,11 @@
       }
     },
     {
-      "id": "domain:urls-py",
+      "id": "domain:urls",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:urls-py",
+        "id": "domain:urls",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -1527,12 +1483,7 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:drf-advanced-py",
+          "to": "domain:drf-advanced",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -1589,11 +1540,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:drf-advanced-py",
+            "to": "domain:drf-advanced",
             "kind": "tagged"
           },
           {
@@ -1614,12 +1561,7 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:drf-fbv-py",
+          "to": "domain:drf-fbv",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -1651,11 +1593,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:drf-fbv-py",
+            "to": "domain:drf-fbv",
             "kind": "tagged"
           },
           {
@@ -1676,12 +1614,7 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:drf-urls-py",
+          "to": "domain:drf-urls",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -1718,11 +1651,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:drf-urls-py",
+            "to": "domain:drf-urls",
             "kind": "tagged"
           },
           {
@@ -1743,12 +1672,7 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:firstpass-urls-py",
+          "to": "domain:firstpass-urls",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -1800,11 +1724,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:firstpass-urls-py",
+            "to": "domain:firstpass-urls",
             "kind": "tagged"
           },
           {
@@ -1825,12 +1745,7 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:nested-urls-py",
+          "to": "domain:nested-urls",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -1867,11 +1782,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:nested-urls-py",
+            "to": "domain:nested-urls",
             "kind": "tagged"
           },
           {
@@ -1892,12 +1803,7 @@
           "tagSource": "package"
         },
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:urls-py",
+          "to": "domain:urls",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -1934,11 +1840,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:urls-py",
+            "to": "domain:urls",
             "kind": "tagged"
           },
           {
@@ -1954,12 +1856,7 @@
       "id": "mod:fastapi-app/firstpass",
       "links": [
         {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:firstpass-py",
+          "to": "domain:firstpass",
           "kind": "tagged",
           "tagSource": "path"
         },
@@ -2012,11 +1909,7 @@
         ],
         "links": [
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:firstpass-py",
+            "to": "domain:firstpass",
             "kind": "tagged"
           },
           {
@@ -2035,16 +1928,6 @@
     {
       "id": "mod:fastapi-app/main",
       "links": [
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
-        },
-        {
-          "to": "domain:main-py",
-          "kind": "tagged",
-          "tagSource": "path"
-        },
         {
           "to": "domain:fastapi-app",
           "kind": "tagged",
@@ -2123,14 +2006,6 @@
           }
         ],
         "links": [
-          {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:main-py",
-            "kind": "tagged"
-          },
           {
             "to": "domain:fastapi-app",
             "kind": "tagged"

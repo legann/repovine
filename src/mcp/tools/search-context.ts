@@ -11,21 +11,29 @@ import {
   SEARCH_ANNOTATION_ESCALATION_NAV_REASON,
   searchAnnotationEscalation,
 } from '../lib/search-annotation-escalation.js';
+import { SEMANTIC_MIN_COSINE } from '../../semantic/relevance.js';
 
 type SearchStrategy = {
   relaxedFrom?: string;
   used?: string;
   tokens?: string[];
   weakTokenOnlySuppressed?: boolean;
+  postingLists?: {
+    truncated?: boolean;
+    tokens?: Record<string, { total?: number; considered?: number; truncated?: boolean }>;
+  };
 };
 
-function getTopHitQuality(matches: Record<string, unknown>): { score: number; matchedTokenCount: number } | undefined {
+function getTopHitQuality(
+  matches: Record<string, unknown>,
+): { score: number; matchedTokenCount: number; semanticRank?: number } | undefined {
   const topResults = matches.topResults;
   if (!Array.isArray(topResults) || topResults.length === 0) return undefined;
-  const top = topResults[0] as { score?: unknown; matchedTokenCount?: unknown };
+  const top = topResults[0] as { score?: unknown; matchedTokenCount?: unknown; semanticRank?: unknown };
   return {
     score: typeof top.score === 'number' ? top.score : 0,
     matchedTokenCount: typeof top.matchedTokenCount === 'number' ? top.matchedTokenCount : 0,
+    ...(typeof top.semanticRank === 'number' ? { semanticRank: top.semanticRank } : {}),
   };
 }
 
@@ -45,12 +53,16 @@ export function isWeakRelaxedSearchMatch(
   return topQuality.matchedTokenCount <= 1;
 }
 
-/** Floor below which semantic hits are noise rather than signal. */
-const SEMANTIC_MIN_COSINE = 0.35;
-
 type SemanticQueryOutcome =
   | { status: 'disabled' }
-  | { status: 'ok'; ranking: SemanticRanking }
+  | {
+    status: 'ok';
+    ranking: SemanticRanking;
+    compared: number;
+    dimensionMismatches: number;
+    candidatesBeforeFloor: number;
+  }
+  | { status: 'dimension-mismatch'; indexed: number; dimensionMismatches: number }
   | { status: 'error'; reason: string };
 
 /**
@@ -65,8 +77,21 @@ async function querySemanticRanking(ctx: McpToolRuntime, query: string, k: numbe
   if (ctx.signal?.aborted) return { status: 'disabled' };
   try {
     const vector = await semanticIndex.embedQuery(query);
-    const ranking = semanticIndex.query(vector, k).filter(hit => hit.score >= SEMANTIC_MIN_COSINE);
-    return { status: 'ok', ranking };
+    const report = semanticIndex.queryDetailed(vector, k);
+    if (report.compared === 0 && report.dimensionMismatches > 0) {
+      return {
+        status: 'dimension-mismatch',
+        indexed: report.indexed,
+        dimensionMismatches: report.dimensionMismatches,
+      };
+    }
+    return {
+      status: 'ok',
+      ranking: report.hits.filter(hit => hit.score >= SEMANTIC_MIN_COSINE),
+      compared: report.compared,
+      dimensionMismatches: report.dimensionMismatches,
+      candidatesBeforeFloor: report.hits.length,
+    };
   } catch (e) {
     return { status: 'error', reason: (e as Error).message };
   }
@@ -110,10 +135,43 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
       }) as Record<string, unknown>
     : { query, results: [], totalResults: 0, returned: 0, truncated: false };
 
+  const matchStrategy = matches.strategy as Record<string, unknown> | undefined;
+  if (matchStrategy) {
+    // Merge, never replace: searchGraph already reported what the ranker did with the semantic
+    // candidates (`candidates`, `exportSymbolDampened`). Assigning a fresh object here would drop
+    // those, and the only test that asserts them calls searchGraph directly, so the loss is silent.
+    const rankerSemantic = matchStrategy.semantic as Record<string, unknown> | undefined;
+    if (semantic.status === 'ok') {
+      matchStrategy.semantic = {
+        ...rankerSemantic,
+        attempted: true,
+        used: semantic.ranking.length > 0,
+        minCosine: SEMANTIC_MIN_COSINE,
+        candidatesBeforeFloor: semantic.candidatesBeforeFloor,
+        candidatesAboveFloor: semantic.ranking.length,
+        compared: semantic.compared,
+        dimensionMismatches: semantic.dimensionMismatches,
+      };
+    } else if (semantic.status === 'dimension-mismatch') {
+      matchStrategy.semantic = {
+        ...rankerSemantic,
+        attempted: true,
+        used: false,
+        incompatibleDimensions: true,
+        indexed: semantic.indexed,
+        dimensionMismatches: semantic.dimensionMismatches,
+      };
+    }
+  }
+
   const scope = resolveScope(pinned, `query:${query}`);
   const firstId = firstResultId(matches);
   const topIds = topSearchResultIds(matches, 3);
   const annotationEscalation = searchAnnotationEscalation(matches);
+  const topQuality = getTopHitQuality(matches);
+  const semanticOnlyTop = !!firstId
+    && topQuality?.semanticRank !== undefined
+    && topQuality.matchedTokenCount === 0;
   type SearchAuxiliaryResult = {
     items: Array<Record<string, unknown>>;
     total: number;
@@ -162,7 +220,9 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
       { nodeId: firstId },
       annotationEscalation.top1Annotated
         ? SEARCH_ANNOTATION_ESCALATION_NAV_REASON
-        : 'Inspect the strongest matching node.',
+        : semanticOnlyTop
+          ? 'Inspect this advisory semantic neighbour and verify it against repository facts.'
+          : 'Inspect the strongest matching node.',
     ));
     navigation.sideways.push(nav('map_context', { scope: firstId }, 'Map where the strongest match sits in the repository.'));
   }
@@ -177,11 +237,20 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
   const hasAuxiliaryMatches = config.items.length > 0 || entrypoints.items.length > 0;
   const strategy = matches.strategy as SearchStrategy | undefined;
   const tokenCount = strategy?.tokens?.length ?? 0;
-  const topQuality = getTopHitQuality(matches);
   const weakRelaxedMatch = isWeakRelaxedSearchMatch(strategy, topQuality, tokenCount);
+  const postingListsTruncated = strategy?.postingLists?.truncated === true;
   const gaps = firstId || hasAuxiliaryMatches ? [] : ['No graph node strongly matched the query; try a more specific symbol, route, package, or config name.'];
   if (strategy?.relaxedFrom === 'and') {
     gaps.push('No single node matched all query tokens; results were relaxed to bounded OR token matching.');
+  }
+  if (postingListsTruncated) {
+    const windows = Object.entries(strategy?.postingLists?.tokens ?? {})
+      .filter(([, window]) => window.truncated)
+      .map(([token, window]) => `${token} (${window.considered ?? 0}/${window.total ?? 0})`);
+    gaps.push(
+      `Candidate posting lists were truncated before global ranking for: ${windows.join(', ')}. `
+      + 'Increase perTokenLimit or narrow the query if the expected node is missing.',
+    );
   }
   const vocabulary = matches.vocabulary as Record<string, string[]> | undefined;
   if (vocabulary) {
@@ -192,6 +261,22 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
   if (semantic.status === 'error') {
     gaps.push(`Semantic backend unavailable (${semantic.reason}); results are token-only.`);
   }
+  if (semantic.status === 'dimension-mismatch') {
+    gaps.push(
+      `Semantic index dimensions are incompatible with the query vector `
+      + `(${semantic.dimensionMismatches}/${semantic.indexed} entries skipped); results are token-only.`,
+    );
+  } else if (semantic.status === 'ok' && semantic.dimensionMismatches > 0) {
+    gaps.push(
+      `Semantic search skipped ${semantic.dimensionMismatches} index entries with incompatible vector dimensions.`,
+    );
+  }
+  if (semanticOnlyTop) {
+    gaps.push(
+      'The top candidate is a nearest semantic neighbour with no matching repository token; '
+      + 'it is not evidence that the requested functionality exists.',
+    );
+  }
   if (annotationEscalation.shouldEscalate && !gaps.includes(SEARCH_ANNOTATION_ESCALATION_GAP)) {
     gaps.push(SEARCH_ANNOTATION_ESCALATION_GAP);
   }
@@ -201,9 +286,13 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
   const hasHits = !!(firstId || hasAuxiliaryMatches);
   const summary = !hasHits
     ? `No context matched "${query}".`
-    : weakRelaxedMatch
-      ? `No strong match for "${query}"; showing relaxed OR candidates.`
-      : `Found context candidates for "${query}".`;
+    : semanticOnlyTop
+      ? `No token-backed match for "${query}"; showing an advisory semantic neighbour.`
+      : postingListsTruncated
+        ? `Candidate retrieval for "${query}" was truncated before global ranking.`
+        : weakRelaxedMatch
+          ? `No strong match for "${query}"; showing relaxed OR candidates.`
+          : `Found context candidates for "${query}".`;
   return envelope(scope, summary, {
     matches,
     suggestedScopes: matches.suggestedScopes ?? [],
@@ -211,7 +300,7 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
     entrypoints: entrypoints.items,
     ...(emptyDiagnostic ? { emptyDiagnostic } : {}),
   }, {
-    confidence: !hasHits || weakRelaxedMatch ? 'low' : 'medium',
+    confidence: !hasHits || weakRelaxedMatch || semanticOnlyTop || postingListsTruncated ? 'low' : 'medium',
     gaps,
     navigation,
   });

@@ -231,6 +231,28 @@ describe('build-cancel guidance projection', () => {
   });
 });
 
+describe('build-progress guidance projection', () => {
+  it('keeps stage-local ETA semantics and one-shot long polling across client instructions', () => {
+    const refresh = renderSkillMarkdown(REFRESH_COMMAND);
+    const status = renderSkillMarkdown(STATUS_COMMAND);
+
+    expect(AGENTS_MD).toContain('stage_eta_sec');
+    expect(AGENTS_MD).toContain('remaining_stages');
+    expect(refresh).toContain('stageEtaSec');
+    expect(refresh).toContain('remainingStages');
+    expect(refresh).toContain('get_build_status({ "waitSec": 45 })');
+    expect(status).toContain('stageEtaSec');
+    expect(status).toContain('remainingStages');
+
+    for (const guidance of [AGENTS_MD, refresh, status]) {
+      expect(guidance).not.toMatch(/(^|[^_])eta_sec\b/m);
+      expect(guidance).not.toContain('ETA is large');
+      expect(guidance).not.toContain('eta_sec < 60');
+      expect(guidance).not.toContain('eta_sec >= 60');
+    }
+  });
+});
+
 describe('onboarding annotation authoring projection', () => {
   it('projects consumer-scoped risk shape into repovine-annotations skill', () => {
     const rendered = renderSkillMarkdown(ANNOTATIONS_SKILL);

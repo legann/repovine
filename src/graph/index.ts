@@ -88,6 +88,7 @@ function fillExportSymbolEntry(
   if (d.fields) entry.fields = d.fields;
   if (d.implementsInterfaces) entry.implementsInterfaces = d.implementsInterfaces;
   if (d.calls) entry.calls = d.calls;
+  if (d.callsTotal) entry.callsTotal = d.callsTotal;
   if (d.lineRange) entry.lineRange = d.lineRange;
 }
 

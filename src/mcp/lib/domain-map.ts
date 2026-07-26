@@ -51,7 +51,12 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
     const domainNode = graph.nodes.get(domainId);
     if (!domainNode) return { error: `Not found: ${q}` };
     const incoming = graph.inEdges.get(domainId) ?? [];
-    const taggedModuleIds = incoming.filter(e => e.kind === 'tagged').map(e => e.from);
+    // `moduleCount` must mean the same thing here as it does per subdomain below, which counts
+    // module-typed sources only. Infra propagation tags runtime resources into domains too, so an
+    // unfiltered count reported more "modules" than the subdomain rows could ever add up to.
+    const allTagged = incoming.filter(e => e.kind === 'tagged');
+    const taggedModuleIds = allTagged.filter(e => graph.nodes.get(e.from)?.type === 'module').map(e => e.from);
+    const taggedNonModuleCount = allTagged.length - taggedModuleIds.length;
     const moduleRows: DomainModuleRow[] = [];
     for (const id of taggedModuleIds) {
       const view = buildNodeView(graph, id);
@@ -71,6 +76,9 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
       label: domainNode.label,
       ...(tier ? { tier } : {}),
       moduleCount: moduleRows.length,
+      // Tagged nodes that are not modules (infra propagation attaches runtime resources) are
+      // counted rather than dropped in silence; inspect the domain node to enumerate them.
+      ...(taggedNonModuleCount > 0 ? { taggedNonModuleCount } : {}),
       pagination,
     };
     if (pagination.summaryOnly) {
@@ -93,7 +101,7 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
       const currentHash = resolveDomainContentHash(graph, snapshot, domainId, propagation);
       const fresh = currentHash !== undefined && domainAnn.contentHash === currentHash;
       result.annotation = domainAnn.annotation;
-      result.annotationMeta = { pass: domainAnn.pass, updatedAt: domainAnn.updatedAt, fresh };
+      result.annotationMeta = { pass: domainAnn.pass, updatedAt: domainAnn.updatedAt, fresh, freshnessSource: "content-hash" };
     }
     return result;
   }
@@ -202,7 +210,7 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
     const currentHash = resolveDomainContentHash(graph, snapshot, domainId, propagation);
     const fresh = currentHash !== undefined && domainAnn.contentHash === currentHash;
     result.annotation = domainAnn.annotation;
-    result.annotationMeta = { pass: domainAnn.pass, updatedAt: domainAnn.updatedAt, fresh };
+    result.annotationMeta = { pass: domainAnn.pass, updatedAt: domainAnn.updatedAt, fresh, freshnessSource: "content-hash" };
   }
   return result;
 }

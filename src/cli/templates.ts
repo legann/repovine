@@ -88,8 +88,9 @@ export const REPOVINE_CONFIG_JSON = JSON.stringify(
         pretty: false,
       },
     },
-    // Fuzzy NL entry for search_context (optional `@huggingface/transformers`).
-    semantic_search_embeddings: true,
+    // Fuzzy NL entry for search_context. Omitted on purpose: with no value here the engine follows
+    // whether the optional `@huggingface/transformers` peer resolves. Set it explicitly to force
+    // either behaviour — `true` also turns a missing peer into an actionable install error.
     // Config block for the architecture analyzers behind the `analyze_architecture`
     // MCP tool. The engine only reports candidates; it never refactors code.
     //
@@ -319,7 +320,7 @@ Before non-trivial work, call the \`repovine\` MCP server first. Use \`search_co
 
 If the MCP call fails with a connection error, the server is not running. Ask the user to check the MCP config. Do not fall back to blind file reading -- without the graph you lack structure and dependency info.
 
-If a tool returns \`status:"building"\`, call \`get_build_status({ "waitSec": 45 })\` instead of polling. If the ETA is large, tell the user and continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call \`get_build_status({ "cancel": true })\`; it stops Stage 1 workers and returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
+If a tool returns \`status:"building"\`, call \`get_build_status({ "waitSec": 45 })\` once instead of polling. \`stage_eta_sec\` estimates only the current stage; use \`stage\` and \`remaining_stages\` to report progress. If the long-poll still returns building, continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call \`get_build_status({ "cancel": true })\`; it stops Stage 1 workers and returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
 
 ${renderContextQualityGuidance()}
 

@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 21,
-    "totalEdges": 42,
+    "totalNodes": 20,
+    "totalEdges": 40,
     "nodesByType": {
-      "domain": 4,
+      "domain": 3,
       "export-symbol": 1,
       "module": 3,
       "package": 1,
@@ -14,7 +14,7 @@
       "binds_to": 3,
       "contains": 16,
       "infra": 1,
-      "tagged": 19,
+      "tagged": 17,
       "uses_env": 3
     }
   },
@@ -22,8 +22,7 @@
     "domain": [
       "domain:infra-terraform",
       "domain:users",
-      "domain:terraform-app-fixture",
-      "domain:cluster"
+      "domain:terraform-app-fixture"
     ],
     "export-symbol": [
       "export:terraform-app-fixture/src/users/handler"
@@ -54,16 +53,6 @@
     ]
   },
   "nodes": [
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
-        "tier": "technical"
-      }
-    },
     {
       "id": "domain:infra-terraform",
       "type": "domain",
@@ -159,7 +148,10 @@
       "data": {
         "contentHash": "3319398f7d8dc105",
         "kind": "secret",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
       }
     },
     {
@@ -170,7 +162,10 @@
       "data": {
         "contentHash": "0ae21b144d401a28",
         "kind": "other",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
       }
     },
     {
@@ -181,7 +176,10 @@
       "data": {
         "contentHash": "3f9ea957b9f88d44",
         "kind": "secret",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
       }
     },
     {
@@ -192,7 +190,10 @@
       "data": {
         "contentHash": "0ab6f39d37e08047",
         "kind": "queue",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
       }
     },
     {
@@ -203,7 +204,10 @@
       "data": {
         "contentHash": "254067caeff52678",
         "kind": "secret",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
       }
     },
     {
@@ -214,7 +218,10 @@
       "data": {
         "contentHash": "d795035966000d71",
         "kind": "role",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
       }
     },
     {
@@ -225,7 +232,10 @@
       "data": {
         "contentHash": "ab68a9005aae2184",
         "kind": "other",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
       }
     },
     {
@@ -236,7 +246,10 @@
       "data": {
         "contentHash": "727da89426bdb16d",
         "kind": "bucket",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
       }
     },
     {
@@ -247,7 +260,10 @@
       "data": {
         "contentHash": "940c8370af1f00b8",
         "kind": "table",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
       }
     },
     {
@@ -281,7 +297,10 @@
         ],
         "contentHash": "c6845d4f32dbe96d",
         "kind": "lambda",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
       }
     },
     {
@@ -292,7 +311,10 @@
       "data": {
         "contentHash": "d86c76c39859f77c",
         "kind": "other",
-        "provider": "terraform"
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
       }
     },
     {
@@ -304,17 +326,6 @@
     }
   ],
   "links": [
-    {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
     {
       "id": "domain:infra-terraform",
       "links": [],
@@ -484,11 +495,6 @@
           "to": "domain:terraform-app-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -522,10 +528,6 @@
           },
           {
             "to": "domain:terraform-app-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -769,10 +771,6 @@
         {
           "to": "domain:terraform-app-fixture",
           "kind": "tagged"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged"
         }
       ],
       "children": [],
@@ -807,10 +805,6 @@
           },
           {
             "to": "domain:terraform-app-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ]

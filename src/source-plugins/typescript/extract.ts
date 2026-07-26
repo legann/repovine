@@ -126,7 +126,8 @@ function extractModuleDelta(
     imports: collectImports(sf.compilerNode, absPathToId, packages, repoRoot, pathsContext),
     exports,
     ...(reExports.length > 0 ? { reExports } : {}),
-    ...(moduleCalls.length > 0 ? { calls: moduleCalls } : {}),
+    ...(moduleCalls.names.length > 0 ? { calls: moduleCalls.names } : {}),
+    ...(moduleCalls.total > moduleCalls.names.length ? { callsTotal: moduleCalls.total } : {}),
     semanticHints: collectSemanticHints(sf, pending.relPath.split(path.sep).join('/')),
   };
 }

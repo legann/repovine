@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
 import { doctorAgentAssets, runAgentAssetDoctor, agentAssetDoctorCliFindings } from '../../../src/cli/agent-doctor.js';
 import { renderAgentAssets } from '../../../src/cli/agent-render.js';
+import { initCodex, initCursor } from '../../../src/cli/init.js';
 import {
   COMMANDS,
   CURSOR_RULES,
@@ -247,6 +248,52 @@ describe('doctorAgentAssets', () => {
 
     const report = doctorAgentAssets({ repoRoot, validToolNames, client: 'all' });
     expect(report.findings.filter(f => f.file.includes('repovine-workflow') && f.code === 'stale-managed-content')).toHaveLength(0);
+  });
+
+  it.each([
+    ['cursor then codex', ['cursor', 'codex']],
+    ['codex then cursor', ['codex', 'cursor']],
+    ['cursor, codex, cursor', ['cursor', 'codex', 'cursor']],
+    ['codex, cursor, codex', ['codex', 'cursor', 'codex']],
+  ] as const)('keeps shared skills and native policies correct after setup order: %s', (_label, order) => {
+    const initialCursorWorkflow = renderSkillMarkdown(
+      CURSOR_SHARED_SKILLS.find(skill => skill.name === 'repovine-workflow')!,
+    );
+    const initialCodexWorkflow = renderSkillMarkdown(
+      CODEX_SHARED_SKILLS.find(skill => skill.name === 'repovine-workflow')!,
+    );
+    expect(initialCursorWorkflow).toBe(initialCodexWorkflow);
+
+    for (const client of order) {
+      if (client === 'cursor') {
+        initCursor(repoRoot, { forceBootstrap: false, replaceMcp: false });
+      } else {
+        initCodex(repoRoot, { forceBootstrap: false, replaceMcp: false });
+      }
+    }
+
+    const workflow = fs.readFileSync(
+      path.join(repoRoot, '.agents', 'skills', 'repovine-workflow', 'SKILL.md'),
+      'utf-8',
+    );
+    const cursorPolicy = fs.readFileSync(
+      path.join(repoRoot, '.cursor', 'rules', 'repovine-subagent-orchestration.mdc'),
+      'utf-8',
+    );
+    const codexPolicy = fs.readFileSync(path.join(repoRoot, 'AGENTS.md'), 'utf-8');
+    expect(workflow).toBe(initialCursorWorkflow);
+    expect(workflow).toContain("Use the active client's native agent surface");
+    expect(workflow).not.toContain('.cursor/agents/*.md');
+    expect(workflow).not.toContain('.codex/agents/*.toml');
+    expect(cursorPolicy).toContain('Cursor: `.cursor/agents/*.md`');
+    expect(codexPolicy).toContain('Codex uses `.codex/agents/*.toml`');
+
+    const report = doctorAgentAssets({ repoRoot, validToolNames, client: 'all' });
+    expect(report.ok).toBe(true);
+    expect(report.findings.filter(
+      finding => finding.file.includes('repovine-workflow')
+        && finding.code === 'stale-managed-content',
+    )).toHaveLength(0);
   });
 
   it('flags references to unknown tool-like names', () => {

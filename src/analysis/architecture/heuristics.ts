@@ -9,6 +9,26 @@
 import type { RepositoryGraph, ModuleInfo, StoredAnnotation, GraphEdge } from '../../types.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { serializeSideEffect } from '../../annotations/side-effect-vocab.js';
+// Side-effect import: the built-in source plugins must be registered before this module asks the
+// registry which extensions to strip, so a responsibility key never carries one.
+import '../../stage1/source/bootstrap.js';
+import { getSourceIndexBasenames, stripSourceExtension } from '../../stage1/source/registry.js';
+
+/**
+ * JS-family module extensions written once: `.ts/.tsx/.js/.jsx` plus the `.mjs/.cjs/.mts/.cts`
+ * variants the TypeScript plugin owns. Classifiers below read a name-plus-extension shape
+ * (`users.repository.ts`), where the extension is the signal — the alternation must cover the
+ * whole family or half of it classifies differently from the other half.
+ */
+const JS_EXT = '(?:[mc]?[jt]sx?)';
+const CLIENT_SUFFIX_RE = new RegExp(`\\b\\w+-client\\.${JS_EXT}$`);
+const SERVICE_SUFFIX_RE = new RegExp(`\\b(api|service|client|repository|repo|storage)\\.${JS_EXT}$`);
+const APP_ROUTE_FILE_RE = new RegExp(`(^|/)app/.+/(page|route|layout)\\.${JS_EXT}$`);
+const FEATURE_ENTRY_FILE_RE = new RegExp(`(^|/)features/[^/]+/(index|page|route|screen|view)\\.${JS_EXT}$`);
+const GENERIC_CLIENT_FILE_RE = new RegExp(`(^|/)(api-client|http-client|env|environment)\\.${JS_EXT}$`);
+const BARREL_FILE_RE = new RegExp(`^(index|public-api)\\.${JS_EXT}$`);
+const STORAGE_SUFFIX_RE = new RegExp(`(repository|repo|storage|db)\\.${JS_EXT}$`);
+const STATE_SUFFIX_RE = new RegExp(`(store|state|slice|atom|signal)\\.${JS_EXT}$`);
 
 /**
  * True for an `imports` edge that represents runtime coupling — i.e. not a build-erased
@@ -78,7 +98,7 @@ export function isFrontendSurfaceModule(mod: ModuleInfo): boolean {
 
   const rel = normalizeRelPath(mod);
   if (mod.semanticHints?.ssr?.useClient) return true;
-  if (/\b(client|api|sdk|graphql|http|rest|rpc)-client\b/.test(rel) || /\b\w+-client\.(tsx?|jsx?)$/.test(rel)) {
+  if (/\b(client|api|sdk|graphql|http|rest|rpc)-client\b/.test(rel) || CLIENT_SUFFIX_RE.test(rel)) {
     return false;
   }
   if (BACKEND_PATH_RE.test(rel) && mod.semanticHints?.ssr?.useClient !== true) {
@@ -96,7 +116,7 @@ export function isUiCouplingSourceModule(mod: ModuleInfo): boolean {
   if (/(^|\/)features\/[^/]+\/(domain|domains|application|services?|api|data|repositories?|infrastructure|infra|stores?)(\/|$)/.test(rel)) return false;
   if (/(^|\/)(domain|domains|application|services?|api|server|backend|lambda|functions|repositories?|infrastructure|infra)(\/|$)/.test(rel)) return false;
   if (/(^|\/)(stores?|state)(\/|$)/.test(rel)) return false;
-  if (/\b(api|service|client|repository|repo|storage)\.(tsx?|jsx?)$/.test(rel)) return false;
+  if (SERVICE_SUFFIX_RE.test(rel)) return false;
   return /(^|\/)(app|pages|routes|views|screens|components|contexts?|providers?|hooks?|layouts?|platform)(\/|$)/.test(rel)
     || mod.exports.some(exp => exp.kind !== 'type' && exp.kind !== 'interface' && /^(use[A-Z]|[A-Z])/.test(exp.name))
     || /\.(tsx|jsx|vue|svelte)$/.test(rel)
@@ -124,8 +144,8 @@ export function isRouteOrScreenEntryModule(mod: ModuleInfo): boolean {
   if (mod.semanticHints?.hasRoutes || mod.semanticHints?.routes?.length) return true;
   const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
   if (/(^|\/)(pages|routes|views|screens)(\/|$)/.test(rel)) return true;
-  if (/(^|\/)app\/.+\/(page|route|layout)\.(tsx?|jsx?)$/.test(rel)) return true;
-  return /(^|\/)features\/[^/]+\/(index|page|route|screen|view)\.(tsx?|jsx?)$/.test(rel);
+  if (APP_ROUTE_FILE_RE.test(rel)) return true;
+  return FEATURE_ENTRY_FILE_RE.test(rel);
 }
 
 export function isComponentLikeFlowEntryModule(mod: ModuleInfo): boolean {
@@ -149,7 +169,7 @@ export function isConvergenceTargetModule(mod: ModuleInfo, entryPackages: Set<st
 }
 
 export function convergenceTargetGroupKey(mod: ModuleInfo): string {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase().replace(/\.(tsx?|jsx?|vue|svelte)$/, '');
+  const rel = stripSourceExtension(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase());
   const sharedMatch = rel.match(/^(.*?\/)?(shared|lib)\/(store|stores|config|constants)\/(.+)$/);
   if (sharedMatch) {
     const tail = sharedMatch[4].split('/');
@@ -163,7 +183,7 @@ export function isGenericConvergenceTarget(mod: ModuleInfo): boolean {
   const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
   return /(^|\/)(shared|lib)\/(config|constants|store|stores)(\/|$)/.test(rel)
     || /(^|\/)(config|constants|store|stores)\/(index|types?|slices?)(\.[^.]+)?$/.test(rel)
-    || /(^|\/)(api-client|http-client|env|environment)\.(tsx?|jsx?)$/.test(rel);
+    || GENERIC_CLIENT_FILE_RE.test(rel);
 }
 
 export function isStaticPageLikeModule(mod: ModuleInfo): boolean {
@@ -186,7 +206,7 @@ export function isPureTypesModule(mod: ModuleInfo): boolean {
 export function isBarrelLikeModule(mod: ModuleInfo): boolean {
   const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
   const file = rel.split('/').pop() ?? rel;
-  if (!/^(index|public-api)\.(tsx?|jsx?)$/.test(file)) return false;
+  if (!BARREL_FILE_RE.test(file)) return false;
   return mod.exports.length === 0 || mod.exports.every(exp => exp.lineRange.end - exp.lineRange.start <= 1);
 }
 
@@ -196,9 +216,9 @@ export function coupledTargetRole(mod: ModuleInfo): CoupledTargetRole | undefine
   const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
   if (/(^|\/)(server|servers|backend|lambda|lambdas|functions)(\/|$)/.test(rel)) return 'server';
   if (/(^|\/)(api|apis|graphql|trpc|rpc|rest)(\/|$)/.test(rel) || /(?:api|graphql|trpc|rpc|rest)[-.](client|service)\./.test(rel)) return 'api';
-  if (/(^|\/)(storage|db|database|repositories?|repository|persistence)(\/|$)/.test(rel) || /(repository|repo|storage|db)\.(tsx?|jsx?)$/.test(rel)) return 'storage';
+  if (/(^|\/)(storage|db|database|repositories?|repository|persistence)(\/|$)/.test(rel) || STORAGE_SUFFIX_RE.test(rel)) return 'storage';
   if (/(^|\/)(domain|domains|model|models|rules?|polic(?:y|ies)|validators?|validation)(\/|$)/.test(rel)) return 'domain';
-  if (/(^|\/)(stores?|state)(\/|$)/.test(rel) || /(store|state|slice|atom|signal)\.(tsx?|jsx?)$/.test(rel)) return 'state';
+  if (/(^|\/)(stores?|state)(\/|$)/.test(rel) || STATE_SUFFIX_RE.test(rel)) return 'state';
   if (/(^|\/)features\/[^/]+/.test(rel)) return 'feature';
   return undefined;
 }
@@ -236,11 +256,12 @@ export function frontendDataAccessTargetKey(target: string | undefined): string 
 // ── Key/path normalization ──
 
 export function normalizeResponsibilityKey(labelOrPath: string): string {
-  const base = labelOrPath
-    .replace(/\\/g, '/')
-    .split('/')
-    .pop()
-    ?.replace(/\.(tsx?|jsx?|vue|svelte)$/i, '') ?? labelOrPath;
+  const basename = labelOrPath.replace(/\\/g, '/').split('/').pop();
+  // The key reaches the agent inside a finding id and title. Stripping through the source-plugin
+  // registry keeps `__init__.py` and `index.ts` reducing the same way, so a duplicate-responsibility
+  // finding is never named after a file extension or after a package marker.
+  const stripped = basename !== undefined ? stripSourceExtension(basename) : labelOrPath;
+  const base = getSourceIndexBasenames().includes(stripped.toLowerCase()) ? '' : stripped;
   return base
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
     .toLowerCase()

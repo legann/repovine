@@ -9,9 +9,9 @@ Before non-trivial work, call the `repovine` MCP server first. Use `search_conte
 
 If the MCP call fails with a connection error, the server is not running. Ask the user to check the MCP config. Do not fall back to blind file reading -- without the graph you lack structure and dependency info.
 
-If a tool returns `status:"building"`, call `get_build_status({ "waitSec": 45 })` instead of polling. If the ETA is large, tell the user and continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call `get_build_status({ "cancel": true })`; it stops Stage 1 workers and returns `cancelled` (no graph) or keeps a prior `ready` graph.
+If a tool returns `status:"building"`, call `get_build_status({ "waitSec": 45 })` once instead of polling. `stage_eta_sec` estimates only the current stage; use `stage` and `remaining_stages` to report progress. If the long-poll still returns building, continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call `get_build_status({ "cancel": true })`; it stops Stage 1 workers and returns `cancelled` (no graph) or keeps a prior `ready` graph.
 
-Context Session Quality scores repovine MCP responses, not agent prose. Pass `contextSessionId` on MCP calls and inspect with `get_context_session_quality`; harnesses recompute via `repovine agents compliance`. Hard gates use `threshold` / `qualityThreshold`; soft gates use `warningThreshold`. Harness mode can fail weak required sessions; client mode emits warnings. Reference: `docs/context-quality.md` in the repovine source repository.
+Context Session Quality scores repovine MCP responses, not agent prose. Pass `contextSessionId` on MCP calls and inspect with `get_context_session_quality`; harnesses recompute via `repovine agents compliance`. The score and its thresholds are advisory until the labelled-corpus return bar in `docs/context-quality.md` is met; evidence-backed annotation checks remain enforceable.
 
 ## Working loop
 

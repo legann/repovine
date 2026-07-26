@@ -250,6 +250,13 @@ function hasTaggedEdge(graph: RepositoryGraph, fromId: string, domainId: string)
   return out.some(e => e.kind === 'tagged' && e.to === domainId);
 }
 
+/**
+ * Domains the engine declares from an observed module property rather than deriving from a path.
+ * Their labels name a property (`routing`, `config`), so the label-provenance invariant checks
+ * them against the evidence that seeds them, not against names in the tree.
+ */
+export const CONTENT_DOMAIN_IDS = ['domain:routing', 'domain:config'] as const;
+
 function pass5ContentDomains(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot): void {
   let routingCreated = false;
   let configCreated = false;

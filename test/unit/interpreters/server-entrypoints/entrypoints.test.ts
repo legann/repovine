@@ -165,11 +165,11 @@ describe('backend-routes layer entrypoints', () => {
     ]);
   });
 
-  it('maps TS/JS file-based API routes without changing legacy visible fields', () => {
+  it('maps TS/JS file-based API routes to the backend layer and preserves methods', () => {
     const entries = collectBackendRouteEntrypoints(ctx([
       mod('mod:next/route', 'typescript', {
         hasRoutes: true,
-        routes: [{ path: '/api/users', component: '(file-route)', source: 'file', kind: 'api', framework: 'nextjs-app', fileType: 'route' }],
+        routes: [{ path: '/api/users', component: '(file-route)', source: 'file', kind: 'api', method: 'GET', framework: 'nextjs-app', fileType: 'route' }],
       }),
       mod('mod:pages/api', 'typescript', {
         hasRoutes: true,
@@ -192,10 +192,11 @@ describe('backend-routes layer entrypoints', () => {
     expect(entries).toEqual([
       expect.objectContaining({
         [LAYER_ENTRYPOINT_SLOT_KEY]: 'file-api',
-        id: 'entrypoint:file:mod:next/route:/api/users:route',
+        id: 'entrypoint:file:mod:next/route:/api/users:route:GET',
         kind: 'api',
-        layer: 'frontend',
+        layer: 'backend',
         path: '/api/users',
+        method: 'GET',
         moduleId: 'mod:next/route',
         source: 'nextjs-app',
         fileType: 'route',
@@ -216,6 +217,7 @@ describe('backend-routes layer entrypoints', () => {
         fileType: 'server-api',
       }),
     ]);
+    expect(entries.every(entry => entry.layer === 'backend')).toBe(true);
     expect(entries.map(entry => entry.moduleId)).not.toContain('mod:page');
   });
 

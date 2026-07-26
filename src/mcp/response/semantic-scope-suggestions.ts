@@ -1,7 +1,6 @@
 import type { McpToolRuntime } from '../types.js';
+import { SEMANTIC_MIN_COSINE } from '../../semantic/relevance.js';
 
-/** Same floor as search_context fusion: below this cosine, semantic hits are noise. */
-const SEMANTIC_MIN_COSINE = 0.35;
 const MAX_SUGGESTIONS = 3;
 
 type DiagnosticAction = { when?: string; tool?: string; args?: Record<string, unknown>; note?: string };

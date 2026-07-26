@@ -33,10 +33,11 @@ export function notReadyResponse(snapshot: IndexBuildStatus): Record<string, unk
     total_semantic_cards: snapshot.totalSemanticCards,
     current_package: snapshot.currentPackage,
     elapsed_sec: snapshot.elapsedSec,
-    eta_sec: snapshot.etaSec,
+    stage_eta_sec: snapshot.stageEtaSec,
+    remaining_stages: snapshot.remainingStages,
     retry_after_sec: snapshot.retryAfterSec,
     message: snapshot.message,
-    next_action: 'Call get_build_status (always available) for live progress — pass waitSec (e.g. { waitSec: 45 }) to wait server-side until the build settles instead of polling; then retry this tool.',
+    next_action: 'Call get_build_status (always available) once with waitSec (e.g. { waitSec: 45 }) to wait server-side until the build settles. If it returns still building, report stage/remaining_stages and continue with direct file reads when possible instead of polling.',
     errorMessage: snapshot.errorMessage,
   };
 }

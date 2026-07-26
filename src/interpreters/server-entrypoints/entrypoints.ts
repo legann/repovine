@@ -64,12 +64,14 @@ export function collectFileApiEntrypoints(ctx: InterpreterEntrypointContext): Ba
 
   for (const route of inferFileBasedRoutes(ctx.snapshot)) {
     if (fileBasedEntryKind(route.fileType) !== 'api') continue;
+    const methodSuffix = route.method ? `:${route.method}` : '';
     out.push({
       [LAYER_ENTRYPOINT_SLOT_KEY]: 'file-api',
-      id: `entrypoint:file:${route.moduleId}:${route.path}:${route.fileType}`,
+      id: `entrypoint:file:${route.moduleId}:${route.path}:${route.fileType}${methodSuffix}`,
       kind: 'api',
-      layer: 'frontend',
+      layer: 'backend',
       path: route.path,
+      ...(route.method ? { method: route.method } : {}),
       moduleId: route.moduleId,
       source: route.framework,
       fileType: route.fileType,

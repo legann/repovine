@@ -1,7 +1,7 @@
 {
   "_description": "SAM template.yaml: Serverless Function CodeUri + Handler linked to TS module; Lambda env references a SecretsManager secret -> generic uses_env edge, secret-ness read from target.kind == 'secret'.",
   "heavyDomains": ["handler", "infra-sam"],
-  "lightweightDomains": ["cluster", "sam-lambda-app-fixture"],
+  "lightweightDomains": ["sam-lambda-app-fixture"],
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "ApiFunction", "kind": "lambda", "provider": "aws" },

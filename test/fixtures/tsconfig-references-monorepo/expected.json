@@ -26,27 +26,31 @@
         "isExternal": false
       }
     ],
-    "importEdges": [
+    "codeEdges": [
       {
-        "from": "mod:fixture-web/src/main",
-        "to": "mod:fixture-web/src/components/Button"
+        "from": "mod:fixture-shared/src",
+        "to": "mod:fixture-shared/src/lib/util",
+        "kind": "reexports"
+      },
+      {
+        "from": "mod:fixture-web/src/components/Button.stories",
+        "to": "mod:fixture-web/src/components/Button",
+        "kind": "imports"
       },
       {
         "from": "mod:fixture-web/src/main",
-        "to": "mod:fixture-shared/src"
-      }
-    ],
-    "reExportEdges": [
+        "to": "mod:fixture-web/src/components/Button",
+        "kind": "imports"
+      },
       {
-        "from": "mod:fixture-shared/src",
-        "to": "mod:fixture-shared/src/lib/util"
-      }
-    ],
-    "redirectedImportEdges": [
+        "from": "mod:fixture-web/src/main",
+        "to": "mod:fixture-shared/src",
+        "kind": "imports"
+      },
       {
         "from": "mod:fixture-web/src/main",
         "to": "mod:fixture-shared/src/lib/util",
-        "usedNames": ["util"]
+        "kind": "imports"
       }
     ]
   }

@@ -2,7 +2,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
-import { ContextSessionStore } from '../../../src/context-quality/session-store.js';
+import {
+  ContextSessionStore,
+  DEFAULT_CONTEXT_QUALITY_CONFIG,
+} from '../../../src/context-quality/session-store.js';
 import { handleGetContextSessionQuality } from '../../../src/mcp/tools/context-session-quality.js';
 import type { ContextQualityReport } from '../../../src/context-quality/types.js';
 import type { McpToolRuntime } from '../../../src/mcp/types.js';
@@ -170,7 +173,13 @@ describe('get_context_session_quality handler', () => {
   });
 
   it('distinguishes hard qualityThreshold failures from soft warningThreshold followups', () => {
-    const store = new ContextSessionStore({ repoRoot });
+    const store = new ContextSessionStore({
+      repoRoot,
+      config: {
+        ...DEFAULT_CONTEXT_QUALITY_CONFIG,
+        weights: { ...DEFAULT_CONTEXT_QUALITY_CONFIG.weights, inspect: 0.5 },
+      },
+    });
     const sessionId = 'sess-soft-warn';
     recordToolCall(
       store,

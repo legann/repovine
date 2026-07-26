@@ -1,7 +1,7 @@
 {
   "_description": "Next.js App Router: app/<route>/{page,layout,loading,route}.tsx are framework conventions, not domains. Directory names are the domain candidates.",
-  "heavyDomains": ["dashboard", "infra-vercel", "nextjs-app-router-fixture", "routing"],
-  "lightweightDomains": ["blog", "cluster", "error-fallback", "posts", "slug", "ui", "users"],
+  "heavyDomains": ["dashboard", "infra-vercel", "nextjs-app-router-fixture", "routing", "slug"],
+  "lightweightDomains": ["about", "blog", "docs", "error-fallback", "marketing", "posts", "shop", "ui", "users"],
   "rejectedAsDomain": ["page", "layout", "loading", "route"],
   "modulesInDomain": {
     "users": ["app/api/users/route.ts"],
@@ -17,14 +17,16 @@
     "ui": ["components/ui/button.tsx"]
   },
   "typescript": {
-    "importEdges": [
+    "codeEdges": [
       {
         "from": "mod:nextjs-app-router-fixture/app/dashboard/page",
-        "to": "mod:nextjs-app-router-fixture/components/error-fallback"
+        "to": "mod:nextjs-app-router-fixture/components/error-fallback",
+        "kind": "imports"
       },
       {
         "from": "mod:nextjs-app-router-fixture/components/error-fallback",
-        "to": "mod:nextjs-app-router-fixture/components/ui/button"
+        "to": "mod:nextjs-app-router-fixture/components/ui/button",
+        "kind": "imports"
       }
     ],
     "resolvedImports": [
@@ -40,6 +42,27 @@
         "resolvedModuleId": "mod:nextjs-app-router-fixture/components/ui/button",
         "isExternal": false
       }
+    ]
+  },
+  "entrypoints": [
+    { "path": "/", "kind": "page", "layer": "frontend" },
+    { "path": "/api/posts", "kind": "api", "layer": "backend", "method": "GET" },
+    { "path": "/api/users", "kind": "api", "layer": "backend", "method": "GET" },
+    { "path": "/api/users", "kind": "schedule", "layer": "backend" },
+    { "path": "/dashboard", "kind": "page", "layer": "frontend" }
+  ],
+  "entrypointEdgeCases": {
+    "dynamic-segment": [
+      { "path": "/blog/[slug]", "kind": "page", "layer": "frontend" }
+    ],
+    "catch-all-segment": [
+      { "path": "/docs/[...slug]", "kind": "page", "layer": "frontend" }
+    ],
+    "optional-catch-all-segment": [
+      { "path": "/shop/[[...slug]]", "kind": "page", "layer": "frontend" }
+    ],
+    "route-group": [
+      { "path": "/about", "kind": "page", "layer": "frontend" }
     ]
   },
   "runtimeResourceNodes": [

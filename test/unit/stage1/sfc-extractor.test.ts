@@ -91,6 +91,13 @@ let count = 0;
     const r = extractTypeScriptFromSfc('a.svelte', sfc);
     expect(r?.isTypeScript).toBe(true);
   });
+
+  it('keeps template-only components discoverable', () => {
+    const r = extractTypeScriptFromSfc('a.svelte', '<h1>Route page</h1>');
+    expect(r?.isTypeScript).toBe(false);
+    expect(r?.ts).toContain('__REPOVINE_SFC_TEMPLATE__');
+    expect(r?.ts).toContain('<h1>Route page</h1>');
+  });
 });
 
 describe('extractTypeScriptFromSfc — null cases', () => {

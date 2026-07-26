@@ -1,10 +1,23 @@
 {
   "_description": "Nuxt: server/api/<entity>/*.ts → entity directory domain; composables/ structural; stores/ structural; <name>.store.ts → suffix-based domain.",
-  "heavyDomains": ["cart", "cluster", "nuxt-fixture", "routing", "user"],
-  "lightweightDomains": ["auth", "logger", "products", "useauth", "usefetch", "users"],
+  "heavyDomains": ["cart", "nuxt-fixture", "nuxt-fixture/users", "routing", "user", "users"],
+  "lightweightDomains": ["auth", "files", "logger", "products", "useauth", "usefetch"],
   "rejectedAsDomain": ["index", "create", "user.store", "cart.store"],
   "modulesInDomain": {
-    "users": ["server/api/users/create.ts", "server/api/users/index.ts"],
+    "users": ["server/api/users/[id].get.ts", "server/api/users/create.ts", "server/api/users/index.ts"],
     "user": ["stores/user.store.ts"]
+  },
+  "entrypoints": [
+    { "path": "/api/products", "kind": "api", "layer": "backend" },
+    { "path": "/api/users", "kind": "api", "layer": "backend" },
+    { "path": "/api/users/create", "kind": "api", "layer": "backend" }
+  ],
+  "entrypointEdgeCases": {
+    "dynamic-method-route": [
+      { "path": "/api/users/[id]", "kind": "api", "layer": "backend", "method": "GET" }
+    ],
+    "catch-all-route": [
+      { "path": "/api/files/[...path]", "kind": "api", "layer": "backend" }
+    ]
   }
 }

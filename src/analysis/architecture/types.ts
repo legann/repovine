@@ -80,6 +80,26 @@ export const REFACTORING_CATEGORIES: RefactoringCategory[] = [
   'unclear-architecture',
 ];
 
+/**
+ * Categories that failed the clean-code oracle: each emitted a finding on a
+ * counterexample fixture built to carry none of its smell. A counterexample
+ * refutes the universal claim "a finding is led by evidence", so these are off
+ * by default and stay reachable through an explicit `categories` argument.
+ *
+ *   duplicate-like              two unrelated loggers reported as shared responsibility
+ *   god-module                  a generated type-only surface reported as a god module
+ *   authorization-policy-drift  distinct invariants sharing vocabulary reported as drift
+ */
+export const CLEAN_ORACLE_FAILING_CATEGORIES: RefactoringCategory[] = [
+  'duplicate-like',
+  'god-module',
+  'authorization-policy-drift',
+];
+
+/** Categories a report runs when the caller names none. */
+export const DEFAULT_REFACTORING_CATEGORIES: RefactoringCategory[] =
+  REFACTORING_CATEGORIES.filter(c => !CLEAN_ORACLE_FAILING_CATEGORIES.includes(c));
+
 export type RefactoringScope = {
   moduleIds: Set<string>;
   serviceIds: Set<string>;

@@ -595,8 +595,144 @@ Resources:
       { varName: 'PARAM_SECRET', refType: 'ref', targetLogicalId: 'secret:ApiSecretName' },
       { varName: 'SUB_SECRET', refType: 'ref', targetLogicalId: 'secret:GoogleSecretsArn' },
       { varName: 'TABLE_NAME_ALIAS', refType: 'ref', targetLogicalId: 'DataTableName' },
-      { varName: 'iamPolicy:DataTable', refType: 'ref', targetLogicalId: 'DataTable' },
+      // GetItem from the managed policy plus PutItem from the inline statement.
+      { varName: 'iamPolicy:DataTable', refType: 'ref', targetLogicalId: 'DataTable', access: 'read-write' },
     ]));
+  });
+
+  it('reads the access mode a Lambda grant declares instead of assuming read-write', () => {
+    fs.writeFileSync(path.join(tmpDir, 'template.yaml'), `
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  ReadTable:
+    Type: AWS::DynamoDB::Table
+  WriteTable:
+    Type: AWS::DynamoDB::Table
+  CrudTable:
+    Type: AWS::DynamoDB::Table
+  OpaqueTable:
+    Type: AWS::DynamoDB::Table
+  ReaderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: reader.handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource: !GetAtt ReadTable.Arn
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt WriteTable.Arn
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CrudTable
+        - SomeUnknownShape:
+            Target: !Ref OpaqueTable
+`);
+
+    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const fn = modules.flatMap(m => m.resources).find(r => r.id === 'ReaderFunction');
+    const accessByTarget = Object.fromEntries(
+      (fn?.envRefs ?? []).map(ref => [ref.targetLogicalId, ref.access]),
+    );
+
+    expect(accessByTarget).toEqual({
+      ReadTable: 'read',
+      WriteTable: 'write',
+      CrudTable: 'read-write',
+      // Grant shape the parser cannot read: the binding stands, the verb stays unread.
+      OpaqueTable: undefined,
+    });
+  });
+
+  it('skips Deny statements and attaches the grant to an existing env-var ref', () => {
+    fs.writeFileSync(path.join(tmpDir, 'template.yaml'), `
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  AuditTable:
+    Type: AWS::DynamoDB::Table
+  AuditFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: audit.handler
+      Environment:
+        Variables:
+          AUDIT_TABLE: !Ref AuditTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:Scan
+              Resource: !GetAtt AuditTable.Arn
+            - Effect: Deny
+              Action: dynamodb:DeleteItem
+              Resource: !GetAtt AuditTable.Arn
+`);
+
+    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const fn = modules.flatMap(m => m.resources).find(r => r.id === 'AuditFunction');
+
+    // One ref, not two: the env var and the grant name the same table.
+    expect(fn?.envRefs).toEqual([
+      { varName: 'AUDIT_TABLE', refType: 'ref', targetLogicalId: 'AuditTable', access: 'read' },
+    ]);
+  });
+
+  it('reads grants for every resource family the policy-template table advertises, not only DynamoDB', () => {
+    fs.writeFileSync(path.join(tmpDir, 'template.yaml'), `
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  Uploads:
+    Type: AWS::S3::Bucket
+  Reports:
+    Type: AWS::S3::Bucket
+  Jobs:
+    Type: AWS::SQS::Queue
+  Events:
+    Type: AWS::SNS::Topic
+  DbSecret:
+    Type: AWS::SecretsManager::Secret
+  WorkerRole:
+    Type: AWS::IAM::Role
+  Worker:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: worker.handler
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref Uploads
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !GetAtt Reports.Arn
+        - SQSPollerPolicy:
+            QueueName: !Ref Jobs
+        - SNSPublishMessagePolicy:
+            TopicName: !Ref Events
+        - SecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DbSecret
+        - Statement:
+            - Effect: Allow
+              Action: sts:AssumeRole
+              Resource: !GetAtt WorkerRole.Arn
+`);
+
+    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const fn = modules.flatMap(m => m.resources).find(r => r.id === 'Worker');
+    const accessByTarget = Object.fromEntries(
+      (fn?.envRefs ?? []).map(ref => [ref.targetLogicalId, ref.access]),
+    );
+
+    expect(accessByTarget).toEqual({
+      Uploads: 'read',
+      Reports: 'write',
+      Jobs: 'read',
+      Events: 'write',
+      DbSecret: 'read',
+      // A role is the subject of a grant, never its target, so it is not a bound resource.
+    });
   });
 
   it('parses docker-compose services and resolves build dockerfile paths', () => {

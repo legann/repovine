@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 22,
-    "totalEdges": 32,
+    "totalNodes": 21,
+    "totalEdges": 31,
     "nodesByType": {
-      "domain": 6,
+      "domain": 5,
       "export-symbol": 7,
       "module": 7,
       "package": 1,
@@ -11,7 +11,7 @@
     },
     "edgesByKind": {
       "contains": 15,
-      "tagged": 17
+      "tagged": 16
     }
   },
   "byType": {
@@ -20,7 +20,6 @@
       "domain:nestjs-modular-fixture",
       "domain:billing",
       "domain:users",
-      "domain:cluster",
       "domain:routing"
     ],
     "export-symbol": [
@@ -66,16 +65,6 @@
       "description": "Domain: billing",
       "data": {
         "weight": "heavy",
-        "tier": "technical"
-      }
-    },
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "lightweight",
         "tier": "technical"
       }
     },
@@ -350,17 +339,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:nestjs-modular-fixture",
       "links": [],
       "children": [],
@@ -612,11 +590,6 @@
           "to": "domain:nestjs-modular-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [
@@ -634,10 +607,6 @@
         "links": [
           {
             "to": "domain:nestjs-modular-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

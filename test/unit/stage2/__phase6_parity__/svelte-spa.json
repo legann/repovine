@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 18,
-    "totalEdges": 26,
+    "totalNodes": 17,
+    "totalEdges": 21,
     "nodesByType": {
-      "domain": 7,
+      "domain": 6,
       "export-symbol": 3,
       "module": 6,
       "package": 1,
@@ -11,13 +11,12 @@
     },
     "edgesByKind": {
       "contains": 10,
-      "tagged": 16
+      "tagged": 11
     }
   },
   "byType": {
     "domain": [
       "domain:svelte-spa-fixture",
-      "domain:cluster",
       "domain:stores",
       "domain:button",
       "domain:usercard",
@@ -53,16 +52,6 @@
       "data": {
         "weight": "lightweight",
         "tier": "technical"
-      }
-    },
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
-      "data": {
-        "weight": "heavy",
-        "tier": "feature"
       }
     },
     {
@@ -255,17 +244,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:stores",
       "links": [],
       "children": [],
@@ -360,11 +338,6 @@
           "to": "domain:svelte-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -375,10 +348,6 @@
         "links": [
           {
             "to": "domain:svelte-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -392,11 +361,6 @@
           "to": "domain:svelte-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:button",
@@ -422,10 +386,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:button",
             "kind": "tagged"
           }
@@ -440,11 +400,6 @@
           "to": "domain:svelte-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:usercard",
@@ -470,10 +425,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:usercard",
             "kind": "tagged"
           }
@@ -488,11 +439,6 @@
           "to": "domain:svelte-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:stores",
@@ -518,10 +464,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:stores",
             "kind": "tagged"
           }
@@ -536,11 +478,6 @@
           "to": "domain:svelte-spa-fixture",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -551,10 +488,6 @@
         "links": [
           {
             "to": "domain:svelte-spa-fixture",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],

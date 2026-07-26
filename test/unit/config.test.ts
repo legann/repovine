@@ -56,9 +56,36 @@ describe('loadConfig', () => {
     expect(cfg).not.toHaveProperty('verbose');
   });
 
-  it('enables semantic search embeddings by default', () => {
+  // Semantic search needs the optional @huggingface/transformers peer, so the default follows
+  // whether that peer resolves from the workspace. Asserting a constant would pass in this repo
+  // (which installs the peer) while saying nothing about a plain `npm i repovine`.
+  it('derives the semantic default from whether the peer resolves', async () => {
+    const { describeTransformersInstall } = await import('../../src/semantic/transformers-install.js');
     const cfg = loadConfig(tmpDir);
-    expect(cfg.semanticSearchEmbeddings).toBe(true);
+    expect(cfg.semanticSearchEmbeddings).toBe(describeTransformersInstall(tmpDir).resolved);
+  });
+
+  // The assertion above cannot fail in this checkout: the peer is a devDependency and
+  // `describeTransformersInstall` resolves it via `createRequire(import.meta.url)` — out of
+  // repovine's own node_modules, ignoring the workspace root — so both sides are always `true`.
+  // Only a stubbed probe distinguishes the derived default from a hardcoded one.
+  it('defaults semantic search off when the peer does not resolve', async () => {
+    jest.resetModules();
+    jest.unstable_mockModule('../../src/semantic/transformers-install.js', () => ({
+      TRANSFORMERS_PACKAGE: '@huggingface/transformers',
+      resolveTransformersFromWorkspace: () => undefined,
+      describeTransformersInstall: () => ({ resolved: false as const }),
+    }));
+
+    const { loadConfig: loadConfigWithoutPeer } = await import('../../src/config.js');
+    expect(loadConfigWithoutPeer(tmpDir).semanticSearchEmbeddings).toBe(false);
+  });
+
+  it('respects semantic_search_embeddings: true even when the peer is absent', () => {
+    fs.writeFileSync(path.join(tmpDir, 'repovine.config.json'), JSON.stringify({
+      semantic_search_embeddings: true,
+    }));
+    expect(loadConfig(tmpDir).semanticSearchEmbeddings).toBe(true);
   });
 
   it('respects semantic_search_embeddings: false', () => {
@@ -379,7 +406,8 @@ describe('loadConfig', () => {
     expect(cfg.contextQuality.purgeSessionsOnMcpStart).toBe(true);
     expect(cfg.contextQuality.thresholds.implement.threshold).toBe(0.55);
     expect(cfg.contextQuality.weights.bytes).toBe(0.4);
-    expect(cfg.contextQuality.weights.or).toBeGreaterThan(0);
+    expect(cfg.contextQuality.weights.or).toBe(0);
+    expect(cfg.contextQuality.weights.inspect).toBe(1);
     expect(cfg.contextQuality.exportSymbolFloodRatio).toBe(0.6);
     expect(cfg.contextQuality.retainSessions).toBe(true);
     expect(cfg.contextQuality.persistEvents).toBe(true);

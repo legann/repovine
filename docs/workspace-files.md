@@ -108,7 +108,6 @@ Omit any block to keep engine defaults. When this file is missing,
   "annotations": {
     "propagation": {}
   },
-  "semantic_search_embeddings": true,
   "analyze_architecture": {
     "strictness": "normal",
     "thresholds": {}
@@ -271,11 +270,17 @@ Design rationale (node cards, fusion, response fields):
 
 | Field | Default | Meaning |
 |---|---|---|
-| `semantic_search_embeddings` | `true` | `true` = in-process MiniLM via the optional peer `@huggingface/transformers`; `false` = token-only search. |
+| `semantic_search_embeddings` | peer presence | Unset: follows whether `@huggingface/transformers` resolves. `true` = in-process MiniLM via that peer; `false` = token-only search. |
+
+Left unset, the engine reports `semanticSearch.status: "disabled"` when the peer is absent and
+enables embeddings when it is present. Set it explicitly to pin the behaviour:
 
 ```json
 "semantic_search_embeddings": true
 ```
+
+Forcing `true` without the peer installed makes the missing dependency an actionable error rather
+than a silent fallback to token-only search.
 
 Disable semantic search entirely:
 
@@ -305,7 +310,12 @@ works offline afterwards. CPU is enough.
 
 Vectors persist in `.repovine/.cache/semantic-index.json`. Every state build —
 including `refresh_context` — re-syncs the semantic search index, re-embedding
-only cards whose text hash changed and pruning nodes that left the graph. During
+only cards whose text hash changed and pruning nodes that left the graph. The
+cache identity includes the model, resolved `@huggingface/transformers` version,
+and inference dtype, so a peer-dependency upgrade cannot silently reuse vectors
+from a different runtime. Node cards are truncated deterministically to 1000
+characters before tokenization; behavioural annotation fields precede verbose
+per-export prose inside that budget. During
 `repovine build`, `repovine setup` (builds by default), and MCP cold start, Stage 3 prints an in-place
 semantic search embed progress bar on TTY stderr
 (`[done/total] semantic search embeddings ████░░ …`) and `get_build_status`
@@ -377,7 +387,7 @@ Supported `thresholds` categories (each has its own knobs — add only what you 
 
 #### `contextQuality`
 
-Deterministic scoring of repovine MCP context sessions (Context Session Quality). Common knobs: `enforcement.mode` (`client` | `harness`), per-phase `thresholds` (`explore`/`implement`/`annotate`, each with `threshold`, `warningThreshold`, `minAnchors`, `byteBudget`), `purgeSessionsOnMcpStart`, `retainSessions`, `persistEvents`, `maxRequestEchoes`, `exportSymbolFloodRatio`, `archResponseOversizeBytes`. Advanced tuning (`weights`, `recoveryWindow`, `recoveryDiscount`, `lowConfidenceRejectRatio`, `testPackageRegex`) follows the schema in `src/config.ts`. Defaults, scoring model, and lifecycle: [context-quality.md](context-quality.md).
+Deterministic reporting of repovine MCP context sessions (Context Session Quality). Common knobs: `enforcement.mode` (`client` | `harness`), per-phase `thresholds` (`explore`/`implement`/`annotate`, each with `threshold`, `warningThreshold`, `minAnchors`, `byteBudget`), `purgeSessionsOnMcpStart`, `retainSessions`, `persistEvents`, `maxRequestEchoes`, `exportSymbolFloodRatio`, `archResponseOversizeBytes`. Advanced tuning (`weights`, `recoveryWindow`, `recoveryDiscount`, `lowConfidenceRejectRatio`, `testPackageRegex`) follows the schema in `src/config.ts`; non-default weights are experimental and context-quality remains advisory until its documented validation bar is met. Defaults, scoring model, and lifecycle: [context-quality.md](context-quality.md).
 
 ---
 
@@ -679,7 +689,7 @@ Gitignored engine artifacts under `{workspaceRoot}/.repovine/`. Safe to delete w
 | `carrier-review.json` | Reviewed-not-a-gap decisions from `decline_advisory({ "kind": "carrier-link-gaps" })`, keyed by consumer-risk SSOT target. Each entry stores a `riskHash` (sha256[:16] of the target's sorted consumer-risk texts); a changed risk set re-surfaces the target. Workspace-local — triage does not travel with clones. Safe to delete; reviewed targets re-flag. |
 | `boundary-index.json` | Generated path-indexed boundary-risk surface consumed by client pre-edit hooks. Rebuilt from graph and annotations. |
 | `repository-facts-snapshot.json` | Cached Stage 1 output. Invalidated when `STAGE1_ANALYSIS_VERSION` changes. Used by `refresh_context` for fast rebuilds. |
-| `build-calibration.json` | Records peak RSS and advised worker count / shard size from the last representative cold build. Machine-local — do not commit. |
+| `build-calibration.json` | Records baseline/peak/incremental RSS, worker/shard shape, and reused/rescanned counts from the last representative cold build. Warm incremental runs leave it intact. Machine-local — do not commit. |
 | `semantic-index.json` | Persisted graph-node embedding vectors keyed by node-card hash. Rebuilt incrementally. |
 | `sessions/` | Persisted Context Session Quality roll-ups; lifecycle is defined in [context-quality.md](context-quality.md#session-lifecycle). |
 | `graph.json` / `graph.yaml` | Written by the graph dump utility (`npx tsx src/dump/index.ts`) for offline inspection — not required for MCP. |

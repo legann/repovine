@@ -160,9 +160,10 @@ function collectPaths(data) {
   return paths;
 }
 
+// Annotation repair is MCP-only: the CLI dispatches setup/build/clear/status/doctor/agents and
+// has no `annotations` command, so naming one here would send the agent to an unknown command.
 const ANNOTATION_MERGE_TOOLING =
-  'call the repovine MCP tools: get_annotation_merge_status, merge_annotations, validate_annotations. ' +
-  'CLI fallback: npx repovine annotations merge && npx repovine annotations validate.';
+  'call the repovine MCP tools: get_annotation_merge_status, merge_annotations, validate_annotations.';
 
 const DOMAINS_ADVISOR_AGENT_CONTRACT =
   'When get_build_status or refresh_context reports domainsSuggestions.count > 0, call suggest_domains_config; never auto-apply. With user approval, write a repovine.domains.json preview and call refresh_context: accept = write the mergedConfig (exclude), keep = write the keepConfig (committed infra.keep marker — keeps the resource visible and stops the suggestion); for skip/hide, call decline_advisory({ "kind": "domains-config" }) so ids are stored in .repovine/onboarding-state.json.';
@@ -184,8 +185,7 @@ function runStaleGraphNotice(data) {
       emit(
         'stale-graph-conflict',
         'repovine: ' + conflictRel + ' contains conflict markers. ' +
-          'Do not resolve the JSON by hand. Call the repovine MCP tools: get_annotation_merge_status, merge_annotations, validate_annotations. ' +
-          'CLI fallback: npx repovine annotations merge && npx repovine annotations validate.',
+          'Do not resolve the JSON by hand. To repair it, ' + ANNOTATION_MERGE_TOOLING,
       );
       return;
     }
@@ -297,8 +297,8 @@ function runSessionMcpHint(data) {
       'For any non-trivial task, START with repovine MCP tools search_context or map_context; do not grep or read files first. ' +
       'The MCP provides structure, annotations, entrypoints, dependency analysis, config surface, and flow tracing. ' +
       'After editing files, call repovine MCP tool refresh_context to refresh the syntax index before further structural navigation. ' +
-      'Build state: tool calls received before the graph finishes building return a successful response (not an error) with status:"building" and an eta_sec; ' +
-      'do not retry in a loop — call get_build_status with waitSec (e.g. { waitSec: 45 }) to long-poll until the build settles, respect retry_after_sec, and fall back to direct file reads when eta_sec >= 60. ' +
+      'Build state: tool calls received before the graph finishes building return a successful response (not an error) with status:"building", stage, remaining_stages, and stage_eta_sec (current stage only); ' +
+      'do not retry in a loop — call get_build_status once with waitSec (e.g. { waitSec: 45 }), respect retry_after_sec, and if it still returns building report the stage/remaining stages and fall back to direct file reads when possible. ' +
       DOMAINS_ADVISOR_AGENT_CONTRACT +
       onboardingHint +
       conflictHint,

@@ -1,9 +1,9 @@
 {
   "stats": {
-    "totalNodes": 28,
-    "totalEdges": 40,
+    "totalNodes": 27,
+    "totalEdges": 37,
     "nodesByType": {
-      "domain": 7,
+      "domain": 6,
       "export-symbol": 8,
       "module": 9,
       "package": 3,
@@ -11,13 +11,12 @@
     },
     "edgesByKind": {
       "contains": 20,
-      "tagged": 20
+      "tagged": 17
     }
   },
   "byType": {
     "domain": [
       "domain:lambda-functions",
-      "domain:cluster",
       "domain:oauth-callback",
       "domain:tenant-manager",
       "domain:auth",
@@ -60,16 +59,6 @@
       "type": "domain",
       "label": "auth",
       "description": "Domain: auth",
-      "data": {
-        "weight": "heavy",
-        "tier": "feature"
-      }
-    },
-    {
-      "id": "domain:cluster",
-      "type": "domain",
-      "label": "cluster",
-      "description": "Domain: cluster",
       "data": {
         "weight": "heavy",
         "tier": "feature"
@@ -406,17 +395,6 @@
       }
     },
     {
-      "id": "domain:cluster",
-      "links": [],
-      "children": [],
-      "view": {
-        "id": "domain:cluster",
-        "level": 1,
-        "drill_down": [],
-        "links": []
-      }
-    },
-    {
       "id": "domain:lambda-functions",
       "links": [],
       "children": [],
@@ -566,11 +544,6 @@
           "to": "domain:lambda-functions",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         }
       ],
       "children": [],
@@ -581,10 +554,6 @@
         "links": [
           {
             "to": "domain:lambda-functions",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           }
         ],
@@ -598,11 +567,6 @@
           "to": "domain:lambda-functions",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:oauth-callback",
@@ -628,10 +592,6 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:cluster",
-            "kind": "tagged"
-          },
-          {
             "to": "domain:oauth-callback",
             "kind": "tagged"
           }
@@ -646,11 +606,6 @@
           "to": "domain:lambda-functions",
           "kind": "tagged",
           "tagSource": "package"
-        },
-        {
-          "to": "domain:cluster",
-          "kind": "tagged",
-          "tagSource": "cluster"
         },
         {
           "to": "domain:tenant-manager",
@@ -673,10 +628,6 @@
         "links": [
           {
             "to": "domain:lambda-functions",
-            "kind": "tagged"
-          },
-          {
-            "to": "domain:cluster",
             "kind": "tagged"
           },
           {

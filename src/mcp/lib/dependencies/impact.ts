@@ -1,6 +1,7 @@
 import { getImpact, getParent } from '../../../graph/index.js';
 import { resolveNodeId, type McpToolRuntime } from '../../types.js';
 import { paginateList } from '../../response/pagination.js';
+import { PER_BUCKET_CAP } from '../../../source-plugins/typescript/call-graph.js';
 import { getCallersByName } from './reverse-calls.js';
 
 export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
@@ -84,6 +85,17 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
     label: nodeLabel(nodeId),
     ...(filterName ? { filteredByExport: filterName } : {}),
     ...(nameMatchedCallers > 0 ? { nameMatchedCallers } : {}),
+    // The backstop reads an index built from call names that were capped per declaration at
+    // extraction, so it cannot claim grep parity: a caller whose declaration exceeded the cap is
+    // absent from the index and therefore from this answer, with nothing to mark its absence.
+    ...(filterName
+      ? {
+        nameMatchLimits: {
+          perDeclarationCallNameCap: PER_BUCKET_CAP,
+          note: 'Name-matched callers come from a per-declaration capped call index; callers in declarations above the cap are not represented.',
+        },
+      }
+      : {}),
     downstream: down.page,
     downstreamPagination: down.pagination,
     upstream: up.page,

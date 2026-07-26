@@ -187,8 +187,8 @@ describe('runAgentsCli', () => {
     };
     store.recordToolCall({
       sessionId: 'sess-cli',
-      tool: 'map_context',
-      args: { scope: 'pkg:prod', contextSessionId: 'sess-cli' },
+      tool: 'inspect_node',
+      args: { nodeId: 'pkg:prod', contextSessionId: 'sess-cli' },
       result,
       responseText: JSON.stringify(result),
     });
@@ -200,7 +200,7 @@ describe('runAgentsCli', () => {
     expect(await runAgentsCli(['session-quality', 'sess-cli'], env)).toBe(1);
   });
 
-  it('treats weak context as advisory in client mode but strict in harness mode', async () => {
+  it('keeps weak context advisory in both client and harness report modes', async () => {
     const store = new ContextSessionStore({ repoRoot });
     const result = {
       scope: 'query:noisy',
@@ -242,7 +242,7 @@ describe('runAgentsCli', () => {
     expect(clientOut.policy).toMatchObject({ mode: 'client', maxRecoveryAttempts: 2 });
     expect(clientOut.warnings.join(' ')).toContain('client advisory mode');
 
-    expect(await runAgentsCli(['session-quality', 'sess-weak-cli', '--mode', 'harness'], env)).toBe(1);
+    expect(await runAgentsCli(['session-quality', 'sess-weak-cli', '--mode', 'harness'], env)).toBe(0);
   });
 
   it('rejects unknown subcommands via the default branch, naming the command', async () => {

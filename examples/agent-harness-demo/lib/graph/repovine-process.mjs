@@ -264,10 +264,12 @@ export async function runOrientPhase({
     trail.graphNodes.length
       ? `- graphNodes: ${trail.graphNodes.slice(0, 12).join(', ')}${trail.graphNodes.length > 12 ? ' …' : ''}`
       : '- graphNodes: (none)',
-    // Continuation runs are session-quality gated (harness mode): anchor-first
-    // navigation is what passes it — resolved inspects, not broad OR searches.
+    // Anchor-first navigation is what the orient payload buys: resolved inspects,
+    // not broad OR searches. The context-session score is advisory in every mode;
+    // the harness-mode check that does hard-fail — annotation provenance — reads
+    // the same session anchors.
     trail.graphNodes.length
-      ? '- ANCHOR FIRST: inspect_node the graphNodes above for your layer BEFORE any free-text search_context; a broad OR-relaxed search without a narrowed follow-up scores poorly and can fail the context-session gate.'
+      ? '- ANCHOR FIRST: inspect_node the graphNodes above for your layer BEFORE any free-text search_context; a broad OR-relaxed search without a narrowed follow-up scores poorly and is reported as a rejected handoff.'
       : '',
     claims.length ? `- claims: ${claims.map((c) => c.text).join('; ')}` : '',
   ].filter(Boolean).join('\n');

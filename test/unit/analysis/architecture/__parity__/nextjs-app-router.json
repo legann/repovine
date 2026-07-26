@@ -1,13 +1,13 @@
 {
   "scope": "all",
-  "totalFindings": 2,
-  "returnedFindings": 2,
+  "totalFindings": 3,
+  "returnedFindings": 3,
   "summary": {
     "duplicate-like": 0,
     "boundary": 0,
     "god-module": 0,
     "god-domain": 0,
-    "low-cohesion": 0,
+    "low-cohesion": 1,
     "client-business-logic": 0,
     "flow-convergence": 0,
     "state-fragmentation": 0,
@@ -66,6 +66,31 @@
         "No mutation/runtime side-effect hint detected"
       ],
       "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "low-cohesion:domain:routing",
+      "category": "low-cohesion",
+      "confidence": 0.61,
+      "severity": "low",
+      "impact": "medium",
+      "title": "Domain has weak internal coupling compared with external dependencies",
+      "nodes": [
+        "domain:routing",
+        "mod:nextjs-app-router-fixture/app/api/posts/route",
+        "mod:nextjs-app-router-fixture/app/api/users/route",
+        "mod:nextjs-app-router-fixture/app/page",
+        "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
+        "mod:nextjs-app-router-fixture/app/blog/[slug]/page",
+        "mod:nextjs-app-router-fixture/app/dashboard/page",
+        "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+        "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page"
+      ],
+      "evidence": [
+        "8 module(s) in domain",
+        "0 internal import(s), 1 external import(s)",
+        "A low internal-to-external ratio can mean the domain label is too broad or mostly technical."
+      ],
+      "suggestion": "Review annotations for common invariants; if they are thin or unrelated, split the domain or retag modules more narrowly."
     }
   ]
 }

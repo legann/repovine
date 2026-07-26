@@ -20,7 +20,7 @@
       "domain:myapp",
       "domain:router",
       "domain:home",
-      "domain:health-py",
+      "domain:health",
       "domain:web",
       "domain:routing"
     ],
@@ -47,10 +47,10 @@
   },
   "nodes": [
     {
-      "id": "domain:health-py",
+      "id": "domain:health",
       "type": "domain",
-      "label": "health-py",
-      "description": "Domain: health-py",
+      "label": "health",
+      "description": "Domain: health",
       "data": {
         "weight": "lightweight",
         "tier": "technical"
@@ -276,11 +276,11 @@
   ],
   "links": [
     {
-      "id": "domain:health-py",
+      "id": "domain:health",
       "links": [],
       "children": [],
       "view": {
-        "id": "domain:health-py",
+        "id": "domain:health",
         "level": 1,
         "drill_down": [],
         "links": []
@@ -416,7 +416,7 @@
           "tagSource": "path"
         },
         {
-          "to": "domain:health-py",
+          "to": "domain:health",
           "kind": "tagged",
           "tagSource": "path"
         }
@@ -439,7 +439,7 @@
             "kind": "tagged"
           },
           {
-            "to": "domain:health-py",
+            "to": "domain:health",
             "kind": "tagged"
           }
         ],

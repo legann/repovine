@@ -122,17 +122,38 @@ describe('file-based routes', () => {
     });
   });
 
-  it('detects Next.js App Router framework slots needed for MCP parity', () => {
+  it('emits one Next.js route handler entry per exported HTTP method', () => {
+    const sf = makeSf(
+      `export async function GET() {}\nexport const POST = async () => {};`,
+      '/virtual/app/api/users/route.ts',
+    );
+    const h = collectSemanticHints(sf, 'app/api/users/route.ts');
+    expect(h?.routes).toEqual([
+      {
+        path: '/api/users',
+        component: '(file-route)',
+        source: 'file',
+        kind: 'api',
+        method: 'GET',
+        framework: 'nextjs-app',
+        fileType: 'route',
+      },
+      {
+        path: '/api/users',
+        component: '(file-route)',
+        source: 'file',
+        kind: 'api',
+        method: 'POST',
+        framework: 'nextjs-app',
+        fileType: 'route',
+      },
+    ]);
+  });
+
+  it('does not expose Next.js App Router support slots as public routes', () => {
     const sf = makeSf(`export default function Layout() { return null; }`, '/virtual/app/users/layout.tsx');
     const h = collectSemanticHints(sf, 'app/users/layout.tsx');
-    expect(h?.routes).toContainEqual({
-      path: '/users',
-      component: '(file-route)',
-      source: 'file',
-      kind: 'frontend',
-      framework: 'nextjs-app',
-      fileType: 'layout',
-    });
+    expect(h?.routes ?? []).toEqual([]);
   });
 
   it('detects Next.js App Router routes in monorepo packages', () => {
@@ -265,9 +286,76 @@ describe('file-based routes', () => {
       component: '(file-route)',
       source: 'file',
       kind: 'api',
+      method: 'GET',
       framework: 'sveltekit',
       fileType: 'server',
     });
+  });
+
+  it('only exposes SvelteKit +page.svelte as a page route', () => {
+    const page = collectSemanticHints(
+      makeSf(`export default class Page {}`, '/virtual/src/routes/dashboard/+page.svelte.ts'),
+      'src/routes/dashboard/+page.svelte',
+    );
+    const load = collectSemanticHints(
+      makeSf(`export const load = () => ({});`, '/virtual/src/routes/dashboard/+page.ts'),
+      'src/routes/dashboard/+page.ts',
+    );
+    expect(page?.routes).toEqual([{
+      path: '/dashboard',
+      component: '(file-route)',
+      source: 'file',
+      kind: 'frontend',
+      framework: 'sveltekit',
+      fileType: 'page',
+    }]);
+    expect(load?.routes ?? []).toEqual([]);
+  });
+
+  it('strips a Nuxt method suffix from the URL and preserves the method', () => {
+    const h = collectSemanticHints(
+      makeSf(`export default defineEventHandler(() => ({}));`, '/virtual/server/api/users/[id].get.ts'),
+      'server/api/users/[id].get.ts',
+    );
+    expect(h?.routes).toEqual([{
+      path: '/api/users/[id]',
+      component: '(file-route)',
+      source: 'file',
+      kind: 'api',
+      method: 'GET',
+      framework: 'nuxt',
+      fileType: 'server-api',
+    }]);
+  });
+
+  // `src/server/api.ts` is an ordinary Express/Nest module, not a Nuxt route: the segment tail after
+  // `server/api` is empty. The suffix-stripping branch reads that tail's last element, so an empty
+  // tail must return before it, not index into nothing.
+  it('treats a bare server/api module as no route rather than throwing', () => {
+    const h = collectSemanticHints(
+      makeSf(`export function createServer() { return null; }`, '/virtual/src/server/api.ts'),
+      'src/server/api.ts',
+    );
+    expect(h?.routes ?? []).toEqual([]);
+  });
+
+  it('does not expose a TanStack root layout as a public route', () => {
+    const h = collectSemanticHints(makeSf(`
+      import { createRootRoute, createRoute } from '@tanstack/react-router';
+      const rootRoute = createRootRoute({ component: RootLayout });
+      export const settingsRoute = createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/settings',
+        component: SettingsPage,
+      });
+    `));
+    expect(h?.routes).toEqual([{
+      path: '/settings',
+      component: 'SettingsPage',
+      source: 'ast',
+      kind: 'frontend',
+      framework: 'tanstack-router',
+    }]);
   });
 });
 

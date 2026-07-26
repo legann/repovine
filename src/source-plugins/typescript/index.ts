@@ -8,6 +8,7 @@ import type {
 import { defineSourcePlugin, resolveDottedPathHandlerToModule } from '@repovine/plugin-sdk';
 import type { PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import { discoverTypeScript } from './discover.js';
+import { SFC_EXTENSIONS } from './sfc-extractor.js';
 import { loadExtractModule } from './lazy-extract.js';
 
 /**
@@ -76,7 +77,9 @@ const typescriptSourcePlugin = defineSourcePlugin({
   // Owns TS/JS extensions and produces frontend surfaces (file-based routes, SFC/UI components).
   // Same constant feeds fileMatch so the two lists cannot drift.
   capabilities: {
-    extensions: TYPESCRIPT_SOURCE_EXTENSIONS,
+    // SFC extensions belong here, not in `fileMatch`: discovery reaches `.vue`/`.svelte` through
+    // its own SFC walk, while core extension queries must still recognize them as owned.
+    extensions: [...TYPESCRIPT_SOURCE_EXTENSIONS, ...SFC_EXTENSIONS],
     uiSurfaces: true,
     resolveHandlerToModule: resolveDottedPathHandlerToModule,
     // `.d.ts` is listed alongside the source extensions because the engine strips longest-first:

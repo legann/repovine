@@ -102,7 +102,10 @@ function topologyProjection(graph: RepositoryGraph): Record<string, unknown> {
     dataFlows: result.dataFlows ?? [],
     services: (result.services as Array<Record<string, unknown>>).map(service => ({
       label: service.label,
+      // `handler` is the IaC declaration; `handlerModules` is what the infra edge resolved to.
+      // The infra edge witnesses the second, so both belong in the ablation projection.
       handler: service.handler,
+      handlerModules: service.handlerModules ?? [],
       publishes: service.publishes ?? [],
       routesTo: service.routesTo ?? [],
       routedFrom: service.routedFrom ?? [],
@@ -224,7 +227,7 @@ function templateCompositionGraph(): RepositoryGraph {
 type ConsumerWitness = (() => void) | 'carveout';
 
 /**
- * D6 consumer registry: every EdgeKind is either witnessed by an ablation/differential check or an
+ * Consumer registry: every EdgeKind is either witnessed by an ablation/differential check or an
  * explicit structural `carveout`. The `Record<EdgeKind, …>` type documents that intent and flags a
  * missing kind in the IDE, but it is NOT the enforced gate — test files are excluded from tsconfig
  * and transpiled with isolatedModules, so type errors here never fail CI. The enforced gate is the

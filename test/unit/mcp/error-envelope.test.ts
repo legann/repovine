@@ -64,10 +64,52 @@ describe('a settled build does not advise waiting for it to settle', () => {
   });
 
   it('keeps a running build informational so retry logic does not spin', () => {
-    const payload = notReadyResponse(status({ pct: 40, retryAfterSec: 5 }));
+    const payload = notReadyResponse(status({
+      pct: 40,
+      stageEtaSec: 12,
+      remainingStages: 2,
+      retryAfterSec: 5,
+    }));
 
     expect(flag(payload)).toBeUndefined();
     expect(payload.next_action).toEqual(expect.stringContaining('get_build_status'));
     expect(payload.retry_after_sec).toBe(5);
+    expect(payload.stage_eta_sec).toBe(12);
+    expect(payload.remaining_stages).toBe(2);
+    expect(payload).not.toHaveProperty('eta_sec');
+  });
+});
+
+// The attention block is capped and hoisted for primacy, so items that do not fit are the ones a
+// reader would otherwise never learn exist. The cap stays; the silence does not.
+describe('attention truncation is disclosed', () => {
+  const item = (id: string) => ({ nodeId: id, note: `check ${id}`, next: { tool: 'inspect_node', args: { nodeId: id } } });
+
+  it('reports shown/total when the block is capped', () => {
+    const result = envelope('all', 'Inspected x', { ok: true }, {
+      attention: [item('a'), item('b'), item('c'), item('d'), item('e')],
+    }) as Record<string, unknown>;
+
+    expect((result.attention as unknown[]).length).toBe(3);
+    expect(result.attentionTruncated).toEqual({
+      shown: 3,
+      total: 5,
+      hint: expect.stringContaining('omitted'),
+    });
+  });
+
+  it('says nothing when every item fits', () => {
+    const result = envelope('all', 'Inspected x', { ok: true }, {
+      attention: [item('a'), item('b')],
+    }) as Record<string, unknown>;
+
+    expect((result.attention as unknown[]).length).toBe(2);
+    expect(result).not.toHaveProperty('attentionTruncated');
+  });
+
+  it('says nothing when there is no attention block at all', () => {
+    const result = envelope('all', 'Inspected x', { ok: true }) as Record<string, unknown>;
+    expect(result).not.toHaveProperty('attention');
+    expect(result).not.toHaveProperty('attentionTruncated');
   });
 });

@@ -47,10 +47,15 @@ function assert(name, cond) {
 }
 
 const root = process.cwd();
-console.log(`check-embedder: transformers@${transformersVersion(root)} (workspace ${root})`);
+const runtimeVersion = transformersVersion(root);
+console.log(`check-embedder: transformers@${runtimeVersion} (workspace ${root})`);
 
 const embedder = createEmbedder(true, root);
 assert('createEmbedder returns an embedder', embedder !== null);
+assert(
+  'embedder cache id includes transformers runtime and dtype',
+  embedder?.id.includes(`transformers@${runtimeVersion};dtype=fp32`),
+);
 
 // First embed downloads the model and loads it into ORT. On Windows a freshly
 // written model file can be held by the AV/indexer for a moment (ort surfaces

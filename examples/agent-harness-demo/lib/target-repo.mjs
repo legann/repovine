@@ -61,8 +61,10 @@ const ANNOTATIONS_STUB = '{"version":1,"annotations":{}}\n';
 // navigation funnel is legitimately thin (observed review/verify at 0.366/0.387
 // vs the 0.40 default — retries cost money, added no quality). Implement
 // sub-agents receive the contract ledger + orient section (observed honest
-// deliverers at 0.318–0.549 vs the 0.55 engine default); the hard gate keeps
-// catastrophic sessions out, the default bar stays as the warning. byteBudget
+// deliverers at 0.318–0.549 vs the 0.55 engine default). Both bars are advisory:
+// threshold derives acceptHandoff, warningThreshold derives belowWarningThreshold,
+// and compliance reports both as warnings — the score never fails a sub-agent.
+// byteBudget
 // raised over engine defaults (80k/120k/100k): a rejected subAgent's session is
 // retained for retry recovery, so BYTES ACCUMULATE across attempts — budgets
 // must absorb ~2 attempts (observed: orient 141k over 2 attempts, frontend 118k).

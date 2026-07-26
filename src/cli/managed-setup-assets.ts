@@ -4,8 +4,8 @@
  * Lists the files `repovine setup` would write per client and the exact content
  * each path should carry. Doctor compares on-disk files against this manifest.
  *
- * Cursor and Codex both project skills to `.agents/skills/`; `setup all` writes
- * in client order (cursor → claude → codex), so later clients win on conflicts.
+ * Cursor and Codex both project byte-identical skills to `.agents/skills/`;
+ * collapsing duplicate paths is therefore independent of setup order.
  */
 import fs from 'node:fs';
 import path from 'node:path';

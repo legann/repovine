@@ -411,7 +411,7 @@ describe('applyInvestigateTags — integrationPoints carriers', () => {
       }),
     );
     expect(view.investigatePointers).toEqual([
-      { id: 'mod:deep', investigate: ['risk'], via: 'integrationPoints', hops: 1 },
+      { id: 'mod:deep', investigate: ['risk'], via: 'integrationPoints' },
     ]);
   });
 

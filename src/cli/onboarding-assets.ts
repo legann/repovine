@@ -515,7 +515,7 @@ First, confirm the MCP graph is ready:
 get_build_status({})
 ~~~
 
-If \`status:"building"\` or \`"pending"\`, do not call \`refresh_context\` — the graph is already being built. Report the current stage / ETA from the response and ask the user to wait.
+If \`status:"building"\` or \`"pending"\`, do not call \`refresh_context\` — the graph is already being built. Call \`get_build_status({ "waitSec": 45 })\` once to long-poll. If it still returns building, report \`stage\`, \`remainingStages\`, \`pct\`, \`donePackages\`/\`totalPackages\`, and \`stageEtaSec\` (current stage only), then stop. Do not infer time until ready from the stage ETA or use ETA thresholds to decide whether to wait.
 
 If \`status:"ready"\`, call \`refresh_context\`:
 
@@ -546,7 +546,7 @@ When \`refresh_context\` returns \`domainsSuggestions.count > 0\`, the domains a
 1. Call \`suggest_domains_config({})\` (read-only): it returns the additions, a \`mergedConfig\` preview (accept = exclude), and a \`keepConfig\` preview when keepable (keep = committed \`infra.keep\` marker).
 2. Show the diff to the user and get approval.
 3. On approval, write the chosen preview to \`repovine.domains.json\`, then \`refresh_context({})\` to pick it up.
-4. To dismiss instead, call \`decline_advisory({ "kind": "domains-config", "ids": [...] })\` (or \`"all": true\`); declined ids persist in \`.repovine/onboarding-state.json\` and stop resurfacing.
+4. To dismiss instead, call \`decline_advisory({ "kind": "domains-config", "ids": ["suggestion-id"] })\` (or \`"all": true\`); declined ids persist in \`.repovine/onboarding-state.json\` and stop resurfacing.
 
 ## When to use
 
@@ -559,7 +559,7 @@ When \`refresh_context\` returns \`domainsSuggestions.count > 0\`, the domains a
 
 ## Large repositories
 
-If the first MCP call on a large repo returns \`status:"building"\`, wait with one long-poll call — \`get_build_status({ "waitSec": 45 })\` returns the moment the build settles — instead of polling. On a large ETA, tell the user they can pre-build the graph synchronously with the CLI: \`repovine build\`, or just re-run \`repovine setup\` (it builds by default). This warms the snapshot cache so MCP startup is near-instant on subsequent sessions.
+If the first MCP call on a large repo returns \`status:"building"\`, wait with one long-poll call — \`get_build_status({ "waitSec": 45 })\` returns the moment the build settles — instead of polling. If it still returns building, report the current stage and remaining stage count; \`stageEtaSec\` covers only the current stage. Tell the user they can pre-build the graph synchronously with the CLI: \`repovine build\`, or just re-run \`repovine setup\` (it builds by default). This warms the snapshot cache so MCP startup is near-instant on subsequent sessions.
 
 To abandon a cold build, call \`get_build_status({ "cancel": true })\`. It terminates Stage 1 worker threads at the next package boundary. With no prior graph the server ends in \`status:"cancelled"\` (bare tree) and tools return a cancelled payload; a later \`refresh_context\` starts a fresh build. With a prior \`ready\` graph, cancel keeps serving it.
 `,
@@ -580,7 +580,7 @@ Display repovine status across the graph lifecycle, syntax index, and annotation
 get_build_status({})
 ~~~
 
-If the response is \`status:"building"\` or \`status:"pending"\`, the graph is still being built. Report the current stage, \`pct\`, \`donePackages\`/\`totalPackages\`, and \`etaSec\`, then stop — the calls below need a ready graph and will themselves return a not-ready payload (\`status:"building"\` or \`"pending"\`). Recommend the user wait, or pre-build with \`repovine build\` next time. To abandon the build, call \`get_build_status({ "cancel": true })\`: it stops Stage 1 workers and returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
+If the response is \`status:"building"\` or \`status:"pending"\`, the graph is still being built. Call \`get_build_status({ "waitSec": 45 })\` once to long-poll. If it still returns building, report the current \`stage\`, \`remainingStages\`, \`pct\`, \`donePackages\`/\`totalPackages\`, and \`stageEtaSec\` (current stage only), then stop — the calls below need a ready graph and will themselves return a not-ready payload (\`status:"building"\` or \`"pending"\`). Do not infer time until ready from the stage ETA or use ETA thresholds to decide whether to wait. Recommend the user wait, or pre-build with \`repovine build\` next time. To abandon the build, call \`get_build_status({ "cancel": true })\`: it stops Stage 1 workers and returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
 
 \`status:"cancelled"\` means a cancel left no graph; tools return a cancelled payload, not an error. Trigger a rebuild with \`refresh_context\`, or run \`repovine build\` and restart the server.
 
@@ -641,14 +641,7 @@ export const PROJECT_SUBAGENT_SCAFFOLD_PATHS = [
   '.codex/agents/_TEMPLATE.project-subagent.toml',
 ] as const;
 
-/** Shared main-agent orchestration (Cursor rule + AGENTS.md for Claude/Codex). */
-export const SUBAGENT_ORCHESTRATION_CORE = `You are the **main agent**. Project leaf subagents live in client agent dirs:
-
-- Cursor: \`.cursor/agents/*.md\` (\`@${DEFAULT_PROJECT_SUBAGENT_NAME}\`)
-- Claude Code: \`.claude/agents/*.md\` (\`@${DEFAULT_PROJECT_SUBAGENT_NAME}\` or "Use the ${DEFAULT_PROJECT_SUBAGENT_NAME} subagent")
-- Codex: \`.codex/agents/*.toml\` (delegate by \`name\`)
-
-The default implementer after \`repovine setup\` is **${DEFAULT_PROJECT_SUBAGENT_NAME}**. Specialist agents are repo-owned copies of \`_TEMPLATE.project-subagent.*\`. Agent identity comes from frontmatter/TOML \`name\`, not filename.
+const SUBAGENT_ORCHESTRATION_POLICY = `The default implementer after \`repovine setup\` is **${DEFAULT_PROJECT_SUBAGENT_NAME}**. Specialist agents are repo-owned copies of \`_TEMPLATE.project-subagent.*\`. Agent identity comes from frontmatter/TOML \`name\`, not filename.
 
 Delegation policy:
 
@@ -661,27 +654,35 @@ Delegation policy:
 
 Handoffs must include scope, acceptance criteria, contracts, prior handoff context, files/nodes touched, tests, and blockers. Run \`refresh_context\` between dependent phases after graph-relevant edits. After feature work, use \`repovine-workflow\` for post-edit verification or \`repovine-review\` for read-only review, then \`repovine-annotations\` in touched scope — ${ANNOTATION_HARD_THEN_DERIVED}`;
 
+/** Shared main-agent orchestration rendered into Cursor's native rule. */
+export const SUBAGENT_ORCHESTRATION_CORE = `You are the **main agent**. Project leaf subagents live in client agent dirs:
+
+- Cursor: \`.cursor/agents/*.md\` (\`@${DEFAULT_PROJECT_SUBAGENT_NAME}\`)
+- Claude Code: \`.claude/agents/*.md\` (\`@${DEFAULT_PROJECT_SUBAGENT_NAME}\` or "Use the ${DEFAULT_PROJECT_SUBAGENT_NAME} subagent")
+- Codex: \`.codex/agents/*.toml\` (delegate by \`name\`)
+
+${SUBAGENT_ORCHESTRATION_POLICY}`;
+
 const WORKFLOW_SKILL_DESCRIPTION = 'Main-agent implementation playbook: scope repo changes with repovine, choose the risk axis, verify after edits; delegation policy lives in the client-native orchestration policy';
 
-// Claude/Codex share one always-on file (AGENTS.md) that stays thin and usually
-// pre-exists, so the main-agent delegation policy rides in the pull-based
-// workflow skill instead of bloating AGENTS.md. Cursor carries the same policy
-// in an always-on rule (`repovine-subagent-orchestration`, below).
+// Cursor and Codex share `.agents/skills`, so every skill written there must be
+// byte-identical for both clients. Client-specific orchestration lives in the
+// always-on instruction surface instead: Cursor rules or AGENTS.md.
 const MAIN_AGENT_ORCHESTRATION_BRIDGE = `## Relationship to Subagent Orchestration
 
 This workflow scopes a repo change and verifies it after edits. Main-agent delegation policy:
 
 ${SUBAGENT_ORCHESTRATION_CORE}`;
 
-const CODEX_WORKFLOW_ORCHESTRATION_BRIDGE = MAIN_AGENT_ORCHESTRATION_BRIDGE;
-
 const CLAUDE_WORKFLOW_ORCHESTRATION_BRIDGE = MAIN_AGENT_ORCHESTRATION_BRIDGE;
 
-const CURSOR_SKILL_WORKFLOW_ORCHESTRATION_BRIDGE = `## Relationship to Subagent Orchestration
+const SHARED_WORKFLOW_ORCHESTRATION_BRIDGE = `## Relationship to Subagent Orchestration
 
 This workflow scopes a repo change and verifies it after edits.
 
-For Cursor delegation rules, follow \`.cursor/rules/repovine-subagent-orchestration.mdc\`.`;
+You are the **main agent**. Use the active client's native agent surface for delegation.
+
+${SUBAGENT_ORCHESTRATION_POLICY}`;
 
 const CURSOR_WORKFLOW_ORCHESTRATION_BRIDGE = `## Relationship to Subagent Orchestration
 
@@ -752,12 +753,12 @@ Use \`get_config_surface\` for env/config changes and \`trace_flow\` for runtime
 6. Treat architecture reports as review candidates:
 
 \`\`\`json
-analyze_architecture({ "scope": "pkg:package-name", "mode": "report", "categories": ["boundary", "god-module"], "minConfidence": 0.6, "annotationReasoning": "on", "limit": 12 })
-analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"], "minConfidence": 0.6 })
+analyze_architecture({ "scope": "pkg:package-name", "mode": "report", "categories": ["boundary", "god-module"], "annotationReasoning": "on", "limit": 12 })
+analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"] })
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id", "maxNodes": 30 })
 \`\`\`
 
-Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise before \`minConfidence\` post-filtering (apply with \`refresh_context({ "reloadConfig": true })\`).
+Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise (apply with \`refresh_context({ "reloadConfig": true })\`).
 
 7. Prefer local project skills when present:
 
@@ -841,7 +842,7 @@ ${MCP_RESPONSE_FORMAT_GUIDANCE}
 
 If the call fails with a connection error, the MCP server is not running. Tell the user and do not fall back to blind file reading.
 
-If the response is a successful payload with \`status:"building"\` (not an error), the MCP server is up but the graph is still being built. Call \`get_build_status({ "waitSec": 45 })\` to long-poll instead of repeated calls; respect \`retry_after_sec\` between any retries, and when \`eta_sec >= 60\` tell the user the graph is still building (with the ETA) and fall back to direct file reads for this turn instead of polling. \`get_build_status({ "cancel": true })\` abandons a cold build; it returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
+If the response is a successful payload with \`status:"building"\` (not an error), the MCP server is up but the graph is still being built. \`stage_eta_sec\` estimates only the current stage, not time until ready. Call \`get_build_status({ "waitSec": 45 })\` once to long-poll instead of repeated calls; respect \`retry_after_sec\`. If the long-poll still returns building, report \`stage\` and \`remaining_stages\`, then fall back to direct file reads for this turn when the task can proceed without graph structure. \`get_build_status({ "cancel": true })\` abandons a cold build; it returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
 
 When a tool returns no items, check \`result.emptyDiagnostic\` before retrying. It distinguishes an empty graph from a bad scope, a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
 
@@ -939,11 +940,11 @@ When the user asks for smells, refactoring candidates, duplicated responsibiliti
 
 \`\`\`json
 analyze_architecture({ "scope": "pkg:package-name", "categories": ["boundary", "god-module"], "limit": 12 })
-analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"], "minConfidence": 0.6 })
+analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-config-boundary", "trust-boundary-validation", "server-client-boundary"] })
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id" })
 \`\`\`
 
-Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise before \`minConfidence\` post-filtering (apply with \`refresh_context({ "reloadConfig": true })\`).
+Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise (apply with \`refresh_context({ "reloadConfig": true })\`).
 
 ${CURSOR_WORKFLOW_ORCHESTRATION_BRIDGE}
 `,
@@ -1288,7 +1289,7 @@ export const SHARED_SKILLS: OnboardingAsset[] = [
   {
     name: 'repovine-workflow',
     description: WORKFLOW_SKILL_DESCRIPTION,
-    body: renderWorkflowSkillBody(CODEX_WORKFLOW_ORCHESTRATION_BRIDGE),
+    body: renderWorkflowSkillBody(SHARED_WORKFLOW_ORCHESTRATION_BRIDGE),
   },
   {
     name: 'repovine-review',
@@ -1389,7 +1390,6 @@ analyze_architecture({
   "scope": "pkg:package-name",
   "mode": "report",
   "categories": ["boundary", "god-module"],
-  "minConfidence": 0.6,
   "annotationReasoning": "on",
   "limit": 12
 })
@@ -1470,7 +1470,7 @@ Lead with findings, ordered by severity, with file/line or graph node references
 - whether the review was delegated to \`repovine-code-reviewer\`
 - whether an architecture audit was delegated to \`repovine-architecture-auditor\`
 
-Never claim review completeness; report what was checked and what remains uncertain. Do not present \`analyze_architecture\` findings as proof; say what was verified and what remains a hypothesis. \`minConfidence\` is a post-filter. Detector behavior is configured by \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\`.
+Never claim review completeness; report what was checked and what remains uncertain. Do not present \`analyze_architecture\` findings as proof; say what was verified and what remains a hypothesis. Detector behavior is configured by \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\`.
 `,
   },
 ];
@@ -1492,10 +1492,7 @@ export const CLAUDE_SHARED_SKILLS: OnboardingAsset[] = withWorkflowSkillBridge(
   SHARED_SKILLS,
   CLAUDE_WORKFLOW_ORCHESTRATION_BRIDGE,
 );
-export const CURSOR_SHARED_SKILLS: OnboardingAsset[] = withWorkflowSkillBridge(
-  SHARED_SKILLS,
-  CURSOR_SKILL_WORKFLOW_ORCHESTRATION_BRIDGE,
-);
+export const CURSOR_SHARED_SKILLS: OnboardingAsset[] = SHARED_SKILLS;
 
 // -----------------------------------------------------------------------------
 // Project subagent scaffold (create-if-missing on init)

@@ -163,7 +163,8 @@ function pythonApiLayerKey(moduleId: string, path: string, method: string): stri
 }
 
 function fileApiLayerKey(route: FileBasedRoute): string {
-  return `file-api:entrypoint:file:${route.moduleId}:${route.path}:${route.fileType}`;
+  const methodSuffix = route.method ? `:${route.method}` : '';
+  return `file-api:entrypoint:file:${route.moduleId}:${route.path}:${route.fileType}${methodSuffix}`;
 }
 
 function filePageLayerKey(route: FileBasedRoute): string {
