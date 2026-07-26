@@ -358,7 +358,7 @@ const baseToolDefs: ToolDef[] = [
       + 'reports the same block for the first build. '
       + 'Pass reloadConfig: true after editing repovine.config.json to re-read config and rebuild with a fresh runtime; '
       + 'pass cleanupOrphans: true to remove orphaned annotations after rebuild. '
-      + 'After get_build_status({ cancel: true }) left the server in status:"cancelled" (no graph), refresh_context re-triggers a fresh background build and returns the building status.',
+      + 'After get_build_status({ cancel: true }) left the server in result.status:"cancelled" (no graph), refresh_context re-triggers a fresh background build and returns the building status.',
     schema: z.object({
       reloadConfig: z
         .boolean()
@@ -420,7 +420,7 @@ const baseToolDefs: ToolDef[] = [
   {
     name: 'get_build_status',
     description:
-      'Report the current build status of the repository graph. Use when other tools return a `result.status:"building"` payload to discover the current stage, remaining stage count, progress, and recommended retry delay. stageEtaSec estimates only the current stage, not time until ready. Stage 1 reports package/module counts; stage 3 reports semantic search embed card counts when `semantic_search_embeddings` is enabled. Always callable; returns immediately by default. Pass waitSec to long-poll: the call holds server-side and returns the moment the build settles (ready or failed) or the wait expires — one waiting call instead of a polling loop. Pass cancel:true to stop an in-flight startup build (mutating): Stage 1 worker threads terminate at the next package boundary and the response is the post-cancel status — `cancelled` (bare tree, no graph; tools then return a cancelled payload, not an error) when no prior graph exists, or `ready` when a prior graph keeps serving. cancel ignores waitSec and is a no-op returning the current status when no build is running.',
+      'Report the current build status of the repository graph. Use when other tools return a `result.status:"building"` payload to discover the current stage, remaining stage count, progress, and recommended retry delay. stageEtaSec estimates only the current stage, not time until ready. Stage 1 reports package/module counts; stage 3 reports semantic search embed card counts when `semantic_search_embeddings` is enabled. Always callable; returns immediately by default. Pass waitSec to long-poll: the call holds server-side and returns the moment the build settles (ready or failed) or the wait expires — one waiting call instead of a polling loop. Pass cancel:true to stop an in-flight startup build (mutating): Stage 1 worker threads terminate at the next package boundary and the response is the post-cancel status — `cancelled` (bare tree, no graph; other tools then report an error with the recovery action, since a settled build is not something to wait for) when no prior graph exists, or `ready` when a prior graph keeps serving. get_build_status itself answers normally in every state — reporting a failed build is an answered question. cancel ignores waitSec and is a no-op returning the current status when no build is running.',
     schema: z.object({
       waitSec: z
         .number()
