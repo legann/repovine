@@ -422,8 +422,8 @@ monorepos. The MCP server
 connects its transport **before** building, so tools return `status:"building"`
 while loading and `get_build_status` stays callable — with `waitSec` it long-polls,
 returning the moment the build settles instead of forcing a polling loop.
-`stage_eta_sec` is deliberately only the current-stage estimate; `stage` and
-`remaining_stages` expose how much of the pipeline still follows it. `repovine setup`
+`stageEtaSec` is deliberately only the current-stage estimate; `stage` and
+`remainingStages` expose how much of the pipeline still follows it. `repovine setup`
 builds the graph by default (`--no-build` defers to first MCP start), so the cold
 window normally exists only after an upgrade invalidates the cache.
 
@@ -922,7 +922,7 @@ as listed.
 | 2 | Semantic fusion constants are fitted to one repository | cosine floor and RRF weights chosen in-sample over 25 queries from a single codebase; that corpus is not retained | the four constants live in `semantic/relevance.ts` and reach the ranker by import, so recalibrating the semantic half is a one-file edit; lexical token scores stay in `mcp/lib/search-graph.ts` |
 | 3 | Secret/public env classification is TypeScript-only | the Python producer fills `envVars` and framework hints; the `security` slot stays empty | a Python `os.getenv("DB_PASSWORD")` returns `kind: 'env'` and `get_config_surface({kind:'secret'})` omits it; `gaps` names only computed and aliased accesses, so the omission carries no signal |
 | 4 | Same logical id in two IaC templates collapses to one node | node identity is `provider:kind:logicalId`, plus namespace for k8s; the second declaration overwrites the node payload while `declaredIn` accumulates both paths | annotation freshness hashes the set of declarations, and reference resolution reads `declaredIn` to prefer a target the referencing document declares. The set stays internal: no MCP response emits it, the merge carries no `gap`, and a reference from either document sees one in-scope candidate and resolves. `ambiguous` is returned only for candidates that stayed separate nodes |
-| 5 | The CLI build-progress ETA extrapolates per package | package jobs span one module to the ~1600-module sharding threshold and the CLI weights every job equally, so early estimates on large monorepos are wrong by a similar factor | the MCP contract reports `stage_eta_sec` for the current stage only, and clients wait via one `get_build_status` long-poll rather than reading an ETA; the CLI progress line is display-only and stays wrong |
+| 5 | The CLI build-progress ETA extrapolates per package | package jobs span one module to the ~1600-module sharding threshold and the CLI weights every job equally, so early estimates on large monorepos are wrong by a similar factor | the MCP contract reports `stageEtaSec` for the current stage only, and clients wait via one `get_build_status` long-poll rather than reading an ETA; the CLI progress line is display-only and stays wrong |
 
 Rows 1 and 2 need a labelled corpus spanning several repositories before either
 number can move. Rows 3 to 5 are engineering, unblocked.

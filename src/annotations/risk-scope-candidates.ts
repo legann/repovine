@@ -1,7 +1,8 @@
 import type { RepositoryFactsSnapshot, RepositoryGraph, StoredAnnotation } from '../types.js';
 import { owningModuleId } from '../graph/node-ids.js';
 import { normalizeRisks } from './format.js';
-import { nodeInValidateScope, parseIntegrationPointTargets } from './carrier-links.js';
+import { parseIntegrationPointTargets } from './carrier-links.js';
+import { nodeInScopeHints } from './scope-hints.js';
 
 export type RiskScopeSuggestion = 'consumer' | 'boundary';
 
@@ -202,7 +203,7 @@ export function computeRiskScopeCandidates(input: {
 }): RiskScopeCandidatesPage {
   const candidates: RiskScopeCandidate[] = [];
   for (const [nodeId, annotation] of Object.entries(input.annotations).sort(([a], [b]) => a.localeCompare(b))) {
-    if (!nodeInValidateScope(nodeId, input.scopeHints)) continue;
+    if (!nodeInScopeHints(nodeId, input.scopeHints)) continue;
     const node = input.graph.nodes.get(nodeId);
     const nodeType = node && isCandidateNodeType(node.type) ? node.type : annotation.nodeType;
     if (!isCandidateNodeType(nodeType)) continue;

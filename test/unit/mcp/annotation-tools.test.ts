@@ -305,6 +305,34 @@ describe('annotation MCP tool contracts', () => {
     expect(counts.staleContent).toBe(1);
   });
 
+  it('write_annotation resolves the id its own envelope reports as resolved', async () => {
+    // The envelope resolved a repo path to a module while the write used a weaker ladder and
+    // answered "Node not found" for it — one response asserting both that the scope resolved and
+    // that the node does not exist.
+    const ctx = runtime(repoRoot, ['mod:app/svc'], AnnotationStore.createSync(repoRoot));
+
+    const response = envelope(await toolHandlers.write_annotation(ctx, {
+      nodeId: 'app/svc.ts',
+      annotation: { summary: 'Handles the service request path end to end.' },
+    }));
+
+    expect(response.resolvedScope).toMatchObject({ kind: 'module', id: 'mod:app/svc' });
+    expect(response.result.error).toBeUndefined();
+    expect(ctx.getState().annotations.get('mod:app/svc')).toBeDefined();
+  });
+
+  it('write_annotation reports an unresolvable id as unresolved in both places', async () => {
+    const ctx = runtime(repoRoot, ['mod:app/svc'], AnnotationStore.createSync(repoRoot));
+
+    const response = envelope(await toolHandlers.write_annotation(ctx, {
+      nodeId: 'app/missing.ts',
+      annotation: { summary: 'Handles the service request path end to end.' },
+    }));
+
+    expect(response.resolvedScope).not.toMatchObject({ kind: 'module' });
+    expect(response.result.error).toContain('Node not found');
+  });
+
   it('write_annotation rejects nested secret values with fieldPaths before persistence', async () => {
     const ctx = runtime(repoRoot, ['mod:billing/secrets'], AnnotationStore.createSync(repoRoot));
 

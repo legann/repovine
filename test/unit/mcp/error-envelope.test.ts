@@ -27,7 +27,7 @@ describe('every failure class reaches the client flagged', () => {
   it.each([
     ['a normal envelope', envelope('all', 'Found 2 matches', { matches: [1, 2] })],
     ['an envelope whose result is empty', envelope('all', 'Nothing to report', {})],
-    ['a progress payload', { status: 'building', stage: 'stage1', retry_after_sec: 5 }],
+    ['a progress payload', { status: 'building', stage: 'stage1', retryAfterSec: 5 }],
   ])('leaves %s unflagged', (_name, result) => {
     expect(flag(result)).toBeUndefined();
     expect(toolErrorMessage(result)).toBeUndefined();
@@ -41,6 +41,19 @@ describe('every failure class reaches the client flagged', () => {
 
     expect(out.isError).toBeUndefined();
     expect(out.content[0].text).toContain('responseTruncated');
+  });
+
+  it('keeps a failure flagged when it is withheld for size', () => {
+    // Failure is a property of the payload, not of its length. Deciding the flag after the size
+    // branch loses it exactly when the body is replaced by the truncation marker.
+    const bulky = envelopeError('all', 'Could not resolve node: x', {
+      candidates: Array.from({ length: 5_000 }, (_, i) => `mod:pkg/candidate-${i}`),
+    });
+    const out = toCallToolMcpResult(bulky, { ...RESPONSE, maxChars: 500 });
+
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toContain('responseTruncated');
+    expect(out.content[0].text).toContain('Could not resolve node: x');
   });
 });
 
@@ -72,11 +85,34 @@ describe('a settled build does not advise waiting for it to settle', () => {
     }));
 
     expect(flag(payload)).toBeUndefined();
-    expect(payload.next_action).toEqual(expect.stringContaining('get_build_status'));
-    expect(payload.retry_after_sec).toBe(5);
-    expect(payload.stage_eta_sec).toBe(12);
-    expect(payload.remaining_stages).toBe(2);
-    expect(payload).not.toHaveProperty('eta_sec');
+    expect(payload.nextAction).toEqual(expect.stringContaining('get_build_status'));
+    expect(payload.retryAfterSec).toBe(5);
+    expect(payload.stageEtaSec).toBe(12);
+    expect(payload.remainingStages).toBe(2);
+    expect(payload).not.toHaveProperty('etaSec');
+  });
+
+  it('names build progress the same way get_build_status does', () => {
+    // One build reported through two tools has to use one set of field names. Progress renamed the
+    // snapshot's fields to snake_case, so a caller that hit a building tool read `remaining_stages`
+    // while get_build_status answered `remainingStages` for the same build.
+    const snapshot = status({
+      doneModules: 10,
+      totalModules: 20,
+      donePackages: 1,
+      totalPackages: 4,
+      currentPackage: 'pkg:app',
+      doneSemanticCards: 3,
+      totalSemanticCards: 9,
+      pct: 40,
+      elapsedSec: 8,
+      stageEtaSec: 12,
+      remainingStages: 2,
+    });
+    const payload = notReadyResponse(snapshot);
+
+    expect(new Set(Object.keys(payload))).toEqual(new Set([...Object.keys(snapshot), 'nextAction']));
+    for (const key of Object.keys(payload)) expect(key).not.toMatch(/_/);
   });
 });
 

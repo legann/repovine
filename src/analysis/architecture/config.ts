@@ -374,3 +374,11 @@ export function resolveThresholds(file: RefactoringFileConfig | undefined): Refa
 
 /** The "normal" profile, exposed so other layers can reference defaults. */
 export const DEFAULT_THRESHOLDS: RefactoringThresholds = STRICTNESS_PROFILES.normal;
+
+/**
+ * Every tunable detector group, read off the profile that defines them. The config schema, the
+ * generated config template and the workspace-file reference all name this same set; deriving it
+ * here means adding a group in one place reaches all three.
+ */
+export const REFACTORING_THRESHOLD_GROUPS = Object.keys(DEFAULT_THRESHOLDS)
+  .sort() as Array<keyof RefactoringThresholds>;

@@ -81,7 +81,7 @@ const McpConfigSchema = z.object({
   response: McpResponseConfigSchema.optional(),
 });
 
-const AnalyzeArchitectureThresholdsSchema = z.object({
+export const AnalyzeArchitectureThresholdsSchema = z.object({
   duplicateLike: z.object({
     minGroupSize: z.number().int().min(1).optional(),
     minPackages: z.number().int().min(1).optional(),

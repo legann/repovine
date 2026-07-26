@@ -319,7 +319,7 @@ per-export prose inside that budget. During
 `repovine build`, `repovine setup` (builds by default), and MCP cold start, Stage 3 prints an in-place
 semantic search embed progress bar on TTY stderr
 (`[done/total] semantic search embeddings ████░░ …`) and `get_build_status`
-exposes `done_semantic_cards`, `total_semantic_cards`, and `pct` while search
+exposes `doneSemanticCards`, `totalSemanticCards`, and `pct` while search
 embeddings run.
 
 #### `annotations.propagation`

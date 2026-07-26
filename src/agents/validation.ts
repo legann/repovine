@@ -20,6 +20,7 @@ import type { AnnotationStore } from '../annotations/store.js';
 import { computeAnnotationQuality, isHardConsistencyIssue, isPropagationStaleItem, isContentStaleItem } from '../annotations/store.js';
 import { detectSideEffectKindsFromHints } from '../annotations/side-effect-vocab.js';
 import { inferModuleKind } from '../annotations/module-kind.js';
+import { nodeInScopeHints } from '../annotations/scope-hints.js';
 import { owningModuleId } from '../graph/node-ids.js';
 import { validateAnnotationHealth, buildAnnotationHealthScan } from '../annotations/maintenance.js';
 import type { AnnotationHealthScan } from '../annotations/store.js';
@@ -134,23 +135,6 @@ function scopeEntryCovered(entry: string, allowed: string[]): boolean {
 function collectScopeCollisions(entries: string[], allowed: string[]): string[] {
   if (allowed.length === 0) return [];
   return entries.filter(entry => !scopeEntryCovered(entry, allowed));
-}
-
-/**
- * Whether a graph node id falls under assignment scope hints for harness annotation
- * coverage. Scope hints may be repo paths (backend → mod:backend/… tail paths) or
- * graph kind prefixes (infra → infra:… nodes, domain:infra-… roll-ups).
- */
-export function nodeInAnnotationScope(nodeId: string, scopeHints: string[]): boolean {
-  if (scopeHints.length === 0 || scopeHints.includes('.')) return true;
-  return scopeHints.some((s) => {
-    if (nodeId.startsWith(`${s}:`)) return true;
-    const tail = nodeId.includes(':') ? nodeId.slice(nodeId.indexOf(':') + 1) : nodeId;
-    return tail === s
-      || tail.startsWith(`${s}/`)
-      || s.startsWith(`${tail}/`)
-      || tail.startsWith(`${s}-`);
-  });
 }
 
 function hasResolvedAnchors(value: unknown): value is AgentRunResult['contextPack'] {
@@ -509,7 +493,7 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
         );
       }
       const scopedPropagation = queue.filter(
-        (q) => isPropagationStaleItem(q) && nodeInAnnotationScope(q.nodeId, assignmentScope),
+        (q) => isPropagationStaleItem(q) && nodeInScopeHints(q.nodeId, assignmentScope),
       );
       if (scopedPropagation.length > 0) {
         errors.push(
@@ -543,7 +527,7 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
   }
 
   if (harnessStrict && implementPhase && assignmentScope.length && !assignmentScope.includes('.')) {
-    const inScope = (nodeId: string) => nodeInAnnotationScope(nodeId, assignmentScope);
+    const inScope = (nodeId: string) => nodeInScopeHints(nodeId, assignmentScope);
     const outOfScopeNeedsWork = queue.filter((q) => {
       if (inScope(q.nodeId)) return false;
       if (q.status === 'unannotated') return true;
@@ -564,7 +548,7 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
   // claims are still rejected above.
   if (harnessStrict && annotationPhase) {
     const scopeHints = assignment?.scope ?? result.scope ?? [];
-    const inScope = (nodeId: string): boolean => nodeInAnnotationScope(nodeId, scopeHints);
+    const inScope = (nodeId: string): boolean => nodeInScopeHints(nodeId, scopeHints);
     // Hard-fail on own-content drift (stale) and on unannotated CODE MODULES.
     // Derived-stale is an advisory upstream-review signal, so it should not force
     // bulk re-annotation unless a stricter assignment explicitly asks for it.

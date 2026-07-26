@@ -13,7 +13,7 @@ repository**. Honor all of the following on every card; cards do not repeat thes
   summary in the report.
 - **Build readiness first.** `get_build_status({ waitSec: 45, contextSessionId })`, then
   `refresh_context({ contextSessionId })`. If a tool returns `status:"building"`, do not retry in a
-  tight loop — long-poll `get_build_status({ waitSec })` and respect `retry_after_sec`. If
+  tight loop — long-poll `get_build_status({ waitSec })` and respect `retryAfterSec`. If
   `domainsSuggestions.count > 0`, call `suggest_domains_config({})` and **report** additions —
   never apply or decline.
 - **Discovery, not assumption.** Find anchors via `search_context` / `map_context`; record the

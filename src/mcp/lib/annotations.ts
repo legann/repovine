@@ -26,7 +26,8 @@ import { computeCarrierLinkGaps } from '../../annotations/carrier-links.js';
 import { carrierTargetRiskHash, readCarrierReviewFile, readValidSuppressedTargets } from '../../annotations/carrier-review.js';
 import { limitFrom, offsetFrom, DEFAULT_SEMANTIC_LIMIT } from '../response/pagination.js';
 import { outsideRepoReport } from './refresh-summary.js';
-import { resolveNodeId, type McpToolRuntime } from '../types.js';
+import { type McpToolRuntime } from '../types.js';
+import { resolveScope } from '../scope/resolve.js';
 import { writeBoundaryIndex } from '../boundary-index.js';
 import { hasBoundaryScopedRisk } from '../../annotations/format.js';
 
@@ -297,7 +298,7 @@ export function getPropagationSlice(ctx: McpToolRuntime, args: Record<string, un
   if (!from || typeof from !== 'string') {
     return { error: 'from (module node id) is required.' };
   }
-  const nodeId = resolveNodeId(graph, from);
+  const nodeId = resolveScope(ctx, from).nodeId;
   if (!nodeId) return { error: `Node not found: ${from}` };
 
   const preview = computePropagationPreview({
@@ -369,7 +370,9 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
       fieldPaths: submittedSecretFieldPaths.slice(0, 8),
     };
   }
-  const nodeId = resolveNodeId(graph, rawId);
+  // The same resolution the response envelope reports. A weaker ladder here answered
+  // `Node not found` for an id the envelope had already resolved, inside one response.
+  const nodeId = resolveScope(ctx, rawId).nodeId;
   if (!nodeId) return { error: `Node not found: ${rawId}` };
   const existing = annotations.get(nodeId);
   if (!existing && !('summary' in contentFields)) {

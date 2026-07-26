@@ -842,7 +842,7 @@ ${MCP_RESPONSE_FORMAT_GUIDANCE}
 
 If the call fails with a connection error, the MCP server is not running. Tell the user and do not fall back to blind file reading.
 
-If the response is a successful payload with \`status:"building"\` (not an error), the MCP server is up but the graph is still being built. \`stage_eta_sec\` estimates only the current stage, not time until ready. Call \`get_build_status({ "waitSec": 45 })\` once to long-poll instead of repeated calls; respect \`retry_after_sec\`. If the long-poll still returns building, report \`stage\` and \`remaining_stages\`, then fall back to direct file reads for this turn when the task can proceed without graph structure. \`get_build_status({ "cancel": true })\` abandons a cold build; it returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
+If the response is a successful payload with \`status:"building"\` (not an error), the MCP server is up but the graph is still being built. \`stageEtaSec\` estimates only the current stage, not time until ready. Call \`get_build_status({ "waitSec": 45 })\` once to long-poll instead of repeated calls; respect \`retryAfterSec\`. If the long-poll still returns building, report \`stage\` and \`remainingStages\`, then fall back to direct file reads for this turn when the task can proceed without graph structure. \`get_build_status({ "cancel": true })\` abandons a cold build; it returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
 
 When a tool returns no items, check \`result.emptyDiagnostic\` before retrying. It distinguishes an empty graph from a bad scope, a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
 

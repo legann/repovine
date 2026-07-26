@@ -297,8 +297,8 @@ function runSessionMcpHint(data) {
       'For any non-trivial task, START with repovine MCP tools search_context or map_context; do not grep or read files first. ' +
       'The MCP provides structure, annotations, entrypoints, dependency analysis, config surface, and flow tracing. ' +
       'After editing files, call repovine MCP tool refresh_context to refresh the syntax index before further structural navigation. ' +
-      'Build state: tool calls received before the graph finishes building return a successful response (not an error) with status:"building", stage, remaining_stages, and stage_eta_sec (current stage only); ' +
-      'do not retry in a loop — call get_build_status once with waitSec (e.g. { waitSec: 45 }), respect retry_after_sec, and if it still returns building report the stage/remaining stages and fall back to direct file reads when possible. ' +
+      'Build state: tool calls received before the graph finishes building return a successful response (not an error) with status:"building", stage, remainingStages, and stageEtaSec (current stage only); ' +
+      'do not retry in a loop — call get_build_status once with waitSec (e.g. { waitSec: 45 }), respect retryAfterSec, and if it still returns building report the stage/remaining stages and fall back to direct file reads when possible. ' +
       DOMAINS_ADVISOR_AGENT_CONTRACT +
       onboardingHint +
       conflictHint,

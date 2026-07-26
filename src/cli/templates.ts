@@ -101,13 +101,9 @@ export const REPOVINE_CONFIG_JSON = JSON.stringify(
     //
     // Optional `thresholds.<category>.<knob>` lets you override individual
     // values on top of the preset. Add only when one knob doesn't fit the
-    // preset for your repo. Tunable categories:
-    //   duplicateLike, godModule, godDomain, lowCohesion, flowConvergence,
-    //   effectSpaghetti, propDrillingOrchestration, serviceWrapperExplosion, uiDomainCoupling,
-    //   routeConvergence, annotationRisk, unclearArchitecture, secretConfigBoundary,
-    //   authorizationPolicyDrift, trustBoundaryValidation, privilegedClientSideEffect,
-    //   sensitiveBrowserStorage, serverClientBoundary, sourceDisclosureSurface,
-    //   annotationSecretHygiene.
+    // preset for your repo. The tunable categories are the keys of
+    // RefactoringThresholds (analysis/architecture/config.ts); docs/workspace-files.md
+    // lists them for readers, and a test holds that list to the type.
     analyze_architecture: {
       strictness: 'normal',
       thresholds: {},
@@ -320,7 +316,7 @@ Before non-trivial work, call the \`repovine\` MCP server first. Use \`search_co
 
 If the MCP call fails with a connection error, the server is not running. Ask the user to check the MCP config. Do not fall back to blind file reading -- without the graph you lack structure and dependency info.
 
-If a tool returns \`status:"building"\`, call \`get_build_status({ "waitSec": 45 })\` once instead of polling. \`stage_eta_sec\` estimates only the current stage; use \`stage\` and \`remaining_stages\` to report progress. If the long-poll still returns building, continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call \`get_build_status({ "cancel": true })\`; it stops Stage 1 workers and returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
+If a tool returns \`status:"building"\`, call \`get_build_status({ "waitSec": 45 })\` once instead of polling. \`stageEtaSec\` estimates only the current stage; use \`stage\` and \`remainingStages\` to report progress. If the long-poll still returns building, continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call \`get_build_status({ "cancel": true })\`; it stops Stage 1 workers and returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph.
 
 ${renderContextQualityGuidance()}
 

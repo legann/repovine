@@ -236,8 +236,8 @@ describe('build-progress guidance projection', () => {
     const refresh = renderSkillMarkdown(REFRESH_COMMAND);
     const status = renderSkillMarkdown(STATUS_COMMAND);
 
-    expect(AGENTS_MD).toContain('stage_eta_sec');
-    expect(AGENTS_MD).toContain('remaining_stages');
+    expect(AGENTS_MD).toContain('stageEtaSec');
+    expect(AGENTS_MD).toContain('remainingStages');
     expect(refresh).toContain('stageEtaSec');
     expect(refresh).toContain('remainingStages');
     expect(refresh).toContain('get_build_status({ "waitSec": 45 })');

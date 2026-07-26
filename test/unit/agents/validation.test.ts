@@ -22,9 +22,9 @@ import {
   checkCompliance,
   resolveGraphNodeId,
   validateAndCheckCompliance,
-  nodeInAnnotationScope,
   type ComplianceState,
 } from '../../../src/agents/validation.js';
+import { nodeInScopeHints } from '../../../src/annotations/scope-hints.js';
 import type { AgentRunResult, AgentAssignment } from '../../../src/agents/protocol.js';
 import type { ContextQualityReport } from '../../../src/context-quality/types.js';
 
@@ -622,11 +622,11 @@ describe('compliance validation', () => {
     expect(report.errors.join(' ')).toMatch(/Annotation coverage incomplete/);
   });
 
-  it('nodeInAnnotationScope: infra scope matches infra graph kinds, not app modules', () => {
-    expect(nodeInAnnotationScope('infra:dockerfile:backend/Dockerfile', ['infra'])).toBe(true);
-    expect(nodeInAnnotationScope('domain:infra-docker-compose', ['infra'])).toBe(true);
-    expect(nodeInAnnotationScope('mod:backend/src/server', ['infra'])).toBe(false);
-    expect(nodeInAnnotationScope('mod:backend/src/server', ['backend'])).toBe(true);
+  it('nodeInScopeHints: infra scope matches infra graph kinds, not app modules', () => {
+    expect(nodeInScopeHints('infra:dockerfile:backend/Dockerfile', ['infra'])).toBe(true);
+    expect(nodeInScopeHints('domain:infra-docker-compose', ['infra'])).toBe(true);
+    expect(nodeInScopeHints('mod:backend/src/server', ['infra'])).toBe(false);
+    expect(nodeInScopeHints('mod:backend/src/server', ['backend'])).toBe(true);
   });
 
   it('limits harness annotate coverage to infra scope without backend stale nodes', () => {

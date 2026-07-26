@@ -2,6 +2,7 @@ import { forwardImportClosure, owningModuleId } from '../graph/index.js';
 import type { AnnotationContent, RepositoryGraph, StoredAnnotation } from '../types.js';
 import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from './format.js';
 import { isRuntimeImportEdge } from '../analysis/architecture/heuristics.js';
+import { nodeInScopeHints } from './scope-hints.js';
 
 /** Forward-import-closure depth for carrier-link authoring advisories. */
 export const CARRIER_LINK_DEP_GUARD_DEPTH = 4;
@@ -40,19 +41,6 @@ function emptyCarrierLinkGaps(): CarrierLinkGaps {
 
 function hasImportEdgeMaps(graph: RepositoryGraph): boolean {
   return graph.outEdges instanceof Map;
-}
-
-export function nodeInValidateScope(nodeId: string, scopeHints?: string[]): boolean {
-  if (!scopeHints?.length || scopeHints.includes('.')) return true;
-  const normalizedHints = scopeHints.flatMap((s) => s.startsWith('pkg:') ? [s, s.slice(4)] : [s]);
-  return normalizedHints.some((s) => {
-    if (nodeId.startsWith(`${s}:`)) return true;
-    const tail = nodeId.includes(':') ? nodeId.slice(nodeId.indexOf(':') + 1) : nodeId;
-    return tail === s
-      || tail.startsWith(`${s}/`)
-      || s.startsWith(`${tail}/`)
-      || tail.startsWith(`${s}-`);
-  });
 }
 
 /** Parse nodeId tokens out of an `integrationPoints` value, keeping graph hits when requested. */
@@ -217,7 +205,7 @@ export function computeCarrierLinkGaps(input: {
 
   for (const [importerId, importerAnnotation] of Object.entries(input.annotations).sort(([a], [b]) => a.localeCompare(b))) {
     if (!isCarrierImporter(input.graph, importerId)) continue;
-    if (!nodeInValidateScope(importerId, input.scopeHints)) continue;
+    if (!nodeInScopeHints(importerId, input.scopeHints)) continue;
 
     const structural = structuralCarrierTargets(input.graph, importerId);
     const namedTargets = parseIntegrationPointTargets(importerAnnotation.annotation.integrationPoints, {

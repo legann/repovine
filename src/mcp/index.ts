@@ -351,10 +351,10 @@ const REPOVINE_MCP_INSTRUCTIONS =
   'Optional responseFormat:"concise"|"debug" overrides the response shape for one call. ' +
   'Concise navigation args may use refs like "$abc123"; copy them as-is in the same MCP session, or expand them from the response refs map. ' +
   'Successful results and structured errors are JSON in content[0].text; if isError is true, fix arguments or server state. ' +
-  'Build state: tool calls before the graph finishes building return a successful response (not an error) with status:"building" and fields stage, remaining_stages, pct, done_packages/total_packages, stage_eta_sec, retry_after_sec. stage_eta_sec estimates only the current stage, not time until the graph is ready. ' +
-  'When you see status:"building": (1) do not retry the same tool in a tight loop — respect retry_after_sec; ' +
+  'Build state: tool calls before the graph finishes building return a successful response (not an error) with status:"building" and fields stage, remainingStages, pct, donePackages/totalPackages, stageEtaSec, retryAfterSec. stageEtaSec estimates only the current stage, not time until the graph is ready. ' +
+  'When you see status:"building": (1) do not retry the same tool in a tight loop — respect retryAfterSec; ' +
   '(2) call get_build_status (always available); pass waitSec (e.g. { waitSec: 45 }) to long-poll — one waiting call that returns as soon as the build settles, instead of repeated polling; ' +
-  '(3) if that call still returns building, report the current stage and remaining_stages; use direct file reads for this turn when the task can proceed without graph structure instead of polling again. ' +
+  '(3) if that call still returns building, report the current stage and remainingStages; use direct file reads for this turn when the task can proceed without graph structure instead of polling again. ' +
   'search_context: emptyDiagnostic is present only when totalResults is 0 (and no config/entrypoint aux matches). '
   + 'OR-relax hits omit emptyDiagnostic — check result.matches.strategy (used, relaxedFrom, strongTokens, weakTokenOnlySuppressed), gaps, topResults[].matchedTokenCount/score, summary, and confidence before inspect_node. '
   + 'relaxedFrom:"and" means auto fell back from AND to bounded OR (not an exact multi-token match). '

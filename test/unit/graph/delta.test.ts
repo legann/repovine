@@ -44,6 +44,32 @@ describe('GraphDelta validation and application', () => {
     expect(warnings.some(message => message.includes('custom'))).toBe(true);
   });
 
+  it('validates a delta when the caller says nothing about trust', () => {
+    // The gate defaulted open, and its only production caller passed no option — so the schema and
+    // the per-type data guard never ran outside tests. Trust is the caller's explicit claim.
+    const graph = createEmptyGraph();
+    addNode(graph, { id: 'root', type: 'root', label: 'root', description: 'repo root' });
+
+    applyValidated(graph, {
+      nodes: [{ id: 'mod:a', type: 'module', label: 'a', description: 'module a', data: { signature: 'x' } } as never],
+      edges: [],
+    });
+
+    expect(graph.nodes.has('mod:a')).toBe(false);
+  });
+
+  it('applies an unvalidated delta only when the caller claims trust', () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: 'root', type: 'root', label: 'root', description: 'repo root' });
+
+    applyValidated(graph, {
+      nodes: [{ id: 'mod:a', type: 'module', label: 'a', description: 'module a', data: { signature: 'x' } } as never],
+      edges: [],
+    }, { trusted: true });
+
+    expect(graph.nodes.has('mod:a')).toBe(true);
+  });
+
   it('keeps unknown fields on otherwise valid delta entries', () => {
     const result = validateGraphDelta({
       nodes: [

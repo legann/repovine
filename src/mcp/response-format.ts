@@ -27,7 +27,9 @@ const MAX_REFS = 500;
  * `{ error }` is the direct form. `envelopeError` instead nests the message at `result.error`
  * inside a normal envelope, so a top-level-only check reads a resolve failure as success — that is
  * the shape `inspect_node`, `search_context`, `get_config_surface` and `map_context` return.
- * Truncation is deliberately not an error: it carries `result.responseTruncated`, never `result.error`.
+ *
+ * Truncating a successful result is not a failure: it carries `result.responseTruncated` alone.
+ * A failure withheld for size carries both, and this reads the message off the pre-bounded payload.
  */
 export function toolErrorMessage(result: unknown): string | undefined {
   if (!isObject(result)) return undefined;
@@ -96,13 +98,14 @@ export function toCallToolMcpResult(
   const shaped = shapeToolResult(result, response, refs);
   const text = JSON.stringify(shaped, null, response.pretty ? 2 : undefined);
   const limitChars = response.maxChars ?? DEFAULT_MAX_RESPONSE_CHARS;
-  if (text.length > limitChars) {
-    return boundOversizedResult(shaped, text.length, limitChars, response.pretty);
-  }
-  if (isToolErrorResult(result)) {
-    return { content: [{ type: 'text', text }], isError: true };
-  }
-  return { content: [{ type: 'text', text }] };
+  // Whether a payload reports failure is a property of the payload, not of its size. Deciding it
+  // ahead of the size branch keeps an oversized failure flagged as one, and hands the message to
+  // the bounded envelope so the withheld body still says what went wrong.
+  const errorMessage = toolErrorMessage(result);
+  const out = text.length > limitChars
+    ? boundOversizedResult(shaped, text.length, limitChars, response.pretty, errorMessage)
+    : { content: [{ type: 'text' as const, text }] };
+  return errorMessage === undefined ? out : { ...out, isError: true };
 }
 
 /**
@@ -115,6 +118,7 @@ function boundOversizedResult(
   originalChars: number,
   limitChars: number,
   pretty: boolean,
+  errorMessage?: string,
 ): CallToolMcpResult {
   const base = isObject(shaped) ? shaped : {};
   const safe: JsonObject = {
@@ -125,6 +129,8 @@ function boundOversizedResult(
       : 'Result withheld: exceeded the response size ceiling.',
     confidence: 'low',
     result: {
+      // A withheld failure keeps its message, so the body matches the isError flag on the result.
+      ...(errorMessage === undefined ? {} : { error: errorMessage }),
       responseTruncated: {
         originalChars,
         limitChars,

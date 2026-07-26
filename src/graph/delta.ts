@@ -5,6 +5,8 @@ import type { EdgeKind, GraphDelta, GraphEdge, GraphNode, NodeType, RepositoryGr
 export type GraphDeltaLogLevel = 'debug' | 'warn' | 'error';
 
 export interface ApplyGraphDeltaOptions {
+  /** Skip validation for a delta the caller vouches for. Off by default: a delta is validated
+   *  unless its producer is named at the call site. */
   trusted?: boolean;
   logger?: (level: GraphDeltaLogLevel, message: string) => void;
 }
@@ -29,7 +31,7 @@ const GraphNodeSchema = z.object({
   // Per-type discriminant the GraphNode TS union only enforces at compile time: reject `data` keys
   // foreign to this node type (e.g. an `export-symbol`-shaped payload on a `module` node). Values
   // stay loose by design — consumers read defensively and narrow by `type`; this guards the shape,
-  // not every leaf. Only runs on the untrusted path (trusted first-party deltas skip validation).
+  // not every leaf. Runs on every delta; `trusted: true` is the caller's explicit opt-out.
   if (!node.data) return;
   const allowed = NODE_DATA_KEYS[node.type as NodeType] as readonly string[] | undefined;
   if (!allowed) return; // unknown type already flagged by NodeTypeSchema
@@ -102,7 +104,7 @@ export function applyValidated(
   delta: GraphDelta,
   options: ApplyGraphDeltaOptions = {},
 ): void {
-  const { trusted = true } = options;
+  const { trusted = false } = options;
   const log = options.logger ?? defaultLogger;
   const validated = trusted ? { ok: true, delta, errors: [] } : validateGraphDelta(delta);
 

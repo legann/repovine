@@ -24,10 +24,10 @@ import { writeAnnotationBackup } from './backup.js';
 import { applyMergeReviewHints, listMergeReviewFields } from './merge-review.js';
 import {
   computeCarrierLinkGaps,
-  nodeInValidateScope,
   type CarrierLinkGaps,
 } from './carrier-links.js';
 import { readValidSuppressedTargets } from './carrier-review.js';
+import { nodeInScopeHints } from './scope-hints.js';
 import {
   computeRiskScopeCandidates,
   type RiskScopeCandidates,
@@ -1106,7 +1106,7 @@ export function validateAnnotationHealth(input: {
   };
   const needsWork = scan.counts.needsWork;
   const scopedRows = scopeHints
-    ? scan.rows.filter((row) => nodeInValidateScope(row.nodeId, scopeHints))
+    ? scan.rows.filter((row) => nodeInScopeHints(row.nodeId, scopeHints))
     : scan.rows;
   const needsWorkInScope = scopedRows.length;
 
@@ -1231,7 +1231,7 @@ export function validateAnnotationHealth(input: {
       : {}),
     ...(orphaned.total > 0 ? { orphanedByType: orphaned.byType } : {}),
     queueSample: scopeHints
-      ? scan.sample(limit, (row) => nodeInValidateScope(row.nodeId, scopeHints))
+      ? scan.sample(limit, (row) => nodeInScopeHints(row.nodeId, scopeHints))
       : scan.sample(limit),
     nextActions,
   };

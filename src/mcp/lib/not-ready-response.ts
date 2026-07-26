@@ -8,6 +8,9 @@ import type { IndexBuildStatus } from '../build-controller.js';
  * nerve. A build that FAILED or was CANCELLED has already settled — telling that caller to wait for
  * it to settle and retry describes something that cannot happen, and the retry fails identically.
  * Terminal states therefore report an error with the action that actually recovers.
+ *
+ * Progress carries the snapshot itself, so the field names a caller reads here are the ones
+ * `get_build_status` returns for the same build.
  */
 export function notReadyResponse(snapshot: IndexBuildStatus): Record<string, unknown> {
   if (snapshot.status === 'failed' || snapshot.status === 'cancelled') {
@@ -22,22 +25,7 @@ export function notReadyResponse(snapshot: IndexBuildStatus): Record<string, unk
     };
   }
   return {
-    status: snapshot.status,
-    stage: snapshot.stage,
-    pct: snapshot.pct,
-    done_packages: snapshot.donePackages,
-    total_packages: snapshot.totalPackages,
-    done_modules: snapshot.doneModules,
-    total_modules: snapshot.totalModules,
-    done_semantic_cards: snapshot.doneSemanticCards,
-    total_semantic_cards: snapshot.totalSemanticCards,
-    current_package: snapshot.currentPackage,
-    elapsed_sec: snapshot.elapsedSec,
-    stage_eta_sec: snapshot.stageEtaSec,
-    remaining_stages: snapshot.remainingStages,
-    retry_after_sec: snapshot.retryAfterSec,
-    message: snapshot.message,
-    next_action: 'Call get_build_status (always available) once with waitSec (e.g. { waitSec: 45 }) to wait server-side until the build settles. If it returns still building, report stage/remaining_stages and continue with direct file reads when possible instead of polling.',
-    errorMessage: snapshot.errorMessage,
+    ...snapshot,
+    nextAction: 'Call get_build_status (always available) once with waitSec (e.g. { waitSec: 45 }) to wait server-side until the build settles. If it returns still building, report stage/remainingStages and continue with direct file reads when possible instead of polling.',
   };
 }
