@@ -1,4 +1,5 @@
 import type { McpToolRuntime } from '../types.js';
+import type { ToolResponse } from './envelope.js';
 import { SEMANTIC_MIN_COSINE } from '../../semantic/relevance.js';
 
 const MAX_SUGGESTIONS = 3;
@@ -20,36 +21,36 @@ type DiagnosticShape = { reason?: unknown; nextActions?: DiagnosticAction[] };
  * token/graph facts still decide every result. No-op when the semantic index is absent,
  * empty, or the embedder fails (token-only installs keep the unchanged diagnostic).
  */
-export async function appendSemanticScopeSuggestions(
+export async function withSemanticScopeSuggestions(
   ctx: Pick<McpToolRuntime, 'getState'>,
   toolName: string,
   handlerArgs: Record<string, unknown>,
-  response: unknown,
-): Promise<void> {
+  response: ToolResponse,
+): Promise<ToolResponse> {
   const scopeArg = typeof handlerArgs.scope === 'string' ? handlerArgs.scope.trim() : '';
   // inspect_node anchors via nodeId; a missed nodeId is the same recovery case as a missed scope.
   const nodeIdArg = typeof handlerArgs.nodeId === 'string' ? handlerArgs.nodeId.trim() : '';
   const rawScope = scopeArg || nodeIdArg;
-  if (!rawScope) return;
+  if (!rawScope) return response;
   const diagnostic = scopeMissDiagnosticOf(response);
-  if (!diagnostic) return;
+  if (!diagnostic) return response;
 
   // One snapshot for the whole call: the graph used to validate suggested ids is the same generation
   // as the index that ranked them, even though a concurrent refresh may swap state across the await.
   const { semanticIndex, graph } = ctx.getState();
-  if (!semanticIndex || semanticIndex.size === 0) return;
+  if (!semanticIndex || semanticIndex.size === 0) return response;
 
   // Explicit `query:`-prefixed scopes carry the prefix in the raw string; the embedder
   // should see only the phrase.
   const embedText = rawScope.replace(/^query:/, '').trim();
-  if (!embedText) return;
+  if (!embedText) return response;
 
   let hits: Array<{ id: string; score: number }>;
   try {
     const vector = await semanticIndex.embedQuery(embedText);
     hits = semanticIndex.query(vector, MAX_SUGGESTIONS * 2).filter(h => h.score >= SEMANTIC_MIN_COSINE);
   } catch {
-    return;
+    return response;
   }
 
   // Retry via scope (dropping any missed nodeId — it would take precedence and miss again).
@@ -69,8 +70,15 @@ export async function appendSemanticScopeSuggestions(
       args: { ...retryBase, scope: hit.id },
     });
   }
-  if (actions.length === 0) return;
-  diagnostic.nextActions = [...(diagnostic.nextActions ?? []), ...actions];
+  if (actions.length === 0) return response;
+  const result = response.result as Record<string, unknown>;
+  return {
+    ...response,
+    result: {
+      ...result,
+      emptyDiagnostic: { ...diagnostic, nextActions: [...(diagnostic.nextActions ?? []), ...actions] },
+    },
+  };
 }
 
 /**
@@ -79,20 +87,13 @@ export async function appendSemanticScopeSuggestions(
  * represents a scope miss: explicit scope_unresolved, or any empty result on a
  * free-text `query:` scope.
  */
-function scopeMissDiagnosticOf(response: unknown): DiagnosticShape | undefined {
-  if (typeof response !== 'object' || response === null) return undefined;
-  const envelope = response as Record<string, unknown>;
-  const result = envelope.result;
+function scopeMissDiagnosticOf(response: ToolResponse): DiagnosticShape | undefined {
+  const result = response.result;
   if (typeof result !== 'object' || result === null) return undefined;
   const diagnostic = (result as Record<string, unknown>).emptyDiagnostic;
   if (typeof diagnostic !== 'object' || diagnostic === null) return undefined;
 
   const shape = diagnostic as DiagnosticShape;
   if (shape.reason === 'scope_unresolved') return shape;
-
-  const resolvedScope = envelope.resolvedScope;
-  const kind = typeof resolvedScope === 'object' && resolvedScope !== null
-    ? (resolvedScope as Record<string, unknown>).kind
-    : undefined;
-  return kind === 'query' ? shape : undefined;
+  return response.resolvedScope.kind === 'query' ? shape : undefined;
 }

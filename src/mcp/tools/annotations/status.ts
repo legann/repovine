@@ -2,7 +2,7 @@ import type { ToolHandler } from '../../types.js';
 import type { ResolvedScope } from '../../scope/resolve.js';
 import { resolveScope, stripDomainPrefix } from '../../scope/resolve.js';
 import { scopeNavigation } from '../../scope/navigation.js';
-import { envelope, nav } from '../../response/envelope.js';
+import { envelope, envelopeError, nav } from '../../response/envelope.js';
 import { limitFrom, offsetFrom, DEFAULT_SEMANTIC_LIMIT } from '../../response/pagination.js';
 import {
   getAnnotationQueue,
@@ -58,7 +58,7 @@ export const handleGetAnnotationStatus: ToolHandler = (ctx, args) => {
   if (view === 'propagation-preview') {
     const from = args.from as string | undefined;
     if (!from) {
-      return { error: 'view propagation-preview requires from (module node id).' };
+      return envelopeError(scope, 'view propagation-preview requires from (module node id).');
     }
     result.propagationPreview = getPropagationSlice(ctx, {
       from,

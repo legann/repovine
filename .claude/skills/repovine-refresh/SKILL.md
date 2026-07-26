@@ -17,7 +17,7 @@ First, confirm the MCP graph is ready:
 get_build_status({})
 ~~~
 
-If `status:"building"` or `"pending"`, do not call `refresh_context` — the graph is already being built. Call `get_build_status({ "waitSec": 45 })` once to long-poll. If it still returns building, report `stage`, `remainingStages`, `pct`, `donePackages`/`totalPackages`, and `stageEtaSec` (current stage only), then stop. Do not infer time until ready from the stage ETA or use ETA thresholds to decide whether to wait.
+If `result.status` is `"building"` or `"pending"`, do not call `refresh_context` — the graph is already being built. Call `get_build_status({ "waitSec": 45 })` once to long-poll. If it still returns building, report `stage`, `remainingStages`, `pct`, `donePackages`/`totalPackages`, and `stageEtaSec` (current stage only), then stop. Do not infer time until ready from the stage ETA or use ETA thresholds to decide whether to wait.
 
 If `status:"ready"`, call `refresh_context`:
 
@@ -61,6 +61,6 @@ When `refresh_context` returns `domainsSuggestions.count > 0`, the domains advis
 
 ## Large repositories
 
-If the first MCP call on a large repo returns `status:"building"`, wait with one long-poll call — `get_build_status({ "waitSec": 45 })` returns the moment the build settles — instead of polling. If it still returns building, report the current stage and remaining stage count; `stageEtaSec` covers only the current stage. Tell the user they can pre-build the graph synchronously with the CLI: `repovine build`, or just re-run `repovine setup` (it builds by default). This warms the snapshot cache so MCP startup is near-instant on subsequent sessions.
+If the first MCP call on a large repo returns `result.status:"building"`, wait with one long-poll call — `get_build_status({ "waitSec": 45 })` returns the moment the build settles — instead of polling. If it still returns building, report the current stage and remaining stage count; `stageEtaSec` covers only the current stage. Tell the user they can pre-build the graph synchronously with the CLI: `repovine build`, or just re-run `repovine setup` (it builds by default). This warms the snapshot cache so MCP startup is near-instant on subsequent sessions.
 
 To abandon a cold build, call `get_build_status({ "cancel": true })`. It terminates Stage 1 worker threads at the next package boundary. With no prior graph the server ends in `status:"cancelled"` (bare tree) and tools return a cancelled payload; a later `refresh_context` starts a fresh build. With a prior `ready` graph, cancel keeps serving it.

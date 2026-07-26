@@ -1,8 +1,18 @@
 import { describe, it, expect } from '@jest/globals';
-import { appendSemanticScopeSuggestions } from '../../../src/mcp/response/semantic-scope-suggestions.js';
+import { withSemanticScopeSuggestions } from '../../../src/mcp/response/semantic-scope-suggestions.js';
+import { emptyNavigation, type ToolResponse } from '../../../src/mcp/response/envelope.js';
 import type { McpToolRuntime } from '../../../src/mcp/types.js';
 
 type Hit = { id: string; score: number };
+
+/** Envelope fields the suggestion pass does not read; present so fixtures are real responses. */
+const envelopeBase = {
+  resolvedScope: { kind: 'unknown', id: 'auth sessions' },
+  summary: 'Nothing matched.',
+  confidence: 'low' as const,
+  gaps: [],
+  navigation: emptyNavigation(),
+};
 
 function fakeCtx(hits: Hit[], options: { size?: number; throwOnEmbed?: boolean; graphNodeIds?: string[] } = {}): Pick<McpToolRuntime, 'getState'> {
   const semanticIndex = {
@@ -18,8 +28,9 @@ function fakeCtx(hits: Hit[], options: { size?: number; throwOnEmbed?: boolean; 
   return { getState: () => ({ semanticIndex, graph }) } as unknown as Pick<McpToolRuntime, 'getState'>;
 }
 
-function unresolvedResponse(): Record<string, unknown> {
+function unresolvedResponse(): ToolResponse {
   return {
+    ...envelopeBase,
     scope: 'auth sessions',
     result: {
       emptyDiagnostic: {
@@ -31,8 +42,9 @@ function unresolvedResponse(): Record<string, unknown> {
   };
 }
 
-function emptyQueryScopeResponse(reason: string, scopeKind = 'query'): Record<string, unknown> {
+function emptyQueryScopeResponse(reason: string, scopeKind = 'query'): ToolResponse {
   return {
+    ...envelopeBase,
     scope: 'annotation quality scoring',
     resolvedScope: { kind: scopeKind, id: 'query:annotation quality scoring' },
     result: {
@@ -45,7 +57,7 @@ function emptyQueryScopeResponse(reason: string, scopeKind = 'query'): Record<st
   };
 }
 
-function diagnosticActions(response: Record<string, unknown>): Array<Record<string, unknown>> {
+function diagnosticActions(response: ToolResponse): Array<Record<string, unknown>> {
   const result = response.result as Record<string, unknown>;
   const diagnostic = result.emptyDiagnostic as Record<string, unknown>;
   return diagnostic.nextActions as Array<Record<string, unknown>>;
@@ -61,9 +73,9 @@ describe('semantic scope suggestions on scope_unresolved', () => {
       { id: 'mod:web/src/noise', score: 0.2 }, // below the 0.35 floor — dropped
     ]);
     const response = unresolvedResponse();
-    await appendSemanticScopeSuggestions(ctx, 'map_context', { scope: 'auth sessions', view: 'summary' }, response);
+    const next = await withSemanticScopeSuggestions(ctx, 'map_context', { scope: 'auth sessions', view: 'summary' }, response);
 
-    const actions = diagnosticActions(response);
+    const actions = diagnosticActions(next);
     expect(actions).toHaveLength(1 + 3);
     const semantic = actions.slice(1);
     expect(semantic.map(a => a.tool)).toEqual(['map_context', 'map_context', 'map_context']);
@@ -78,16 +90,16 @@ describe('semantic scope suggestions on scope_unresolved', () => {
       { id: 'mod:web/src/noise', score: 0.1 },
     ]);
     const response = unresolvedResponse();
-    await appendSemanticScopeSuggestions(ctx, 'trace_flow', { scope: 'auth sessions' }, response);
-    expect(diagnosticActions(response)).toHaveLength(1);
+    const next = await withSemanticScopeSuggestions(ctx, 'trace_flow', { scope: 'auth sessions' }, response);
+    expect(diagnosticActions(next)).toHaveLength(1);
   });
 
   it('enriches any empty result on a free-text query: scope (bare phrases never hit scope_unresolved)', async () => {
     const ctx = fakeCtx([{ id: 'mod:repovine/src/annotations/store', score: 0.62 }]);
     const response = emptyQueryScopeResponse('scope_has_no_config_surface');
-    await appendSemanticScopeSuggestions(ctx, 'get_config_surface', { scope: 'annotation quality scoring' }, response);
+    const next = await withSemanticScopeSuggestions(ctx, 'get_config_surface', { scope: 'annotation quality scoring' }, response);
 
-    const actions = diagnosticActions(response);
+    const actions = diagnosticActions(next);
     expect(actions).toHaveLength(1);
     expect(actions[0].tool).toBe('get_config_surface');
     expect(actions[0].args).toEqual({ scope: 'mod:repovine/src/annotations/store' });
@@ -103,25 +115,25 @@ describe('semantic scope suggestions on scope_unresolved', () => {
     const graph = { nodes: new Set(['mod:repovine/src/annotations/store']) };
     const ctx = { getState: () => ({ semanticIndex, graph }) } as unknown as Pick<McpToolRuntime, 'getState'>;
     const response = emptyQueryScopeResponse('scope_has_no_config_surface');
-    await appendSemanticScopeSuggestions(ctx, 'get_config_surface', { scope: 'query:annotation quality scoring' }, response);
+    const next = await withSemanticScopeSuggestions(ctx, 'get_config_surface', { scope: 'query:annotation quality scoring' }, response);
 
     expect(embedded).toBe('annotation quality scoring');
-    expect(diagnosticActions(response)).toHaveLength(1);
+    expect(diagnosticActions(next)).toHaveLength(1);
   });
 
   it('does nothing for other diagnostic reasons on a RESOLVED (non-query) scope', async () => {
     const ctx = fakeCtx([{ id: 'domain:auth', score: 0.8 }]);
     const response = emptyQueryScopeResponse('package_has_no_entrypoints', 'package');
-    await appendSemanticScopeSuggestions(ctx, 'get_entrypoints', { scope: 'pkg:repovine' }, response);
-    expect(diagnosticActions(response)).toHaveLength(0);
+    const next = await withSemanticScopeSuggestions(ctx, 'get_entrypoints', { scope: 'pkg:repovine' }, response);
+    expect(diagnosticActions(next)).toHaveLength(0);
   });
 
   it('treats a missed nodeId like a missed scope and retries via scope (nodeId dropped)', async () => {
     const ctx = fakeCtx([{ id: 'mod:repovine/src/cli/repovine-gitignore', score: 0.52 }]);
     const response = unresolvedResponse();
-    await appendSemanticScopeSuggestions(ctx, 'inspect_node', { nodeId: 'mod:repovine/src/no/such/module' }, response);
+    const next = await withSemanticScopeSuggestions(ctx, 'inspect_node', { nodeId: 'mod:repovine/src/no/such/module' }, response);
 
-    const actions = diagnosticActions(response);
+    const actions = diagnosticActions(next);
     expect(actions).toHaveLength(2);
     expect(actions[1].tool).toBe('inspect_node');
     expect(actions[1].args).toEqual({ scope: 'mod:repovine/src/cli/repovine-gitignore' });
@@ -130,26 +142,26 @@ describe('semantic scope suggestions on scope_unresolved', () => {
   it('does nothing without scope or nodeId arguments', async () => {
     const ctx = fakeCtx([{ id: 'domain:auth', score: 0.8 }]);
     const response = unresolvedResponse();
-    await appendSemanticScopeSuggestions(ctx, 'validate_annotations', { limit: 5 }, response);
-    expect(diagnosticActions(response)).toHaveLength(1);
+    const next = await withSemanticScopeSuggestions(ctx, 'validate_annotations', { limit: 5 }, response);
+    expect(diagnosticActions(next)).toHaveLength(1);
   });
 
   it('degrades silently when the semantic index is absent or empty', async () => {
     const noIndex = { getState: () => ({ semanticIndex: null }) } as unknown as Pick<McpToolRuntime, 'getState'>;
     const response = unresolvedResponse();
-    await appendSemanticScopeSuggestions(noIndex, 'map_context', { scope: 'auth sessions' }, response);
-    expect(diagnosticActions(response)).toHaveLength(1);
+    const next = await withSemanticScopeSuggestions(noIndex, 'map_context', { scope: 'auth sessions' }, response);
+    expect(diagnosticActions(next)).toHaveLength(1);
 
     const emptyIndex = fakeCtx([], { size: 0 });
-    await appendSemanticScopeSuggestions(emptyIndex, 'map_context', { scope: 'auth sessions' }, response);
-    expect(diagnosticActions(response)).toHaveLength(1);
+    const nextEmpty = await withSemanticScopeSuggestions(emptyIndex, 'map_context', { scope: 'auth sessions' }, response);
+    expect(diagnosticActions(nextEmpty)).toHaveLength(1);
   });
 
   it('degrades silently when the embedder throws', async () => {
     const ctx = fakeCtx([{ id: 'domain:auth', score: 0.8 }], { throwOnEmbed: true });
     const response = unresolvedResponse();
-    await appendSemanticScopeSuggestions(ctx, 'map_context', { scope: 'auth sessions' }, response);
-    expect(diagnosticActions(response)).toHaveLength(1);
+    const next = await withSemanticScopeSuggestions(ctx, 'map_context', { scope: 'auth sessions' }, response);
+    expect(diagnosticActions(next)).toHaveLength(1);
   });
 
   it('skips a ranked id no longer in the graph (stale index vs concurrently refreshed graph)', async () => {
@@ -164,9 +176,9 @@ describe('semantic scope suggestions on scope_unresolved', () => {
       { graphNodeIds: ['domain:auth', 'mod:web/login'] },
     );
     const response = unresolvedResponse();
-    await appendSemanticScopeSuggestions(ctx, 'map_context', { scope: 'auth sessions' }, response);
+    const next = await withSemanticScopeSuggestions(ctx, 'map_context', { scope: 'auth sessions' }, response);
 
-    const scopes = diagnosticActions(response).slice(1).map(a => (a.args as Record<string, unknown>).scope);
+    const scopes = diagnosticActions(next).slice(1).map(a => (a.args as Record<string, unknown>).scope);
     expect(scopes).toEqual(['domain:auth', 'mod:web/login']);
     expect(scopes).not.toContain('mod:web/removed');
   });

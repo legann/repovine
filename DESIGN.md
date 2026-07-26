@@ -419,8 +419,8 @@ syntax facts are needed, extraction runs on a persistent `worker_threads` pool
 with short-lived per-shard `Project`s, and a per-machine calibration sizes the
 pool. This keeps cold-build concurrency and peak memory bounded on large
 monorepos. The MCP server
-connects its transport **before** building, so tools return `status:"building"`
-while loading and `get_build_status` stays callable — with `waitSec` it long-polls,
+connects its transport **before** building, so tools return an envelope carrying
+`result.status:"building"` while loading and `get_build_status` stays callable — with `waitSec` it long-polls,
 returning the moment the build settles instead of forcing a polling loop.
 `stageEtaSec` is deliberately only the current-stage estimate; `stage` and
 `remainingStages` expose how much of the pipeline still follows it. `repovine setup`
@@ -669,7 +669,7 @@ the task (`search_context` may return `confidence: "low"` with hits after OR-rel
 the top hit has weak token coverage); `attention` hoists open obligations above
 `result` for primacy ([Annotation delivery](#annotation-delivery)), capped at 3; `gaps` lists limitations;
 `navigation` is a bounded next-step menu grouped by intent
-(`deeper`/`sideways`/`up`/`cross_layer`/`validate`). In concise mode,
+(`deeper`/`sideways`/`up`/`crossLayer`/`validate`). In concise mode,
 repeated long ID-like strings in `navigation.args` are replaced with per-session
 `refs` (`$3x9a1`) that a follow-up call may pass directly. `responseFormat:
 "concise" | "debug"` overrides per call.

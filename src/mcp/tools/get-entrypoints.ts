@@ -13,7 +13,7 @@ export const handleGetEntrypoints: ToolHandler = (ctx, args) => {
     const moduleId = item.moduleId as string | undefined;
     const serviceId = item.serviceId as string | undefined;
     if (moduleId) navigation.deeper.push(nav('inspect_node', { nodeId: moduleId }, 'Inspect the module that owns this entrypoint.'));
-    if (serviceId) navigation.cross_layer.push(nav('trace_flow', { scope: serviceId }, 'Trace runtime flow from this entrypoint service.'));
+    if (serviceId) navigation.crossLayer.push(nav('trace_flow', { scope: serviceId }, 'Trace runtime flow from this entrypoint service.'));
   }
   const gaps = result.total > 0 ? [] : ['No entrypoints matched this scope/kind/layer filter.'];
   if (result.total === 0 && scope.kind === 'domain') {

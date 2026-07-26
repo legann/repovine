@@ -14,6 +14,8 @@ import type { RefactoringThresholds } from '../analysis/architecture/config.js';
 import type { ContextSessionStore } from '../context-quality/session-store.js';
 import type { SearchIndex } from './lib/search-index.js';
 import type { SemanticIndex } from '../semantic/store.js';
+import type { ToolResponse } from './response/envelope.js';
+import type { IndexBuildStatus } from './build-controller.js';
 
 export type { SearchIndex } from './lib/search-index.js';
 
@@ -71,6 +73,16 @@ export interface McpToolRuntime {
   /** Resolved context-session id for THIS call (env override / contextSessionId / sessionId arg).
    *  Plumbed by executeTool because the raw args are stripped before handlers run. */
   contextSessionId?: string;
+  /** Build lifecycle. Reachable before `getState()` works, which is what lets `get_build_status`
+   *  answer while the graph is still building. Absent in runtimes built by the CLI, where the
+   *  graph exists before any tool runs. */
+  build?: {
+    snapshot: () => IndexBuildStatus;
+    waitForSettled: (waitSec: number, signal?: AbortSignal) => Promise<IndexBuildStatus>;
+    cancel: () => Promise<IndexBuildStatus>;
+    /** State once the graph is ready; undefined while it is still building. */
+    readyState: () => RepovineState | undefined;
+  };
 }
 
 export function resolveNodeId(graph: RepositoryGraph, rawId: string): string | undefined {
@@ -81,4 +93,4 @@ export function resolveNodeId(graph: RepositoryGraph, rawId: string): string | u
   return graph.nodes.has(normalized) ? normalized : undefined;
 }
 
-export type ToolHandler = (ctx: McpToolRuntime, args: Record<string, unknown>) => unknown | Promise<unknown>;
+export type ToolHandler = (ctx: McpToolRuntime, args: Record<string, unknown>) => ToolResponse | Promise<ToolResponse>;

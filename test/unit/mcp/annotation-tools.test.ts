@@ -30,7 +30,7 @@ type ToolEnvelope = {
   confidence: 'high' | 'medium' | 'low';
   result: Record<string, unknown>;
   gaps: string[];
-  navigation: Record<'deeper' | 'sideways' | 'up' | 'cross_layer' | 'validate', NavItem[]>;
+  navigation: Record<'deeper' | 'sideways' | 'up' | 'crossLayer' | 'validate', NavItem[]>;
 };
 
 function envelope(value: unknown): ToolEnvelope {
@@ -188,7 +188,7 @@ describe('annotation MCP tool contracts', () => {
         deeper: expect.any(Array),
         sideways: expect.any(Array),
         up: expect.any(Array),
-        cross_layer: expect.any(Array),
+        crossLayer: expect.any(Array),
         validate: expect.any(Array),
       }),
     });

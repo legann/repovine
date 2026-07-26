@@ -1,8 +1,9 @@
+import { z } from 'zod';
 import type { ResolvedScope } from '../scope/resolve.js';
 import { scopeNavigation } from '../scope/navigation.js';
 
 export type Confidence = 'high' | 'medium' | 'low';
-export type NavigationSection = 'deeper' | 'sideways' | 'up' | 'cross_layer' | 'validate';
+export type NavigationSection = 'deeper' | 'sideways' | 'up' | 'crossLayer' | 'validate';
 export type NavigationItem = {
   tool: string;
   args: Record<string, unknown>;
@@ -24,6 +25,72 @@ export type AttentionItem = {
 /** Max obligations surfaced in the top-level `attention` block. */
 export const ATTENTION_LIMIT = 3;
 
+/** How many attention obligations were dropped, and where the rest still live. */
+export type AttentionTruncated = {
+  shown: number;
+  total: number;
+  hint: string;
+};
+
+/**
+ * The shape every tool answers in.
+ *
+ * `result` is the tool's own payload and stays open here; the fields around it are the same for all
+ * eighteen tools, so a caller reads scope, confidence, gaps and navigation without knowing which
+ * tool produced the response. Build it with {@link envelope} or {@link envelopeError} — the type is
+ * exported so a handler's return is checked, not so responses are assembled by hand.
+ */
+export interface ToolResponse {
+  scope: string;
+  resolvedScope: Record<string, unknown>;
+  summary: string;
+  confidence: Confidence;
+  attention?: AttentionItem[];
+  attentionTruncated?: AttentionTruncated;
+  result: unknown;
+  gaps: string[];
+  navigation: Navigation;
+}
+
+const NavigationItemSchema = z.object({
+  tool: z.string(),
+  args: z.record(z.string(), z.unknown()),
+  reason: z.string(),
+});
+
+const NavigationSchema = z.object({
+  deeper: z.array(NavigationItemSchema),
+  sideways: z.array(NavigationItemSchema),
+  up: z.array(NavigationItemSchema),
+  crossLayer: z.array(NavigationItemSchema),
+  validate: z.array(NavigationItemSchema),
+});
+
+/**
+ * Runtime shape of {@link ToolResponse}. Strict on purpose: a field added beside `result` instead of
+ * inside it is a new top-level contract for every tool, and this is what refuses it.
+ */
+export const ToolResponseSchema = z.strictObject({
+  scope: z.string(),
+  resolvedScope: z.record(z.string(), z.unknown()),
+  summary: z.string(),
+  confidence: z.enum(['high', 'medium', 'low']),
+  attention: z.array(z.object({
+    nodeId: z.string(),
+    investigate: z.array(z.string()).optional(),
+    note: z.string(),
+    next: z.object({ tool: z.string(), args: z.record(z.string(), z.unknown()) }),
+  })).optional(),
+  attentionTruncated: z.object({
+    shown: z.number(),
+    total: z.number(),
+    hint: z.string(),
+  }).optional(),
+  result: z.unknown(),
+  gaps: z.array(z.string()),
+  navigation: NavigationSchema,
+});
+
 export function publicResolvedScope(scope: ResolvedScope | string | undefined): Record<string, unknown> {
   if (!scope) return { kind: 'all', id: 'all', raw: 'all' };
   if (typeof scope === 'string') return { kind: scope === 'all' ? 'all' : 'unknown', id: scope, raw: scope };
@@ -39,7 +106,7 @@ export function publicResolvedScope(scope: ResolvedScope | string | undefined): 
 }
 
 export function emptyNavigation(): Navigation {
-  return { deeper: [], sideways: [], up: [], cross_layer: [], validate: [] };
+  return { deeper: [], sideways: [], up: [], crossLayer: [], validate: [] };
 }
 
 export function nav(tool: string, args: Record<string, unknown>, reason: string): NavigationItem {
@@ -65,7 +132,7 @@ export function dedupeNavigation(nav: Navigation): Navigation {
     deeper: dedupeNavItems(nav.deeper).slice(0, NAV_SECTION_LIMIT),
     sideways: dedupeNavItems(nav.sideways).slice(0, NAV_SECTION_LIMIT),
     up: dedupeNavItems(nav.up).slice(0, NAV_SECTION_LIMIT),
-    cross_layer: dedupeNavItems(nav.cross_layer).slice(0, NAV_SECTION_LIMIT),
+    crossLayer: dedupeNavItems(nav.crossLayer).slice(0, NAV_SECTION_LIMIT),
     validate: dedupeNavItems(nav.validate).slice(0, NAV_SECTION_LIMIT),
   };
 }
@@ -87,7 +154,7 @@ export function envelope(
     navigation?: Partial<Navigation>;
     attention?: AttentionItem[];
   } = {},
-): Record<string, unknown> {
+): ToolResponse {
   const rawScope = typeof scope === 'string' ? scope : scope?.raw ?? 'all';
   const baseNav = emptyNavigation();
   for (const [section, items] of Object.entries(options.navigation ?? {}) as Array<[NavigationSection, NavigationItem[] | undefined]>) {
@@ -123,7 +190,7 @@ export function resultError(message: string, details?: Record<string, unknown>):
   return details ? { error: message, ...details } : { error: message };
 }
 
-export function envelopeError(scope: ResolvedScope | string | undefined, message: string, details?: Record<string, unknown>): Record<string, unknown> {
+export function envelopeError(scope: ResolvedScope | string | undefined, message: string, details?: Record<string, unknown>): ToolResponse {
   return envelope(scope, message, resultError(message, details), {
     confidence: 'low',
     gaps: [message],

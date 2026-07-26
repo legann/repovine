@@ -18,6 +18,7 @@ import { handleRefreshContext } from './annotations/refresh.js';
 import { handleGetContextSessionQuality } from './context-session-quality.js';
 import { handleDeclineAdvisory } from './decline-advisory.js';
 import { handleSuggestDomainsConfig } from './suggest-domains-config.js';
+import { handleGetBuildStatus } from './build-status.js';
 
 wireEmptyDiagnosticCollectors({ collectEntrypoints, collectConfigSurface });
 
@@ -39,4 +40,5 @@ export const toolHandlers: Record<string, ToolHandler> = {
   suggest_domains_config: handleSuggestDomainsConfig,
   decline_advisory: handleDeclineAdvisory,
   get_context_session_quality: handleGetContextSessionQuality,
+  get_build_status: handleGetBuildStatus,
 };

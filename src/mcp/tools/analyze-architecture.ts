@@ -60,39 +60,52 @@ export const handleAnalyzeArchitecture: ToolHandler = (ctx, args) => {
     gaps.push(`${totalFindings} architecture finding(s) matched; showing ${returnedFindings}. Narrow scope/categories or pass a higher limit when you need more.`);
   }
   const emptyDiagnostic = architectureEmptyDiagnostic(ctx, scope, args, mode, responseResult);
-  if (emptyDiagnostic) {
-    responseResult.emptyDiagnostic = emptyDiagnostic;
-    if (!gaps.length) gaps.push(emptyDiagnostic.message);
-  }
-  // The detector confidence score barely orders findings by whether they are true, and the 0.5
-  // default filters nothing out of a real report. It stays inside the analysis package so it can
-  // be recalibrated, but publishing it here would state a precision it does not have.
-  delete responseResult.minConfidence;
-  if (mode === 'detail' && responseResult.finding && typeof responseResult.finding === 'object') {
-    const publicFinding = { ...(responseResult.finding as Record<string, unknown>) };
-    delete publicFinding.confidence;
-    responseResult.finding = publicFinding;
-  }
-  // Report mode: each finding is a summary, so cap its (possibly graph-scaled) node list to a
-  // preview and report nodeCount/truncatedNodes. The full, maxNodes-bounded enumeration is the
-  // job of detail mode (detailFindingId). Keeps per-finding payload brief, not graph-scaled.
-  if (mode !== 'detail' && Array.isArray(responseResult.findings)) {
-    responseResult.findings = (responseResult.findings as RefactoringFinding[]).map(f => {
-      const publicFinding: Record<string, unknown> = f.nodes.length <= REPORT_FINDING_NODE_PREVIEW
-        ? { ...f }
-        : {
-        ...f,
-        nodes: f.nodes.slice(0, REPORT_FINDING_NODE_PREVIEW),
-        nodeCount: f.nodes.length,
-        truncatedNodes: f.nodes.length - REPORT_FINDING_NODE_PREVIEW,
-      };
-      delete publicFinding.confidence;
-      return publicFinding;
-    });
-  }
-  return envelope(scope, mode === 'detail' ? 'Expanded architecture finding detail.' : 'Ran architecture analysis.', responseResult, {
+  if (emptyDiagnostic && !gaps.length) gaps.push(emptyDiagnostic.message);
+  const publicResult = publicArchitectureResult(responseResult, mode, emptyDiagnostic);
+  return envelope(scope, mode === 'detail' ? 'Expanded architecture finding detail.' : 'Ran architecture analysis.', publicResult, {
     confidence: responseResult.error || emptyDiagnostic ? 'low' : 'medium',
     gaps,
     navigation,
   });
 };
+
+/**
+ * One finding as the tool publishes it.
+ *
+ * `confidence` stays inside the analysis package so it can be recalibrated: the detector score
+ * barely orders findings by whether they are true, and the 0.5 default filters nothing out of a real
+ * report, so publishing it would state a precision it does not have. `preview` caps the
+ * (graph-scaled) node list and reports what was cut; the full maxNodes-bounded enumeration is what
+ * detail mode is for.
+ */
+function publicFinding(finding: RefactoringFinding, preview: boolean): Record<string, unknown> {
+  const { confidence: _confidence, ...rest } = finding;
+  if (!preview || finding.nodes.length <= REPORT_FINDING_NODE_PREVIEW) return rest;
+  return {
+    ...rest,
+    nodes: finding.nodes.slice(0, REPORT_FINDING_NODE_PREVIEW),
+    nodeCount: finding.nodes.length,
+    truncatedNodes: finding.nodes.length - REPORT_FINDING_NODE_PREVIEW,
+  };
+}
+
+/** The analysis payload projected to what the tool publishes: findings without their score, the
+ *  internal `minConfidence` knob dropped, and the empty-result diagnostic folded in. */
+function publicArchitectureResult(
+  raw: Record<string, unknown>,
+  mode: string,
+  emptyDiagnostic: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const { minConfidence: _minConfidence, finding, findings, ...rest } = raw;
+  const detail = mode === 'detail';
+  return {
+    ...rest,
+    ...(detail && finding && typeof finding === 'object'
+      ? { finding: publicFinding(finding as RefactoringFinding, false) }
+      : finding !== undefined ? { finding } : {}),
+    ...(!detail && Array.isArray(findings)
+      ? { findings: (findings as RefactoringFinding[]).map(f => publicFinding(f, true)) }
+      : findings !== undefined ? { findings } : {}),
+    ...(emptyDiagnostic ? { emptyDiagnostic } : {}),
+  };
+}

@@ -309,10 +309,11 @@ console.error = (...args: unknown[]) => {
 };
 import { repoRoot, artifactsDir } from '../paths.js';
 import { toolHandlers } from './tools/registry.js';
-import { outsideRepoReport } from './lib/refresh-summary.js';
 import { notReadyResponse } from './lib/not-ready-response.js';
 import { toolDefs, getRequiredArgs } from './tool-defs.js';
 import { RepovineRuntime } from './context.js';
+import type { McpToolRuntime } from './types.js';
+import { envelopeError, type ToolResponse } from './response/envelope.js';
 import { IndexBuildController } from './build-controller.js';
 import { getSourcePlugins } from '../stage1/source/registry.js';
 import { loadConfig, type ResolvedConfig } from '../config.js';
@@ -324,7 +325,7 @@ import {
   toCallToolMcpResult,
 } from './response-format.js';
 import { contextSessionIdFromArgs } from './context-session.js';
-import { appendSemanticScopeSuggestions } from './response/semantic-scope-suggestions.js';
+import { withSemanticScopeSuggestions } from './response/semantic-scope-suggestions.js';
 import { ReloadConfigRunner } from './reload-config.js';
 import { abortMcpBuilds, createShutdownSequence } from './shutdown.js';
 
@@ -351,8 +352,8 @@ const REPOVINE_MCP_INSTRUCTIONS =
   'Optional responseFormat:"concise"|"debug" overrides the response shape for one call. ' +
   'Concise navigation args may use refs like "$abc123"; copy them as-is in the same MCP session, or expand them from the response refs map. ' +
   'Successful results and structured errors are JSON in content[0].text; if isError is true, fix arguments or server state. ' +
-  'Build state: tool calls before the graph finishes building return a successful response (not an error) with status:"building" and fields stage, remainingStages, pct, donePackages/totalPackages, stageEtaSec, retryAfterSec. stageEtaSec estimates only the current stage, not time until the graph is ready. ' +
-  'When you see status:"building": (1) do not retry the same tool in a tight loop — respect retryAfterSec; ' +
+  'Build state: tool calls before the graph finishes building return a successful response (not an error) whose result carries status:"building" plus stage, remainingStages, pct, donePackages/totalPackages, stageEtaSec, retryAfterSec. Every tool answers in one envelope: the payload is under `result`, failures under `result.error`. stageEtaSec estimates only the current stage, not time until the graph is ready. ' +
+  'When you see result.status:"building": (1) do not retry the same tool in a tight loop — respect retryAfterSec; ' +
   '(2) call get_build_status (always available); pass waitSec (e.g. { waitSec: 45 }) to long-poll — one waiting call that returns as soon as the build settles, instead of repeated polling; ' +
   '(3) if that call still returns building, report the current stage and remainingStages; use direct file reads for this turn when the task can proceed without graph structure instead of polling again. ' +
   'search_context: emptyDiagnostic is present only when totalResults is 0 (and no config/entrypoint aux matches). '
@@ -368,13 +369,13 @@ function logToolError(toolName: string, message: string): void {
 /** L4 cooldown: keep the last "building" payload per tool name for a few seconds so
  * repeated calls during a long build don't recompute the snapshot. */
 const BUILDING_RESPONSE_TTL_MS = 5000;
-const lastBuildingResponse = new Map<string, { expiresAt: number; payload: unknown }>();
+const lastBuildingResponse = new Map<string, { expiresAt: number; payload: ToolResponse }>();
 const CONTEXT_QUALITY_META_TOOLS = new Set([
   'get_build_status',
   'get_context_session_quality',
 ]);
 
-function getBuildingResponse(name: string, controller: IndexBuildController): unknown {
+function getBuildingResponse(name: string, controller: IndexBuildController): ToolResponse {
   const cached = lastBuildingResponse.get(name);
   if (cached && Date.now() < cached.expiresAt) return cached.payload;
   const payload = notReadyResponse(controller.snapshot());
@@ -388,64 +389,66 @@ async function executeTool(
   args: Record<string, unknown>,
   processState: McpProcessState,
   signal?: AbortSignal,
-): Promise<unknown> {
+): Promise<ToolResponse> {
+  const makeToolCtx = (contextSessionId?: string): McpToolRuntime => ({
+    ...(signal ? { signal } : {}),
+    getState: () => {
+      const current = controller.getCtx();
+      if (!current) throw new Error('Repovine runtime is not ready.');
+      return current.getState();
+    },
+    getConfig: () => processState.cfg,
+    refreshRepoState: async (options?: { reloadConfig?: boolean }) => {
+      const current = controller.getCtx();
+      if (!current) throw new Error('Repovine runtime is not ready.');
+      if (options?.reloadConfig) {
+        // Single-flight runner (see reload-config.ts): concurrent calls coalesce onto one swap;
+        // annotation writes are refused while it runs (see below). The request signal makes the
+        // rebuild cancellable; checkpoints keep a late cancel from swapping the runtime.
+        const runner = processState.reloadConfig;
+        if (!runner) throw new Error('Config reload is unavailable in this mode.');
+        return runner.run(signal);
+      }
+      await current.refresh(signal);
+    },
+    repoRoot,
+    contextQualityStore: processState.contextQualityStore,
+    build: {
+      snapshot: () => controller.snapshot(),
+      waitForSettled: (waitSec, sig) => controller.waitForSettled(waitSec, sig),
+      cancel: () => controller.cancel(),
+      readyState: () => controller.getCtx()?.getState(),
+    },
+    ...(contextSessionId ? { contextSessionId } : {}),
+  });
+
   const def = toolDefs.find(d => d.name === name);
   if (!def) {
-    return { error: `Unknown tool: ${name}` };
+    return envelopeError('all', `Unknown tool: ${name}`);
   }
 
   // Refuse new work once shutdown has begun; in-flight saves drain against a stable state.
   if (admissionClosed) {
-    return { error: 'repovine MCP server is shutting down; retry after restart.' };
+    return envelopeError('all', 'repovine MCP server is shutting down; retry after restart.');
   }
 
   // While a config reload swaps the runtime, refuse annotation writes so none land on the outgoing store
   // after it was drained (they would be lost on the swap). Reads are unaffected.
   if (processState.reloadConfig?.isInFlight && MUTATING_ANNOTATION_TOOLS.has(name)) {
-    return { error: 'repovine is reloading its config; retry this write in a moment.' };
+    return envelopeError('all', 'repovine is reloading its config; retry this write in a moment.');
   }
 
-  // get_build_status is always callable, even during build / on failure.
-  // With waitSec it long-polls: holds the request until the build settles or the wait
-  // expires, so agents make one waiting call instead of a polling loop.
+  // get_build_status reads the build lifecycle rather than the graph, so it is dispatched ahead of
+  // the not-ready gate and stays callable during a build and after a failure.
   if (name === 'get_build_status') {
-    // Mutating branch: stop the in-flight startup build and return the resulting status. Ignores
-    // waitSec; a no-op (current snapshot) when no build is running. Reachable here because
-    // get_build_status is special-cased before the not-ready gate, so it works mid-build.
-    if (args['cancel'] === true) {
-      return await controller.cancel();
-    }
-    const waitSecRaw = args['waitSec'];
-    const waitSec = typeof waitSecRaw === 'number' && Number.isFinite(waitSecRaw)
-      // Cap below the MCP SDK client's 60s default request timeout: a longer long-poll would always
-      // time out client-side and auto-cancel while the server pends and discards the eventual reply.
-      ? Math.min(55, Math.max(0, Math.floor(waitSecRaw)))
-      : 0;
-    const snapshot = waitSec > 0 ? await controller.waitForSettled(waitSec, signal) : controller.snapshot();
-    if (snapshot.status !== 'ready') return snapshot;
-    const readyState = controller.getCtx()?.getState();
-    const domainsSuggestions = readyState?.domainsSuggestions;
-    // A cold start never calls refresh_context, so this is the only place the first build can
-    // report what it refused.
-    const outsideRepo = readyState ? outsideRepoReport(readyState.snapshot) : undefined;
-    return {
-      ...snapshot,
-      ...(domainsSuggestions ? {
-        domainsSuggestions: {
-          count: domainsSuggestions.count,
-          axes: domainsSuggestions.axes,
-          declinedHidden: domainsSuggestions.declinedHidden,
-        },
-      } : {}),
-      ...(outsideRepo ? { outsideRepo } : {}),
-    };
+    return await toolHandlers[name](makeToolCtx(contextSessionIdFromArgs(args)), args);
   }
 
   // A cancelled (bare-tree) server has no graph and refresh_context's handler can't run. Re-trigger
   // a fresh build instead, so the cancel→rebuild cycle stays inside MCP tools. Special-cased before
   // the not-ready gate (like get_build_status); only fires from the terminal `cancelled` state.
   if (name === 'refresh_context' && controller.isCancelled()) {
-    return controller.rebuild();
+    return notReadyResponse(controller.rebuild());
   }
 
   // L1+L3: if the graph isn't ready yet, return an informational success-shape payload
@@ -459,16 +462,17 @@ async function executeTool(
   const required = getRequiredArgs(def);
   const missing = required.filter(k => args[k] == null || args[k] === '');
   if (missing.length > 0) {
-    return {
-      error: `Missing required argument(s): ${missing.join(', ')}. `
+    return envelopeError(
+      'all',
+      `Missing required argument(s): ${missing.join(', ')}. `
         + `Pass them in the "arguments" object of the tools/call request; inputSchema.required lists them.`,
-      fix: `tools/call { "name": "${name}", "arguments": { ${required.map(k => `"${k}": "..."`).join(', ')} } }`,
-    };
+      { fix: `tools/call { "name": "${name}", "arguments": { ${required.map(k => `"${k}": "..."`).join(', ')} } }` },
+    );
   }
   const parsed = def.schema.safeParse(args);
   if (!parsed.success) {
     const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
-    return { error: `Invalid arguments: ${issues}` };
+    return envelopeError('all', `Invalid arguments: ${issues}`);
   }
   const parsedArgs = parsed.data as Record<string, unknown>;
   // Resolve the context-session id BEFORE stripping it from handler args, so handlers that need it
@@ -483,38 +487,13 @@ async function executeTool(
 
   const handler = toolHandlers[name];
   if (!handler) {
-    return { error: `Unknown tool: ${name}` };
+    return envelopeError('all', `Unknown tool: ${name}`);
   }
 
-  const toolCtx = {
-    ...(signal ? { signal } : {}),
-    getState: () => {
-      const current = controller.getCtx();
-      if (!current) throw new Error('Repovine runtime is not ready.');
-      return current.getState();
-    },
-    getConfig: () => processState.cfg,
-    refreshRepoState: async (options?: { reloadConfig?: boolean }) => {
-      const current = controller.getCtx();
-      if (!current) throw new Error('Repovine runtime is not ready.');
-      if (options?.reloadConfig) {
-        // Single-flight runner (see reload-config.ts): concurrent calls coalesce onto one swap;
-        // annotation writes are refused while it runs (see executeTool). The request signal makes
-        // the rebuild cancellable; checkpoints keep a late cancel from swapping the runtime.
-        const runner = processState.reloadConfig;
-        if (!runner) throw new Error('Config reload is unavailable in this mode.');
-        return runner.run(signal);
-      }
-      await current.refresh(signal);
-    },
-    repoRoot,
-    contextQualityStore: processState.contextQualityStore,
-    ...(callContextSessionId ? { contextSessionId: callContextSessionId } : {}),
-  };
+  const toolCtx = makeToolCtx(callContextSessionId);
   const response = await handler(toolCtx, args);
   // Advisory recovery: unresolved scopes get up to three semantic retry suggestions.
-  await appendSemanticScopeSuggestions(toolCtx, name, args, response);
-  return response;
+  return await withSemanticScopeSuggestions(toolCtx, name, args, response);
 }
 
 function recordContextQualityCall(
@@ -590,14 +569,14 @@ async function runStdio(
         trackCall(name, out.content[0].text);
         return out;
       } catch (e) {
+        // A handler that threw still answers in the shape every other response uses, so a client
+        // reads one envelope whether the tool failed cleanly or crashed.
         const message = (e as Error).message;
         logToolError(name, message);
-        const text = JSON.stringify({ error: message }, null, 2);
-        trackCall(name, text);
-        return {
-          content: [{ type: 'text' as const, text }],
-          isError: true,
-        };
+        const responseConfig = responseConfigWithOverride(processState.cfg.mcp.response, safeArgs.responseFormat);
+        const out = toCallToolMcpResult(envelopeError('all', message), responseConfig, navigationRefs);
+        trackCall(name, out.content[0].text);
+        return out;
       } finally {
         inFlightToolCalls--;
       }
@@ -754,7 +733,7 @@ async function main(): Promise<void> {
 
   // Connect the MCP transport BEFORE building so the `initialize` handshake
   // never blocks on the cold-cache path. Tool calls received before the build finishes
-  // return success-shape `status:"building"` payloads (see executeTool).
+  // return success-shape envelopes carrying `result.status:"building"` (see executeTool).
   registerStdioDisconnectShutdown(requestShutdown);
   serverHolder.server = await runStdio(controller, processState);
 

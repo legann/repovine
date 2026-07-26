@@ -122,7 +122,7 @@ analyze_architecture({
 })
 ```
 
-Follow returned `navigation.deeper`, `sideways`, `cross_layer`, and `validate` suggestions before reading broadly when present.
+Follow returned `navigation.deeper`, `sideways`, `crossLayer`, and `validate` suggestions before reading broadly when present.
 
 All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`; reuse them in the same MCP session or expand from `refs`. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.
 

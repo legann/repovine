@@ -228,7 +228,7 @@ export const handleSearchContext: ToolHandler = async (ctx, args) => {
   }
   navigation.sideways.push(nav('map_context', { scope: query, limit: DEFAULT_SEARCH_LIMIT }, 'Try the query as a domain/package/module alias.'));
   if (entrypoints.items.length > 0) {
-    navigation.cross_layer.push(nav('get_entrypoints', { scope: `query:${query}`, limit: DEFAULT_SEARCH_LIMIT }, 'Inspect execution starts matching the query.'));
+    navigation.crossLayer.push(nav('get_entrypoints', { scope: `query:${query}`, limit: DEFAULT_SEARCH_LIMIT }, 'Inspect execution starts matching the query.'));
   }
   if (config.items.length > 0) {
     navigation.sideways.push(nav('get_config_surface', { scope: `query:${query}`, limit: DEFAULT_SEARCH_LIMIT }, 'Inspect matching config/resource bindings.'));

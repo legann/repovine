@@ -11,7 +11,8 @@ jest.unstable_mockModule('node:fs/promises', () => ({
   readFile: jest.fn(),
 }));
 
-import type { McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
+import { ToolResponseSchema, type ToolResponse } from '../../../src/mcp/response/envelope.js';
+import type { ToolHandler, McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
 import { CONFIG_DEFAULTS, DEFAULT_PROPAGATION_CONFIG } from '../../../src/config.js';
 import { resolveNodeId } from '../../../src/mcp/types.js';
 import { resolveDomainContentHash } from '../../../src/annotations/store.js';
@@ -37,14 +38,14 @@ import type { InfraModuleInfo, RepositoryFactsSnapshot, RepositoryGraph, ModuleI
 import { buildRuntimeResourceContentHashLookup } from '../../../src/annotations/service-resource-hash.js';
 
 let fsPromises: typeof import('node:fs/promises');
-let toolHandlers: Record<string, (ctx: McpToolRuntime, args: Record<string, unknown>) => unknown | Promise<unknown>>;
+let toolHandlers: Record<string, ToolHandler>;
 let buildInspectNodeDetail: (
   ctx: McpToolRuntime,
   args: Record<string, unknown>,
 ) => Promise<unknown>;
 
 async function architectureResult(ctx: McpToolRuntime, args: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const envelope = await toolHandlers['analyze_architecture'](ctx, args) as Record<string, unknown>;
+  const envelope = await toolHandlers['analyze_architecture'](ctx, args);
   return envelope.result as Record<string, unknown>;
 }
 
@@ -483,7 +484,7 @@ describe('inspect_node investigate tags', () => {
     ]);
 
     // the pointer is also surfaced as a must-inspect navigation hint via the full handler.
-    const envelope = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/gamma' }) as Record<string, unknown>;
+    const envelope = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/gamma' });
     const navigation = envelope.navigation as Record<string, Array<{ tool: string; args: Record<string, unknown> }>>;
     expect(navigation.deeper).toEqual(expect.arrayContaining([
       expect.objectContaining({ tool: 'inspect_node', args: { nodeId: 'mod:test/alpha' } }),
@@ -517,7 +518,7 @@ describe('inspect_node salience ordering + attention', () => {
     const { graph, modulesById, annotations } = fixtureWithTaggedLastChild();
     const ctx = makeCtx({ graph, modulesById, annotations });
 
-    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha', exportLimit: 2 }) as Record<string, unknown>;
+    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha', exportLimit: 2 });
     const detail = result.result as { drill_down: Array<{ id: string; investigate?: string[] }>; childPagination: { total: number }; affordanceCount: number };
 
     // Qux sits at source index 3 (past exportLimit 2); the partition surfaces it on page 1.
@@ -532,7 +533,7 @@ describe('inspect_node salience ordering + attention', () => {
     const { graph, modulesById, annotations } = fixtureWithTaggedLastChild();
     const ctx = makeCtx({ graph, modulesById, annotations });
 
-    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha', exportLimit: 2 }) as Record<string, unknown>;
+    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha', exportLimit: 2 });
     const attention = result.attention as Array<{ nodeId: string; investigate: string[]; note: string; next: { tool: string; args: Record<string, unknown> } }>;
 
     expect(Array.isArray(attention)).toBe(true);
@@ -547,7 +548,7 @@ describe('inspect_node salience ordering + attention', () => {
 
   it('omits the attention block when no obligation exists', async () => {
     const ctx = makeCtx(); // default annotations resolve to undefined → no tags
-    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
     expect(result.attention).toBeUndefined();
   });
 
@@ -586,7 +587,7 @@ describe('inspect_node salience ordering + attention', () => {
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations });
-    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/beta' }) as Record<string, unknown>;
+    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/beta' });
 
     // inline ref tags still carry hub (alpha = risk+hub, shared = hub)
     const links = (env.result as { links: Array<{ targetId: string; investigate?: string[] }> }).links;
@@ -613,7 +614,7 @@ describe('inspect_node salience ordering + attention', () => {
     const { graph, modulesById } = wiredFixture();
     const ctx = makeCtx({ graph, modulesById });
 
-    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/beta' }) as Record<string, unknown>;
+    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/beta' });
     const links = (env.result as { links: Array<{ targetId: string; investigate?: string[] }> }).links;
     expect(links.find((l) => l.targetId === 'mod:test/alpha')?.investigate).toEqual(['wiring']);
     // beta itself is unwired and alpha's wiring is advisory → no attention block at all.
@@ -624,7 +625,7 @@ describe('inspect_node salience ordering + attention', () => {
     const { graph, modulesById } = wiredFixture();
     const ctx = makeCtx({ graph, modulesById });
 
-    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
     const attention = env.attention as Array<{ nodeId: string; investigate: string[]; note: string; next: { tool: string; args: Record<string, unknown> } }>;
     expect(attention[0].nodeId).toBe('mod:test/alpha');
     expect(attention[0].investigate).toEqual(['wiring']);
@@ -644,7 +645,7 @@ describe('inspect_node salience ordering + attention', () => {
     } as unknown as RepovineState['annotations'];
     const ctx = makeCtx({ graph, modulesById, annotations });
 
-    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
     const attention = env.attention as Array<{ nodeId: string; investigate: string[] }>;
     expect(attention[0].investigate).toEqual(['boundary']);
     expect(attention[1].investigate).toEqual(['wiring']);
@@ -677,7 +678,7 @@ describe('inspect_node salience ordering + attention', () => {
     } as unknown as RepovineState['annotations'];
     const ctx = makeCtx({ graph, modulesById, annotations });
 
-    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
     const attention = env.attention as Array<{ nodeId: string; investigate: string[] }>;
     expect(attention).toHaveLength(3);
     expect(attention[0].investigate).toEqual(['boundary']);
@@ -718,7 +719,7 @@ describe('inspect_node salience ordering + attention', () => {
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations });
-    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/gamma' }) as Record<string, unknown>;
+    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/gamma' });
 
     const pointers = (env.result as { investigatePointers?: Array<{ id: string; investigate: string[] }> }).investigatePointers;
     expect(pointers).toEqual([
@@ -740,7 +741,7 @@ describe('inspect_node salience ordering + attention', () => {
     addEdge(graph, 'export:test/alpha/Foo', 'export:test/beta/Iface', 'implements');
     const ctx = makeCtx({ graph, modulesById });
 
-    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
     const detail = env.result as { drill_down: Array<{ id: string; investigate?: string[] }> };
     expect(detail.drill_down.find((c) => c.id === 'export:test/alpha/Foo')?.investigate).toEqual(['co-change']);
     expect(env.attention).toBeUndefined();
@@ -944,18 +945,10 @@ describe('resolveNodeId', () => {
 
 // ── public v1 tools ──
 
-function expectEnvelope(result: Record<string, unknown>) {
-  expect(result.summary).toEqual(expect.any(String));
-  expect(result.confidence).toEqual(expect.any(String));
-  expect(result.resolvedScope).toEqual(expect.any(Object));
-  expect(result.gaps).toEqual(expect.any(Array));
-  expect(result.navigation).toEqual(expect.objectContaining({
-    deeper: expect.any(Array),
-    sideways: expect.any(Array),
-    up: expect.any(Array),
-    cross_layer: expect.any(Array),
-    validate: expect.any(Array),
-  }));
+function expectEnvelope(result: ToolResponse) {
+  // The declared shape, not a hand-listed subset: a field added beside `result` fails here.
+  const parsed = ToolResponseSchema.safeParse(result);
+  expect(parsed.success ? [] : parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)).toEqual([]);
 }
 
 describe('public v1 context tools', () => {
@@ -986,7 +979,7 @@ describe('public v1 context tools', () => {
       const result = await toolHandlers['decline_advisory'](ctx, {
         kind: 'domains-config',
         ids: [addition.id],
-      }) as Record<string, unknown>;
+      });
 
       expectEnvelope(result);
       expect(result.summary).toContain('Declined 1');
@@ -1016,7 +1009,7 @@ describe('public v1 context tools', () => {
 
   it('wraps inspect_node results in the shared navigation envelope', async () => {
     const ctx = makeCtx();
-    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
 
     expectEnvelope(result);
     expect(result.scope).toBe('mod:test/alpha');
@@ -1030,7 +1023,7 @@ describe('public v1 context tools', () => {
       scope: 'pkg:test',
       view: 'modules',
       limit: 1,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const focus = (result.result as { focus: Record<string, unknown> }).focus;
@@ -1049,7 +1042,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['map_context'](ctx, {
       scope: 'pkg:test',
       offset: 999,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -1077,7 +1070,7 @@ describe('public v1 context tools', () => {
 
   it('explains unresolved and structurally empty map_context results', async () => {
     const ctx = makeCtx();
-    const unresolved = await toolHandlers['map_context'](ctx, { scope: 'pkg:missing' }) as Record<string, unknown>;
+    const unresolved = await toolHandlers['map_context'](ctx, { scope: 'pkg:missing' });
 
     expectEnvelope(unresolved);
     expect(unresolved.confidence).toBe('low');
@@ -1098,7 +1091,7 @@ describe('public v1 context tools', () => {
     const emptyPackage = await toolHandlers['map_context'](
       makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]) }),
       { scope: 'pkg:empty' },
-    ) as Record<string, unknown>;
+    );
 
     expectEnvelope(emptyPackage);
     expect(emptyPackage.result).toEqual(expect.objectContaining({
@@ -1113,7 +1106,7 @@ describe('public v1 context tools', () => {
   });
 
   it('returns graph_empty emptyDiagnostic for map_context when no graph context exists', async () => {
-    const result = await toolHandlers['map_context'](makeEmptyCtx(), { scope: 'all' }) as Record<string, unknown>;
+    const result = await toolHandlers['map_context'](makeEmptyCtx(), { scope: 'all' });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -1142,11 +1135,11 @@ describe('public v1 context tools', () => {
     modulesById.set(page.id, page);
     const ctx = makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]) });
 
-    const pkgResult = await toolHandlers['map_context'](ctx, { scope: 'pkg:client-ui' }) as Record<string, unknown>;
+    const pkgResult = await toolHandlers['map_context'](ctx, { scope: 'pkg:client-ui' });
     expectEnvelope(pkgResult);
     expect(pkgResult.resolvedScope).toMatchObject({ kind: 'package', id: 'pkg:@acme/client-ui' });
 
-    const moduleResult = await toolHandlers['map_context'](ctx, { scope: 'packages/client-ui/src/pages/TickPricingPage.tsx' }) as Record<string, unknown>;
+    const moduleResult = await toolHandlers['map_context'](ctx, { scope: 'packages/client-ui/src/pages/TickPricingPage.tsx' });
     expectEnvelope(moduleResult);
     expect(moduleResult.resolvedScope).toMatchObject({
       kind: 'module',
@@ -1202,7 +1195,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'TickPricingPage routing navbar',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('medium');
@@ -1248,7 +1241,7 @@ describe('public v1 context tools', () => {
       query: 'order route',
       match: 'and',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('medium');
@@ -1276,7 +1269,7 @@ describe('public v1 context tools', () => {
       query: 'order report',
       match: 'and',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -1299,7 +1292,7 @@ describe('public v1 context tools', () => {
       query: 'order report',
       match: 'or',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('medium');
@@ -1322,7 +1315,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'order report',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -1352,7 +1345,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'anchor extra',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('medium');
@@ -1396,7 +1389,7 @@ describe('public v1 context tools', () => {
       query: 'top needle',
       match: 'or',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('medium');
@@ -1427,7 +1420,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'anchor needle',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -1449,7 +1442,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'anchor',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('medium');
@@ -1473,7 +1466,7 @@ describe('public v1 context tools', () => {
       query: 'alpha',
       types: ['entrypoint'],
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.gaps).toEqual([]);
@@ -1493,7 +1486,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'anchor',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
     const out = toCallToolMcpResult(result, { mode: 'concise', pretty: false, maxChars: 50_000 });
     const parsed = JSON.parse(out.content[0].text) as Record<string, unknown>;
 
@@ -1507,7 +1500,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'missinganchor route',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -1542,7 +1535,7 @@ describe('public v1 context tools', () => {
       query: 'missinganchor route',
       match: 'or',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('medium');
@@ -1563,7 +1556,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'missinganchor missingcontext',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -1590,7 +1583,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['search_context'](ctx, {
       query: 'anything',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const payload = result.result as Record<string, unknown>;
@@ -1617,7 +1610,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['inspect_node'](ctx, {
       nodeId: 'mod:test/alpha',
       exportLimit: 1,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const detail = result.result as Record<string, unknown>;
@@ -1642,7 +1635,7 @@ describe('public v1 context tools', () => {
       snapshot: makeSnapshot([...modulesById.values()]),
     });
 
-    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
 
     expectEnvelope(result);
     const detail = result.result as Record<string, unknown>;
@@ -1657,7 +1650,7 @@ describe('public v1 context tools', () => {
       nodeId: 'mod:test/alpha',
       includeBody: true,
       bodyLimit: 50_001,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -1708,7 +1701,7 @@ describe('public v1 context tools', () => {
       includeAllDomains: true,
       limit: 2,
       offset: 1,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const coverage = (result.result as { coverage: Record<string, unknown> }).coverage;
@@ -1759,7 +1752,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['get_annotation_status'](ctx, {
       view: 'queue',
       limit: 2,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const queue = (result.result as { queue: Record<string, unknown> }).queue;
@@ -1799,7 +1792,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['get_annotation_status'](ctx, {
       view: 'queue',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
     const queue = (result.result as { queue: Record<string, unknown> }).queue;
 
     expect(queue.mode).toBe('queue');
@@ -1833,7 +1826,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['get_annotation_status'](ctx, {
       view: 'derived-review',
       limit: 10,
-    }) as Record<string, unknown>;
+    });
     const reviewQueue = (result.result as { derivedReview: Record<string, unknown> }).derivedReview;
 
     expect(reviewQueue.mode).toBe('derived-review');
@@ -1850,7 +1843,7 @@ describe('public v1 context tools', () => {
       view: 'propagation-preview',
       from: 'mod:test/alpha',
       includeDomains: true,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const preview = (result.result as { propagationPreview: Record<string, unknown> }).propagationPreview;
@@ -1863,10 +1856,11 @@ describe('public v1 context tools', () => {
 
   it('propagation-preview view requires from', async () => {
     const ctx = makeCtx();
-    const result = await toolHandlers['get_annotation_status'](ctx, {
+    const response = await toolHandlers['get_annotation_status'](ctx, {
       view: 'propagation-preview',
-    }) as Record<string, unknown>;
-    expect(result.error).toMatch(/requires from/i);
+    });
+    expect((response.result as Record<string, unknown>).error).toMatch(/requires from/i);
+    expect(response.confidence).toBe('low');
   });
 
   it('queue view pages via offset', async () => {
@@ -1887,7 +1881,7 @@ describe('public v1 context tools', () => {
       view: 'queue',
       limit: 2,
       offset: 2,
-    }) as Record<string, unknown>;
+    });
 
     const queue = (result.result as { queue: Record<string, unknown> }).queue;
     expect(queue.offset).toBe(2);
@@ -1925,7 +1919,7 @@ describe('public v1 context tools', () => {
       view: 'risk-scope-candidates',
       limit: 1,
       offset: 0,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const candidates = (result.result as { riskScopeCandidates: Record<string, unknown> }).riskScopeCandidates;
@@ -1974,7 +1968,7 @@ describe('public v1 context tools', () => {
       view: 'risk-scope-candidates',
       limit: 1,
       offset: 1,
-    }) as Record<string, unknown>;
+    });
     const pageCandidates = (page.result as { riskScopeCandidates: Record<string, unknown> }).riskScopeCandidates;
     expect(pageCandidates.items).toEqual([]);
     expect(pageCandidates.pagination).toEqual({
@@ -1987,7 +1981,7 @@ describe('public v1 context tools', () => {
 
     const empty = await toolHandlers['get_annotation_status'](makeCtx(), {
       view: 'risk-scope-candidates',
-    }) as Record<string, unknown>;
+    });
     const emptyCandidates = (empty.result as { riskScopeCandidates: Record<string, unknown> }).riskScopeCandidates;
     expect(emptyCandidates).toEqual(expect.objectContaining({
       total: 0,
@@ -2003,7 +1997,7 @@ describe('public v1 context tools', () => {
       scope: 'mod:test/alpha',
       mode: 'impact',
       depth: 2,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.resolvedScope).toMatchObject({ kind: 'module', id: 'mod:test/alpha' });
@@ -2018,7 +2012,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['analyze_dependencies'](ctx, {
       scope: 'pkg:test',
       mode: 'import-map',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2050,7 +2044,7 @@ describe('public v1 context tools', () => {
     const impact = await toolHandlers['analyze_dependencies'](ctx, {
       scope: 'mod:test/gamma',
       mode: 'impact',
-    }) as Record<string, unknown>;
+    });
     expectEnvelope(impact);
     expect(impact.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({
@@ -2065,7 +2059,7 @@ describe('public v1 context tools', () => {
     const implementations = await toolHandlers['analyze_dependencies'](ctx, {
       mode: 'interface-implementations',
       interfaceName: 'MissingInterface',
-    }) as Record<string, unknown>;
+    });
     expectEnvelope(implementations);
     expect(implementations.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({
@@ -2076,7 +2070,7 @@ describe('public v1 context tools', () => {
     const callgraph = await toolHandlers['analyze_dependencies'](ctx, {
       scope: 'export:test/alpha/Foo',
       mode: 'callgraph',
-    }) as Record<string, unknown>;
+    });
     expectEnvelope(callgraph);
     expect(callgraph.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({
@@ -2091,13 +2085,13 @@ describe('public v1 context tools', () => {
     const dependencies = await toolHandlers['analyze_dependencies'](ctx, {
       scope: 'all',
       mode: 'package-boundaries',
-    }) as Record<string, unknown>;
+    });
     expectEnvelope(dependencies);
     expect(dependencies.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({ reason: 'graph_empty' }),
     }));
 
-    const architecture = await toolHandlers['analyze_architecture'](ctx, { scope: 'all' }) as Record<string, unknown>;
+    const architecture = await toolHandlers['analyze_architecture'](ctx, { scope: 'all' });
     expectEnvelope(architecture);
     expect(architecture.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({ reason: 'graph_empty' }),
@@ -2106,7 +2100,7 @@ describe('public v1 context tools', () => {
 
   it('returns entrypoints in the shared envelope even when none are present', async () => {
     const ctx = makeCtx();
-    const result = await toolHandlers['get_entrypoints'](ctx, { scope: 'all' }) as Record<string, unknown>;
+    const result = await toolHandlers['get_entrypoints'](ctx, { scope: 'all' });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2129,7 +2123,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['get_entrypoints'](ctx, {
       scope: 'pkg:test',
       kind: 'api',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2145,7 +2139,7 @@ describe('public v1 context tools', () => {
   });
 
   it('returns graph_empty emptyDiagnostic for entrypoints when no graph context exists', async () => {
-    const result = await toolHandlers['get_entrypoints'](makeEmptyCtx(), { scope: 'all' }) as Record<string, unknown>;
+    const result = await toolHandlers['get_entrypoints'](makeEmptyCtx(), { scope: 'all' });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2162,7 +2156,7 @@ describe('public v1 context tools', () => {
       snapshot: makeSnapshot([...modulesById.values()]),
     });
 
-    const entrypoints = await toolHandlers['get_entrypoints'](ctx, { scope: 'domain:auth' }) as Record<string, unknown>;
+    const entrypoints = await toolHandlers['get_entrypoints'](ctx, { scope: 'domain:auth' });
     expect(entrypoints.gaps).toEqual(expect.arrayContaining([
       expect.stringContaining('semantic/path tags'),
     ]));
@@ -2179,7 +2173,7 @@ describe('public v1 context tools', () => {
       expect.objectContaining({ tool: 'get_entrypoints', args: expect.objectContaining({ scope: 'domain:auth' }) }),
     ]));
 
-    const flow = await toolHandlers['trace_flow'](ctx, { scope: 'domain:auth' }) as Record<string, unknown>;
+    const flow = await toolHandlers['trace_flow'](ctx, { scope: 'domain:auth' });
     expect(flow.gaps).toEqual(expect.arrayContaining([
       expect.stringContaining('semantic/path tags'),
     ]));
@@ -2188,13 +2182,13 @@ describe('public v1 context tools', () => {
         reason: 'semantic_domain_not_runtime_boundary',
       }),
     }));
-    expect((flow.navigation as Record<string, Array<Record<string, unknown>>>).cross_layer).not.toEqual(expect.arrayContaining([
+    expect((flow.navigation as Record<string, Array<Record<string, unknown>>>).crossLayer).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ tool: 'trace_flow', args: expect.objectContaining({ scope: 'domain:auth' }) }),
     ]));
   });
 
   it('returns graph_empty emptyDiagnostic for trace_flow when no graph context exists', async () => {
-    const result = await toolHandlers['trace_flow'](makeEmptyCtx(), { scope: 'all' }) as Record<string, unknown>;
+    const result = await toolHandlers['trace_flow'](makeEmptyCtx(), { scope: 'all' });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2218,7 +2212,7 @@ describe('public v1 context tools', () => {
       include: ['services'],
       limit: 1,
       offset: 1,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2279,7 +2273,7 @@ describe('public v1 context tools', () => {
 
     const result = await toolHandlers['trace_flow'](ctx, {
       scope: 'resource:aws-lambda:OrdersFunction',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2335,7 +2329,7 @@ describe('public v1 context tools', () => {
 
     const result = await toolHandlers['inspect_node'](ctx, {
       nodeId: 'resource:aws-lambda:JobsFunction',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2361,7 +2355,7 @@ describe('public v1 context tools', () => {
 
   it('returns scope_has_no_config_surface emptyDiagnostic for config surface misses', async () => {
     const ctx = makeCtx();
-    const result = await toolHandlers['get_config_surface'](ctx, { scope: 'pkg:test' }) as Record<string, unknown>;
+    const result = await toolHandlers['get_config_surface'](ctx, { scope: 'pkg:test' });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2384,7 +2378,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['get_config_surface'](ctx, {
       scope: 'pkg:test',
       namePattern: 'DOES_NOT_MATCH',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2405,7 +2399,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['get_config_surface'](ctx, {
       scope: 'pkg:test',
       namePattern: '[unterminated',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2418,7 +2412,7 @@ describe('public v1 context tools', () => {
   });
 
   it('returns graph_empty emptyDiagnostic for config surface when no graph context exists', async () => {
-    const result = await toolHandlers['get_config_surface'](makeEmptyCtx(), { scope: 'all' }) as Record<string, unknown>;
+    const result = await toolHandlers['get_config_surface'](makeEmptyCtx(), { scope: 'all' });
 
     expectEnvelope(result);
     expect(result.result).toEqual(expect.objectContaining({
@@ -2445,7 +2439,7 @@ describe('public v1 context tools', () => {
       snapshot: makeSnapshot([...modulesById.values()]),
     });
 
-    const result = await toolHandlers['get_entrypoints'](ctx, { scope: 'all', kind: 'schedule' }) as Record<string, unknown>;
+    const result = await toolHandlers['get_entrypoints'](ctx, { scope: 'all', kind: 'schedule' });
 
     expectEnvelope(result);
     const items = (result.result as { items: Array<Record<string, unknown>> }).items;
@@ -2466,7 +2460,7 @@ describe('public v1 context tools', () => {
     const result = await toolHandlers['analyze_dependencies'](ctx, {
       scope: 'pkg:test',
       mode: 'impact',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('low');
@@ -2488,7 +2482,7 @@ describe('public v1 context tools', () => {
       scope: 'pkg:test',
       categories: ['god-domain'],
       minConfidence: 0.99,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(report);
     expect(report.result).toEqual(expect.objectContaining({
@@ -2506,7 +2500,7 @@ describe('public v1 context tools', () => {
     const detail = await toolHandlers['analyze_architecture'](ctx, {
       scope: 'pkg:test',
       detailFindingId: 'god-module:missing',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(detail);
     expect(detail.result).toEqual(expect.objectContaining({
@@ -2522,10 +2516,10 @@ describe('public v1 context tools', () => {
 
   it('deduplicates navigation items with identical (tool, args)', async () => {
     const ctx = makeCtx();
-    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
 
     const navigation = result.navigation as Record<string, Array<{ tool: string; args: Record<string, unknown> }>>;
-    for (const section of ['deeper', 'sideways', 'up', 'cross_layer', 'validate'] as const) {
+    for (const section of ['deeper', 'sideways', 'up', 'crossLayer', 'validate'] as const) {
       const keys = navigation[section].map(item => `${item.tool}|${JSON.stringify(item.args)}`);
       expect(new Set(keys).size).toBe(keys.length);
     }
@@ -4162,21 +4156,21 @@ describe('write_annotation safety', () => {
     const rejected = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       annotation: { summary: 'Uses token: sk_live_1234567890abcdef' },
-    }) as Record<string, unknown>;
+    });
     expect((rejected.result as Record<string, unknown>).error).toContain('secret values');
     expect(rejected.summary).toContain('Failed to save annotation');
 
     const rejectedAssignment = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       annotation: { assumptions: ['password=supersecret123'] },
-    }) as Record<string, unknown>;
+    });
     expect((rejectedAssignment.result as Record<string, unknown>).error).toContain('secret values');
     expect((rejectedAssignment.result as Record<string, unknown>).fieldPaths).toEqual(['annotation.assumptions[0]']);
 
     const accepted = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       annotation: { summary: 'Reads STRIPE_SECRET_KEY by name only' },
-    }) as Record<string, unknown>;
+    });
     expect((accepted.result as Record<string, unknown>).status).toBe('saved');
     const submitted = (accepted.result as Record<string, unknown>).submittedAnnotation as {
       chars: number;
@@ -4198,7 +4192,7 @@ describe('write_annotation safety', () => {
       nodeId: 'mod:test/alpha',
       annotation: { summary: 'Reads STRIPE_SECRET_KEY by name only (durable)' },
       durable: true,
-    }) as Record<string, unknown>;
+    });
     expect((durableWrite.result as Record<string, unknown>).persistence).toMatchObject({ durable: true, persisted: true });
     expect(durableWrite.summary).toContain('persisted to disk');
     expect(ctx.getState().annotations.flushAsync).toHaveBeenCalled();
@@ -4209,7 +4203,7 @@ describe('write_annotation safety', () => {
     const missingNode = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/missing',
       annotation: { summary: 'Meaningful summary for a missing node.' },
-    }) as Record<string, unknown>;
+    });
     expect(missingNode.confidence).toBe('low');
     expect(missingNode.summary).toContain('Failed to save annotation');
     expect(missingNode.summary).not.toContain('Saved annotation');
@@ -4218,14 +4212,14 @@ describe('write_annotation safety', () => {
     const emptyUpdate = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       annotation: {},
-    }) as Record<string, unknown>;
+    });
     expect(emptyUpdate.summary).toContain('Failed to save annotation');
     expect((emptyUpdate.result as Record<string, unknown>).error).toContain('empty');
 
     const blankSummary = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       annotation: { summary: '   ' },
-    }) as Record<string, unknown>;
+    });
     expect(blankSummary.summary).toContain('Failed to save annotation');
     expect((blankSummary.result as Record<string, unknown>).error).toContain('cannot be empty');
   });
@@ -4239,7 +4233,7 @@ describe('write_annotation safety', () => {
     const res = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       annotation: { summary: 'A note written without inspecting the node first.' },
-    }) as Record<string, unknown>;
+    });
     const warnings = ((res.result as Record<string, unknown>).warnings as string[] | undefined) ?? [];
     expect(warnings.join(' ')).toMatch(/Provenance:.*mod:test\/alpha.*not inspected/i);
   });
@@ -4254,7 +4248,7 @@ describe('write_annotation safety', () => {
       const res = await toolHandlers['write_annotation'](ctx, {
         nodeId: 'mod:test/alpha',
         annotation: { summary: 'A note written after inspecting the node.' },
-      }) as Record<string, unknown>;
+      });
       const warnings = ((res.result as Record<string, unknown>).warnings as string[] | undefined) ?? [];
       expect(warnings.join(' ')).not.toMatch(/Provenance/);
     }
@@ -4292,7 +4286,7 @@ describe('write_annotation safety', () => {
     const result = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       annotation: { summary: 'Final merged summary written by agent.' },
-    }) as Record<string, unknown>;
+    });
 
     expect((result.result as Record<string, unknown>).status).toBe('saved');
     expect(set).toHaveBeenCalledTimes(1);
@@ -4330,7 +4324,7 @@ describe('write_annotation safety', () => {
     const result = await toolHandlers['write_annotation'](ctx, {
       nodeId: 'mod:test/alpha',
       refreshImportBaseline: true,
-    }) as Record<string, unknown>;
+    });
 
     expect((result.result as Record<string, unknown>).status).toBe('saved');
     expect((result.result as Record<string, unknown>).importBaselineRefreshed).toBe(true);
@@ -4581,7 +4575,7 @@ describe('analyze_dependencies output bounding', () => {
     const result = await toolHandlers['analyze_dependencies'](highFanCtx(400), {
       scope: 'mod:test/hub',
       mode: 'impact',
-    }) as Record<string, unknown>;
+    });
     const out = toCallToolMcpResult(result, CONFIG_DEFAULTS.mcp.response);
     expect(out.content[0].text.length).toBeLessThanOrEqual(CONFIG_DEFAULTS.mcp.response.maxChars);
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
@@ -4596,7 +4590,7 @@ describe('analyze_dependencies output bounding', () => {
     const result = await toolHandlers['analyze_dependencies'](nameMatchedImpactCtx(), {
       scope: 'export:app/validator/validateMonitor',
       mode: 'impact',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     expect(result.confidence).toBe('high');
@@ -4624,7 +4618,7 @@ describe('analyze_dependencies output bounding', () => {
     }), {
       scope: 'export:app/validator/validateMonitor',
       mode: 'impact',
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const gaps = result.gaps as string[];
@@ -4640,7 +4634,7 @@ describe('analyze_dependencies output bounding', () => {
       scope: 'export:app/validator/validateMonitor',
       mode: 'impact',
       limit: 8,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const gaps = result.gaps as string[];
@@ -4661,7 +4655,7 @@ describe('analyze_dependencies output bounding', () => {
       scope: 'export:app/validator/validateMonitor',
       mode: 'impact',
       limit: 1,
-    }) as Record<string, unknown>;
+    });
 
     expectEnvelope(result);
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
@@ -4685,7 +4679,7 @@ describe('analyze_dependencies output bounding', () => {
       mode: 'interface-implementations',
       interfaceName: 'IThing',
       limit: 2,
-    }) as Record<string, unknown>;
+    });
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
     expect(analysis.count).toBe(3); // full count is preserved
     expect((analysis.implementations as unknown[]).length).toBe(2);
@@ -4700,7 +4694,7 @@ describe('analyze_dependencies output bounding', () => {
       scope: 'all',
       mode: 'package-boundaries',
       limit: 1,
-    }) as Record<string, unknown>;
+    });
     expectEnvelope(result);
     const analysis = (result.result as { analysis: Record<string, unknown> }).analysis;
     expect((analysis.edges as unknown[]).length).toBe(1);
@@ -5043,7 +5037,7 @@ describe('get_annotation_status coverage — compact response', () => {
       byTier: {},
       domainAnnotations: { totalDomains: 3, annotated: 0, list: [] },
     }));
-    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage' }) as Record<string, unknown>;
+    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage' }) as ToolResponse;
     const result = (envelope.result as { coverage: Record<string, unknown> }).coverage;
     expect(result.modules).toEqual({ total: 100, annotated: 90, fresh: 80, stale: 10, unannotated: 10 });
     expect(result.byDomain).toBeUndefined(); // compact by default
@@ -5101,7 +5095,7 @@ describe('get_annotation_status coverage — compact response', () => {
     };
     const ctx = wrapTestRuntime(state);
 
-    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage' }) as Record<string, unknown>;
+    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage' }) as ToolResponse;
     const anomalies = ((envelope.result as { coverage: Record<string, unknown> }).coverage.anomalies) as {
       inconsistent: { total: number; sample: Array<{ nodeId: string; issues: string[] }> };
     };
@@ -5120,7 +5114,7 @@ describe('get_annotation_status coverage — compact response', () => {
       byTier: {},
       domainAnnotations: { totalDomains: 1, annotated: 0, list: [] },
     }));
-    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage', includeAllDomains: true }) as Record<string, unknown>;
+    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage', includeAllDomains: true }) as ToolResponse;
     const result = (envelope.result as { coverage: Record<string, unknown> }).coverage;
     expect(result.byDomain).toEqual({ x: { total: 1, annotated: 1, fresh: 1 } });
     expect(result.byTier).toEqual({});
@@ -5136,7 +5130,7 @@ describe('get_annotation_status coverage — compact response', () => {
       byTier: {},
       domainAnnotations: { totalDomains: 2, annotated: 0, list: [] },
     }));
-    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage', domainsFilter: ['a'] }) as Record<string, unknown>;
+    const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage', domainsFilter: ['a'] }) as ToolResponse;
     const result = (envelope.result as { coverage: Record<string, unknown> }).coverage;
     expect(result.byDomain).toEqual({ a: { total: 1, annotated: 1, fresh: 1 } });
   });

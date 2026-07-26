@@ -18,7 +18,7 @@ export const handleGetConfigSurface: ToolHandler = (ctx, args) => {
     const moduleId = item.moduleId as string | undefined;
     if (moduleId) navigation.deeper.push(nav('inspect_node', { nodeId: moduleId }, 'Inspect code that reads this config/resource binding.'));
   }
-  navigation.cross_layer.push(nav('trace_flow', { scope: scope.resolvedScope, include: ['services', 'resources', 'flows'] }, 'Check whether config/resource bindings appear in runtime flow.'));
+  navigation.crossLayer.push(nav('trace_flow', { scope: scope.resolvedScope, include: ['services', 'resources', 'flows'] }, 'Check whether config/resource bindings appear in runtime flow.'));
   const responseResult: Record<string, unknown> = {
     ...result,
     ...(result.total === 0 ? { emptyDiagnostic: configSurfaceEmptyDiagnostic(ctx, scope, args) } : {}),

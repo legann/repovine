@@ -190,7 +190,7 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
   for (const d of taggedDomains) {
     navigation.up.push(nav('map_context', { scope: d }, 'Return to a broader domain containing this node.'));
   }
-  navigation.cross_layer.push(nav('trace_flow', { scope: nodeId }, 'Look for runtime/data-flow links around this node.'));
+  navigation.crossLayer.push(nav('trace_flow', { scope: nodeId }, 'Look for runtime/data-flow links around this node.'));
 
   const links = Array.isArray(result.links) ? result.links as Array<{ targetId?: string; investigate?: unknown }> : [];
   const refAttention = buildAttention(drillDown, links, investigatePointers as Array<{ id?: string; investigate?: unknown }>);

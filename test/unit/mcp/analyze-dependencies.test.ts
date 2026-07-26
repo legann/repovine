@@ -17,7 +17,7 @@ type HandlerEnvelope = {
     emptyDiagnostic?: Record<string, unknown>;
   };
   gaps: string[];
-  navigation: Record<'deeper' | 'sideways' | 'up' | 'cross_layer' | 'validate', Array<{ tool: string; args: Record<string, unknown> }>>;
+  navigation: Record<'deeper' | 'sideways' | 'up' | 'crossLayer' | 'validate', Array<{ tool: string; args: Record<string, unknown> }>>;
 };
 
 function moduleInfo(id: string): ModuleInfo {

@@ -42,7 +42,7 @@ Before editing, make a short checklist of these obligations. Do not collapse dis
 
 Infra/runtime tasks: after trace_flow or inspect_node on a resource:, follow runtimeHandoff (or integrationPoints mod: refs on the resource annotation) to the **handler module** before editing code or declaring a node unchanged. Consumer/boundary obligations live on code nodes; resource listings are topology index only.
 
-Read-only tools can return `navigation` with `deeper`, `sideways`, `up`, `cross_layer`, and `validate`. Prefer those suggestions over guessing the next call when present.
+Read-only tools can return `navigation` with `deeper`, `sideways`, `up`, `crossLayer`, and `validate`. Prefer those suggestions over guessing the next call when present.
 
 All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`; reuse them in the same MCP session or expand from `refs`. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.
 

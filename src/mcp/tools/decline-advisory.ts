@@ -7,7 +7,7 @@ import {
   readValidSuppressedTargets,
   type CarrierReviewEntry,
 } from '../../annotations/carrier-review.js';
-import { emptyNavigation, envelope, envelopeError, nav } from '../response/envelope.js';
+import { emptyNavigation, envelope, envelopeError, nav, type ToolResponse } from '../response/envelope.js';
 import type { McpToolRuntime, ToolHandler } from '../types.js';
 
 export const DECLINE_ADVISORY_KINDS = ['domains-config', 'carrier-link-gaps'] as const;
@@ -21,7 +21,7 @@ function requestedIds(args: Record<string, unknown>, visibleIds: Set<string>): s
       : [];
 }
 
-function declineDomainsConfig(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
+function declineDomainsConfig(ctx: McpToolRuntime, args: Record<string, unknown>): ToolResponse {
   const state = ctx.getState();
   const visibleIds = new Set(state.domainsSuggestions.additions.map(addition => addition.id));
   const requested = requestedIds(args, visibleIds);
@@ -69,7 +69,7 @@ function declineDomainsConfig(ctx: McpToolRuntime, args: Record<string, unknown>
   });
 }
 
-function declineCarrierLinkGaps(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
+function declineCarrierLinkGaps(ctx: McpToolRuntime, args: Record<string, unknown>): ToolResponse {
   const { graph, annotations } = ctx.getState();
   const allAnnotations = annotations.getAll();
   const suppressed = readValidSuppressedTargets(ctx.repoRoot, allAnnotations);

@@ -7,7 +7,7 @@ import {
 } from '../response/pagination.js';
 
 function emptyNavigation(): Navigation {
-  return { deeper: [], sideways: [], up: [], cross_layer: [], validate: [] };
+  return { deeper: [], sideways: [], up: [], crossLayer: [], validate: [] };
 }
 
 function nav(tool: string, args: Record<string, unknown>, reason: string): NavigationItem {
@@ -22,7 +22,7 @@ export function scopeNavigation(scope: ResolvedScope): Navigation {
   if (scope.kind === 'package') {
     n.sideways.push(nav('get_entrypoints', { scope: scope.resolvedScope, limit: DEFAULT_LIST_LIMIT }, 'Find execution starts in this area.'));
     n.sideways.push(nav('analyze_dependencies', { scope: scope.resolvedScope }, 'Check import/export coupling and package boundaries.'));
-    n.cross_layer.push(nav('trace_flow', { scope: scope.resolvedScope }, 'Follow runtime/data flow for this area.'));
+    n.crossLayer.push(nav('trace_flow', { scope: scope.resolvedScope }, 'Follow runtime/data flow for this area.'));
     n.validate.push(nav('get_annotation_status', { scope: scope.resolvedScope, view: 'coverage' }, 'Check whether annotations are fresh enough to trust.'));
   }
   if (scope.kind === 'domain') {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { envelopeError } from '../../../src/mcp/response/envelope.js';
 import {
   NavigationRefRegistry,
   responseConfigWithOverride,
@@ -42,7 +43,7 @@ function envelope() {
       ],
       sideways: [],
       up: [],
-      cross_layer: [],
+      crossLayer: [],
       validate: [],
     },
   };
@@ -92,7 +93,7 @@ describe('MCP response formatting', () => {
           },
         ],
         up: [],
-        cross_layer: [],
+        crossLayer: [],
         validate: [],
       },
     }, concise, refs) as Record<string, unknown>;
@@ -131,7 +132,7 @@ describe('MCP response formatting', () => {
   });
 
   it('marks tool error payloads as MCP errors', () => {
-    expect(toCallToolMcpResult({ error: 'nope' }, concise)).toMatchObject({ isError: true });
+    expect(toCallToolMcpResult(envelopeError('all', 'nope'), concise)).toMatchObject({ isError: true });
   });
 
   it('applies per-call responseFormat overrides and preserves maxChars', () => {

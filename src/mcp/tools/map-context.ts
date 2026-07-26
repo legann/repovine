@@ -69,9 +69,9 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
   }
   if ((result as { error?: string }).error) gaps.push((result as { error: string }).error);
   const emptyDiagnostic = mapContextEmptyDiagnostic(ctx, scope, args, r);
-  if (emptyDiagnostic) r.emptyDiagnostic = emptyDiagnostic;
+  const payload = emptyDiagnostic ? { ...r, emptyDiagnostic } : result;
 
-  return envelope(scope, summary, result, {
+  return envelope(scope, summary, payload, {
     confidence: gaps.length || emptyDiagnostic ? 'low' : 'high',
     gaps,
     navigation,

@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import type { ToolResponse } from '../../../src/mcp/response/envelope.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
@@ -125,9 +126,9 @@ describe('get_context_session_quality handler', () => {
 
   it('reads the store report', () => {
     const report = { sessionId: 'sess-1', acceptHandoff: true, overall: 0.8 };
-    const out = handleGetContextSessionQuality(fakeCtx(repoRoot, report), {
+    const out = (handleGetContextSessionQuality(fakeCtx(repoRoot, report), {
       sessionId: 'sess-1',
-    }) as { sessionId: string; acceptHandoff: boolean };
+    }) as ToolResponse).result as { sessionId: string; acceptHandoff: boolean };
     expect(out.sessionId).toBe('sess-1');
     expect(out.acceptHandoff).toBe(true);
   });
@@ -152,11 +153,11 @@ describe('get_context_session_quality handler', () => {
       searchEnvelope({ used: 'or', relaxed: true, cap: true, total: 1000 }),
     );
 
-    const out = handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
+    const out = (handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
       sessionId: 'sess-noisy',
       mode: 'harness',
       qualityThreshold: 0.55,
-    }) as ContextQualityReport;
+    }) as ToolResponse).result as ContextQualityReport;
 
     expect(out.acceptHandoff).toBe(false);
     expect(out.rejectReasons).toEqual(expect.arrayContaining([
@@ -203,11 +204,11 @@ describe('get_context_session_quality handler', () => {
       envelope({ id: 'mod:prod/src/a' }, 'high', 'module', 'mod:prod/src/a'),
     );
 
-    const softOut = handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
+    const softOut = (handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
       sessionId,
       qualityThreshold: 0.2,
       warningThreshold: 0.99,
-    }) as ContextQualityReport;
+    }) as ToolResponse).result as ContextQualityReport;
     expect(softOut.acceptHandoff).toBe(true);
     expect(softOut.belowWarningThreshold).toBe(true);
     expect(softOut.warnings.join(' ')).toMatch(/below warningThreshold/);
@@ -215,11 +216,11 @@ describe('get_context_session_quality handler', () => {
       'Repeat the context funnel: search_context(types:["package","module"]) → map_context → inspect_node / analyze_dependencies.',
     ]));
 
-    const hardOut = handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
+    const hardOut = (handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
       sessionId,
       qualityThreshold: 0.99,
       warningThreshold: 0.99,
-    }) as ContextQualityReport;
+    }) as ToolResponse).result as ContextQualityReport;
     expect(hardOut.acceptHandoff).toBe(false);
     expect(hardOut.rejectReasons).toContain('QUALITY_BELOW_THRESHOLD');
   });
@@ -235,22 +236,22 @@ describe('get_context_session_quality handler', () => {
       envelope({ refresh: { status: 'rebuilt' } }, 'high', 'all', 'all'),
     );
 
-    const reportable = handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
+    const reportable = (handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
       sessionId,
       includeEvents: true,
-    }) as ContextQualityReport;
+    }) as ToolResponse).result as ContextQualityReport;
     expect(reportable.aggregates.toolCallCount).toBe(1);
     expect(reportable.events?.[0]?.tool).toBe('refresh_context');
 
-    const consumed = handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
+    const consumed = (handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
       sessionId,
       consume: true,
-    }) as ContextQualityReport;
+    }) as ToolResponse).result as ContextQualityReport;
     expect(consumed.sessionId).toBe(sessionId);
 
-    const stale = handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
+    const stale = (handleGetContextSessionQuality(ctxWithStore(repoRoot, store), {
       sessionId,
-    }) as { error: string; sessionId: string };
+    }) as ToolResponse).result as { error: string; sessionId: string };
     expect(stale).toEqual({
       error: `Context session not found: ${sessionId}`,
       sessionId,

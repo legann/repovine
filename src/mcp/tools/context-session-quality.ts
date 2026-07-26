@@ -1,13 +1,11 @@
 import type { ToolHandler } from '../types.js';
+import { envelope, envelopeError } from '../response/envelope.js';
 
 /** Worker-runtime context quality lookup (not harness protocol gate — use CLI for that). */
 export const handleGetContextSessionQuality: ToolHandler = (ctx, args) => {
   const sessionId = typeof args.sessionId === 'string' ? args.sessionId : '';
   if (!ctx.contextQualityStore) {
-    return {
-      error: 'Context session quality store is unavailable in this process.',
-      sessionId,
-    };
+    return envelopeError('all', 'Context session quality store is unavailable in this process.', { sessionId });
   }
   const report = ctx.contextQualityStore.getReport(sessionId, {
     policy: {
@@ -29,10 +27,11 @@ export const handleGetContextSessionQuality: ToolHandler = (ctx, args) => {
     retain: args.retainSession === true,
   });
   if (!report) {
-    return {
-      error: `Context session not found: ${sessionId}`,
-      sessionId,
-    };
+    return envelopeError('all', `Context session not found: ${sessionId}`, { sessionId });
   }
-  return report;
+  return envelope('all', `Scored context session ${sessionId}.`, report, {
+    // The score grades the MCP responses this session returned, so the request resolved either way;
+    // a low score is a finding in `result`, not a failure to answer.
+    confidence: 'high',
+  });
 };

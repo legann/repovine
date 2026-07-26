@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { collectConfigSurface } from '../../src/mcp/lib/config-surface.js';
+import type { ToolResponse } from '../../src/mcp/response/envelope.js';
 import { handleGetConfigSurface } from '../../src/mcp/tools/get-config-surface.js';
 import type { McpToolRuntime } from '../../src/mcp/types.js';
 import type { ModuleInfo } from '../../src/types.js';
@@ -135,7 +136,7 @@ describe('config-surface recall and confidence', () => {
       scope: 'all',
       kind: 'all',
       limit: 100,
-    }) as Record<string, unknown>;
+    }) as ToolResponse;
     // Envelope confidence answers "did the request resolve" here exactly as on every other tool;
     // the 62.5% recall ceiling this suite pins is a completeness fact and belongs in gaps.
     expect(response.confidence).toBe('high');
@@ -150,7 +151,7 @@ describe('config-surface recall and confidence', () => {
       scope: 'pkg:does-not-exist',
       kind: 'all',
       limit: 100,
-    }) as Record<string, unknown>;
+    }) as ToolResponse;
     expect(response.confidence).toBe('low');
   });
 });

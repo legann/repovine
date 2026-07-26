@@ -12,8 +12,8 @@ checks:
     fail_if: the call errors, hangs past waitSec without returning, or omits status/stage/pct fields while building
     severity: fail
   - id: building-state-shape
-    assert:  while building, responses are a SUCCESSFUL payload with status:"building" plus stage/remainingStages, stageEtaSec when the current stage has measurable progress, retryAfterSec, and pct when available (not an error)
-    fail_if: a building response is returned as an MCP error, labels stageEtaSec as time-until-ready, or lacks stage/remainingStages/retryAfterSec
+    assert:  while building, responses are a SUCCESSFUL envelope whose result carries status:"building" plus stage/remainingStages, stageEtaSec when the current stage has measurable progress, retryAfterSec, and pct when available (not an error)
+    fail_if: a building response is returned as an MCP error, puts the build fields outside `result`, labels stageEtaSec as time-until-ready, or lacks stage/remainingStages/retryAfterSec
     na_if:   graph is already warm — building state is never observed this run
     severity: warn
   - id: refresh-sync

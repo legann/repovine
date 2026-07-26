@@ -133,7 +133,7 @@ export async function buildOrientReport(
     // degrades to OR instead of orienting to nothing.
     match: 'auto',
     limit: 8,
-  }) as Record<string, unknown>;
+  });
   // Search hits nest under result.matches (topResults/strategy); topSearchResultIds/firstResultId
   // read that inner object — passing the outer result leaves graphNodes permanently empty.
   const searchResult = (searchEnv.result ?? {}) as Record<string, unknown>;
@@ -146,7 +146,7 @@ export async function buildOrientReport(
     scope: traceScope,
     include: ['services', 'resources', 'flows', 'entrypoints'],
     limit: 12,
-  }) as Record<string, unknown>;
+  });
   const traceResult = (traceEnv.result ?? {}) as Record<string, unknown>;
   const services = traceResult.services;
   const serviceNodeIds = serviceIds(services);

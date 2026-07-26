@@ -143,15 +143,16 @@ export const handleTraceFlow: ToolHandler = (ctx, args) => {
     && (include.includes('resources') ? resources.length === 0 : true)
     && (include.includes('flows') ? dataFlows.length === 0 : true)
     && (include.includes('entrypoints') ? entrypoints.length === 0 : true);
-  if (emptyTraceResult) {
-    result.emptyDiagnostic = traceFlowEmptyDiagnostic(ctx, scope, args, {
+  const emptyDiagnostic = emptyTraceResult
+    ? traceFlowEmptyDiagnostic(ctx, scope, args, {
       services: services.length,
       resources: resources.length,
       dataFlows: dataFlows.length,
       entrypoints: entrypoints.length,
-    });
-  }
-  return envelope(scope, `Traced runtime/system topology for ${scope.resolvedScope}.`, result, {
+    })
+    : undefined;
+  const payload = emptyDiagnostic ? { ...result, emptyDiagnostic } : result;
+  return envelope(scope, `Traced runtime/system topology for ${scope.resolvedScope}.`, payload, {
     confidence: servicesRaw.length > 0 || dataFlowsRaw.length > 0 ? 'medium' : 'low',
     gaps,
     navigation,
