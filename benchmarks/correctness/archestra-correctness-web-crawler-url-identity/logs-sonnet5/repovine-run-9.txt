@@ -384,12 +384,12 @@ Since I substantively changed this module and the annotation flagged the exact r
   → ToolSearch: [arguments redacted — tool action recorded]
     [output redacted — 0 line(s)]
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
 Let me add the still-missing `flowDescription` field to complete the annotation.
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
 Quality tier is now "detailed" with no missing fields and no consistency issues. Let's validate annotations overall and confirm the queue is clear for this module.

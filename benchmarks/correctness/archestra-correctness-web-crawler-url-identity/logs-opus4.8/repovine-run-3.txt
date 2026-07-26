@@ -60,7 +60,7 @@ Let me inspect the sync pipeline and locate the document model, the `kb_document
 
 Let me read the `ingestDocument` logic (rest of connector-sync), the document model, schema, and the migration 0131 template.
 
-  → repovine.inspect_node: [arguments redacted]
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
 
   → Read: platform/backend/src/models/kb-document.ts

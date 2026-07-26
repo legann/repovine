@@ -306,7 +306,7 @@ My changes are under `platform/`, so I should use the scoped variant instead.
 
 No conflicts. Now let's write the updated annotation reflecting the resolved risk.
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
   → Bash: [command removed — inspected the working-tree change]
@@ -317,7 +317,7 @@ No conflicts. Now let's write the updated annotation reflecting the resolved ris
 
 The consumer-scoped risk I wrote over-specifies the fix mechanism rather than just stating the obligation. Let me tighten it per the skill's guidance.
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
   → repovine.validate_annotations: [repository query]

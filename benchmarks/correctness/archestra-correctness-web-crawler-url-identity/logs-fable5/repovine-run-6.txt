@@ -202,7 +202,7 @@ Tests need the env var the config demands even under PGlite. Let me check how th
   → ToolSearch: [arguments redacted — tool action recorded]
     [output redacted — 0 line(s)]
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
   → Bash: [command removed — inspected the working-tree change]

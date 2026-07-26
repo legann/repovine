@@ -256,7 +256,7 @@ Graph refreshed cleanly. The module's annotation now describes a resolved risk (
   → ToolSearch: [arguments redacted — tool action recorded]
     [output redacted — 0 line(s)]
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
 Annotation saved with no consistency issues. Final state check:

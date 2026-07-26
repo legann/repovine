@@ -315,7 +315,7 @@ Let me update the repovine annotation to reflect the fix, since it accurately fl
   → ToolSearch: [arguments redacted — tool action recorded]
     [output redacted — 0 line(s)]
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
   → repovine.validate_annotations: [repository query]

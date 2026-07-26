@@ -26,7 +26,7 @@ The connector hashes the canonical URL into the document ID (`buildDocument` at 
   → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
 
-  → repovine.inspect_node: [arguments redacted]
+  → repovine.inspect_node: [target export:@backend/src/knowledge-base/connector-sync/connectorSyncService]
     [graph output redacted — scope export:@backend/src/knowledge-base/connector-sync/connectorSyncService, mod:@backend/src/knowledge-base/connector-sync, domain:knowledge-base, domain:backend; source-derived fields removed]
 
   → Bash: [command removed — searched repository files]

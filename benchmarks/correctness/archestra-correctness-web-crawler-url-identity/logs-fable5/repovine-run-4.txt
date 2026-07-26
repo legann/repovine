@@ -174,7 +174,7 @@ Config just needs the env var at load; tests use PGlite. Running with a dummy UR
   → ToolSearch: [arguments redacted — tool action recorded]
     [output redacted — 0 line(s)]
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
 Annotation saved. Final check of the complete diff before reporting:

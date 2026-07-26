@@ -199,7 +199,7 @@ No test-side default — it comes from the developer environment. Providing a du
 
 Graph refreshed cleanly. Updating the module annotation to replace the now-addressed risk with the standing parity contract:
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
 Annotation persisted. Final inventory of the change set:

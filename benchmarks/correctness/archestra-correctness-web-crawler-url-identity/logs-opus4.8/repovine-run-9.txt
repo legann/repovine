@@ -193,7 +193,7 @@ Let me capture precise current line numbers for the "left unchanged" citations i
 
 Everything checks out. Let me update the module's repovine annotation summary to reflect the new identity chokepoint and the reconciling migration (keeping the standing persistence-contract risk/invariants intact as guidance for future changes), then I'll compile the report.
 
-  → repovine.write_annotation: [arguments redacted]
+  → repovine.write_annotation: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
     [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
 
 Annotation merged and persisted (rich risk/invariants preserved). Let me grab the one remaining line number (the `sync()` crawl seed) for a complete citation set.
