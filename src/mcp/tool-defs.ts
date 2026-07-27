@@ -205,7 +205,7 @@ const baseToolDefs: ToolDef[] = [
     description:
       'Trace runtime/data flow through modules, services, resources, triggers, and entrypoints. Use this for cross-layer questions: UI to API, API to queue, queue to worker, worker to DB/resource, and request routing (e.g. ingress to backend service, surfaced as routesTo/routedFrom on a service). ' +
       'The tool reports only graph-proven links and lists gaps when a transition cannot be proven. When scope includes annotated runtime resources or secret-linked bindings, runtimeHandoff lists handler modules (mod:) to inspect before editing code - annotations and consumer/boundary obligations live on code nodes, not on resource listings alone. ' +
-      'Prefer service or package scopes; domain scopes only work when the domain directly owns runtime services/resources. Empty results include emptyDiagnostic with reason and conditional nextActions.',
+      'Prefer service or package scopes; domain scopes only work when the domain directly owns runtime services/resources. Topology is narrowed by all, resource:, mod:, pkg:, domain: and query: scopes; export:, template: and infra: scopes are refused by name. Empty results include emptyDiagnostic with reason and conditional nextActions.',
     schema: z.object({
       scope: ScopeSchema,
       from: z.string().optional().describe('Optional starting node/entrypoint/service id.'),
@@ -253,6 +253,7 @@ const baseToolDefs: ToolDef[] = [
     description:
       'Run architecture analysis for a scope or expand one finding. This is read-only and heuristic: treat findings as review candidates. ' +
       'Use after context mapping or when the user asks for smells, risks, duplicated responsibilities, security-sensitive boundaries, frontend state/effect issues, or event boundaries. Empty reports or missing finding detail include emptyDiagnostic with reason and conditional nextActions. ' +
+      'Detectors read modules, runtime resources and domains, so all, pkg:, domain:, mod: and resource: scopes are inspected and every other scope kind is refused by name. A mod:/resource: scope holds one node: per-node signals are reported in full, comparisons between in-scope nodes cannot fire, and gaps says so. ' +
       'Report mode previews each finding\'s nodes and reports the cut in the finding\'s truncation block; pass detailFindingId for the full maxNodes-bounded node set.',
     schema: z.object({
       scope: ScopeSchema,

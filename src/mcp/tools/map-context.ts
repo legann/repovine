@@ -50,7 +50,7 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
         offset,
         includeSecondaryMatches: args.includeSecondaryMatches,
       })
-      : buildDomainContext(ctx, { domainOrNodeId: domainArg, summaryOnly: true, moduleLimit: limit });
+      : buildDomainContext(ctx, { domain: domainArg, summaryOnly: true, moduleLimit: limit });
     summary = `Mapped domain ${scope.resolvedScope}.`;
   } else if (scope.kind === 'query') {
     result = searchGraph(ctx, { query: scope.query ?? scope.raw, maxResults: limit, offset });

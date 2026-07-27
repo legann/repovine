@@ -117,7 +117,6 @@ function buildState(modules: ModuleInfo[], annotations: StoredAnnotation[] = [])
       packages: [],
       modules,
     },
-    domainsConfig: null,
   };
 }
 
@@ -178,7 +177,6 @@ describe('architecture detail expansion', () => {
 
     expect(result).toMatchObject({
       findingId: `god-module:${orchestrator.id}`,
-      scope: 'all',
       truncatedAffectedNodes: 0,
     });
     expect((result.finding as Record<string, unknown>).category).toBe('god-module');

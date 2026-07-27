@@ -5,6 +5,7 @@ import {
   type RefactoringOpportunityDetailArgs,
   type RefactoringFinding,
 } from '../../analysis/architecture/index.js';
+import { isSingleNodeScope } from '../../analysis/architecture/scope.js';
 import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
 import type { ToolHandler } from '../types.js';
 import { resolveScope, refactoringScopeArg } from '../scope/resolve.js';
@@ -21,23 +22,34 @@ import { argTruncation } from '../../response/truncation.js';
 /** Report-mode finding nodes are a preview; the full set lives in detail mode (maxNodes-bounded). */
 const REPORT_FINDING_NODE_PREVIEW = 10;
 
+/**
+ * What a single-node scope cannot reach, said whether or not it found anything.
+ *
+ * Detectors read the in-scope node set. With one node in it, per-node signals are answered in full
+ * and comparisons between in-scope nodes have nothing to compare — a distinction an empty finding
+ * list does not make on its own.
+ */
+const SINGLE_NODE_SCOPE_GAP =
+  'This scope holds one node, so only per-node signals can be reported: a finding that compares '
+  + 'several in-scope nodes has nothing to compare here. Use the owning package or domain scope for those.';
+
 export const handleAnalyzeArchitecture: ToolHandler = (ctx, args) => {
   const scope = resolveScope(ctx, args.scope);
   const detailFindingId = (args.detailFindingId as string | undefined) ?? (args.findingId as string | undefined);
   const mode = detailFindingId ? 'detail' : ((args.mode as string | undefined) ?? 'report');
   const limit = limitFrom(args, DEFAULT_ARCHITECTURE_LIMIT, MAX_ARCHITECTURE_LIMIT);
   const baseArgs = {
-    scope: refactoringScopeArg(scope),
+    scope,
     categories: args.categories,
     minConfidence: args.minConfidence,
     limit,
     includeComponentEntrypoints: args.includeComponentEntrypoints,
     annotationReasoning: args.annotationReasoning,
   };
-  const { graph, modulesById, annotations, snapshot, domainsConfig, refactoringThresholds } = ctx.getState();
+  const { graph, modulesById, annotations, snapshot, refactoringThresholds } = ctx.getState();
   const propagation = ctx.getConfig().annotations.propagation;
   const entrypoints = getInterpreterEntrypoints(graph);
-  const state = { graph, modulesById, annotations, snapshot, domainsConfig, refactoringThresholds, propagation, entrypoints };
+  const state = { graph, modulesById, annotations, snapshot, refactoringThresholds, propagation, entrypoints };
   const result = mode === 'detail'
     ? runRefactoringOpportunityDetail(state, {
         ...baseArgs,
@@ -55,6 +67,7 @@ export const handleAnalyzeArchitecture: ToolHandler = (ctx, args) => {
     }, 'Expand this architecture finding before recommending code movement.'));
   }
   const gaps = typeof responseResult.error === 'string' ? [responseResult.error] : [];
+  if (isSingleNodeScope(scope.kind)) gaps.push(SINGLE_NODE_SCOPE_GAP);
   const totalFindings = responseResult.totalFindings;
   const returnedFindings = responseResult.returnedFindings;
   if (typeof totalFindings === 'number' && typeof returnedFindings === 'number' && totalFindings > returnedFindings) {

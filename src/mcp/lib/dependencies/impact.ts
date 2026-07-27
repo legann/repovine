@@ -1,5 +1,5 @@
 import { getImpact, getParent } from '../../../graph/index.js';
-import { resolveNodeId, type McpToolRuntime } from '../../types.js';
+import type { McpToolRuntime } from '../../types.js';
 import { paginateList } from '../../response/pagination.js';
 import { PER_BUCKET_CAP } from '../../../source-plugins/typescript/call-graph.js';
 import { getCallersByName } from './reverse-calls.js';
@@ -13,7 +13,9 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   const maxDepth = args.maxDepth as number | undefined;
   const limit = typeof args.limit === 'number' ? Math.max(1, args.limit) : 20;
   const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
-  const nodeId = resolveNodeId(graph, rawId);
+  // Takes a resolved node id: the caller's own string is read once, by resolveScope at the tool
+  // boundary. A second, weaker ladder here answered differently for the same argument.
+  const nodeId = graph.nodes.has(rawId) ? rawId : undefined;
   if (!nodeId) return { error: `Node not found: ${rawId}` };
   const node = graph.nodes.get(nodeId);
 

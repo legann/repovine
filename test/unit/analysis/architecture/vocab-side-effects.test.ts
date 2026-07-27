@@ -76,8 +76,8 @@ function businessExports(): ModuleInfo['exports'] {
 
 function report(graph: RepositoryGraph, modulesById: Map<string, ModuleInfo>, category: string, annotations: AnnotationStore) {
   const res = runRefactoringReport(
-    { graph, modulesById, annotations, domainsConfig: null },
-    { scope: 'all', categories: [category as never], limit: 50, minConfidence: 0, annotationReasoning: 'on' },
+    { graph, modulesById, annotations },
+    { categories: [category as never], limit: 50, minConfidence: 0, annotationReasoning: 'on' },
   );
   return (res.findings as Array<{ id: string; category: string }>).filter(f => f.category === category);
 }

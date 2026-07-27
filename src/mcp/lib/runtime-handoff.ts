@@ -1,7 +1,7 @@
 import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from '../../annotations/format.js';
 import type { RepositoryGraph } from '../../types.js';
 import type { McpToolRuntime } from '../types.js';
-import type { ResolvedScope } from '../scope/resolve.js';
+import type { ResolvedScope } from '../../scope/resolved.js';
 import { narrowTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
 
 export const RUNTIME_HANDOFF_LIMIT = 3;

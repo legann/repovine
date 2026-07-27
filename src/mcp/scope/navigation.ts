@@ -1,4 +1,4 @@
-import type { ResolvedScope } from './resolve.js';
+import type { ResolvedScope } from '../../scope/resolved.js';
 import type { Navigation, NavigationItem } from '../response/envelope.js';
 import {
   DEFAULT_LIST_LIMIT,

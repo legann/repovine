@@ -64,7 +64,7 @@ describe('trace_flow resource access provenance', () => {
       repoRoot: tmpDir,
     } as unknown as McpToolRuntime;
 
-    const topology = projectRuntimeTopology(ctx, { scope: 'all' }) as {
+    const topology = projectRuntimeTopology(ctx, {}) as {
       services?: Array<{ resources?: TopologyResource[] }>;
     };
     resourcesByLogicalId = new Map();

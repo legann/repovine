@@ -1,11 +1,14 @@
 import type { McpToolRuntime } from '../types.js';
 import type { Confidence } from './envelope.js';
-import type { ResolvedScope } from '../scope/resolve.js';
+import type { ResolvedScope } from '../../scope/resolved.js';
 import {
   graphIsEffectivelyEmpty,
   refactoringScopeArg,
   scopeLabel,
 } from '../scope/resolve.js';
+import { ARCHITECTURE_SCOPE_KINDS, architectureCanScope } from '../../analysis/architecture/scope.js';
+import { owningModuleId } from '../../graph/node-ids.js';
+import { RUNTIME_TOPOLOGY_SCOPE_KINDS, topologyCanScope } from '../lib/topology.js';
 import {
   DEFAULT_ARCHITECTURE_LIMIT,
   DEFAULT_MAP_LIMIT,
@@ -40,6 +43,7 @@ export type EmptyDiagnosticReason =
   | 'no_interface_implementations'
   | 'no_callgraph_edges'
   | 'no_architecture_findings'
+  | 'scope_kind_not_analyzable'
   | 'finding_not_found';
 
 export type EmptyDiagnosticAction = {
@@ -219,6 +223,22 @@ export function traceFlowEmptyDiagnostic(
       nextActions: [
         emptyAction('if you have a symbol or runtime name', 'search_context', { query: scope.query ?? scope.raw }),
       ],
+    };
+  }
+  // A scope kind the projection cannot narrow by returns nothing because it was never asked, not
+  // because the repository has no runtime topology.
+  if (!topologyCanScope(scope.kind)) {
+    const owner = scope.nodeId ? owningModuleId(scope.nodeId) : undefined;
+    const nextActions: EmptyDiagnosticAction[] = [];
+    if (owner) nextActions.push(emptyAction('to trace the module the symbol lives in', 'trace_flow', { scope: owner }));
+    if (scope.nodeId) nextActions.push(emptyAction('to inspect this node itself', 'inspect_node', { nodeId: scope.nodeId }));
+    nextActions.push(emptyAction('to see runtime topology repository-wide', 'trace_flow', { scope: 'all' }));
+    return {
+      reason: 'scope_kind_not_analyzable',
+      message: `Runtime topology is not narrowed by "${scope.kind}" scopes. Services, resources and flows are reached from a runtime resource, a module, a package, a domain, or a query.`,
+      confidence: 'high',
+      nextActions,
+      details: { scopeKind: scope.kind, supportedScopeKinds: [...RUNTIME_TOPOLOGY_SCOPE_KINDS], ...counts },
     };
   }
   if (scope.kind === 'domain') {
@@ -639,6 +659,29 @@ export function architectureEmptyDiagnostic(
         emptyAction('if this is a feature/symbol/path', 'search_context', { query: scope.query ?? scope.raw }),
         emptyAction('to browse package/domain scopes', 'map_context', { scope: 'all', view: 'summary' }),
       ],
+    };
+  }
+
+  // Before the empty-report branch: a scope kind the detectors do not read produced no finding list
+  // to be empty. Saying "no findings" here would report a scope that was never inspected as clean.
+  if (!architectureCanScope(scope.kind)) {
+    const owner = scope.nodeId ? owningModuleId(scope.nodeId) : undefined;
+    const nextActions: EmptyDiagnosticAction[] = [];
+    if (owner) {
+      nextActions.push(emptyAction('to analyse the module the symbol lives in', 'analyze_architecture', { scope: owner }));
+    }
+    if (scope.nodeId) {
+      nextActions.push(emptyAction('to inspect this node itself', 'inspect_node', { nodeId: scope.nodeId }));
+    } else {
+      nextActions.push(emptyAction('to find an analysable anchor', 'search_context', { query: scope.query ?? scope.raw }));
+    }
+    nextActions.push(emptyAction('to analyse a package or domain around it', 'map_context', { scope: 'all', view: 'summary' }));
+    return {
+      reason: 'scope_kind_not_analyzable',
+      message: `Architecture analysis does not inspect "${scope.kind}" scopes. Detectors read modules, runtime resources and domains.`,
+      confidence: 'high',
+      nextActions,
+      details: { scopeKind: scope.kind, supportedScopeKinds: [...ARCHITECTURE_SCOPE_KINDS] },
     };
   }
 

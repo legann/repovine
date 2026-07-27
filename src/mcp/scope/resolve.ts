@@ -1,20 +1,26 @@
 import * as path from 'node:path';
 import type { PackageNodeData, RepositoryGraph, TemplateNodeData } from '../../types.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
-import { type McpToolRuntime, resolveNodeId } from '../types.js';
+import type { ResolvedScope } from '../../scope/resolved.js';
+import type { McpToolRuntime } from '../types.js';
 // Side-effect import ensures built-in source plugins are registered so the loose-name-separator
 // relaxation can ask the owning plugin's capability instead of comparing against 'python'.
 import '../../stage1/source/bootstrap.js';
 import { pluginUsesLooseNameSeparators } from '../../stage1/source/registry.js';
 
-export interface ResolvedScope {
-  raw: string;
-  resolvedScope: string;
-  kind: 'all' | 'domain' | 'package' | 'module' | 'export-symbol' | 'runtime-resource' | 'template' | 'infra' | 'query' | 'unknown';
-  nodeId?: string;
-  domainId?: string;
-  packageId?: string;
-  query?: string;
+/**
+ * Exact-id lookup with the two mechanical spellings of a module id forgiven: a file extension and a
+ * trailing `/index` segment, neither of which stage2 keeps in the id it mints.
+ *
+ * Private on purpose. It is one rung of {@link resolveScope}'s ladder, and callers that reached for
+ * it directly got a different answer for the same argument than the tool's own envelope reported.
+ */
+function resolveNodeId(graph: RepositoryGraph, rawId: string): string | undefined {
+  if (graph.nodes.has(rawId)) return rawId;
+  const normalized = rawId
+    .replace(/\.(tsx?|jsx?)$/, '')
+    .replace(/\/index$/, '');
+  return graph.nodes.has(normalized) ? normalized : undefined;
 }
 
 export function stripDomainPrefix(value: string): string {

@@ -21,7 +21,7 @@ import {
 import { applyInvestigateTags, computeHubInDegreeThreshold, INVESTIGATE_DEP_GUARD_DEPTH } from './investigate-refs.js';
 import { annotationFreshnessProvenance } from './annotation-freshness.js';
 import { narrowTruncation, pageTruncation, unavailableTruncation } from '../../response/truncation.js';
-import { resolveNodeId, type McpToolRuntime } from '../types.js';
+import type { McpToolRuntime } from '../types.js';
 import {
   GREP_EXECUTION_TIMEOUT_MS,
   isUnsafeRegexPattern,
@@ -60,7 +60,8 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
     return { error: `bodyLimit must be between 1 and ${MAX_BODY_LIMIT}` };
   }
 
-  const nodeId = resolveNodeId(graph, rawId);
+  // Takes a resolved node id; the caller's string is read once, by resolveScope at the tool boundary.
+  const nodeId = graph.nodes.has(rawId) ? rawId : undefined;
   if (!nodeId) return { error: `Node not found: ${rawId}` };
   const viewRaw = buildNodeView(graph, nodeId);
   if (!viewRaw) return { error: `Node not found: ${rawId}` };

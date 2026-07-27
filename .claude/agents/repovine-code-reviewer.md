@@ -44,6 +44,8 @@ analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 
 validate_annotations({})
 ~~~
 
+Scope both flow and architecture calls at module granularity or wider: an `export:` scope is refused by name, and a single module reports per-node signals only — `gaps` names the comparisons that granularity rules out.
+
 3. Evaluate tests:
 
 - Compare `implementationResult.testsRun` to changed behavior and acceptance criteria.

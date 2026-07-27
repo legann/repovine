@@ -46,7 +46,7 @@ function makeCtx(graph: RepositoryGraph): McpToolRuntime {
 
 describe('map_context domain counts', () => {
   it('counts module-typed sources only, and discloses the rest', () => {
-    const result = buildDomainContext(makeCtx(buildGraph()), { domainOrNodeId: 'orders' }) as Record<string, unknown>;
+    const result = buildDomainContext(makeCtx(buildGraph()), { domain: 'orders' }) as Record<string, unknown>;
 
     expect(result.moduleCount).toBe(2);
     expect(result.taggedNonModuleCount).toBe(2);
@@ -59,7 +59,7 @@ describe('map_context domain counts', () => {
       graph.inEdges.set('domain:orders', edges);
       graph.outEdges.delete(id);
     }
-    const result = buildDomainContext(makeCtx(graph), { domainOrNodeId: 'orders' }) as Record<string, unknown>;
+    const result = buildDomainContext(makeCtx(graph), { domain: 'orders' }) as Record<string, unknown>;
 
     expect(result.moduleCount).toBe(2);
     expect(result).not.toHaveProperty('taggedNonModuleCount');

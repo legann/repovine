@@ -85,12 +85,4 @@ export interface McpToolRuntime {
   };
 }
 
-export function resolveNodeId(graph: RepositoryGraph, rawId: string): string | undefined {
-  if (graph.nodes.has(rawId)) return rawId;
-  const normalized = rawId
-    .replace(/\.(tsx?|jsx?)$/, '')
-    .replace(/\/index$/, '');
-  return graph.nodes.has(normalized) ? normalized : undefined;
-}
-
 export type ToolHandler = (ctx: McpToolRuntime, args: Record<string, unknown>) => ToolResponse | Promise<ToolResponse>;

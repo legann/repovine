@@ -1,6 +1,7 @@
 import type { ResolvedConfig } from '../config.js';
 import { DEFAULT_MAX_RESPONSE_CHARS } from '../config.js';
 import { narrowTruncation } from '../response/truncation.js';
+import { hasScopePrefix } from '../graph/node-ids.js';
 import { emptyNavigation } from './response/envelope.js';
 
 export type McpResponseConfig = ResolvedConfig['mcp']['response'];
@@ -291,12 +292,8 @@ function collectArgStrings(value: unknown, counts: Map<string, number>): void {
 
 function shouldUseRef(value: string, counts: Map<string, number>): boolean {
   if (value.length < REF_MIN_LENGTH) return false;
-  if (!looksLikeScopeOrNodeId(value)) return false;
+  if (!hasScopePrefix(value)) return false;
   return (counts.get(value) ?? 0) >= 2 || value.length >= REF_ALWAYS_LENGTH;
-}
-
-function looksLikeScopeOrNodeId(value: string): boolean {
-  return /^(mod|export|pkg|resource|infra|domain|template|query):/.test(value);
 }
 
 function resolveRefs(value: unknown, refs: Map<string, string>): unknown {

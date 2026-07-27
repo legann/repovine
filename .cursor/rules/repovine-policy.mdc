@@ -19,7 +19,7 @@ If the call fails with a connection error, the MCP server is not running. Tell t
 
 If the response is a successful envelope with `result.status:"building"` (not an error), the MCP server is up but the graph is still being built. `stageEtaSec` estimates only the current stage, not time until ready. Call `get_build_status({ "waitSec": 45 })` once to long-poll instead of repeated calls; respect `retryAfterSec`. If the long-poll still returns building, report `stage` and `remainingStages`, then fall back to direct file reads for this turn when the task can proceed without graph structure. `get_build_status({ "cancel": true })` abandons a cold build; it returns `cancelled` (no graph) or keeps a prior `ready` graph. A cancelled server has no graph to serve, so every other tool reports an error carrying the recovery action: call `refresh_context` to start a fresh build, or run `repovine build` and restart the server.
 
-When a tool returns no items, check `result.emptyDiagnostic` before retrying. It distinguishes an empty graph from a bad scope, a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
+When a tool returns no items, check `result.emptyDiagnostic` before retrying. It distinguishes an empty graph from a bad scope, a scope kind the tool does not inspect (`scope_kind_not_analyzable`, alongside `result.error` naming the kinds it does), a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
 
 For `search_context`, also interpret non-empty results before `inspect_node`:
 

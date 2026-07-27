@@ -71,7 +71,7 @@ async function buildState(name: string): Promise<RefactoringState> {
   for (const m of snapshot.modules) modulesById.set(m.id, m);
   const graph = composeRepositoryGraph(snapshot, modulesById);
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'detector-registry-parity-'));
-  return { graph, modulesById, annotations: AnnotationStore.createSync(tmpDir), snapshot, domainsConfig: null };
+  return { graph, modulesById, annotations: AnnotationStore.createSync(tmpDir), snapshot };
 }
 
 /**
@@ -122,7 +122,6 @@ describe('refactoring detector registry — findings parity', () => {
     it(`${fixture}: all-categories report matches golden`, async () => {
       const state = await buildState(fixture);
       const report = runRefactoringReport(state, {
-        scope: 'all',
         categories: [...REFACTORING_CATEGORIES],
         minConfidence: 0,
         limit: 200,

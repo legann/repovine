@@ -1,4 +1,5 @@
 import { forwardImportClosure, owningModuleId } from '../graph/index.js';
+import { NODE_ID_PREFIXES } from '../graph/node-ids.js';
 import type { AnnotationContent, RepositoryGraph, StoredAnnotation } from '../types.js';
 import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from './format.js';
 import { isRuntimeImportEdge } from '../analysis/architecture/heuristics.js';
@@ -9,8 +10,14 @@ export const CARRIER_LINK_DEP_GUARD_DEPTH = 4;
 /** Max concrete carrier-link pairs returned in validation payloads. */
 export const CARRIER_LINK_GAP_SAMPLE_LIMIT = 10;
 
-/** Node-id tokens the engine understands inside annotation prose (`mod:`, `export:`, etc.). */
-export const NODE_ID_TOKEN_RE = /(?:mod|export|resource|template|infra|domain):[A-Za-z0-9_./@:-]+/g;
+/**
+ * Node-id tokens the engine understands inside annotation prose (`mod:`, `export:`, etc.).
+ *
+ * Built from the declared prefix vocabulary: prose that names a node is read with the same list the
+ * rest of the engine uses. Spelled out here, it had lost `pkg:` and read a package a caller had
+ * named as ordinary text.
+ */
+export const NODE_ID_TOKEN_RE = new RegExp(`(?:${NODE_ID_PREFIXES.join('|')}):[A-Za-z0-9_./@:-]+`, 'g');
 
 export type CarrierLinkGapKind = 'missing-carrier-link' | 'named-but-undeliverable';
 

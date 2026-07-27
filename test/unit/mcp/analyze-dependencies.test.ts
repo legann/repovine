@@ -4,7 +4,7 @@ import { addEdge, addNode, createEmptyGraph } from '../../../src/graph/index.js'
 import { buildTokenIndex } from '../../../src/mcp/lib/search-index.js';
 import { defaultDependencyMode } from '../../../src/mcp/tools/analyze-dependencies.js';
 import { toolHandlers } from '../../../src/mcp/tools/registry.js';
-import type { ResolvedScope } from '../../../src/mcp/scope/resolve.js';
+import type { ResolvedScope } from '../../../src/scope/resolved.js';
 import type { McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
 import type { ModuleInfo, RepositoryGraph } from '../../../src/types.js';
 

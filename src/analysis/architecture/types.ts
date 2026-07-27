@@ -2,6 +2,7 @@
  * Shared types and constants for architecture analysis detectors.
  */
 
+import type { ScopeKind } from '../../scope/resolved.js';
 import type { AnnotationContext } from './annotation-context.js';
 
 export type RefactoringCategory =
@@ -105,6 +106,8 @@ export type RefactoringScope = {
   serviceIds: Set<string>;
   domainIds: Set<string>;
   scope: string;
-  kind: 'all' | 'package' | 'domain' | 'unknown';
+  kind: 'all' | 'package' | 'domain' | 'module' | 'runtime-resource' | 'unsupported';
   packageId?: string;
+  /** Which scope kind was refused; set only when `kind` is `unsupported`. */
+  unsupportedKind?: ScopeKind;
 };

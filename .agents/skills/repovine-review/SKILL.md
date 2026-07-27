@@ -68,6 +68,8 @@ trace_flow({ "scope": "<changed-scope>", "include": ["entrypoints", "services", 
 analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 })
 ```
 
+Scope both flow and architecture calls at module granularity or wider: an `export:` scope is refused by name, and a single module reports per-node signals only — `gaps` names the comparisons that granularity rules out.
+
 Use only relevant checks. Shared exports/types need dependency impact; env/resources need config surface; API/webhook/queue/worker changes need runtime flow; structural/boundary changes may need architecture candidates.
 
 4. Evaluate tests:

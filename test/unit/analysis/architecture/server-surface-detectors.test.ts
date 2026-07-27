@@ -116,9 +116,7 @@ describe('server-surface detector pack', () => {
       graph,
       modulesById,
       annotations,
-      domainsConfig: null,
     }, {
-      scope: 'all',
       categories: ['god-module'],
       minConfidence: 0,
       limit: 50,
@@ -139,7 +137,6 @@ describe('server-surface detector pack', () => {
       graph: state.graph,
       modulesById: state.modulesById,
       annotations: state.annotations,
-      domainsConfig: null,
     }, { findingId });
 
     expect(detail).toMatchObject({
@@ -154,9 +151,7 @@ describe('server-surface detector pack', () => {
       graph,
       modulesById,
       annotations,
-      domainsConfig: null,
     }, {
-      scope: 'all',
       categories: ['boundary'],
       minConfidence: 0,
       limit: 50,

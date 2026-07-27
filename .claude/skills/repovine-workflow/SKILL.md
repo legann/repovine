@@ -115,7 +115,7 @@ analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-confi
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id", "maxNodes": 30 })
 ```
 
-Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise (apply with `refresh_context({ "reloadConfig": true })`).
+Use a narrow `scope`, pick relevant `categories`, then inspect affected nodes and dependency impact before proposing code movement. A `mod:`/`resource:` scope holds one node: it reports per-node signals only, and `gaps` says which comparisons that granularity rules out. For security-sensitive reports, remember that `analyze_architecture.strictness` and `analyze_architecture.thresholds.*` in `repovine.config.json` tune detector noise (apply with `refresh_context({ "reloadConfig": true })`).
 
 7. Prefer local project skills when present:
 

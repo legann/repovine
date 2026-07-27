@@ -1,5 +1,6 @@
-import { resolveNodeId, type ToolHandler } from '../types.js';
-import { resolveScope, parentModuleId, type ResolvedScope } from '../scope/resolve.js';
+import type { ToolHandler } from '../types.js';
+import { resolveScope, parentModuleId } from '../scope/resolve.js';
+import type { ResolvedScope } from '../../scope/resolved.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, resultError, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom } from '../response/pagination.js';
@@ -81,7 +82,10 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
   } else if (mode === 'callgraph') {
     let nodeId = scope.nodeId;
     if (scope.kind === 'module' && typeof args.exportName === 'string' && nodeId) {
-      nodeId = resolveNodeId(ctx.getState().graph, `${nodeId.replace(/^mod:/, 'export:')}/${args.exportName}`);
+      // Minted, not parsed: stage2 builds export ids this way, so the only question is whether the
+      // graph holds it.
+      const exportId = `${nodeId.replace(/^mod:/, 'export:')}/${args.exportName}`;
+      nodeId = ctx.getState().graph.nodes.has(exportId) ? exportId : undefined;
     }
     if (!nodeId || !nodeId.startsWith('export:')) {
       const message = 'mode callgraph requires an export-symbol scope, or a module scope with exportName';

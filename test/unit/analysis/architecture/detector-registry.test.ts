@@ -60,7 +60,7 @@ async function buildState(name: string): Promise<RefactoringState> {
   for (const m of snapshot.modules) modulesById.set(m.id, m);
   const graph = composeRepositoryGraph(snapshot, modulesById);
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'detector-registry-'));
-  return { graph, modulesById, annotations: AnnotationStore.createSync(tmpDir), snapshot, domainsConfig: null };
+  return { graph, modulesById, annotations: AnnotationStore.createSync(tmpDir), snapshot };
 }
 
 /** A finding shaped just enough to survive the report's category filter. */
@@ -110,7 +110,7 @@ describe('refactoring detector registry — dispatch contract', () => {
       },
     ]);
 
-    runRefactoringReport(tsState, { scope: 'all', categories: ['boundary'], minConfidence: 0 });
+    runRefactoringReport(tsState, { categories: ['boundary'], minConfidence: 0 });
 
     expect(ran).toEqual(['boundary']);
   });
@@ -126,7 +126,7 @@ describe('refactoring detector registry — dispatch contract', () => {
     // TypeScript scope: typescript declares uiSurfaces → detector runs.
     const tsRan = { value: false };
     restore = setDetectorsForTest([makeProbe(tsRan)]);
-    runRefactoringReport(tsState, { scope: 'all', categories: ['client-business-logic'], minConfidence: 0 });
+    runRefactoringReport(tsState, { categories: ['client-business-logic'], minConfidence: 0 });
     restore();
     restore = undefined;
     expect(tsRan.value).toBe(true);
@@ -134,7 +134,7 @@ describe('refactoring detector registry — dispatch contract', () => {
     // Python scope: python declares uiSurfaces:false → whole-detector skip.
     const pyRan = { value: false };
     restore = setDetectorsForTest([makeProbe(pyRan)]);
-    runRefactoringReport(pyState, { scope: 'all', categories: ['client-business-logic'], minConfidence: 0 });
+    runRefactoringReport(pyState, { categories: ['client-business-logic'], minConfidence: 0 });
     expect(pyRan.value).toBe(false);
   });
 
@@ -154,7 +154,7 @@ describe('refactoring detector registry — dispatch contract', () => {
       },
     ]);
 
-    const report = runRefactoringReport(tsState, { scope: 'all', categories: ['god-domain'], minConfidence: 0, limit: 200 });
+    const report = runRefactoringReport(tsState, { categories: ['god-domain'], minConfidence: 0, limit: 200 });
 
     expect(seen).toEqual({ godDomain: true, lowCohesion: false });
     const categories = (report.findings as RefactoringFinding[]).map(f => f.category);
@@ -171,12 +171,12 @@ describe('refactoring detector registry — dispatch contract', () => {
     };
 
     restore = setDetectorsForTest([probe]);
-    runRefactoringReport(tsState, { scope: 'all', categories: ['annotation-risk'], minConfidence: 0 });
+    runRefactoringReport(tsState, { categories: ['annotation-risk'], minConfidence: 0 });
     restore();
     restore = undefined;
 
     restore = setDetectorsForTest([probe]);
-    runRefactoringReport({ ...tsState, snapshot: undefined }, { scope: 'all', categories: ['annotation-risk'], minConfidence: 0 });
+    runRefactoringReport({ ...tsState, snapshot: undefined }, { categories: ['annotation-risk'], minConfidence: 0 });
 
     expect(captured).toHaveLength(2);
     expect(captured[0]).toBeInstanceOf(Set);
@@ -189,7 +189,7 @@ describe('refactoring detector registry — dispatch contract', () => {
     ]);
 
     expect(() =>
-      runRefactoringReport(tsState, { scope: 'all', categories: ['unclear-architecture'], minConfidence: 0 }),
+      runRefactoringReport(tsState, { categories: ['unclear-architecture'], minConfidence: 0 }),
     ).not.toThrow();
   });
 });

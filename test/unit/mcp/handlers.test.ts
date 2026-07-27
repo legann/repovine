@@ -14,7 +14,7 @@ jest.unstable_mockModule('node:fs/promises', () => ({
 import { ToolResponseSchema, type ToolResponse } from '../../../src/mcp/response/envelope.js';
 import type { ToolHandler, McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
 import { CONFIG_DEFAULTS, DEFAULT_PROPAGATION_CONFIG } from '../../../src/config.js';
-import { resolveNodeId } from '../../../src/mcp/types.js';
+import { resolveScope } from '../../../src/mcp/scope/resolve.js';
 import { resolveDomainContentHash } from '../../../src/annotations/store.js';
 import { searchGraph } from '../../../src/mcp/lib/search-graph.js';
 import { analyzeImpact } from '../../../src/mcp/lib/dependencies/impact.js';
@@ -919,27 +919,28 @@ describe('inspect_node runtime-resource freshness', () => {
   });
 });
 
-// ── resolveNodeId ──
+// ── node id resolution (the ladder's exact-id rung, reached through its only entry point) ──
 
-describe('resolveNodeId', () => {
-  const { graph } = buildFixtureGraph();
-
-  it('returns id as-is when it exists exactly', () => {
-    expect(resolveNodeId(graph, 'mod:test/alpha')).toBe('mod:test/alpha');
+describe('resolveScope on a node id', () => {
+  it('returns the id as-is when it exists exactly', () => {
+    expect(resolveScope(makeCtx(), 'mod:test/alpha').nodeId).toBe('mod:test/alpha');
   });
 
-  it('strips .ts extension', () => {
-    expect(resolveNodeId(graph, 'mod:test/alpha.ts')).toBe('mod:test/alpha');
+  it('strips a .ts extension', () => {
+    expect(resolveScope(makeCtx(), 'mod:test/alpha.ts').nodeId).toBe('mod:test/alpha');
   });
 
-  it('strips /index suffix', () => {
+  it('strips an /index suffix', () => {
     const g = createEmptyGraph();
     addNode(g, { id: 'mod:pkg/utils', type: 'module', label: 'utils', description: '' });
-    expect(resolveNodeId(g, 'mod:pkg/utils/index')).toBe('mod:pkg/utils');
+    expect(resolveScope(makeCtx({ graph: g, modulesById: new Map() }), 'mod:pkg/utils/index').nodeId)
+      .toBe('mod:pkg/utils');
   });
 
-  it('returns undefined for unknown node', () => {
-    expect(resolveNodeId(graph, 'mod:test/nonexistent')).toBeUndefined();
+  it('leaves an unknown node unresolved rather than guessing', () => {
+    const scope = resolveScope(makeCtx(), 'mod:test/nonexistent');
+    expect(scope.nodeId).toBeUndefined();
+    expect(scope.kind).toBe('unknown');
   });
 });
 
@@ -4983,7 +4984,7 @@ describe('get_domain_or_focus_context — pagination', () => {
   it('summaryOnly returns topModules sorted by connectivity', () => {
     const ctx = buildDomainCtx();
     const result = buildDomainContext(ctx, {
-      domainOrNodeId: 'auth',
+      domain: 'auth',
       summaryOnly: true,
       moduleLimit: 1,
     }) as Record<string, unknown>;
@@ -5256,7 +5257,9 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     expect(byLabel['web'].routesTo).toBeUndefined();
 
     // Scoped at the ingress, the hull reaches the backend it routes to (routes_to is a witness edge).
-    const scoped = projectRuntimeTopology(ctx, { scope: 'resource:k8s:_/Ingress/web-ingress' }) as Record<string, unknown>;
+    const scoped = projectRuntimeTopology(ctx, {
+      scope: resolveScope(ctx, 'resource:k8s:_/Ingress/web-ingress'),
+    }) as Record<string, unknown>;
     const scopedLabels = (scoped.services as Array<{ label: string }>).map(s => s.label).sort();
     expect(scopedLabels).toEqual(['web', 'web-ingress']);
   });

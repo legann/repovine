@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ResolvedScope } from '../scope/resolve.js';
+import type { ResolvedScope } from '../../scope/resolved.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { inlineTruncation, truncationMap, TruncationMapSchema, type TruncationMap } from '../../response/truncation.js';
 import { ProvenanceSchema } from '../../response/provenance.js';

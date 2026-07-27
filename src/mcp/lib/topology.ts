@@ -1,5 +1,6 @@
 import type { McpToolRuntime } from '../types.js';
 import type { EdgeKind } from '../../types.js';
+import { ALL_SCOPE, type ResolvedScope, type ScopeKind } from '../../scope/resolved.js';
 import { resolveInfraRef } from '../../graph/resolve-infra-ref.js';
 import { provenance } from '../../response/provenance.js';
 
@@ -11,29 +12,43 @@ export function publishTypeForRuntimeResource(serviceId: string): string {
   return 'resource';
 }
 
-export function projectRuntimeTopology(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
+/**
+ * The scope kinds runtime topology can narrow to.
+ *
+ * A kind belongs here when it decides membership for a runtime resource: the resource itself and a
+ * module reach it through the infra hull, a package through the modules it contains, a domain
+ * through its tags, a query by name. An `export-symbol`, `template` or `infra` scope decides nothing
+ * about a resource — projecting the repository under that name reported every service in the graph
+ * as that scope's runtime topology.
+ */
+export const RUNTIME_TOPOLOGY_SCOPE_KINDS: readonly ScopeKind[] =
+  ['all', 'runtime-resource', 'module', 'package', 'domain', 'query'];
+
+export function topologyCanScope(kind: ScopeKind): boolean {
+  return RUNTIME_TOPOLOGY_SCOPE_KINDS.includes(kind);
+}
+
+export function projectRuntimeTopology(
+  ctx: McpToolRuntime,
+  args: { scope?: ResolvedScope; includeResources?: boolean; includeApiRoutes?: boolean },
+): unknown {
   const { graph } = ctx.getState();
-  const scope = (args.scope as string) ?? 'all';
+  const scope = args.scope ?? ALL_SCOPE;
   const includeResources = args.includeResources !== false;
   const includeApiRoutes = args.includeApiRoutes !== false;
 
   const serviceSet = graph.byType.get('runtime-resource');
   const serviceIds = serviceSet ? Array.from(serviceSet) : [];
 
-  const scopeIsService = scope.startsWith('resource:') && graph.nodes.has(scope);
-  const scopeIsMod = scope.startsWith('mod:') && graph.nodes.has(scope);
-  const scopeDomainId = scope !== 'all' && !scope.startsWith('pkg:') && !scopeIsService && !scopeIsMod
-    ? (scope.startsWith('domain:') ? scope : `domain:${scope}`)
-    : null;
-  const scopePkg = scope.startsWith('pkg:') ? scope : null;
+  const hullSeedId = scope.kind === 'runtime-resource' || scope.kind === 'module' ? scope.nodeId : undefined;
 
   const hullServiceIds = new Set<string>();
-  if (scopeIsService || scopeIsMod) {
+  if (hullSeedId) {
     const seeds: string[] = [];
-    if (scopeIsService) {
-      seeds.push(scope);
+    if (scope.kind === 'runtime-resource') {
+      seeds.push(hullSeedId);
     } else {
-      const inEdges = graph.inEdges.get(scope) ?? [];
+      const inEdges = graph.inEdges.get(hullSeedId) ?? [];
       for (const edge of inEdges) {
         if (edge.kind === 'infra' && edge.from.startsWith('resource:')) seeds.push(edge.from);
       }
@@ -52,22 +67,26 @@ export function projectRuntimeTopology(ctx: McpToolRuntime, args: Record<string,
     }
   }
 
+  // Membership per scope kind. A kind outside RUNTIME_TOPOLOGY_SCOPE_KINDS falls through to false:
+  // it narrows to nothing rather than to everything.
   const isInScope = (svcId: string): boolean => {
-    if (scope === 'all') return true;
-    if (scopeIsService || scopeIsMod) {
-      return hullServiceIds.has(svcId);
-    }
-    if (scopeDomainId) {
+    if (scope.kind === 'all') return true;
+    if (hullSeedId) return hullServiceIds.has(svcId);
+    if (scope.kind === 'domain' && scope.domainId) {
       const outEdges = graph.outEdges.get(svcId) ?? [];
-      return outEdges.some(e => e.kind === 'tagged' && e.to === scopeDomainId);
+      return outEdges.some(e => e.kind === 'tagged' && e.to === scope.domainId);
     }
-    if (scopePkg) {
+    if (scope.kind === 'package' && scope.packageId) {
       const outEdges = graph.outEdges.get(svcId) ?? [];
       const infraTargets = outEdges.filter(e => e.kind === 'infra').map(e => e.to);
       for (const modId of infraTargets) {
         const inEdges = graph.inEdges.get(modId) ?? [];
-        if (inEdges.some(e => e.kind === 'contains' && e.from === scopePkg)) return true;
+        if (inEdges.some(e => e.kind === 'contains' && e.from === scope.packageId)) return true;
       }
+    }
+    if (scope.kind === 'query' && scope.query) {
+      const q = scope.query.toLowerCase();
+      return svcId.toLowerCase().includes(q) || (graph.nodes.get(svcId)?.label.toLowerCase().includes(q) ?? false);
     }
     return false;
   };
@@ -239,7 +258,7 @@ export function projectRuntimeTopology(ctx: McpToolRuntime, args: Record<string,
     }
   }
 
-  const result: Record<string, unknown> = { scope, services };
+  const result: Record<string, unknown> = { scope: scope.resolvedScope, services };
   if (includeResources && resourceMap.size > 0) {
     result.resources = [...resourceMap.values()].map(({ flowConsumers: _flowConsumers, ...entry }) => entry);
   }

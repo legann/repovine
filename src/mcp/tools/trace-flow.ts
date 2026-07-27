@@ -1,5 +1,5 @@
 import type { ToolHandler } from '../types.js';
-import { resolveScope, nodeInScope } from '../scope/resolve.js';
+import { resolveScope } from '../scope/resolve.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom, DEFAULT_LIST_LIMIT } from '../response/pagination.js';
@@ -67,25 +67,18 @@ function unresolvedRefGaps(services: Array<Record<string, unknown>>): string[] {
 export const handleTraceFlow: ToolHandler = (ctx, args) => {
   const scope = resolveScope(ctx, args.scope ?? args.from ?? 'all');
   const include = Array.isArray(args.include) ? args.include as string[] : ['services', 'resources', 'flows'];
-  const topologyScope = scope.kind === 'query' || scope.kind === 'export-symbol'
-    ? 'all'
-    : scope.resolvedScope;
   const raw = projectRuntimeTopology(ctx, {
-    scope: topologyScope,
+    scope,
     includeResources: include.includes('resources'),
     includeApiRoutes: include.includes('entrypoints'),
   }) as Record<string, unknown>;
 
   const limit = limitFrom(args, DEFAULT_LIST_LIMIT);
   const offset = offsetFrom(args);
+  // The projection already decided membership for this scope kind; filtering again here was a second
+  // answer to the same question, and it left `resources` and `dataFlows` unfiltered beside it.
   const servicesRaw = Array.isArray(raw.services) ? raw.services as Array<Record<string, unknown>> : [];
-  const hullAwareScope = scope.kind === 'runtime-resource' || scope.kind === 'module';
-  const servicesInScope = servicesRaw.filter(s => {
-    if (hullAwareScope) return true;
-    const id = s.id as string | undefined;
-    return !id || scope.kind === 'all' || nodeInScope(ctx, id, scope);
-  });
-  const services = servicesInScope.slice(offset, offset + limit);
+  const services = servicesRaw.slice(offset, offset + limit);
   const resourcesRaw = Array.isArray(raw.resources) ? raw.resources as Array<Record<string, unknown>> : [];
   const resources = resourcesRaw.slice(offset, offset + limit);
   const dataFlowsRaw = Array.isArray(raw.dataFlows) ? raw.dataFlows as Array<Record<string, unknown>> : [];
@@ -118,7 +111,7 @@ export const handleTraceFlow: ToolHandler = (ctx, args) => {
     hint: `${total} ${noun}(s) in scope. Pass offset ${offset + shown} with the same limit for the next page.`,
   });
   const truncation = truncationMap({
-    services: include.includes('services') ? pageBound(services.length, servicesInScope.length, 'service') : undefined,
+    services: include.includes('services') ? pageBound(services.length, servicesRaw.length, 'service') : undefined,
     resources: include.includes('resources') ? pageBound(resources.length, resourcesRaw.length, 'resource') : undefined,
     dataFlows: include.includes('flows') ? pageBound(dataFlows.length, dataFlowsRaw.length, 'data flow') : undefined,
     entrypoints: entrypointPage?.truncation?.items,

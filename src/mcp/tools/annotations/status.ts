@@ -1,5 +1,5 @@
 import type { ToolHandler } from '../../types.js';
-import type { ResolvedScope } from '../../scope/resolve.js';
+import type { ResolvedScope } from '../../../scope/resolved.js';
 import { resolveScope, stripDomainPrefix } from '../../scope/resolve.js';
 import { scopeNavigation } from '../../scope/navigation.js';
 import { envelope, envelopeError, nav } from '../../response/envelope.js';

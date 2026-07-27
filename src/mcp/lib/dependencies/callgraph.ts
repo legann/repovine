@@ -1,11 +1,12 @@
-import { resolveNodeId, type McpToolRuntime } from '../../types.js';
+import type { McpToolRuntime } from '../../types.js';
 import { callsTruncation } from '../../../graph/index.js';
 import { truncationMap } from '../../../response/truncation.js';
 
 export function analyzeCallgraph(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
   const { graph } = ctx.getState();
   const rawId = args.nodeId as string;
-  const nodeId = resolveNodeId(graph, rawId);
+  // Takes a resolved node id; the caller's string is read once, by resolveScope at the tool boundary.
+  const nodeId = graph.nodes.has(rawId) ? rawId : undefined;
   if (!nodeId) return { error: `Node not found: ${rawId}` };
   const node = graph.nodes.get(nodeId);
   if (!node) return { error: `Node not found: ${rawId}` };

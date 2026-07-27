@@ -7,7 +7,7 @@ import {
   RUNTIME_HANDOFF_LIMIT,
   RUNTIME_HANDOFF_NOTE,
 } from '../../../src/mcp/lib/runtime-handoff.js';
-import type { ResolvedScope } from '../../../src/mcp/scope/resolve.js';
+import type { ResolvedScope } from '../../../src/scope/resolved.js';
 import type { McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
 import type { RepositoryGraph, StoredAnnotation } from '../../../src/types.js';
 

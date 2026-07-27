@@ -59,6 +59,12 @@ describe('parseIntegrationPointTargets', () => {
 
     expect(ids).toEqual(['export:pkg/a/Foo', 'mod:pkg/a', 'resource:aws-lambda:Fn']);
   });
+
+  it('reads every declared node-id prefix, including pkg:', () => {
+    const ids = parseIntegrationPointTargets('publishes through pkg:shared and domain:orders');
+
+    expect(ids).toEqual(['pkg:shared', 'domain:orders']);
+  });
 });
 
 describe('computeCarrierLinkGaps', () => {

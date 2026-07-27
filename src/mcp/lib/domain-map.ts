@@ -1,5 +1,5 @@
 import type { RepositoryGraph } from '../../types.js';
-import { buildNodeView, pathFromRoot } from '../../graph/index.js';
+import { buildNodeView } from '../../graph/index.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
 import { resolveDomainContentHash } from '../../annotations/store.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../config.js';
@@ -10,12 +10,9 @@ import {
   regroupByPackage,
   type DomainModuleRow,
 } from '../domain-pagination.js';
-import { resolveNodeId, type McpToolRuntime } from '../types.js';
+import type { McpToolRuntime } from '../types.js';
 import { argTruncation, truncationMap } from '../../response/truncation.js';
 import { annotationFreshnessProvenance, freshAgainstHash } from './annotation-freshness.js';
-
-/** Prefixes that indicate a node id rather than a domain name. */
-export const NODE_ID_PREFIXES = /^(mod|export|pkg|resource|infra):/;
 
 export function moduleLinkCount(graph: RepositoryGraph, moduleId: string): number {
   const view = buildNodeView(graph, moduleId);
@@ -29,23 +26,16 @@ export function resolveModulePackageId(graph: RepositoryGraph, moduleId: string)
   return pkgEdge?.from ?? 'unknown';
 }
 
+/** The domain view for a domain name. A scope naming a node is answered by the map tool's own path branch. */
 export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
   const { graph, annotations, domainsConfig } = ctx.getState();
-  const q = args.domainOrNodeId as string | undefined;
-  if (!q) return { error: 'Missing required argument: domainOrNodeId' };
+  const q = args.domain as string | undefined;
+  if (!q) return { error: 'Missing required argument: domain' };
   let paginationInput;
   try {
     paginationInput = parseDomainPaginationArgs(args);
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
-  }
-  if (NODE_ID_PREFIXES.test(q)) {
-    const resolvedId = resolveNodeId(graph, q);
-    if (resolvedId) {
-      const result = pathFromRoot(graph, resolvedId);
-      if (result) return result;
-    }
-    return { error: `Not found: ${q}` };
   }
   const domainLabel = resolveDomainToCanonical(q, domainsConfig);
   const domainId = domainLabel.startsWith('domain:') ? domainLabel : `domain:${domainLabel}`;
@@ -113,12 +103,7 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
     }
     return result;
   }
-  const resolvedId = resolveNodeId(graph, q);
-  if (resolvedId) {
-    const result = pathFromRoot(graph, resolvedId);
-    if (result) return result;
-  }
-  return { error: `Not found: ${q}` };
+  return { error: `Domain not found: ${q}` };
 }
 
 export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {

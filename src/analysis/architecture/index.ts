@@ -13,10 +13,10 @@ import { computeEntrypointBoundedDerived } from '../../annotations/propagation.j
 import type { PropagationConfig } from '../../config.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../config.js';
 import type { EntrypointFragment } from '../../interpreter/types.js';
-import type { DomainsConfig } from '../../stage2/domains.js';
 
+import { ALL_SCOPE, type ResolvedScope } from '../../scope/resolved.js';
 import { DEFAULT_THRESHOLDS, type RefactoringThresholds } from './config.js';
-import { scopedGraphIds } from './scope.js';
+import { ARCHITECTURE_SCOPE_KINDS, scopedGraphIds } from './scope.js';
 import {
   countFindingsByCategory,
   dedupeByCategoryAndPrimaryNode,
@@ -59,7 +59,6 @@ export interface RefactoringState {
    * gracefully degrade when missing.
    */
   snapshot?: RepositoryFactsSnapshot;
-  domainsConfig: DomainsConfig | null;
   /**
    * Resolved thresholds from `repovine.config.json` →
    * `analyze_architecture.strictness` profile + per-knob
@@ -73,7 +72,8 @@ export interface RefactoringState {
 }
 
 export interface RefactoringReportArgs {
-  scope?: string;
+  /** Already resolved by the caller. Defaults to the whole repository. */
+  scope?: ResolvedScope;
   categories?: RefactoringCategory[];
   minConfidence?: number;
   limit?: number;
@@ -92,7 +92,7 @@ export interface RefactoringReportArgs {
 
 export interface RefactoringOpportunityDetailArgs {
   findingId: string;
-  scope?: string;
+  scope?: ResolvedScope;
   includeComponentEntrypoints?: boolean;
   maxNodes?: number;
   /**
@@ -127,9 +127,8 @@ function collectSortedFindings(state: RefactoringState, args: RefactoringReportA
       + 'entry before running a report. A cold registry would otherwise return zero findings silently.',
     );
   }
-  const { graph, modulesById, annotations, domainsConfig } = state;
+  const { graph, modulesById, annotations } = state;
   const thresholds = state.refactoringThresholds ?? DEFAULT_THRESHOLDS;
-  const scopeArg = args.scope ?? 'all';
   const requestedCategories = new Set(
     (args.categories ?? DEFAULT_REFACTORING_CATEGORIES)
       .filter(c => REFACTORING_CATEGORIES.includes(c)),
@@ -138,7 +137,12 @@ function collectSortedFindings(state: RefactoringState, args: RefactoringReportA
   const includeComponentEntrypoints = args.includeComponentEntrypoints === true;
   const annotationReasoning = args.annotationReasoning === 'on';
 
-  const scope = scopedGraphIds(graph, modulesById, domainsConfig, scopeArg);
+  const scope = scopedGraphIds(graph, modulesById, args.scope ?? ALL_SCOPE);
+  // A scope kind no detector reads has no node set to run over. Returning here keeps the refusal
+  // apart from a real report that found nothing.
+  if (scope.kind === 'unsupported') {
+    return { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings: [] };
+  }
 
   // Precompute the derived-stale set once per report so all in-scope modules
   // share a consistent view. Only annotation-risk consumes it; requires a
@@ -190,12 +194,28 @@ function collectSortedFindings(state: RefactoringState, args: RefactoringReportA
   return { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings };
 }
 
+/**
+ * What a scope kind outside {@link ARCHITECTURE_SCOPE_KINDS} answers with.
+ *
+ * Carries no finding counts on purpose: `totalFindings: 0` for a scope that was never inspected is
+ * the report reading as a clean bill of health.
+ */
+function unsupportedScopeResult(scope: RefactoringScope): Record<string, unknown> {
+  return {
+    scope: scope.scope,
+    error: `Architecture analysis does not inspect "${scope.unsupportedKind}" scopes. `
+      + 'Detectors read modules, runtime resources and domains.',
+    supportedScopeKinds: [...ARCHITECTURE_SCOPE_KINDS],
+  };
+}
+
 export function runRefactoringReport(
   state: RefactoringState,
   args: RefactoringReportArgs,
 ): Record<string, unknown> {
   const { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings } =
     collectSortedFindings(state, args);
+  if (scope.kind === 'unsupported') return unsupportedScopeResult(scope);
   const limit = Math.min(typeof args.limit === 'number' ? args.limit : 50, 200);
   const returned = selectBalancedFindings(sortedFindings, limit, requestedCategories);
   const summary = countFindingsByCategory(sortedFindings);
@@ -238,12 +258,13 @@ export function runRefactoringOpportunityDetail(
   // Search the full uncapped list (not runRefactoringReport's display page), so a valid finding id
   // that sorts past the report's balanced/limit window still resolves instead of erroring as "not found".
   const { scope, sortedFindings } = collectSortedFindings(state, {
-    scope: args.scope ?? 'all',
+    scope: args.scope,
     categories,
     minConfidence: 0,
     includeComponentEntrypoints: args.includeComponentEntrypoints === true,
     annotationReasoning: args.annotationReasoning === 'on' ? 'on' : 'off',
   });
+  if (scope.kind === 'unsupported') return unsupportedScopeResult(scope);
   const finding = sortedFindings.find(item => item.id === findingId);
   if (!finding) {
     return {

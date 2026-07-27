@@ -157,9 +157,7 @@ describe('security refactoring detectors', () => {
       graph,
       modulesById,
       annotations,
-      domainsConfig: null,
     }, {
-      scope: 'all',
       categories: [
         'secret-config-boundary',
         'authorization-policy-drift',
@@ -275,10 +273,8 @@ describe('security refactoring detectors', () => {
       graph,
       modulesById,
       annotations,
-      domainsConfig: null,
       refactoringThresholds: STRICTNESS_PROFILES.normal,
     }, {
-      scope: 'all',
       categories: [...categories],
       limit: 50,
       minConfidence: 0,
@@ -290,10 +286,8 @@ describe('security refactoring detectors', () => {
       graph,
       modulesById,
       annotations,
-      domainsConfig: null,
       refactoringThresholds: STRICTNESS_PROFILES.strict,
     }, {
-      scope: 'all',
       categories: [...categories],
       limit: 50,
       minConfidence: 0,
@@ -313,9 +307,8 @@ describe('trust-boundary findings are evidence-led, not name-led', () => {
       graph,
       modulesById: new Map([[mod.id, mod]]),
       annotations: makeStore([]),
-      domainsConfig: null,
       refactoringThresholds: profile,
-    }, { scope: 'all', categories: ['trust-boundary-validation'], limit: 50, minConfidence: 0 });
+    }, { categories: ['trust-boundary-validation'], limit: 50, minConfidence: 0 });
     return (report.findings as Array<{ category: string }>).map(f => f.category);
   }
 

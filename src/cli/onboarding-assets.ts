@@ -767,7 +767,7 @@ analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-confi
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id", "maxNodes": 30 })
 \`\`\`
 
-Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise (apply with \`refresh_context({ "reloadConfig": true })\`).
+Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. A \`mod:\`/\`resource:\` scope holds one node: it reports per-node signals only, and \`gaps\` says which comparisons that granularity rules out. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise (apply with \`refresh_context({ "reloadConfig": true })\`).
 
 7. Prefer local project skills when present:
 
@@ -856,7 +856,7 @@ If the call fails with a connection error, the MCP server is not running. Tell t
 
 If the response is a successful envelope with \`result.status:"building"\` (not an error), the MCP server is up but the graph is still being built. \`stageEtaSec\` estimates only the current stage, not time until ready. Call \`get_build_status({ "waitSec": 45 })\` once to long-poll instead of repeated calls; respect \`retryAfterSec\`. If the long-poll still returns building, report \`stage\` and \`remainingStages\`, then fall back to direct file reads for this turn when the task can proceed without graph structure. \`get_build_status({ "cancel": true })\` abandons a cold build; it returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph. A cancelled server has no graph to serve, so every other tool reports an error carrying the recovery action: call \`refresh_context\` to start a fresh build, or run \`repovine build\` and restart the server.
 
-When a tool returns no items, check \`result.emptyDiagnostic\` before retrying. It distinguishes an empty graph from a bad scope, a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
+When a tool returns no items, check \`result.emptyDiagnostic\` before retrying. It distinguishes an empty graph from a bad scope, a scope kind the tool does not inspect (\`scope_kind_not_analyzable\`, alongside \`result.error\` naming the kinds it does), a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
 
 ${SEARCH_CONTEXT_INTERPRETATION_POLICY}
 
@@ -956,7 +956,7 @@ analyze_architecture({ "scope": "pkg:package-name", "categories": ["secret-confi
 analyze_architecture({ "scope": "pkg:package-name", "detailFindingId": "category:exact-finding-id" })
 \`\`\`
 
-Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise (apply with \`refresh_context({ "reloadConfig": true })\`).
+Use a narrow \`scope\`, pick relevant \`categories\`, then inspect affected nodes and dependency impact before proposing code movement. A \`mod:\`/\`resource:\` scope holds one node: it reports per-node signals only, and \`gaps\` says which comparisons that granularity rules out. For security-sensitive reports, remember that \`analyze_architecture.strictness\` and \`analyze_architecture.thresholds.*\` in \`repovine.config.json\` tune detector noise (apply with \`refresh_context({ "reloadConfig": true })\`).
 
 ${CURSOR_WORKFLOW_ORCHESTRATION_BRIDGE}
 `,
@@ -1267,6 +1267,8 @@ analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 
 validate_annotations({})
 ~~~
 
+Scope both flow and architecture calls at module granularity or wider: an \`export:\` scope is refused by name, and a single module reports per-node signals only — \`gaps\` names the comparisons that granularity rules out.
+
 3. Evaluate tests:
 
 - Compare \`implementationResult.testsRun\` to changed behavior and acceptance criteria.
@@ -1364,6 +1366,8 @@ get_config_surface({ "scope": "<changed-scope>" })
 trace_flow({ "scope": "<changed-scope>", "include": ["entrypoints", "services", "resources", "flows"] })
 analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 })
 \`\`\`
+
+Scope both flow and architecture calls at module granularity or wider: an \`export:\` scope is refused by name, and a single module reports per-node signals only — \`gaps\` names the comparisons that granularity rules out.
 
 Use only relevant checks. Shared exports/types need dependency impact; env/resources need config surface; API/webhook/queue/worker changes need runtime flow; structural/boundary changes may need architecture candidates.
 

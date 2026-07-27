@@ -155,8 +155,8 @@ describe('architecture analysis: default category set', () => {
   it.each(CASES)('$category is reported when requested explicitly', ({ category, fixture }) => {
     const { graph, modulesById, annotations } = fixture();
     const report = runRefactoringReport(
-      { graph, modulesById, annotations, domainsConfig: null },
-      { scope: 'all', categories: [category], minConfidence: 0, limit: 30 },
+      { graph, modulesById, annotations },
+      { categories: [category], minConfidence: 0, limit: 30 },
     );
     expect(categoriesOf(report)).toContain(category);
   });
@@ -164,8 +164,8 @@ describe('architecture analysis: default category set', () => {
   it.each(CASES)('$category stays silent on that same fixture by default', ({ category, fixture }) => {
     const { graph, modulesById, annotations } = fixture();
     const report = runRefactoringReport(
-      { graph, modulesById, annotations, domainsConfig: null },
-      { scope: 'all', minConfidence: 0, limit: 30 },
+      { graph, modulesById, annotations },
+      { minConfidence: 0, limit: 30 },
     );
     expect(categoriesOf(report)).not.toContain(category);
   });
