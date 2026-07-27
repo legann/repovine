@@ -1,18 +1,24 @@
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
-import type { StoredAnnotation, RepositoryGraph, RepositoryFactsSnapshot, ModuleInfo, TemplateFileInfo } from '../types.js';
-import { CURRENT_ANNOTATION_SCHEMA_VERSION } from '../types.js';
+import type { StoredAnnotation, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
 import { writeFileAtomic, writeFileAtomicSync } from '../fs/atomic.js';
-import { getParentInfraModuleId } from './service-resource-hash.js';
+import { annotationFreshness, type FreshnessVerdict } from './freshness.js';
 import {
-  isPackageOnlyDomain,
-  nodeContentHashLookup,
-  resolveCachedDomainContentHash,
-  resolveLeafNodeContentHash,
-  type DomainContentHashCache,
-} from './content-hash.js';
-import { annotationFreshness, type FreshnessVerdict, type StaleReason } from './freshness.js';
+  buildAnnotationBacklog,
+  countBacklogPhases,
+  countBacklogRows,
+  filterRowsByStaleKind,
+  sortBacklogRows,
+  type AnnotationBacklog,
+  type AnnotationQueuePage,
+  type BacklogCounts,
+  type BacklogCoverage,
+  type QueueItem,
+  type QueuePhase,
+  type QueueStatus,
+  type StaleKind,
+} from './backlog.js';
 import { ANNOTATIONS_FILENAME, resolveAnnotationsFilePath } from '../paths.js';
 import { ensureEmptyAnnotationsFileAtPath, EMPTY_ANNOTATION_FILE_TEXT } from './maintenance.js';
 import { writeAnnotationBackup } from './backup.js';
@@ -20,8 +26,7 @@ import {
   withAnnotationFileLockAsync,
   withAnnotationFileLockSync,
 } from './file-lock.js';
-import { inferModuleKind, recommendedFieldsForKind, type ModuleKind } from './module-kind.js';
-import { detectSideEffectKindsFromHints } from './side-effect-vocab.js';
+import { type ModuleKind } from './module-kind.js';
 import { formatPipelineDetail, formatPipelineStatus, logPipeline, logPipelineWarn } from '../cli/ui.js';
 import {
   AnnotationContentSchema,
@@ -31,158 +36,9 @@ import {
   serializeAnnotationFileFromRaw,
 } from './format.js';
 import type { PropagationConfig } from '../config.js';
-import { DEFAULT_PROPAGATION_CONFIG } from '../config.js';
 import type { EntrypointFragment } from '../interpreter/types.js';
-import { computeEntrypointBoundedDerived, getImportBaselineStaleUpstream } from './propagation.js';
 
 export { AnnotationContentSchema };
-
-// ── Annotation quality scoring ──
-
-/**
- * Consistency is a SEPARATE axis from completeness (`score`/`tier`). It does not measure how
- * many fields are filled; it asks whether the fields that ARE filled contradict facts the graph
- * already knows (real export names, detected env vars, detected side effects). It is recomputable
- * from `annotation × current graph`, but it is a contradiction list, not a ladder — one
- * contradiction is enough to distrust — so it is `ok` + `issues[]`, never a number. It MUST NOT
- * affect `score`/`tier`.
- */
-export interface AnnotationConsistency {
-  ok: boolean;
-  /** ONLY concrete contradictions with graph facts — never "field is empty" (that is completeness's job). */
-  issues: Array<{
-    field: 'keyExports' | 'envDependencies' | 'sideEffects';
-    kind: 'unknown-name' | 'contradicts-hints';
-    detail: string;
-  }>;
-}
-
-export interface AnnotationQuality {
-  /** Completeness only (0–10). UNCHANGED by the consistency axis. */
-  score: number;
-  missingFields: string[];
-  tier: 'minimal' | 'basic' | 'detailed' | 'comprehensive';
-  /** Module kind inferred from snapshot/graph (or 'generic' if not available). */
-  moduleKind?: ModuleKind;
-  /** Orthogonal axis: do the filled fields contradict graph facts? Recomputable; does NOT move score/tier. */
-  consistency: AnnotationConsistency;
-}
-
-export interface AnnotationQualityInput {
-  exportCount: number;
-  lineCount: number;
-  envVars?: string[];
-  /** Optional kind override (computed by inferModuleKind). When omitted, scoring uses generic baseline. */
-  moduleKind?: ModuleKind;
-  /**
-   * Ground truth for the consistency axis: the module's real export names (`mod.exports.map(e => e.name)`).
-   * When absent, the keyExports consistency check is SKIPPED — never fabricate ground truth.
-   */
-  exportNames?: string[];
-  /**
-   * Ground truth for the consistency axis: side-effect kinds the graph can honestly detect from
-   * SemanticHints (see `detectSideEffectKindsFromHints`). When absent, the declared-`pure`-vs-detected
-   * check is SKIPPED — never fabricate detected effects.
-   */
-  detectedSideEffectKinds?: string[];
-}
-
-export type QueueStatus = 'unannotated' | 'stale';
-export type StaleKind = 'content' | 'propagation';
-
-export type ModuleQueueClassification =
-  | { status: 'unannotated' }
-  | { status: 'stale'; staleKind: StaleKind };
-
-/**
- * Review depth for a stale reason. Content and schema both mean "rewrite the note"; propagation
- * means "re-confirm what it says about upstream", which is the shallower pass.
- */
-export function staleKindForReason(reason: StaleReason): StaleKind {
-  return reason === 'propagation' ? 'propagation' : 'content';
-}
-
-/**
- * What a freshness verdict means for the queue. `null` is "no work": the annotation is confirmed,
- * or the node carries no hash to confirm it against and the queue has nothing to ask for.
- */
-export function classifyStale(verdict: FreshnessVerdict): ModuleQueueClassification | null {
-  switch (verdict.state) {
-    case 'unannotated': return { status: 'unannotated' };
-    case 'stale': return { status: 'stale', staleKind: staleKindForReason(verdict.reason) };
-    case 'fresh':
-    case 'not-comparable':
-      return null;
-  }
-}
-
-export function isPropagationStaleItem(item: { status: string; staleKind?: StaleKind }): boolean {
-  return item.status === 'stale' && item.staleKind === 'propagation';
-}
-
-export function isContentStaleItem(item: { status: string; staleKind?: StaleKind }): boolean {
-  return item.status === 'stale' && item.staleKind !== 'propagation';
-}
-
-export type QueuePhase = 'module' | 'template' | 'runtime-resource' | 'infra' | 'domain';
-
-interface QueueItem {
-  nodeId: string;
-  label: string;
-  status: QueueStatus;
-  /** Present when status is stale; content vs propagation review depth. */
-  staleKind?: StaleKind;
-  domains: string[];
-  priority: number;
-  reason: string;
-  moduleKind?: ModuleKind;
-  recommendedFields?: string[];
-  context: {
-    exportCount: number;
-    topExports: Array<{ name: string; kind: string; signature?: string }>;
-    downstreamCount: number;
-    totalLines: number;
-    /** Module dependency depth used for first-run bottom-up annotation ordering. */
-    dependencyDepth?: number;
-    /** Queue phase used to keep aggregates after lower-level notes. */
-    annotationPhase?: QueuePhase;
-    /** Direct imports whose contentHash differs from importBaseline (propagation-stale modules). */
-    upstreamTriggers?: string[];
-    staleKind?: StaleKind;
-  };
-}
-
-interface QueueSortMeta {
-  statusRank: number;
-  phaseRank: number;
-  dependencyDepth: number;
-  domainDepth: number;
-  urgency: number;
-}
-
-/**
- * Lightweight queue row: classification + sort key are computed eagerly; the
- * full QueueItem (reason/context/recommendedFields/topExports) is built lazily
- * via `hydrate`, so health/compliance paths classify and count without
- * materializing every item. getQueue hydrates only the returned slice.
- */
-interface QueueRow {
-  nodeId: string;
-  status: QueueStatus;
-  staleKind?: StaleKind;
-  phase: QueuePhase;
-  _sort: QueueSortMeta;
-  hydrate: () => QueueItem;
-}
-
-export interface AnnotationHealthCounts {
-  /** Total needs-work nodes (unannotated + content-stale + propagation-stale). */
-  needsWork: number;
-  stale: number;
-  staleContent: number;
-  stalePropagation: number;
-  unannotated: number;
-}
 
 export interface AnnotationHealthScanRow {
   nodeId: string;
@@ -201,12 +57,11 @@ export interface AnnotationHealthSampleItem {
 }
 
 /**
- * Single read-only pass over the annotatable surface (modules, templates,
- * infra, runtime-resources, domains). Shared by validate/compliance/status so
- * those paths build one lightweight scan instead of repeated full queues.
+ * The needs-work half of {@link buildAnnotationBacklog}, projected for validate/compliance/status.
+ * Those paths need classification and order, never item prose, so nothing here is hydrated.
  */
 export interface AnnotationHealthScan {
-  counts: AnnotationHealthCounts;
+  counts: BacklogCounts;
   /** Needs-work rows sorted in the same priority order as getQueue. */
   rows: AnnotationHealthScanRow[];
   /**
@@ -255,336 +110,6 @@ export function describeMergeKeeps(keeps: AnnotationMergeKeeps): string | undefi
     + `${keeps.sample.join(', ')}${more}. A revert of the annotations file does not stick while this process `
     + 'holds the newer records; re-apply it after the process exits, or write the intended state through '
     + 'write_annotation / merge_annotations.';
-}
-
-export interface AnnotationQueuePage {
-  items: QueueItem[];
-  counts: {
-    stale: number;
-    staleContent: number;
-    stalePropagation: number;
-    unannotated: number;
-  };
-  displayCounts: {
-    stale: number;
-    staleContent: number;
-    stalePropagation: number;
-    unannotated: number;
-  };
-  byType: { module: number; template: number; 'runtime-resource': number; infra: number; domain: number };
-  needsWork: number;
-  totalRemaining: number;
-}
-
-const STATUS_RANK: Record<QueueStatus, number> = {
-  stale: 3,
-  unannotated: 1,
-};
-
-/** Content-stale (own hash drift) sorts above propagation-stale (importBaseline). */
-const CONTENT_STALE_KIND_RANK = STATUS_RANK.stale;
-const PROPAGATION_STALE_KIND_RANK = 2;
-
-const PHASE_RANK: Record<QueuePhase, number> = {
-  module: 5,
-  template: 4,
-  'runtime-resource': 3,
-  infra: 2,
-  domain: 1,
-};
-
-function statusRankForItem(status: QueueStatus, staleKind?: StaleKind): number {
-  if (status === 'stale' && staleKind === 'propagation') return PROPAGATION_STALE_KIND_RANK;
-  if (status === 'stale' && staleKind === 'content') return CONTENT_STALE_KIND_RANK;
-  return STATUS_RANK[status];
-}
-
-function queuePriority(
-  status: QueueStatus,
-  phase: QueuePhase,
-  dependencyDepth: number,
-  domainDepth: number,
-  urgency: number,
-  staleKind?: StaleKind,
-): number {
-  return (statusRankForItem(status, staleKind) * 1_000_000)
-    + (PHASE_RANK[phase] * 100_000)
-    - (Math.min(dependencyDepth, 100) * 1_000)
-    + (domainDepth * 100)
-    + urgency;
-}
-
-function compareQueueItems(a: { _sort: QueueSortMeta; nodeId: string }, b: { _sort: QueueSortMeta; nodeId: string }): number {
-  return b._sort.statusRank - a._sort.statusRank
-    || b._sort.phaseRank - a._sort.phaseRank
-    || a._sort.dependencyDepth - b._sort.dependencyDepth
-    || b._sort.domainDepth - a._sort.domainDepth
-    || b._sort.urgency - a._sort.urgency
-    || a.nodeId.localeCompare(b.nodeId);
-}
-
-function computeModuleDependencyDepths(graph: RepositoryGraph, moduleIds: Iterable<string>): Map<string, number> {
-  const moduleSet = new Set(moduleIds);
-  const cache = new Map<string, number>();
-  const visiting = new Set<string>();
-
-  const depthOf = (id: string): number => {
-    const cached = cache.get(id);
-    if (cached !== undefined) return cached;
-    if (visiting.has(id)) return 0;
-
-    visiting.add(id);
-    const internalDeps = (graph.outEdges.get(id) ?? [])
-      .filter(edge => edge.kind === 'imports' && moduleSet.has(edge.to))
-      .map(edge => edge.to);
-    const depth = internalDeps.length === 0
-      ? 0
-      : 1 + Math.max(...internalDeps.map(depthOf));
-    visiting.delete(id);
-    cache.set(id, depth);
-    return depth;
-  };
-
-  for (const id of moduleSet) depthOf(id);
-  return cache;
-}
-
-/**
- * Field weights, expressed once and reused by both score accumulation and
- * the "missing" recommendation list. Numbers reflect prior implicit weights
- * but are now centralized.
- */
-const FIELD_WEIGHTS = {
-  summary: 1,
-  keyExports: 1.5,
-  assumptions: 0.5,
-  sideEffects: 1,
-  risks: 1,
-  patterns: 1,
-  flowDescription: 1,
-  invariants: 1,
-  extensionPoints: 0.5,
-  integrationPoints: 1,
-  stateShape: 1,
-  dataFlow: 2,
-  envDependencies: 1,
-} as const;
-
-type ScorableField = keyof typeof FIELD_WEIGHTS;
-
-function hasField(content: StoredAnnotation['annotation'], field: ScorableField): boolean {
-  switch (field) {
-    case 'summary': return !!content.summary && content.summary.length > 20;
-    case 'keyExports': return !!content.keyExports && Object.keys(content.keyExports).length > 0;
-    case 'assumptions': return !!content.assumptions?.length;
-    case 'sideEffects': return !!content.sideEffects?.length;
-    case 'risks': return !!content.risks?.length;
-    case 'patterns': return !!content.patterns?.length;
-    case 'flowDescription': return !!content.flowDescription;
-    case 'invariants': return !!content.invariants?.length;
-    case 'extensionPoints': return !!content.extensionPoints?.length;
-    case 'integrationPoints': return content.integrationPoints != null
-      && (typeof content.integrationPoints === 'string'
-        ? content.integrationPoints.length > 0
-        : Object.keys(content.integrationPoints).length > 0);
-    case 'stateShape': return content.stateShape != null
-      && (typeof content.stateShape === 'string'
-        ? content.stateShape.length > 0
-        : Object.keys(content.stateShape).length > 0);
-    case 'dataFlow': return content.dataFlow != null
-      && (typeof content.dataFlow === 'string'
-        ? content.dataFlow.length > 0
-        : Object.keys(content.dataFlow).length > 0);
-    case 'envDependencies': return !!content.envDependencies
-      && Object.keys(content.envDependencies).length > 0;
-  }
-}
-
-/**
- * Pure consistency check: does the annotation content contradict facts the graph already knows?
- * Recomputable from `content × input` alone. Only fields the agent actually FILLED are checked —
- * an empty field is completeness's concern, never an issue here (so we never double-count). When a
- * check's ground truth is missing from `input`, that check is silently skipped (never fabricate).
- */
-function computeConsistency(
-  content: StoredAnnotation['annotation'],
-  input: AnnotationQualityInput,
-): AnnotationConsistency {
-  const issues: AnnotationConsistency['issues'] = [];
-
-  // keyExports — declared export names that the graph does not actually export (drift after refactor).
-  // Skip when the module has no captured NAMED exports: re-export barrels (`export { X } from './y'`)
-  // record an empty / `default`-only export set because stage1 does not resolve re-exports, so the
-  // ground truth is absent — not "exports nothing". Flagging every key there is a false positive, so
-  // we treat it like any other absent ground truth and skip (never fabricate a contradiction).
-  if (content.keyExports && input.exportNames && input.exportNames.some(n => n !== 'default')) {
-    const real = new Set(input.exportNames);
-    for (const k of Object.keys(content.keyExports)) {
-      if (!real.has(k)) issues.push({ field: 'keyExports', kind: 'unknown-name', detail: k });
-    }
-  }
-
-  // envDependencies declared but not detected among the module's env vars.
-  if (content.envDependencies && input.envVars) {
-    const real = new Set(input.envVars);
-    for (const k of Object.keys(content.envDependencies)) {
-      if (!real.has(k)) issues.push({ field: 'envDependencies', kind: 'unknown-name', detail: k });
-    }
-  }
-
-  // declared pure while the graph detects real side effects (high signal).
-  if (content.sideEffects?.some(e => e.kind === 'pure') && input.detectedSideEffectKinds?.length) {
-    issues.push({
-      field: 'sideEffects',
-      kind: 'contradicts-hints',
-      detail: `declared pure; detected ${input.detectedSideEffectKinds.join(',')}`,
-    });
-  }
-
-  return { ok: issues.length === 0, issues };
-}
-
-export function computeAnnotationQuality(
-  content: StoredAnnotation['annotation'],
-  moduleData: AnnotationQualityInput,
-): AnnotationQuality {
-  let score = 0;
-  const missing: string[] = [];
-
-  const kind: ModuleKind = moduleData.moduleKind ?? 'generic';
-  const recommendedForKind = new Set(recommendedFieldsForKind(kind));
-
-  // Universal: always score summary; recommended only when too short.
-  if (hasField(content, 'summary')) score += FIELD_WEIGHTS.summary;
-  else missing.push('summary (>20 chars)');
-
-  // keyExports — required for kinds that surface exports (everything except 'runtime-resource'/'infra'/'domain'
-  // where exports aren't well-defined, and except types-only where summary alone is sometimes enough
-  // unless the file has real exports — recommendedFieldsForKind('types') already includes keyExports).
-  if (hasField(content, 'keyExports')) score += FIELD_WEIGHTS.keyExports;
-  else if (recommendedForKind.has('keyExports') && moduleData.exportCount > 0) missing.push('keyExports');
-
-  if (hasField(content, 'assumptions')) score += FIELD_WEIGHTS.assumptions;
-  else if (recommendedForKind.has('assumptions')) missing.push('assumptions');
-
-  if (hasField(content, 'sideEffects')) score += FIELD_WEIGHTS.sideEffects;
-  else if (recommendedForKind.has('sideEffects') || moduleData.envVars?.length) missing.push('sideEffects');
-
-  if (hasField(content, 'risks')) score += FIELD_WEIGHTS.risks;
-  else if (recommendedForKind.has('risks') || moduleData.lineCount > 500) missing.push('risks');
-
-  if (hasField(content, 'patterns')) score += FIELD_WEIGHTS.patterns;
-  else if (recommendedForKind.has('patterns')) missing.push('patterns');
-
-  if (hasField(content, 'flowDescription')) score += FIELD_WEIGHTS.flowDescription;
-  else if (recommendedForKind.has('flowDescription')) missing.push('flowDescription');
-
-  if (hasField(content, 'invariants')) score += FIELD_WEIGHTS.invariants;
-  else if (recommendedForKind.has('invariants')) missing.push('invariants');
-
-  if (hasField(content, 'extensionPoints')) score += FIELD_WEIGHTS.extensionPoints;
-  else if (recommendedForKind.has('extensionPoints')) missing.push('extensionPoints');
-
-  if (hasField(content, 'integrationPoints')) score += FIELD_WEIGHTS.integrationPoints;
-  else if (recommendedForKind.has('integrationPoints') || moduleData.exportCount > 5) missing.push('integrationPoints');
-
-  if (hasField(content, 'stateShape')) score += FIELD_WEIGHTS.stateShape;
-  else if (recommendedForKind.has('stateShape')) missing.push('stateShape');
-
-  if (hasField(content, 'dataFlow')) score += FIELD_WEIGHTS.dataFlow;
-  else if (moduleData.lineCount > 200 && (kind === 'api-handler' || kind === 'service-mgr' || kind === 'generic')) {
-    missing.push('dataFlow');
-  }
-
-  if (hasField(content, 'envDependencies')) score += FIELD_WEIGHTS.envDependencies;
-  else if (moduleData.envVars?.length) missing.push('envDependencies');
-
-  const tier: AnnotationQuality['tier'] = score >= 8 ? 'comprehensive'
-    : score >= 5 ? 'detailed'
-    : score >= 2 ? 'basic'
-    : 'minimal';
-
-  // Consistency is computed independently and attached, but deliberately does NOT touch score/tier.
-  const consistency = computeConsistency(content, moduleData);
-
-  return { score: Math.min(10, score), missingFields: missing, tier, moduleKind: kind, consistency };
-}
-
-/**
- * A consistency issue is "hard" (trustworthy contradiction → gate error under harness, counted as
- * inconsistent) vs "advisory" (the backing graph detector is known-incomplete, so a mismatch may be
- * a detection gap rather than annotation drift). Currently only `envDependencies` is advisory.
- *
- * The env-var detector resolves a read whose name is written at the access site. Three forms carry
- * the name elsewhere and stay unresolved: a computed key (`process.env[BY_ROLE[role]]`), an aliased
- * container (`const env = process.env` then `env.NAME`), and a name that reaches the read as an
- * argument (`envEnabled('NAME')`). Each is a live source of honestly-declared env dependencies the
- * graph cannot see, so a mismatch stays advisory. keyExports/sideEffects stay hard.
- */
-export function isHardConsistencyIssue(issue: AnnotationConsistency['issues'][number]): boolean {
-  return issue.field !== 'envDependencies';
-}
-
-/** Build the consistency-aware quality input for a module (shared ground-truth derivation). */
-export function annotationQualityInputForModule(mod: ModuleInfo, moduleKind?: ModuleKind): AnnotationQualityInput {
-  return {
-    exportCount: mod.exports.length,
-    lineCount: mod.exports.reduce((m, e) => Math.max(m, e.lineRange.end), 0),
-    envVars: mod.semanticHints?.envVars,
-    ...(moduleKind ? { moduleKind } : {}),
-    exportNames: mod.exports.map(e => e.name),
-    detectedSideEffectKinds: detectSideEffectKindsFromHints(mod.semanticHints),
-  };
-}
-
-export interface InconsistentModuleAnnotation {
-  nodeId: string;
-  /** Only HARD issues (advisory env mismatches are excluded — see isHardConsistencyIssue). */
-  issues: AnnotationConsistency['issues'];
-}
-
-/**
- * Recompute the consistency axis for every stored MODULE annotation against the current snapshot and
- * return those with at least one HARD contradiction. Advisory-only mismatches do not make a note
- * "inconsistent" here. Pure function of `annotations × modulesById`, so it surfaces drift on existing
- * notes (e.g. keyExports after a refactor) without re-annotating — an advisory health signal, never a
- * gate. Module-only: domain/service/infra roll-ups carry no keyExports/env/sideEffects to contradict.
- */
-export function computeInconsistentModuleAnnotations(
-  annotations: AnnotationStore,
-  modulesById: Map<string, ModuleInfo>,
-): InconsistentModuleAnnotation[] {
-  const out: InconsistentModuleAnnotation[] = [];
-  for (const [nodeId, stored] of Object.entries(annotations.getAll())) {
-    if (stored.nodeType !== 'module') continue;
-    const mod = modulesById.get(nodeId);
-    if (!mod) continue;
-    const quality = computeAnnotationQuality(stored.annotation, annotationQualityInputForModule(mod));
-    const hard = quality.consistency.issues.filter(isHardConsistencyIssue);
-    if (hard.length > 0) out.push({ nodeId, issues: hard });
-  }
-  return out;
-}
-
-function shouldHardQueueDomain(
-  graph: RepositoryGraph,
-  domainId: string,
-  propagation: PropagationConfig,
-): boolean {
-  if (propagation.domainStalePolicy !== 'path-only' || propagation.packageDomainHardQueue) {
-    return true;
-  }
-  const label = graph.nodes.get(domainId)?.label ?? domainId.replace(/^domain:/, '');
-  if (label.includes('/')) return true;
-  return !isPackageOnlyDomain(graph, domainId);
-}
-
-function templateQueuePreview(t: TemplateFileInfo): Array<{ name: string; kind: string }> {
-  const out: Array<{ name: string; kind: string }> = [];
-  if (t.extendsTemplate) out.push({ name: t.extendsTemplate, kind: 'extends' });
-  for (const name of t.includesTemplate ?? []) out.push({ name, kind: 'includes' });
-  for (const name of t.blocks ?? []) out.push({ name, kind: 'block' });
-  return out.slice(0, 10);
 }
 
 const SAVE_DEBOUNCE_MS = 800;
@@ -1495,9 +1020,33 @@ export class AnnotationStore {
   }
 
   /**
-   * Build a prioritized queue of nodes that need annotation.
-   * Hard: contentStale / schema outdated / unannotated.
-   * Derived (modules): importBaseline stale vs direct import contentHashes — persists after hard queue closes.
+   * The one walk over the annotatable surface. Every queue and every coverage number this store
+   * publishes is a projection of this result, so a node the queue leaves out is never reported as
+   * work by coverage.
+   */
+  private backlog(
+    graph: RepositoryGraph,
+    snapshot: RepositoryFactsSnapshot,
+    options: {
+      domain?: string;
+      propagation?: PropagationConfig;
+      entrypoints?: readonly EntrypointFragment[];
+    },
+  ): AnnotationBacklog {
+    return buildAnnotationBacklog({
+      graph,
+      snapshot,
+      annotations: this.data,
+      ...(options.domain !== undefined ? { domain: options.domain } : {}),
+      ...(options.propagation ? { propagation: options.propagation } : {}),
+      ...(options.entrypoints ? { entrypoints: options.entrypoints } : {}),
+    });
+  }
+
+  /**
+   * The top of the prioritized backlog: content-stale and schema-outdated notes, unannotated nodes,
+   * then modules whose stored importBaseline drifted — the tier that persists after the hard queue
+   * closes.
    */
   getQueue(
     graph: RepositoryGraph,
@@ -1510,8 +1059,7 @@ export class AnnotationStore {
     } = {},
   ): QueueItem[] {
     const limit = options.limit ?? 10;
-    const rows = this.buildQueueRows(graph, snapshot, options);
-    rows.sort(compareQueueItems);
+    const rows = sortBacklogRows(this.backlog(graph, snapshot, options).rows);
     return rows.slice(0, limit).map(row => row.hydrate());
   }
 
@@ -1525,86 +1073,26 @@ export class AnnotationStore {
       propagation?: PropagationConfig;
       entrypoints?: readonly EntrypointFragment[];
       derivedOnly?: boolean;
-      staleKind?: 'propagation' | 'content';
+      staleKind?: StaleKind;
     } = {},
   ): AnnotationQueuePage {
-    const {
-      limit = 10,
-      offset = 0,
-      derivedOnly = false,
-      staleKind,
-    } = options;
-    const rows = this.buildQueueRows(graph, snapshot, options);
-    rows.sort(compareQueueItems);
-    const counts = {
-      stale: 0,
-      staleContent: 0,
-      stalePropagation: 0,
-      unannotated: 0,
-    };
-    for (const row of rows) {
-      if (row.status === 'unannotated') {
-        counts.unannotated++;
-      } else if (row.staleKind === 'propagation') {
-        counts.stale++;
-        counts.stalePropagation++;
-      } else {
-        counts.stale++;
-        counts.staleContent++;
-      }
-    }
+    const { limit = 10, offset = 0, derivedOnly = false, staleKind } = options;
+    const rows = sortBacklogRows(this.backlog(graph, snapshot, options).rows);
 
-    let displayRows = derivedOnly
-      ? rows.filter(row => row.status === 'stale' && row.staleKind === 'propagation')
-      : rows;
-    if (staleKind) {
-      displayRows = displayRows.filter(row => staleKind === 'propagation'
-        ? row.status === 'stale' && row.staleKind === 'propagation'
-        : row.status === 'stale' && row.staleKind !== 'propagation');
-    }
-    const displayCounts = {
-      stale: 0,
-      staleContent: 0,
-      stalePropagation: 0,
-      unannotated: 0,
-    };
-    for (const row of displayRows) {
-      if (row.status === 'unannotated') {
-        displayCounts.unannotated++;
-      } else if (row.staleKind === 'propagation') {
-        displayCounts.stale++;
-        displayCounts.stalePropagation++;
-      } else {
-        displayCounts.stale++;
-        displayCounts.staleContent++;
-      }
-    }
-    const items = displayRows.slice(offset, offset + limit).map(row => row.hydrate());
-    const byType = {
-      module: 0,
-      template: 0,
-      'runtime-resource': 0,
-      infra: 0,
-      domain: 0,
-    };
-    for (const row of displayRows) byType[row.phase]++;
+    let displayRows = derivedOnly ? filterRowsByStaleKind(rows, 'propagation') : rows;
+    if (staleKind) displayRows = filterRowsByStaleKind(displayRows, staleKind);
 
     return {
-      items,
-      counts,
-      displayCounts,
-      byType,
-      needsWork: rows.length,
-      totalRemaining: displayRows.length,
+      items: displayRows.slice(offset, offset + limit).map(row => row.hydrate()),
+      counts: countBacklogRows(rows),
+      displayCounts: countBacklogRows(displayRows),
+      byType: countBacklogPhases(displayRows),
     };
   }
 
   /**
-   * Single read-only pass over the annotatable surface for annotation health
-   * and compliance gates. Classification and sort key are computed for every
-   * needs-work node; full item text (reason/context) is hydrated only for the
-   * returned sample. Replaces repeated full getQueue(MAX) materialization on
-   * validate/compliance paths.
+   * The backlog for annotation health and compliance gates: classification and order for every
+   * needs-work node, item text only for the sampled ones.
    */
   scanAnnotationHealth(
     graph: RepositoryGraph,
@@ -1615,23 +1103,7 @@ export class AnnotationStore {
       entrypoints?: readonly EntrypointFragment[];
     } = {},
   ): AnnotationHealthScan {
-    const rows = this.buildQueueRows(graph, snapshot, options);
-    let stale = 0;
-    let staleContent = 0;
-    let stalePropagation = 0;
-    let unannotated = 0;
-    for (const row of rows) {
-      if (row.status === 'unannotated') {
-        unannotated++;
-      } else if (row.staleKind === 'propagation') {
-        stale++;
-        stalePropagation++;
-      } else {
-        stale++;
-        staleContent++;
-      }
-    }
-    rows.sort(compareQueueItems);
+    const rows = sortBacklogRows(this.backlog(graph, snapshot, options).rows);
     const liteRows: AnnotationHealthScanRow[] = rows.map(row => ({
       nodeId: row.nodeId,
       status: row.status,
@@ -1654,14 +1126,11 @@ export class AnnotationStore {
       }
       return out;
     };
-    return {
-      counts: { needsWork: rows.length, stale, staleContent, stalePropagation, unannotated },
-      rows: liteRows,
-      sample,
-    };
+    return { counts: countBacklogRows(rows), rows: liteRows, sample };
   }
 
-  private buildQueueRows(
+  /** Annotation coverage, tallied by the same walk that ranks the queue. */
+  getStats(
     graph: RepositoryGraph,
     snapshot: RepositoryFactsSnapshot,
     options: {
@@ -1669,724 +1138,8 @@ export class AnnotationStore {
       propagation?: PropagationConfig;
       entrypoints?: readonly EntrypointFragment[];
     } = {},
-  ): QueueRow[] {
-    const {
-      domain,
-      propagation = DEFAULT_PROPAGATION_CONFIG,
-      entrypoints = [],
-    } = options;
-    const rows: QueueRow[] = [];
-    const moduleDependencyDepths = computeModuleDependencyDepths(
-      graph,
-      snapshot.modules.map(mod => mod.id),
-    );
-
-    const derivedStaleSet = computeEntrypointBoundedDerived({
-      graph,
-      snapshot,
-      annotations: this.data,
-      entrypoints,
-      propagation,
-    });
-    const contentHashLookup = nodeContentHashLookup(snapshot);
-    const moduleContentHashById = contentHashLookup.moduleContentHashById;
-    const domainContentHashCache: DomainContentHashCache = new Map();
-
-    for (const mod of snapshot.modules) {
-      // Filter by domain if specified
-      if (domain) {
-        const domainId = domain.startsWith('domain:') ? domain : `domain:${domain}`;
-        const outEdges = graph.outEdges.get(mod.id) ?? [];
-        const isTagged = outEdges.some(e => e.kind === 'tagged' && e.to === domainId);
-        if (!isTagged) continue;
-      }
-
-      const ann = this.data[mod.id];
-      const verdict = annotationFreshness({
-        annotation: ann,
-        currentHash: mod.contentHash,
-        propagationStale: derivedStaleSet.has(mod.id),
-      });
-      const classified = classifyStale(verdict);
-      if (!classified) continue;
-
-      const status = classified.status;
-      const staleKind = classified.status === 'stale' ? classified.staleKind : undefined;
-
-      // Priority inputs (sort key): downstream count, size, and quality.
-      const inEdges = graph.inEdges.get(mod.id) ?? [];
-      const downstreamCount = inEdges.filter(e => e.kind === 'imports').length;
-      const maxLine = mod.exports.reduce((m, e) => Math.max(m, e.lineRange.end), 0);
-      const moduleKind = inferModuleKind({ mod, node: graph.nodes.get(mod.id) });
-      const quality = ann
-        ? computeAnnotationQuality(ann.annotation, {
-          exportCount: mod.exports.length,
-          lineCount: maxLine,
-          envVars: mod.semanticHints?.envVars,
-          moduleKind,
-        })
-        : null;
-      const qualityScore = quality?.score ?? 0;
-      const urgency = (downstreamCount * 2)
-        + mod.exports.length
-        + (maxLine / 200)
-        - (qualityScore * 3);
-      const dependencyDepth = moduleDependencyDepths.get(mod.id) ?? 0;
-      const phase: QueuePhase = 'module';
-      const isPropagationStale = staleKind === 'propagation';
-
-      rows.push({
-        nodeId: mod.id,
-        status,
-        ...(staleKind ? { staleKind } : {}),
-        phase,
-        _sort: {
-          statusRank: statusRankForItem(status, staleKind),
-          phaseRank: PHASE_RANK[phase],
-          dependencyDepth,
-          domainDepth: 0,
-          urgency,
-        },
-        hydrate: () => {
-          const outEdges = graph.outEdges.get(mod.id) ?? [];
-          const domains = outEdges
-            .filter(e => e.kind === 'tagged')
-            .map(e => graph.nodes.get(e.to)?.label ?? e.to)
-            .filter((d): d is string => d != null);
-          const topExports = mod.exports
-            .slice(0, 10)
-            .map(e => ({
-              name: e.name,
-              kind: e.kind,
-              ...(e.signature ? { signature: e.signature } : {}),
-            }));
-          const priority = queuePriority(status, phase, dependencyDepth, 0, urgency, staleKind);
-
-          let reason: string;
-          if (status === 'stale' && staleKind === 'content') {
-            reason = verdict.state === 'stale' && verdict.reason === 'schema'
-              ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION}), needs backfill (${downstreamCount} downstream deps)`
-              : `Content changed since last annotation (${downstreamCount} downstream deps)`;
-          } else if (isPropagationStale) {
-            const staleUpstream = ann
-              ? getImportBaselineStaleUpstream(ann, graph, snapshot, mod.id, moduleContentHashById)
-              : [];
-            const sample = staleUpstream.slice(0, 3).join(', ');
-            const more = staleUpstream.length > 3 ? ` +${staleUpstream.length - 3} more` : '';
-            reason = staleUpstream.length > 0
-              ? `importBaseline stale (entrypoint-bounded) for upstream (${sample}${more}); review integrationPoints/dataFlow or refreshImportBaseline (${downstreamCount} downstream deps)`
-              : `importBaseline review required (entrypoint-bounded, ${downstreamCount} downstream deps)`;
-          } else {
-            reason = `Not yet annotated (${downstreamCount} downstream deps, ${mod.exports.length} exports)`;
-          }
-
-          const recommendedFields = isPropagationStale
-            ? []
-            : quality
-              ? quality.missingFields
-              : Array.from(recommendedFieldsForKind(moduleKind));
-
-          return {
-            nodeId: mod.id,
-            label: graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath,
-            status,
-            ...(staleKind ? { staleKind } : {}),
-            domains,
-            priority,
-            reason,
-            moduleKind,
-            context: {
-              exportCount: mod.exports.length,
-              topExports,
-              downstreamCount,
-              totalLines: maxLine,
-              dependencyDepth,
-              annotationPhase: phase,
-              ...(isPropagationStale && ann
-                ? {
-                  upstreamTriggers: getImportBaselineStaleUpstream(
-                    ann,
-                    graph,
-                    snapshot,
-                    mod.id,
-                    moduleContentHashById,
-                  ),
-                  staleKind: 'propagation' as const,
-                }
-                : staleKind === 'content'
-                  ? { staleKind: 'content' as const }
-                  : {}),
-            },
-            ...(recommendedFields.length > 0 ? { recommendedFields } : {}),
-          };
-        },
-      });
-    }
-
-    // Template/rendered-surface nodes — freshness from the template file content hash.
-    const templates = snapshot.templates ?? [];
-    for (const t of templates) {
-      const node = graph.nodes.get(t.id);
-      if (!node || node.type !== 'template') continue;
-
-      const outEdges = graph.outEdges.get(t.id) ?? [];
-      if (domain) {
-        const domainId = domain.startsWith('domain:') ? domain : `domain:${domain}`;
-        const isTagged = outEdges.some(e => e.kind === 'tagged' && e.to === domainId);
-        if (!isTagged) continue;
-      }
-
-      const ann = this.data[t.id];
-      const verdict = annotationFreshness({ annotation: ann, currentHash: t.contentHash });
-      const classified = classifyStale(verdict);
-      if (!classified) continue;
-      const status = classified.status;
-
-      const inEdges = graph.inEdges.get(t.id) ?? [];
-      const renderCount = inEdges.filter(e => e.kind === 'renders').length;
-      const compositionInCount = inEdges.filter(e => e.kind === 'extends' || e.kind === 'includes').length;
-      const compositionOutCount = outEdges.filter(e => e.kind === 'extends' || e.kind === 'includes').length;
-      const domains = outEdges
-        .filter(e => e.kind === 'tagged')
-        .map(e => graph.nodes.get(e.to)?.label ?? e.to)
-        .filter((d): d is string => d != null);
-      const topExports = templateQueuePreview(t);
-      const urgency = (renderCount * 2) + compositionInCount + compositionOutCount + (t.blocks?.length ?? 0);
-      const phase: QueuePhase = 'template';
-      const reason = status === 'stale'
-        ? (verdict.state === 'stale' && verdict.reason === 'schema'
-          ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION})`
-          : 'Template content changed')
-        : `Template not yet annotated (${renderCount} render edge${renderCount === 1 ? '' : 's'}, ${compositionOutCount} composition edge${compositionOutCount === 1 ? '' : 's'})`;
-
-      const templateKind: ModuleKind = 'template';
-      const templateStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
-      rows.push({
-        nodeId: t.id,
-        status,
-        ...(templateStaleKind ? { staleKind: templateStaleKind } : {}),
-        phase,
-        _sort: {
-          statusRank: statusRankForItem(status, templateStaleKind),
-          phaseRank: PHASE_RANK[phase],
-          dependencyDepth: 0,
-          domainDepth: 0,
-          urgency,
-        },
-        hydrate: () => ({
-          nodeId: t.id,
-          label: node.label,
-          status,
-          ...(templateStaleKind ? { staleKind: templateStaleKind } : {}),
-          domains,
-          priority: queuePriority(status, phase, 0, 0, urgency, templateStaleKind),
-          reason,
-          moduleKind: templateKind,
-          recommendedFields: Array.from(recommendedFieldsForKind(templateKind)),
-          context: {
-            exportCount: topExports.length,
-            topExports,
-            downstreamCount: renderCount + compositionInCount,
-            totalLines: 0,
-            annotationPhase: phase,
-            ...(templateStaleKind ? { staleKind: templateStaleKind } : {}),
-          },
-        }),
-      });
-    }
-
-    // Infra modules (IaC: SAM/CloudFormation, etc.)
-    const infraModules = snapshot.infraModules ?? [];
-    for (const infraMod of infraModules) {
-      if (domain) {
-        const domainId = domain.startsWith('domain:') ? domain : `domain:${domain}`;
-        const outEdges = graph.outEdges.get(infraMod.id) ?? [];
-        const isTagged = outEdges.some(e => e.kind === 'tagged' && e.to === domainId);
-        if (!isTagged) continue;
-      }
-
-      const ann = this.data[infraMod.id];
-      const verdict = annotationFreshness({ annotation: ann, currentHash: infraMod.contentHash });
-      const classified = classifyStale(verdict);
-      if (!classified) continue;
-      const status = classified.status;
-
-      const outEdges = graph.outEdges.get(infraMod.id) ?? [];
-      const domains = outEdges
-        .filter(e => e.kind === 'tagged')
-        .map(e => graph.nodes.get(e.to)?.label ?? e.to)
-        .filter((d): d is string => d != null);
-      const resourceCount = infraMod.resources.length;
-      const urgency = resourceCount;
-      const phase: QueuePhase = 'infra';
-      const reason = status === 'stale'
-        ? (verdict.state === 'stale' && verdict.reason === 'schema'
-          ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION})`
-          : 'IaC template content changed')
-        : `IaC module not yet annotated (${resourceCount} resources)`;
-
-      const infraKind: ModuleKind = 'infra';
-      const infraStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
-      rows.push({
-        nodeId: infraMod.id,
-        status,
-        ...(infraStaleKind ? { staleKind: infraStaleKind } : {}),
-        phase,
-        _sort: {
-          statusRank: statusRankForItem(status, infraStaleKind),
-          phaseRank: PHASE_RANK[phase],
-          dependencyDepth: 0,
-          domainDepth: 0,
-          urgency,
-        },
-        hydrate: () => ({
-          nodeId: infraMod.id,
-          label: graph.nodes.get(infraMod.id)?.label ?? infraMod.relativeFilePath,
-          status,
-          ...(infraStaleKind ? { staleKind: infraStaleKind } : {}),
-          domains,
-          priority: queuePriority(status, phase, 0, 0, urgency, infraStaleKind),
-          reason,
-          moduleKind: infraKind,
-          recommendedFields: Array.from(recommendedFieldsForKind(infraKind)),
-          context: {
-            exportCount: resourceCount,
-            topExports: infraMod.resources.slice(0, 10).map(r => ({ name: r.id, kind: r.kind })),
-            downstreamCount: resourceCount,
-            totalLines: 0,
-            annotationPhase: phase,
-            ...(infraStaleKind ? { staleKind: infraStaleKind } : {}),
-          },
-        }),
-      });
-    }
-
-    // Runtime-resource nodes — freshness from per-resource IaC fragment hash (not whole template)
-    const serviceSet = graph.byType.get('runtime-resource');
-    const serviceIds = serviceSet ? Array.from(serviceSet) : [];
-    for (const serviceId of serviceIds) {
-      const parentInfraId = getParentInfraModuleId(graph, serviceId);
-      if (!parentInfraId) continue;
-
-      const resourceHash = resolveLeafNodeContentHash(serviceId, {
-        graph,
-        snapshot,
-        lookup: contentHashLookup,
-      });
-      // No hash source for this resource: an annotation on it could never be confirmed, so the
-      // queue has nothing to ask for and does not rank it.
-      if (resourceHash === undefined) continue;
-
-      if (domain) {
-        const domainId = domain.startsWith('domain:') ? domain : `domain:${domain}`;
-        const parentOut = graph.outEdges.get(parentInfraId) ?? [];
-        const parentTagged = parentOut.some(e => e.kind === 'tagged' && e.to === domainId);
-        if (!parentTagged) continue;
-      }
-
-      const ann = this.data[serviceId];
-      const verdict = annotationFreshness({ annotation: ann, currentHash: resourceHash });
-      const classified = classifyStale(verdict);
-      if (!classified) continue;
-      const status = classified.status;
-
-      const node = graph.nodes.get(serviceId);
-      const domains = parentInfraId
-        ? (graph.outEdges.get(parentInfraId) ?? []).filter(e => e.kind === 'tagged').map(e => graph.nodes.get(e.to)?.label ?? e.to).filter((d): d is string => d != null)
-        : [];
-      const urgency = 1;
-      const phase: QueuePhase = 'runtime-resource';
-      const reason = status === 'stale'
-        ? (verdict.state === 'stale' && verdict.reason === 'schema' ? 'Schema outdated' : 'IaC resource definition changed')
-        : 'Runtime resource not yet annotated';
-
-      const serviceKind: ModuleKind = 'runtime-resource';
-      const serviceStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
-      rows.push({
-        nodeId: serviceId,
-        status,
-        ...(serviceStaleKind ? { staleKind: serviceStaleKind } : {}),
-        phase,
-        _sort: {
-          statusRank: statusRankForItem(status, serviceStaleKind),
-          phaseRank: PHASE_RANK[phase],
-          dependencyDepth: 0,
-          domainDepth: 0,
-          urgency,
-        },
-        hydrate: () => ({
-          nodeId: serviceId,
-          label: node?.label ?? serviceId,
-          status,
-          ...(serviceStaleKind ? { staleKind: serviceStaleKind } : {}),
-          domains,
-          priority: queuePriority(status, phase, 0, 0, urgency, serviceStaleKind),
-          reason,
-          moduleKind: serviceKind,
-          recommendedFields: Array.from(recommendedFieldsForKind(serviceKind)),
-          context: {
-            exportCount: 0,
-            topExports: [],
-            downstreamCount: 0,
-            totalLines: 0,
-            annotationPhase: phase,
-            ...(serviceStaleKind ? { staleKind: serviceStaleKind } : {}),
-          },
-        }),
-      });
-    }
-
-    // Domain nodes — freshness derived from member modules' contentHashes.
-    // A domain annotation becomes stale when any of its tagged members changed,
-    // which is the "upstream" propagation case (changes percolate up to the
-    // containing domain).
-    const domainSet = graph.byType.get('domain');
-    const domainIds = domainSet ? Array.from(domainSet) : [];
-    for (const domainId of domainIds) {
-      // Domain filter: when caller scoped the query to a specific domain, only
-      // surface that domain itself (and skip unrelated peers).
-      if (domain) {
-        const wantedId = domain.startsWith('domain:') ? domain : `domain:${domain}`;
-        if (domainId !== wantedId) continue;
-      }
-
-      if (!shouldHardQueueDomain(graph, domainId, propagation)) continue;
-
-      const ann = this.data[domainId];
-      const currentHash = resolveCachedDomainContentHash(
-        graph,
-        snapshot,
-        domainId,
-        propagation,
-        contentHashLookup,
-        domainContentHashCache,
-      );
-      // No member resolves to a hash: nothing to rank, same as an unhashable resource above.
-      if (currentHash === undefined) continue;
-
-      // Membership-stale = the domain hash changed because some member content
-      // changed even though the domain itself hasn't been re-annotated. This is
-      // reported the same as content-stale because for a domain there's no
-      // distinct "code" — its content IS the union of its members.
-      const verdict = annotationFreshness({ annotation: ann, currentHash });
-      const classified = classifyStale(verdict);
-      if (!classified) continue;
-      const status = classified.status;
-
-      const node = graph.nodes.get(domainId);
-      const memberCount = (graph.inEdges.get(domainId) ?? []).filter(e => e.kind === 'tagged').length;
-      const urgency = Math.min(memberCount, 50);
-      const phase: QueuePhase = 'domain';
-      const label = node?.label ?? domainId.replace(/^domain:/, '');
-      const domainDepth = label.split('/').filter(Boolean).length;
-      const reason = status === 'stale'
-        ? (verdict.state === 'stale' && verdict.reason === 'schema'
-          ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION})`
-          : `Domain member modules changed; re-check domain-level summary, invariants and integrationPoints (${memberCount} members)`)
-        : `Domain not yet annotated (${memberCount} members)`;
-
-      const domainKind: ModuleKind = 'domain';
-      const domainStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
-      rows.push({
-        nodeId: domainId,
-        status,
-        ...(domainStaleKind ? { staleKind: domainStaleKind } : {}),
-        phase,
-        _sort: {
-          statusRank: statusRankForItem(status, domainStaleKind),
-          phaseRank: PHASE_RANK[phase],
-          dependencyDepth: 0,
-          domainDepth,
-          urgency,
-        },
-        hydrate: () => ({
-          nodeId: domainId,
-          label,
-          status,
-          ...(domainStaleKind ? { staleKind: domainStaleKind } : {}),
-          domains: [],
-          priority: queuePriority(status, phase, 0, domainDepth, urgency, domainStaleKind),
-          reason,
-          moduleKind: domainKind,
-          recommendedFields: Array.from(recommendedFieldsForKind(domainKind)),
-          context: {
-            exportCount: memberCount,
-            topExports: [],
-            downstreamCount: memberCount,
-            totalLines: 0,
-            annotationPhase: phase,
-            ...(domainStaleKind ? { staleKind: domainStaleKind } : {}),
-          },
-        }),
-      });
-    }
-
-    return rows;
-  }
-
-  /**
-   * Get annotation coverage statistics.
-   */
-  getStats(
-    graph: RepositoryGraph,
-    snapshot: RepositoryFactsSnapshot,
-    options: {
-      domainFilter?: string;
-      propagation?: PropagationConfig;
-      entrypoints?: readonly EntrypointFragment[];
-    } = {},
-  ): {
-    totalModules: number;
-    annotated: number;
-    fresh: number;
-    stale: number;
-    unannotated: number;
-    infraModules: { total: number; annotated: number; fresh: number; stale: number; unannotated: number };
-    templates: { total: number; annotated: number; fresh: number; stale: number; unannotated: number };
-    services: { total: number; annotated: number; fresh: number; stale: number; unannotated: number };
-    byDomain: Record<string, { total: number; annotated: number; fresh: number }>;
-    byTier: Record<string, { domains: string[]; totalModules: number }>;
-    domainAnnotations: { totalDomains: number; annotated: number; fresh: number; stale: number; list: string[] };
-  } {
-    // When a domain scope is active, every per-type bucket is counted only for
-    // nodes tagged to that domain so the roll-up matches the (already-scoped)
-    // queue. With no filter, `inDomain` is always true and the totals stay
-    // repo-wide and byte-identical to the unscoped behavior.
-    const { domainFilter, propagation = DEFAULT_PROPAGATION_CONFIG, entrypoints = [] } = options;
-    const inDomain = (domains: string[]): boolean => !domainFilter || domains.includes(domainFilter);
-    const derivedStaleSet = computeEntrypointBoundedDerived({
-      graph,
-      snapshot,
-      annotations: this.data,
-      entrypoints,
-      propagation,
-    });
-    const contentHashLookup = nodeContentHashLookup(snapshot);
-    const domainContentHashCache: DomainContentHashCache = new Map();
-
-    let annotated = 0;
-    let fresh = 0;
-    let stale = 0;
-    let moduleTotal = 0;
-    let templateTotal = 0;
-    let infraTotal = 0;
-    let svcTotal = 0;
-    let domainTotal = 0;
-
-    const byDomain: Record<string, { total: number; annotated: number; fresh: number }> = {};
-
-    for (const mod of snapshot.modules) {
-      // Get domains
-      const outEdges = graph.outEdges.get(mod.id) ?? [];
-      const domains = outEdges
-        .filter(e => e.kind === 'tagged')
-        .map(e => graph.nodes.get(e.to)?.label ?? e.to)
-        .filter((d): d is string => d != null);
-
-      const ann = this.data[mod.id];
-      const isAnnotated = ann !== undefined;
-      const isFresh = annotationFreshness({
-        annotation: ann,
-        currentHash: mod.contentHash,
-        propagationStale: derivedStaleSet.has(mod.id),
-      }).state === 'fresh';
-
-      if (inDomain(domains)) {
-        moduleTotal++;
-        if (isAnnotated) {
-          annotated++;
-          if (isFresh) fresh++;
-          else stale++;
-        }
-      }
-
-      for (const d of domains) {
-        if (!byDomain[d]) byDomain[d] = { total: 0, annotated: 0, fresh: 0 };
-        byDomain[d].total++;
-        if (isAnnotated) byDomain[d].annotated++;
-        if (isFresh) byDomain[d].fresh++;
-      }
-    }
-
-    // Template/rendered-surface nodes
-    const templates = snapshot.templates ?? [];
-    let templateAnnotated = 0;
-    let templateFresh = 0;
-    let templateStale = 0;
-    for (const t of templates) {
-      const domains = (graph.outEdges.get(t.id) ?? [])
-        .filter(e => e.kind === 'tagged')
-        .map(e => graph.nodes.get(e.to)?.label ?? e.to)
-        .filter((d): d is string => d != null);
-      const ann = this.data[t.id];
-      const isAnnotated = ann !== undefined;
-      const isFresh = annotationFreshness({ annotation: ann, currentHash: t.contentHash }).state === 'fresh';
-      if (inDomain(domains)) {
-        templateTotal++;
-        if (isAnnotated) {
-          templateAnnotated++;
-          if (isFresh) templateFresh++;
-          else templateStale++;
-        }
-      }
-      for (const d of domains) {
-        if (!byDomain[d]) byDomain[d] = { total: 0, annotated: 0, fresh: 0 };
-        byDomain[d].total++;
-        if (isAnnotated) byDomain[d].annotated++;
-        if (isFresh) byDomain[d].fresh++;
-      }
-    }
-
-    // Infra modules (IaC)
-    const infraModules = snapshot.infraModules ?? [];
-    let infraAnnotated = 0;
-    let infraFresh = 0;
-    let infraStale = 0;
-    for (const im of infraModules) {
-      const ann = this.data[im.id];
-      const isAnnotated = ann !== undefined;
-      const isFresh = annotationFreshness({ annotation: ann, currentHash: im.contentHash }).state === 'fresh';
-      const domains = (graph.outEdges.get(im.id) ?? []).filter(e => e.kind === 'tagged').map(e => graph.nodes.get(e.to)?.label ?? e.to).filter((d): d is string => d != null);
-      if (inDomain(domains)) {
-        infraTotal++;
-        if (isAnnotated) {
-          infraAnnotated++;
-          if (isFresh) infraFresh++;
-          else infraStale++;
-        }
-      }
-      for (const d of domains) {
-        if (!byDomain[d]) byDomain[d] = { total: 0, annotated: 0, fresh: 0 };
-        byDomain[d].total++;
-        if (isAnnotated) byDomain[d].annotated++;
-        if (isFresh) byDomain[d].fresh++;
-      }
-    }
-
-    // Runtime-resource nodes (Lambda, SQS, etc.)
-    const serviceSet = graph.byType.get('runtime-resource');
-    const serviceIds = serviceSet ? Array.from(serviceSet) : [];
-    let svcAnnotated = 0;
-    let svcFresh = 0;
-    let svcStale = 0;
-    for (const serviceId of serviceIds) {
-      const resourceHash = resolveLeafNodeContentHash(serviceId, {
-        graph,
-        snapshot,
-        lookup: contentHashLookup,
-      });
-      if (resourceHash === undefined) continue;
-      const parentInfraId = getParentInfraModuleId(graph, serviceId);
-      const ann = this.data[serviceId];
-      const isAnnotated = ann !== undefined;
-      const isFresh = annotationFreshness({ annotation: ann, currentHash: resourceHash }).state === 'fresh';
-      const parentDomains = parentInfraId
-        ? (graph.outEdges.get(parentInfraId) ?? []).filter(e => e.kind === 'tagged').map(e => graph.nodes.get(e.to)?.label ?? e.to).filter((d): d is string => d != null)
-        : [];
-      if (inDomain(parentDomains)) {
-        svcTotal++;
-        if (isAnnotated) {
-          svcAnnotated++;
-          if (isFresh) svcFresh++;
-          else svcStale++;
-        }
-      }
-      for (const d of parentDomains) {
-        if (!byDomain[d]) byDomain[d] = { total: 0, annotated: 0, fresh: 0 };
-        byDomain[d].total++;
-        if (isAnnotated) byDomain[d].annotated++;
-        if (isFresh) byDomain[d].fresh++;
-      }
-    }
-
-    // Count domain-level annotations + tier classification
-    const domainNodes = graph.byType.get('domain') ?? new Set<string>();
-    let annotatedDomains = 0;
-    let freshDomains = 0;
-    let staleDomains = 0;
-    const domainList: string[] = [];
-    const byTier: Record<string, { domains: string[]; totalModules: number }> = {
-      business: { domains: [], totalModules: 0 },
-      feature: { domains: [], totalModules: 0 },
-      layer: { domains: [], totalModules: 0 },
-      technical: { domains: [], totalModules: 0 },
-    };
-    for (const dId of domainNodes) {
-      const dNode = graph.nodes.get(dId);
-      const dAnn = this.data[dId];
-      // Domain scope counts only the scoped domain node itself (matching the
-      // queue's exact-domain filter); no filter counts every domain node.
-      const domainInScope = !domainFilter || (dNode?.label ?? dId.replace(/^domain:/, '')) === domainFilter;
-      if (domainInScope) {
-        domainTotal++;
-        if (dAnn) {
-          annotatedDomains++;
-          domainList.push(dNode?.label ?? dId);
-          const currentHash = resolveCachedDomainContentHash(
-            graph,
-            snapshot,
-            dId,
-            propagation,
-            contentHashLookup,
-            domainContentHashCache,
-          );
-          if (annotationFreshness({ annotation: dAnn, currentHash }).state === 'fresh') {
-            freshDomains++;
-          } else {
-            staleDomains++;
-          }
-        }
-      }
-      const tier = (dNode?.type === 'domain' && dNode.data?.tier) ? dNode.data.tier : 'technical';
-      const taggedCount = (graph.inEdges.get(dId) ?? []).filter(e => e.kind === 'tagged').length;
-      byTier[tier].domains.push(dNode?.label ?? dId);
-      byTier[tier].totalModules += taggedCount;
-    }
-
-    // Use the scoped totals only when a domain filter is active; otherwise keep
-    // the original repo-wide totals (snapshot/graph lengths) byte-for-byte.
-    const modTotalOut = domainFilter ? moduleTotal : snapshot.modules.length;
-    const templateTotalOut = domainFilter ? templateTotal : templates.length;
-    const infraTotalOut = domainFilter ? infraTotal : infraModules.length;
-    const svcTotalOut = domainFilter ? svcTotal : serviceIds.length;
-    const domainTotalOut = domainFilter ? domainTotal : domainNodes.size;
-    return {
-      totalModules: modTotalOut,
-      annotated,
-      fresh,
-      stale,
-      unannotated: modTotalOut - annotated,
-      infraModules: {
-        total: infraTotalOut,
-        annotated: infraAnnotated,
-        fresh: infraFresh,
-        stale: infraStale,
-        unannotated: infraTotalOut - infraAnnotated,
-      },
-      templates: {
-        total: templateTotalOut,
-        annotated: templateAnnotated,
-        fresh: templateFresh,
-        stale: templateStale,
-        unannotated: templateTotalOut - templateAnnotated,
-      },
-      services: {
-        total: svcTotalOut,
-        annotated: svcAnnotated,
-        fresh: svcFresh,
-        stale: svcStale,
-        unannotated: svcTotalOut - svcAnnotated,
-      },
-      byDomain,
-      byTier,
-      domainAnnotations: {
-        totalDomains: domainTotalOut,
-        annotated: annotatedDomains,
-        fresh: freshDomains,
-        stale: staleDomains,
-        list: domainList,
-      },
-    };
+  ): BacklogCoverage {
+    return this.backlog(graph, snapshot, options).coverage;
   }
 
 }

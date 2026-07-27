@@ -4,7 +4,8 @@
  */
 
 import type { RepositoryGraph, ModuleInfo } from '../../types.js';
-import { type AnnotationStore, computeAnnotationQuality } from '../../annotations/store.js';
+import type { AnnotationStore } from '../../annotations/store.js';
+import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { annotationFreshnessMeta, type NodeFreshnessLookup } from '../../annotations/freshness.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';

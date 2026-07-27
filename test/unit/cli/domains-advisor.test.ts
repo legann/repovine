@@ -7,6 +7,7 @@ import { createEmptyGraph } from '../../../src/graph/index.js';
 import { computeDomainsSuggestion } from '../../../src/stage2/domains-advisor.js';
 import type { InfraModuleInfo, RepositoryFactsSnapshot } from '../../../src/types.js';
 import type { RepovineState } from '../../../src/mcp/types.js';
+import { backlogCoverage } from '../../helpers/backlog.js';
 
 function makeInfraModule(relativeFilePath: string, resourceIds: string[]): InfraModuleInfo {
   return {
@@ -50,17 +51,7 @@ function makeState(repoRoot: string): RepovineState {
     semanticIndex: null,
     semanticSearchRefresh: { status: 'disabled' },
     annotations: {
-      getStats: () => ({
-        totalModules: 0,
-        annotated: 0,
-        fresh: 0,
-        stale: 0,
-        unannotated: 0,
-        templates: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        infraModules: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        services: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        domainAnnotations: { totalDomains: 0, annotated: 0, fresh: 0, stale: 0 },
-      }),
+      getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'],
     domainsConfig: null,
     domainsSuggestions,

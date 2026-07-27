@@ -417,8 +417,8 @@ describe('path-only domain staleness', () => {
     store.flush();
 
     const stats = store.getStats(graph, snapshot, { propagation, entrypoints: [] });
-    expect(stats.domainAnnotations.fresh).toBe(1);
-    expect(stats.domainAnnotations.stale).toBe(0);
+    expect(stats.domains.fresh).toBe(1);
+    expect(stats.domains.stale).toBe(0);
 
     const queue = store.getQueue(graph, snapshot, { limit: 100, propagation, entrypoints: [] });
     const pathDomainQueue = queue.filter(q => q.nodeId === 'domain:client-ui/profile');
@@ -455,8 +455,8 @@ describe('path-only domain staleness', () => {
     store.flush();
 
     const stats = store.getStats(graph, snapshot, { propagation, entrypoints: [] });
-    expect(stats.domainAnnotations.stale).toBe(1);
-    expect(stats.domainAnnotations.fresh).toBe(0);
+    expect(stats.domains.stale).toBe(1);
+    expect(stats.domains.fresh).toBe(0);
 
     const queue = store.getQueue(graph, snapshot, { limit: 100, propagation, entrypoints: [] });
     expect(queue.some(q => q.nodeId === 'domain:client-ui/profile')).toBe(true);

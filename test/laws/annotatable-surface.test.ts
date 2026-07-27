@@ -14,10 +14,10 @@ type AnnotatableNodeType = typeof ANNOTATABLE_NODE_TYPES[number];
 
 // schema-shape proves a new NodeType exists as a graph primitive; edge-witness-{producer,consumer}
 // prove its edges have producer + consumer witnesses. NEITHER proves a new NodeType became a full
-// AGENT-FACING ANNOTATION ANCHOR — declared annotatable AND wired into the unified backlog roll-up.
+// AGENT-FACING ANNOTATION ANCHOR — declared annotatable AND walked by the unified backlog.
 // `template` (2026-06-20 follow-up) exposed that gap: it was a live node + had renders/extends/
-// includes witnesses, yet `queueTotal`/coverage silently undercounted it because the per-type sums
-// in store.getStats + onboarding-state are hand-written and the typechecker cannot see an omission.
+// includes witnesses, yet `queueTotal`/coverage silently undercounted it because nothing held the
+// backlog walk to the annotatable set.
 // These two laws close that contract: (1) every NodeType is annotate-or-exempt by construction;
 // (2) every annotatable, queue-backed type actually moves the unified backlog when unannotated.
 
@@ -121,7 +121,9 @@ describe('core-laws annotatable backlog differential (D6 anchor consumer)', () =
         type: 'runtime-resource',
         label: 'Fn',
         description: 'Lambda',
-        data: { kind: 'lambda', provider: 'aws' },
+        // A resource with no hash source carries no freshness question, so it is coverage's
+        // `unconfirmable`, never backlog work. The witness needs one the queue can actually rank.
+        data: { kind: 'lambda', provider: 'aws', contentHash: 'fn-h1' },
       });
       expect(queueTotal(graph, emptySnapshot)).toBeGreaterThan(baseline());
     },

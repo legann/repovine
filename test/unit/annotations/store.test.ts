@@ -832,6 +832,7 @@ describe('AnnotationStore', () => {
         total: 1,
         annotated: 1,
         fresh: 1,
+        unconfirmable: 0,
         stale: 0,
         unannotated: 0,
       });
@@ -1042,13 +1043,14 @@ describe('AnnotationStore', () => {
         }),
       ]);
 
-      const stats = store.getStats(graph, snapshot, { domainFilter: 'infra' });
+      const stats = store.getStats(graph, snapshot, { domain: 'infra' });
       expect(stats.infraModules).toEqual({
         total: 1,
         annotated: 1,
         fresh: 0,
         stale: 1,
         unannotated: 0,
+        unconfirmable: 0,
       });
       expect(stats.services).toEqual({
         total: 1,
@@ -1056,8 +1058,16 @@ describe('AnnotationStore', () => {
         fresh: 0,
         stale: 1,
         unannotated: 0,
+        unconfirmable: 0,
       });
-      expect(stats.byDomain.infra).toEqual({ total: 2, annotated: 2, fresh: 0 });
+      expect(stats.byDomain.infra).toEqual({
+        total: 2,
+        annotated: 2,
+        fresh: 0,
+        stale: 2,
+        unannotated: 0,
+        unconfirmable: 0,
+      });
     });
 
     it('multi-declared runtime resource annotated with the write-path value stays fresh in queue and stats', () => {
@@ -1104,17 +1114,18 @@ describe('AnnotationStore', () => {
 
       const queue = store.getQueue(graph, snapshot, { domain: 'infra', limit: 10 });
       expect(queue.some(item => item.nodeId === gatewayId)).toBe(false);
-      expect(store.getStats(graph, snapshot, { domainFilter: 'infra' }).services).toEqual({
+      expect(store.getStats(graph, snapshot, { domain: 'infra' }).services).toEqual({
         total: 1,
         annotated: 1,
         fresh: 1,
         stale: 0,
         unannotated: 0,
+        unconfirmable: 0,
       });
 
       const reversed = makeSnapshot([], []);
       reversed.infraModules = [stackB, stackA];
-      expect(store.getStats(graph, reversed, { domainFilter: 'infra' }).services.fresh).toBe(1);
+      expect(store.getStats(graph, reversed, { domain: 'infra' }).services.fresh).toBe(1);
       expect(store.getQueue(graph, reversed, { domain: 'infra', limit: 10 }).some(item => item.nodeId === gatewayId)).toBe(false);
     });
 
@@ -1140,9 +1151,10 @@ describe('AnnotationStore', () => {
       const fullQueue = store.getQueue(graph, snapshot, { limit: Number.MAX_SAFE_INTEGER });
       const page = store.getQueuePage(graph, snapshot, { offset: 2, limit: 2 });
 
-      expect(page.needsWork).toBe(fullQueue.length);
-      expect(page.totalRemaining).toBe(fullQueue.length);
+      expect(page.counts.needsWork).toBe(fullQueue.length);
+      expect(page.displayCounts.needsWork).toBe(fullQueue.length);
       expect(page.counts).toEqual({
+        needsWork: fullQueue.length,
         stale: fullQueue.filter(i => i.status === 'stale').length,
         staleContent: fullQueue.filter(i => i.status === 'stale' && i.staleKind !== 'propagation').length,
         stalePropagation: fullQueue.filter(i => i.staleKind === 'propagation').length,
@@ -1171,30 +1183,30 @@ describe('AnnotationStore', () => {
       return { graph, snapshot };
     }
 
-    it('reports repo-wide totals with no filter and scoped totals with a domainFilter', () => {
+    it('reports repo-wide totals with no filter and scoped totals with a domain scope', () => {
       const store = AnnotationStore.createSync(tmpDir);
       const { graph, snapshot } = buildTwoDomainGraph();
       // Annotate mod:a fresh (hash matches makeMod's `${id}:hash`).
       store.set('mod:a', makeAnnotation('mod:a', 'mod:a:hash'));
 
       const all = store.getStats(graph, snapshot);
-      expect(all.totalModules).toBe(3);
-      expect(all.annotated).toBe(1);
-      expect(all.fresh).toBe(1);
-      expect(all.domainAnnotations.totalDomains).toBe(2);
+      expect(all.modules.total).toBe(3);
+      expect(all.modules.annotated).toBe(1);
+      expect(all.modules.fresh).toBe(1);
+      expect(all.domains.total).toBe(2);
 
-      const auth = store.getStats(graph, snapshot, { domainFilter: 'auth' });
-      expect(auth.totalModules).toBe(2); // mod:a + mod:b, not mod:c (billing)
-      expect(auth.annotated).toBe(1);
-      expect(auth.fresh).toBe(1);
-      expect(auth.unannotated).toBe(1); // mod:b
-      expect(auth.domainAnnotations.totalDomains).toBe(1); // only domain:auth
+      const auth = store.getStats(graph, snapshot, { domain: 'auth' });
+      expect(auth.modules.total).toBe(2); // mod:a + mod:b, not mod:c (billing)
+      expect(auth.modules.annotated).toBe(1);
+      expect(auth.modules.fresh).toBe(1);
+      expect(auth.modules.unannotated).toBe(1); // mod:b
+      expect(auth.domains.total).toBe(1); // only domain:auth
 
-      const billing = store.getStats(graph, snapshot, { domainFilter: 'billing' });
-      expect(billing.totalModules).toBe(1); // only mod:c
-      expect(billing.annotated).toBe(0);
-      expect(billing.unannotated).toBe(1);
-      expect(billing.domainAnnotations.totalDomains).toBe(1);
+      const billing = store.getStats(graph, snapshot, { domain: 'billing' });
+      expect(billing.modules.total).toBe(1); // only mod:c
+      expect(billing.modules.annotated).toBe(0);
+      expect(billing.modules.unannotated).toBe(1);
+      expect(billing.domains.total).toBe(1);
     });
   });
 });

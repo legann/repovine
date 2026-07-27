@@ -1,23 +1,29 @@
 import type { AnnotationContent, ModuleInfo, StoredAnnotation } from '../../types.js';
 import { CURRENT_ANNOTATION_SCHEMA_VERSION } from '../../types.js';
+import { AnnotationContentSchema } from '../../annotations/store.js';
 import {
   type AnnotationConsistency,
-  AnnotationContentSchema,
   computeAnnotationQuality,
   computeInconsistentModuleAnnotations,
   isHardConsistencyIssue,
-} from '../../annotations/store.js';
+} from '../../annotations/quality.js';
 import { computeImportBaseline, resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { detectSideEffectKindsFromHints } from '../../annotations/side-effect-vocab.js';
 import { clearMergeReviewHints } from '../../annotations/merge-review.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { measureSubmittedAnnotationText } from '../../annotations/annotation-metrics.js';
 import { graphStats } from '../../graph/index.js';
-import { resolveDomainToCanonical } from '../../stage2/domains.js';
 import { owningModuleId } from '../../graph/node-ids.js';
 import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
 import { computePropagationPreview } from '../../annotations/propagation.js';
-import { describeMergeKeeps, isPropagationStaleItem, type StaleKind } from '../../annotations/store.js';
+import { describeMergeKeeps } from '../../annotations/store.js';
+import {
+  needsWorkOf,
+  publishedCoverageBucket,
+  publishedDomainCoverage,
+  rollUpCoverage,
+} from '../../annotations/backlog.js';
+import type { BacklogPhaseCounts, QueuePhase } from '../../annotations/backlog.js';
 import { computeRiskScopeCandidates } from '../../annotations/risk-scope-candidates.js';
 import { computeCarrierLinkGaps } from '../../annotations/carrier-links.js';
 import { carrierTargetRiskHash, readCarrierReviewFile, readValidSuppressedTargets } from '../../annotations/carrier-review.js';
@@ -122,55 +128,8 @@ function countByType(items: Array<{ nodeType: string }>): Record<string, number>
   return counts;
 }
 
-type QueueLikeItem = {
-  status: string;
-  staleKind?: StaleKind;
-  phase?: 'module' | 'template' | 'runtime-resource' | 'infra' | 'domain';
-  context?: {
-    annotationPhase?: string;
-    staleKind?: StaleKind;
-  };
-};
-
-function queueStatusCounts(
-  items: QueueLikeItem[],
-): { stale: number; staleContent: number; stalePropagation: number; unannotated: number } {
-  const counts = { stale: 0, staleContent: 0, stalePropagation: 0, unannotated: 0 };
-  for (const item of items) {
-    if (item.status === 'unannotated') {
-      counts.unannotated++;
-    } else if (isPropagationStaleItem(item)) {
-      counts.stale++;
-      counts.stalePropagation++;
-    } else if (item.status === 'stale') {
-      counts.stale++;
-      counts.staleContent++;
-    }
-  }
-  return counts;
-}
-
-function queuePhaseCounts(items: QueueLikeItem[]): { module: number; template: number; 'runtime-resource': number; infra: number; domain: number } {
-  const byType = { module: 0, template: 0, 'runtime-resource': 0, infra: 0, domain: 0 };
-  for (const item of items) {
-    const phase = item.phase ?? item.context?.annotationPhase;
-    if (phase && phase in byType) byType[phase as keyof typeof byType]++;
-  }
-  return byType;
-}
-
-function filterQueueByStaleKind(
-  items: QueueLikeItem[],
-  staleKind: 'propagation' | 'content',
-): QueueLikeItem[] {
-  return items.filter(item => {
-    if (staleKind === 'propagation') return isPropagationStaleItem(item);
-    return item.status === 'stale' && !isPropagationStaleItem(item);
-  });
-}
-
-function formatQueueTypeParts(byType: ReturnType<typeof queuePhaseCounts>): string {
-  return (Object.entries(byType) as [keyof typeof byType, number][])
+function formatQueueTypeParts(byType: BacklogPhaseCounts): string {
+  return (Object.entries(byType) as [QueuePhase, number][])
     .filter(([, n]) => n > 0)
     .map(([k, n]) => `${n} ${k}`)
     .join(', ');
@@ -192,52 +151,25 @@ function queueOptionsFromCtx(ctx: McpToolRuntime, extra: Record<string, unknown>
 
 export function getAnnotationQueue(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
   const { graph, snapshot, annotations, propagation, entrypoints } = queueOptionsFromCtx(ctx);
-  let domain = args.domain as string | undefined;
-  if (domain) {
-    domain = resolveDomainToCanonical(domain, ctx.getState().domainsConfig);
-  }
+  // Already resolved by `resolveScope` at the handler; a second canonicalization here would be a
+  // parallel ladder over the same string, which is how the two views drifted apart.
+  const domain = args.domain as string | undefined;
   const limit = (args.limit as number) ?? 10;
   const offset = typeof args.offset === 'number' && args.offset > 0 ? Math.floor(args.offset) : 0;
   const derivedOnly = args.derivedOnly === true;
   const staleKindFilter = typeof args.staleKind === 'string' ? args.staleKind as 'propagation' | 'content' : undefined;
-  const paged = typeof annotations.getQueuePage === 'function'
-    ? annotations.getQueuePage(graph, snapshot, {
-      domain,
-      limit,
-      offset,
-      propagation,
-      entrypoints,
-      derivedOnly,
-      ...(staleKindFilter ? { staleKind: staleKindFilter } : {}),
-    })
-    : (() => {
-      const fullQueue = annotations.getQueue(graph, snapshot, {
-        domain,
-        limit: Number.MAX_SAFE_INTEGER,
-        propagation,
-        entrypoints,
-      });
-      let displayQueue = derivedOnly
-        ? filterQueueByStaleKind(fullQueue, 'propagation')
-        : fullQueue;
-      if (staleKindFilter) {
-        displayQueue = filterQueueByStaleKind(displayQueue, staleKindFilter);
-      }
-      return {
-        items: displayQueue.slice(offset, offset + limit),
-        counts: queueStatusCounts(fullQueue),
-        displayCounts: queueStatusCounts(displayQueue),
-        byType: queuePhaseCounts(displayQueue),
-        needsWork: fullQueue.length,
-        totalRemaining: displayQueue.length,
-      };
-    })();
-  const items = paged.items;
-  const counts = paged.counts;
-  const displayCounts = paged.displayCounts;
-  const byType = paged.byType;
-  const needsWork = paged.needsWork;
-  const totalRemaining = paged.totalRemaining;
+  const paged = annotations.getQueuePage(graph, snapshot, {
+    ...(domain !== undefined ? { domain } : {}),
+    limit,
+    offset,
+    propagation,
+    entrypoints,
+    derivedOnly,
+    ...(staleKindFilter ? { staleKind: staleKindFilter } : {}),
+  });
+  const { items, counts, displayCounts, byType } = paged;
+  const needsWork = counts.needsWork;
+  const totalRemaining = displayCounts.needsWork;
   const returned = items.length;
   const queueBound = pageTruncation({
     shown: returned,
@@ -515,7 +447,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
   const { graph, snapshot, modulesById, annotations } = ctx.getState();
   const scopeDomain = typeof args.scopeDomain === 'string' ? args.scopeDomain : undefined;
   const full = annotations.getStats(graph, snapshot, {
-    ...(scopeDomain ? { domainFilter: scopeDomain } : {}),
+    ...(scopeDomain ? { domain: scopeDomain } : {}),
     propagation: ctx.getConfig().annotations.propagation,
     entrypoints: getInterpreterEntrypoints(graph),
   });
@@ -536,15 +468,13 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
   const staleDomains: Array<{ domain: string; stale: number; total: number }> = [];
   const unannotatedDomains: Array<{ domain: string; unannotated: number; total: number }> = [];
   for (const [domain, d] of Object.entries(full.byDomain)) {
-    const stale = d.annotated - d.fresh;
-    const unannotated = d.total - d.annotated;
     const heavy = isHeavyDomain(domain);
-    if (stale > 0) {
-      if (heavy || includeLightweight) staleDomains.push({ domain, stale, total: d.total });
+    if (d.stale > 0) {
+      if (heavy || includeLightweight) staleDomains.push({ domain, stale: d.stale, total: d.total });
       else lightweightStaleSuppressed++;
     }
-    if (unannotated > 0) {
-      if (heavy || includeLightweight) unannotatedDomains.push({ domain, unannotated, total: d.total });
+    if (d.unannotated > 0) {
+      if (heavy || includeLightweight) unannotatedDomains.push({ domain, unannotated: d.unannotated, total: d.total });
       else lightweightUnannotatedSuppressed++;
     }
   }
@@ -553,7 +483,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
 
   const topUnannotatedModules: Array<{ nodeId: string; label: string; downstreamCount: number }> = [];
   let unannotatedModuleCandidates = 0;
-  if (full.unannotated > 0) {
+  if (full.modules.unannotated > 0) {
     const annotationsData = annotations.getAll();
     const scored: Array<{ nodeId: string; label: string; downstreamCount: number }> = [];
     for (const mod of snapshot.modules) {
@@ -567,30 +497,20 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
     topUnannotatedModules.push(...scored.slice(0, TOP_UNANNOTATED_MODULE_CAP));
   }
 
-  const modulesBucket = {
-    total: full.totalModules,
-    annotated: full.annotated,
-    fresh: full.fresh,
-    stale: full.stale,
-    unannotated: full.unannotated,
-  };
-
-  const domainStaleOrUnannotated =
-    (full.domainAnnotations.totalDomains - full.domainAnnotations.fresh);
+  const allNodes = rollUpCoverage(full);
   const allNodeTypes = {
     scope: scopeDomain ?? 'repo-wide',
-    total: full.totalModules + full.templates.total + full.infraModules.total + full.services.total + full.domainAnnotations.totalDomains,
-    fresh: full.fresh + full.templates.fresh + full.infraModules.fresh + full.services.fresh + full.domainAnnotations.fresh,
-    needsWork:
-      (full.stale + full.unannotated)
-      + (full.templates.stale + full.templates.unannotated)
-      + (full.infraModules.stale + full.infraModules.unannotated)
-      + (full.services.stale + full.services.unannotated)
-      + domainStaleOrUnannotated,
+    total: allNodes.total,
+    fresh: allNodes.fresh,
+    needsWork: needsWorkOf(allNodes),
+    ...(allNodes.unconfirmable > 0 ? { unconfirmable: allNodes.unconfirmable } : {}),
     note: (scopeDomain
       ? `Scoped to domain "${scopeDomain}": every bucket below (modules, templates, infra, services, domains) and this roll-up count only nodes tagged to it. `
       : 'Repo-wide. ')
-      + 'These buckets are one annotation backlog, not separate queues. get_annotation_status({view:"queue"}) returns a single bottom-up list across all of them; the queue is done only when needsWork is 0 for every type, not just modules.',
+      + 'These buckets are one annotation backlog, not separate queues. get_annotation_status({view:"queue"}) returns a single bottom-up list across all of them; the queue is done only when needsWork is 0 for every type, not just modules.'
+      + (allNodes.unconfirmable > 0
+        ? ' unconfirmable counts nodes the backlog asks no freshness question about (no hash source, no graph node, or an advisory package-domain roll-up); they are in total and never in needsWork.'
+        : ''),
   };
 
   const inconsistentNotes = computeInconsistentModuleAnnotations(annotations, modulesById);
@@ -615,16 +535,11 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
 
   const compact: Record<string, unknown> = {
     allNodeTypes,
-    modules: modulesBucket,
-    templates: full.templates,
-    infra: full.infraModules,
-    services: full.services,
-    domainAnnotations: {
-      totalDomains: full.domainAnnotations.totalDomains,
-      annotated: full.domainAnnotations.annotated,
-      fresh: full.domainAnnotations.fresh,
-      stale: full.domainAnnotations.stale,
-    },
+    modules: publishedCoverageBucket(full.modules),
+    templates: publishedCoverageBucket(full.templates),
+    infra: publishedCoverageBucket(full.infraModules),
+    services: publishedCoverageBucket(full.services),
+    domainAnnotations: publishedDomainCoverage(full.domains),
     domainCount: scopeDomain ? (full.byDomain[scopeDomain] ? 1 : 0) : Object.keys(full.byDomain).length,
     anomalies: {
       staleDomains: staleDomains.slice(0, limit),

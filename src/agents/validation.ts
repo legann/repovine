@@ -17,7 +17,8 @@
  */
 import type { RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
 import type { AnnotationStore } from '../annotations/store.js';
-import { computeAnnotationQuality, isHardConsistencyIssue, isPropagationStaleItem, isContentStaleItem } from '../annotations/store.js';
+import { computeAnnotationQuality, isHardConsistencyIssue } from '../annotations/quality.js';
+import { isPropagationStaleItem, isContentStaleItem } from '../annotations/backlog.js';
 import { detectSideEffectKindsFromHints } from '../annotations/side-effect-vocab.js';
 import { inferModuleKind } from '../annotations/module-kind.js';
 import { nodeInScopeHints } from '../annotations/scope-hints.js';

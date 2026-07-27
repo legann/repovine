@@ -6,7 +6,8 @@
  */
 
 import type { UiChildComponentHint, UiComponentHint, RepositoryGraph, ModuleInfo, SecuritySignal, StoredAnnotation } from '../../types.js';
-import { type AnnotationStore, computeAnnotationQuality } from '../../annotations/store.js';
+import type { AnnotationStore } from '../../annotations/store.js';
+import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { isPure } from '../../annotations/side-effect-vocab.js';
 import { annotationSecretFieldPaths } from './annotation-secret.js';

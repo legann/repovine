@@ -278,7 +278,10 @@ const baseToolDefs: ToolDef[] = [
       + 'view:"risk-scope-candidates" pages advisory plain/local risk entries that look like scope:"consumer" or scope:"boundary" authoring candidates; they are not stale items and do not affect needsWork. '
       + 'view:"carrier-gaps" pages missing-carrier-link candidates grouped by consumer-risk SSOT target, with per-target riskHash and reviewed/suppression state from .repovine/carrier-review.json; reviewed targets stay visible, never filtered. '
       + 'Propagation-stale is in needsWork as stale+staleKind:"propagation". '
-      + 'Annotation work is complete when needsWork is 0 for every type.',
+      + 'Annotation work is complete when needsWork is 0 for every type. '
+      + 'Coverage counts the same backlog: allNodeTypes.needsWork on view:"coverage" equals needsWork on view:"queue". '
+      + 'A bucket may also report unconfirmable — nodes no freshness question is asked about (no hash source, no graph node, or an advisory package-domain roll-up). '
+      + 'They are inside total and never inside needsWork, so a coverage shortfall with needsWork 0 is unconfirmable nodes, not work.',
     schema: z.object({
       scope: ScopeSchema,
       view: AnnotationStatusViewSchema.optional().describe('coverage; queue (default drain — content-stale before propagation-stale); derived-review (propagation-only filter, not first pass); propagation-preview (requires from); orphans; risk-scope-candidates (advisory plain/local risk scope candidates); carrier-gaps (missing-carrier-link candidates grouped by SSOT target with reviewed state); or all. Default coverage.'),

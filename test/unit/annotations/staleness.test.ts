@@ -4,7 +4,7 @@
 import {
   classifyStale,
   isPropagationStaleItem,
-} from '../../../src/annotations/store.js';
+} from '../../../src/annotations/backlog.js';
 import {
   buildNodeContentHashLookup,
   computeDomainContentHash,

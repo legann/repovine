@@ -3,6 +3,7 @@
  * mocks fs for includeBody/grepBody, so no file I/O occurs.
  */
 import { jest } from '@jest/globals';
+import { backlogCoverage, fakeQueuePage, kindCoverage, type FakeQueueRow } from '../../helpers/backlog.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -291,23 +292,13 @@ function makeCtx(overrides?: Partial<RepovineState>): McpToolRuntime {
     set: jest.fn(),
     isFresh: () => true,
     getQueue: () => [],
-    getStats: () => ({
-      totalModules: 0,
-      annotated: 0,
-      fresh: 0,
-        stale: 0,
-        unannotated: 0,
-        templates: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        infraModules: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      services: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      byDomain: {},
+    getStats: () => backlogCoverage({
       byTier: {
         business: { domains: [], totalModules: 0 },
         feature: { domains: [], totalModules: 0 },
         layer: { domains: [], totalModules: 0 },
         technical: { domains: [], totalModules: 0 },
       },
-      domainAnnotations: { totalDomains: 0, annotated: 0, fresh: 0, stale: 0, list: [] },
     }),
     getAll: () => ({}),
     flushAsync: jest.fn(async () => {}),
@@ -1666,19 +1657,12 @@ describe('public v1 context tools', () => {
       annotations: {
         get: () => undefined,
         getAll: () => ({}),
-        getStats: () => ({
-          totalModules: 2,
-          annotated: 2,
-          fresh: 2,
-            stale: 0,
-            unannotated: 0,
-            templates: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-            infraModules: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-          services: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
+        getStats: () => backlogCoverage({
+          modules: kindCoverage({ total: 2, annotated: 2, fresh: 2 }),
           byDomain: {
-            alpha: { total: 1, annotated: 1, fresh: 1 },
-            beta: { total: 1, annotated: 1, fresh: 1 },
-            gamma: { total: 1, annotated: 1, fresh: 1 },
+            alpha: kindCoverage({ total: 1, annotated: 1, fresh: 1 }),
+            beta: kindCoverage({ total: 1, annotated: 1, fresh: 1 }),
+            gamma: kindCoverage({ total: 1, annotated: 1, fresh: 1 }),
           },
           byTier: {
             business: { domains: ['alpha', 'beta'], totalModules: 2 },
@@ -1686,13 +1670,7 @@ describe('public v1 context tools', () => {
             layer: { domains: [], totalModules: 0 },
             technical: { domains: [], totalModules: 0 },
           },
-          domainAnnotations: {
-            totalDomains: 3,
-            annotated: 3,
-            fresh: 3,
-            stale: 0,
-            list: ['alpha', 'beta', 'gamma'],
-          },
+          domains: { ...kindCoverage({ total: 3, annotated: 3, fresh: 3 }), list: ['alpha', 'beta', 'gamma'] },
         }),
       } as unknown as RepovineState['annotations'],
     });
@@ -1711,6 +1689,7 @@ describe('public v1 context tools', () => {
       annotated: 3,
       fresh: 3,
       stale: 0,
+      unannotated: 0,
     });
     expect(Object.keys(coverage.byDomain as Record<string, unknown>)).toEqual(['beta', 'gamma']);
     // Two of three domains, requested from offset 1 — the page reaches the end, so no bound.
@@ -1729,20 +1708,19 @@ describe('public v1 context tools', () => {
   });
 
   it('queue view reports a single unified backlog with byType + totalRemaining across node phases', async () => {
-    const queueItems = [
-        { nodeId: 'mod:a', status: 'unannotated', context: { annotationPhase: 'module' } },
-        { nodeId: 'mod:b', status: 'stale', staleKind: 'content', context: { annotationPhase: 'module', staleKind: 'content' } },
-        { nodeId: 'template:t', status: 'unannotated', context: { annotationPhase: 'template' } },
-        { nodeId: 'resource:s', status: 'unannotated', context: { annotationPhase: 'runtime-resource' } },
-      { nodeId: 'infra:i', status: 'unannotated', context: { annotationPhase: 'infra' } },
-      { nodeId: 'domain:d', status: 'stale', staleKind: 'content', context: { annotationPhase: 'domain', staleKind: 'content' } },
+    const queueItems: FakeQueueRow[] = [
+      { nodeId: 'mod:a', status: 'unannotated', phase: 'module', context: { annotationPhase: 'module' } },
+      { nodeId: 'mod:b', status: 'stale', staleKind: 'content', phase: 'module', context: { annotationPhase: 'module', staleKind: 'content' } },
+      { nodeId: 'template:t', status: 'unannotated', phase: 'template', context: { annotationPhase: 'template' } },
+      { nodeId: 'resource:s', status: 'unannotated', phase: 'runtime-resource', context: { annotationPhase: 'runtime-resource' } },
+      { nodeId: 'infra:i', status: 'unannotated', phase: 'infra', context: { annotationPhase: 'infra' } },
+      { nodeId: 'domain:d', status: 'stale', staleKind: 'content', phase: 'domain', context: { annotationPhase: 'domain', staleKind: 'content' } },
     ];
     const ctx = makeCtx({
       annotations: {
         get: () => undefined,
         getAll: () => ({}),
-        getQueue: (_g: unknown, _s: unknown, opts: { limit?: number }) =>
-          queueItems.slice(0, opts?.limit ?? queueItems.length),
+        getQueuePage: fakeQueuePage(queueItems),
       } as unknown as RepovineState['annotations'],
     });
 
@@ -1762,7 +1740,7 @@ describe('public v1 context tools', () => {
       stale: 2,
       staleContent: 2,
       stalePropagation: 0,
-        unannotated: 4,
+      unannotated: 4,
     });
     expect(queue.mode).toBe('queue');
     expect(queue.hint).toMatch(/ONE unified annotation queue, not separate queues/i);
@@ -1779,16 +1757,16 @@ describe('public v1 context tools', () => {
   });
 
   it('includes propagation-stale in needsWork', async () => {
-    const queueItems = [
-      { nodeId: 'mod:a', status: 'stale', staleKind: 'content', context: { annotationPhase: 'module', staleKind: 'content' } },
-      { nodeId: 'mod:b', status: 'stale', staleKind: 'propagation', context: { annotationPhase: 'module', staleKind: 'propagation' } },
-      { nodeId: 'resource:s', status: 'unannotated', context: { annotationPhase: 'runtime-resource' } },
+    const queueItems: FakeQueueRow[] = [
+      { nodeId: 'mod:a', status: 'stale', staleKind: 'content', phase: 'module', context: { annotationPhase: 'module', staleKind: 'content' } },
+      { nodeId: 'mod:b', status: 'stale', staleKind: 'propagation', phase: 'module', context: { annotationPhase: 'module', staleKind: 'propagation' } },
+      { nodeId: 'resource:s', status: 'unannotated', phase: 'runtime-resource', context: { annotationPhase: 'runtime-resource' } },
     ];
     const baseCtx = makeCtx({
       annotations: {
         get: () => undefined,
         getAll: () => ({}),
-        getQueue: () => queueItems,
+        getQueuePage: fakeQueuePage(queueItems),
       } as unknown as RepovineState['annotations'],
     });
     const ctx: McpToolRuntime = baseCtx;
@@ -1814,15 +1792,15 @@ describe('public v1 context tools', () => {
   });
 
   it('derived-review filters propagation-stale queue items', async () => {
-    const queueItems = [
-      { nodeId: 'mod:a', status: 'stale', staleKind: 'content', context: { annotationPhase: 'module' } },
-      { nodeId: 'mod:b', status: 'stale', staleKind: 'propagation', context: { annotationPhase: 'module', staleKind: 'propagation' } },
+    const queueItems: FakeQueueRow[] = [
+      { nodeId: 'mod:a', status: 'stale', staleKind: 'content', phase: 'module', context: { annotationPhase: 'module' } },
+      { nodeId: 'mod:b', status: 'stale', staleKind: 'propagation', phase: 'module', context: { annotationPhase: 'module', staleKind: 'propagation' } },
     ];
     const baseCtx = makeCtx({
       annotations: {
         get: () => undefined,
         getAll: () => ({}),
-        getQueue: () => queueItems,
+        getQueuePage: fakeQueuePage(queueItems),
       } as unknown as RepovineState['annotations'],
     });
     const ctx: McpToolRuntime = baseCtx;
@@ -1868,16 +1846,16 @@ describe('public v1 context tools', () => {
   });
 
   it('queue view pages via offset', async () => {
-    const queueItems = [
-      { nodeId: 'mod:a', status: 'unannotated', context: { annotationPhase: 'module' } },
-      { nodeId: 'mod:b', status: 'unannotated', context: { annotationPhase: 'module' } },
-      { nodeId: 'resource:s', status: 'unannotated', context: { annotationPhase: 'runtime-resource' } },
+    const queueItems: FakeQueueRow[] = [
+      { nodeId: 'mod:a', status: 'unannotated', phase: 'module', context: { annotationPhase: 'module' } },
+      { nodeId: 'mod:b', status: 'unannotated', phase: 'module', context: { annotationPhase: 'module' } },
+      { nodeId: 'resource:s', status: 'unannotated', phase: 'runtime-resource', context: { annotationPhase: 'runtime-resource' } },
     ];
     const ctx = makeCtx({
       annotations: {
         get: () => undefined,
         getAll: () => ({}),
-        getQueue: () => queueItems,
+        getQueuePage: fakeQueuePage(queueItems),
       } as unknown as RepovineState['annotations'],
     });
 
@@ -2271,7 +2249,7 @@ describe('public v1 context tools', () => {
       set: jest.fn(),
       isFresh: () => true,
       getQueue: () => [],
-      getStats: () => ({}),
+      getStats: () => backlogCoverage(),
       getAll: () => ({ [handlerAnnotation.nodeId]: handlerAnnotation }),
     } as unknown as RepovineState['annotations'];
     const ctx = makeCtx({
@@ -3266,7 +3244,7 @@ describe('get_refactoring_report', () => {
       set: jest.fn(),
       isFresh: () => true,
       getQueue: () => [],
-      getStats: () => ({}),
+      getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]), annotations });
@@ -3429,7 +3407,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
       set: jest.fn(),
       isFresh: () => true,
       getQueue: () => [],
-      getStats: () => ({}),
+      getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     return { graph: g, modulesById, annotations };
@@ -3558,7 +3536,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
       set: jest.fn(),
       isFresh: () => true,
       getQueue: () => [],
-      getStats: () => ({}),
+      getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -3623,7 +3601,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
       set: jest.fn(),
       isFresh: () => true,
       getQueue: () => [],
-      getStats: () => ({}),
+      getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -3668,7 +3646,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     };
     const annotations = {
       get: (modId: string) => annotationsByModId[modId] as unknown,
-      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations, snapshot: makeSnapshot([mod]) });
@@ -3727,7 +3705,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     };
     const annotations = {
       get: (id: string) => annotationsByModId[id] as unknown,
-      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph, modulesById, annotations, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -3769,7 +3747,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     };
     const annotations = {
       get: (modId: string) => annotationsByModId[modId] as unknown,
-      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations, snapshot: makeSnapshot([mod]) });
@@ -3820,7 +3798,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     };
     const annotations = {
       get: (id: string) => annotationsByModId[id] as unknown,
-      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -3887,7 +3865,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     };
     const annotations = {
       get: (id: string) => annotationsByModId[id] as unknown,
-      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -3990,7 +3968,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     };
     const annotations = {
       get: (id: string) => annotationsByModId[id] as unknown,
-      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
 
     const ctx = makeCtx({ graph: g, modulesById, annotations, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -4289,7 +4267,7 @@ describe('write_annotation safety', () => {
         set,
         isFresh: () => true,
         getQueue: () => [],
-        getStats: () => ({}),
+        getStats: () => backlogCoverage(),
       } as unknown as RepovineState['annotations'],
     });
 
@@ -4327,7 +4305,7 @@ describe('write_annotation safety', () => {
         set,
         isFresh: () => true,
         getQueue: () => [],
-        getStats: () => ({}),
+        getStats: () => backlogCoverage(),
       } as unknown as RepovineState['annotations'],
     });
 
@@ -4367,7 +4345,7 @@ describe('write_annotation safety', () => {
         set,
         isFresh: () => true,
         getQueue: () => [],
-        getStats: () => ({}),
+        getStats: () => backlogCoverage(),
       } as unknown as RepovineState['annotations'],
     });
 
@@ -4866,7 +4844,7 @@ describe('get_domain_modules_slice — primary vs secondary tags', () => {
     addEdge(g, 'mod:test/utils-mod', 'domain:auth', 'tagged', { tagSource: 'pattern' });
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -4965,7 +4943,7 @@ describe('get_domain_or_focus_context — pagination', () => {
     addEdge(g, 'mod:test/high', 'mod:test/low', 'imports');
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -5031,25 +5009,22 @@ describe('get_annotation_status coverage — compact response', () => {
   }
 
     it('returns aggregates and surfaces only anomalous domains', () => {
-      const ctx = buildStatsCtx(() => ({
-        totalModules: 100, annotated: 90, fresh: 80, stale: 10, unannotated: 10,
-        templates: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        infraModules: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      services: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      byDomain: {
-        // healthy: must NOT appear in anomalies
-        healthy: { total: 50, annotated: 50, fresh: 50 },
-        // has stale
-        stale_domain: { total: 30, annotated: 30, fresh: 25 },
-        // has unannotated
-        partial: { total: 20, annotated: 10, fresh: 10 },
-      },
-      byTier: {},
-      domainAnnotations: { totalDomains: 3, annotated: 0, list: [] },
-    }));
+      const ctx = buildStatsCtx(() => backlogCoverage({
+        modules: kindCoverage({ total: 100, annotated: 90, fresh: 80, stale: 10, unannotated: 10 }),
+        byDomain: {
+          // healthy: must NOT appear in anomalies
+          healthy: kindCoverage({ total: 50, annotated: 50, fresh: 50 }),
+          // has stale
+          stale_domain: kindCoverage({ total: 30, annotated: 30, fresh: 25, stale: 5 }),
+          // has unannotated
+          partial: kindCoverage({ total: 20, annotated: 10, fresh: 10, unannotated: 10 }),
+        },
+        domains: { ...kindCoverage({ total: 3 }), list: [] },
+      }));
     const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage' }) as ToolResponse;
     const result = (envelope.result as { coverage: Record<string, unknown> }).coverage;
     expect(result.modules).toEqual({ total: 100, annotated: 90, fresh: 80, stale: 10, unannotated: 10 });
+    expect((result.allNodeTypes as { needsWork: number }).needsWork).toBe(20);
     expect(result.byDomain).toBeUndefined(); // compact by default
     expect(result.domainCount).toBe(3);
     const a = result.anomalies as { staleDomains: Array<{ domain: string }>; unannotatedDomains: Array<{ domain: string }> };
@@ -5069,13 +5044,7 @@ describe('get_annotation_status coverage — compact response', () => {
     const modulesById = new Map<string, ModuleInfo>([[mod.id, mod]]);
     const annotations = {
       get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [],
-        getStats: () => ({
-          totalModules: 1, annotated: 1, fresh: 1, stale: 0, unannotated: 0,
-          templates: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-          infraModules: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        services: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        byDomain: {}, byTier: {}, domainAnnotations: { totalDomains: 0, annotated: 0, list: [] },
-      }),
+        getStats: () => backlogCoverage({ modules: kindCoverage({ total: 1, annotated: 1, fresh: 1 }) }),
       getAll: () => ({
         'mod:test/drift': {
           nodeId: 'mod:test/drift', nodeType: 'module', contentHash: 'h', pass: 1, updatedAt: '',
@@ -5118,34 +5087,29 @@ describe('get_annotation_status coverage — compact response', () => {
   });
 
     it('includes full byDomain when includeAllDomains is true', () => {
-      const ctx = buildStatsCtx(() => ({
-        totalModules: 1, annotated: 1, fresh: 1, stale: 0, unannotated: 0,
-        templates: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        infraModules: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      services: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      byDomain: { x: { total: 1, annotated: 1, fresh: 1 } },
-      byTier: {},
-      domainAnnotations: { totalDomains: 1, annotated: 0, list: [] },
-    }));
+      const ctx = buildStatsCtx(() => backlogCoverage({
+        modules: kindCoverage({ total: 1, annotated: 1, fresh: 1 }),
+        byDomain: { x: kindCoverage({ total: 1, annotated: 1, fresh: 1 }) },
+        domains: { ...kindCoverage({ total: 1 }), list: [] },
+      }));
     const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage', includeAllDomains: true }) as ToolResponse;
     const result = (envelope.result as { coverage: Record<string, unknown> }).coverage;
-    expect(result.byDomain).toEqual({ x: { total: 1, annotated: 1, fresh: 1 } });
+    expect(result.byDomain).toEqual({ x: kindCoverage({ total: 1, annotated: 1, fresh: 1 }) });
     expect(result.byTier).toEqual({});
   });
 
     it('filters byDomain by domainsFilter', () => {
-      const ctx = buildStatsCtx(() => ({
-        totalModules: 2, annotated: 2, fresh: 2, stale: 0, unannotated: 0,
-        templates: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-        infraModules: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      services: { total: 0, annotated: 0, fresh: 0, stale: 0, unannotated: 0 },
-      byDomain: { a: { total: 1, annotated: 1, fresh: 1 }, b: { total: 1, annotated: 1, fresh: 1 } },
-      byTier: {},
-      domainAnnotations: { totalDomains: 2, annotated: 0, list: [] },
-    }));
+      const ctx = buildStatsCtx(() => backlogCoverage({
+        modules: kindCoverage({ total: 2, annotated: 2, fresh: 2 }),
+        byDomain: {
+          a: kindCoverage({ total: 1, annotated: 1, fresh: 1 }),
+          b: kindCoverage({ total: 1, annotated: 1, fresh: 1 }),
+        },
+        domains: { ...kindCoverage({ total: 2 }), list: [] },
+      }));
     const envelope = toolHandlers['get_annotation_status'](ctx, { view: 'coverage', domainsFilter: ['a'] }) as ToolResponse;
     const result = (envelope.result as { coverage: Record<string, unknown> }).coverage;
-    expect(result.byDomain).toEqual({ a: { total: 1, annotated: 1, fresh: 1 } });
+    expect(result.byDomain).toEqual({ a: kindCoverage({ total: 1, annotated: 1, fresh: 1 }) });
   });
 });
 
@@ -5162,7 +5126,7 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     addNode(g, { id: 'resource:aws:UsersFunctionErrorAlarm', type: 'runtime-resource', label: 'UsersFunctionErrorAlarm', description: 'Alarm' });
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -5196,7 +5160,7 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
       data: { provider: 'k8s', k8sKind: 'Deployment' } });
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -5234,7 +5198,7 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     addEdge(g, 'resource:k8s:_/Ingress/web-ingress', 'resource:k8s:_/Service/web', 'routes_to');
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -5279,7 +5243,7 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     addEdge(g, 'resource:aws-sqs:WorkQueue', 'resource:aws-lambda:WorkerFunction', 'consumes');
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -5333,7 +5297,7 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     addEdge(g, 'resource:k8s:_/Deployment/api', 'infra:dockerfile:docker/Dockerfile', 'infra');
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -5370,7 +5334,7 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     addEdge(g, 'resource:aws-sqs:WorkQueue', 'resource:aws-lambda:WorkerB', 'consumes');
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,
@@ -5434,7 +5398,7 @@ describe('get_cross_package_dependencies — grouped boundary violations + sugge
     ]);
 
     const annotations = {
-      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => ({}),
+      get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
     } as unknown as RepovineState['annotations'];
     const state: RepovineState = {
       graph: g,

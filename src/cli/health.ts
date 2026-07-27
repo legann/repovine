@@ -6,6 +6,12 @@ import { DEFAULT_EMBEDDING_MODEL, loadConfig } from '../config.js';
 import { describeTransformersInstall, resolveModelCacheDir } from '../semantic/embedder.js';
 import { detectPython } from '../source-plugins/python/discover.js';
 import { graphStats } from '../graph/index.js';
+import {
+  publishedCoverageBucket,
+  publishedDomainCoverage,
+  type BacklogCoverage,
+  type PublishedCoverageBucket,
+} from '../annotations/backlog.js';
 import { RepovineRuntime } from '../mcp/context.js';
 import { toolDefs } from '../mcp/tool-defs.js';
 import { boundaryIndexFilePath, readBoundaryIndex, BOUNDARY_INDEX_VERSION } from '../mcp/boundary-index.js';
@@ -64,10 +70,11 @@ interface AnnotationCoverageSummary {
   fresh: number;
   stale: number;
   unannotated: number;
-  templates: { total: number; annotated: number; fresh: number; stale: number; unannotated: number };
-  infraModules: { total: number; annotated: number; fresh: number; stale: number; unannotated: number };
-  services: { total: number; annotated: number; fresh: number; stale: number; unannotated: number };
-  domainAnnotations: { totalDomains: number; annotated: number; fresh: number; stale: number };
+  unconfirmable?: number;
+  templates: PublishedCoverageBucket;
+  infraModules: PublishedCoverageBucket;
+  services: PublishedCoverageBucket;
+  domainAnnotations: ReturnType<typeof publishedDomainCoverage>;
 }
 
 function printJson(value: unknown): void {
@@ -697,26 +704,16 @@ function printFindings(title: string, findings: HealthFinding[], env: HealthCliE
   logCli(cli.dim(`Workspace: ${env.repoRoot}`));
 }
 
-function compactCoverage(stats: AnnotationCoverageSummary & {
-  byDomain?: unknown;
-  byTier?: unknown;
-  domainAnnotations: AnnotationCoverageSummary['domainAnnotations'] & { list?: string[] };
-}): AnnotationCoverageSummary {
+/** The status/doctor projection of the backlog coverage: per-kind buckets, no per-domain breakdown. */
+function compactCoverage(stats: BacklogCoverage): AnnotationCoverageSummary {
+  const { total, ...modules } = publishedCoverageBucket(stats.modules);
   return {
-    totalModules: stats.totalModules,
-    annotated: stats.annotated,
-    fresh: stats.fresh,
-    stale: stats.stale,
-    unannotated: stats.unannotated,
-    templates: stats.templates,
-    infraModules: stats.infraModules,
-    services: stats.services,
-    domainAnnotations: {
-      totalDomains: stats.domainAnnotations.totalDomains,
-      annotated: stats.domainAnnotations.annotated,
-      fresh: stats.domainAnnotations.fresh,
-      stale: stats.domainAnnotations.stale,
-    },
+    totalModules: total,
+    ...modules,
+    templates: publishedCoverageBucket(stats.templates),
+    infraModules: publishedCoverageBucket(stats.infraModules),
+    services: publishedCoverageBucket(stats.services),
+    domainAnnotations: publishedDomainCoverage(stats.domains),
   };
 }
 

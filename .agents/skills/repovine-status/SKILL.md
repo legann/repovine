@@ -32,14 +32,18 @@ get_annotation_status({ "view": "coverage" })
 2. Present:
 - graph build state (pending / building / ready / failed / cancelled) with stage and progress when not ready
 - whether repovine.annots.json has conflict markers or parse/validation problems
-- overall coverage
+- overall coverage, and `unconfirmable` when a bucket reports it
 - fresh vs stale annotations
 - lowest-coverage domains
 - queue `needsWork`, staleKind counts, and orphan hints from the response
 
+Coverage and the queue count one backlog: `allNodeTypes.needsWork` equals the queue's `needsWork`.
+A coverage shortfall with `needsWork: 0` is `unconfirmable` nodes — no freshness question is asked
+about them, and no annotation closes them.
+
 3. Suggested next steps:
 - graph still building: tell the user to wait; for next time recommend `repovine build` (CLI) before enabling MCP
 - stale or missing syntax index: ask to use the `repovine-refresh` skill
-- low coverage: ask to use the `repovine-annotations` skill with init/onboard
+- low coverage with `needsWork` above 0: ask to use the `repovine-annotations` skill with init/onboard
 - non-empty annotation queue: ask to use the `repovine-annotations` skill with continue until `needsWork: 0` in scope
 - orphaned annotations: offer `refresh_context({ "cleanupOrphans": true })`

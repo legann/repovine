@@ -38,7 +38,9 @@ validate_annotations({})
 get_annotation_status({ "view": "coverage" })
 ~~~
 
-If this is first-run onboarding and coverage is low, sample the queue and ask for confirmation before writing:
+If this is first-run onboarding and `allNodeTypes.needsWork` is above 0, sample the queue and ask for
+confirmation before writing. Read `needsWork`, not the fresh percentage: `unconfirmable` nodes hold
+that percentage below 100 and no annotation closes them.
 
 ~~~json
 get_annotation_status({ "view": "queue", "limit": 20 })

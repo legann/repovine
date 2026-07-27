@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { AnnotationStore, classifyStale } from '../../src/annotations/store.js';
+import { AnnotationStore } from '../../src/annotations/store.js';
+import { classifyStale } from '../../src/annotations/backlog.js';
 import { nodeFreshnessLookup } from '../../src/analysis/architecture/index.js';
 import {
   HASHED_NODE_KINDS,

@@ -4,6 +4,7 @@ import { graphStats } from '../graph/index.js';
 import { ARTIFACTS_DIR_NAME } from '../paths.js';
 import type { RepovineState } from './types.js';
 import type { DomainsAdvisorDeclinedState } from '../stage2/domains-advisor.js';
+import { answerableOf, needsWorkOf, rollUpCoverage } from '../annotations/backlog.js';
 
 export const ONBOARDING_STATE_FILENAME = 'onboarding-state.json';
 
@@ -66,30 +67,10 @@ export function buildOnboardingState(
   declined: DomainsAdvisorDeclinedState = { declined: [] },
 ): OnboardingStateFile {
   const stats = graphStats(state.graph);
-  const annotationStats = state.annotations.getStats(state.graph, state.snapshot);
-  const annotationTotal =
-    annotationStats.totalModules
-    + annotationStats.templates.total
-    + annotationStats.infraModules.total
-    + annotationStats.services.total
-    + annotationStats.domainAnnotations.totalDomains;
-  const annotationFresh =
-    annotationStats.fresh
-    + annotationStats.templates.fresh
-    + annotationStats.infraModules.fresh
-    + annotationStats.services.fresh
-    + annotationStats.domainAnnotations.fresh;
-  const queueTotal =
-    annotationStats.stale
-    + annotationStats.unannotated
-    + annotationStats.templates.stale
-    + annotationStats.templates.unannotated
-    + annotationStats.infraModules.stale
-    + annotationStats.infraModules.unannotated
-    + annotationStats.services.stale
-    + annotationStats.services.unannotated
-    + annotationStats.domainAnnotations.stale
-    + (annotationStats.domainAnnotations.totalDomains - annotationStats.domainAnnotations.annotated);
+  const coverage = rollUpCoverage(state.annotations.getStats(state.graph, state.snapshot));
+  // Nodes the backlog asks nothing of are out of the denominator, so this percentage reaches 100
+  // exactly when queueTotal reaches 0 rather than stalling short of it forever.
+  const answerable = answerableOf(coverage);
 
   return {
     version: 1,
@@ -102,8 +83,8 @@ export function buildOnboardingState(
     },
     onboarding: {
       annotations: {
-        coveragePct: annotationTotal === 0 ? 100 : Math.round((annotationFresh / annotationTotal) * 100),
-        queueTotal,
+        coveragePct: answerable === 0 ? 100 : Math.round((coverage.fresh / answerable) * 100),
+        queueTotal: needsWorkOf(coverage),
       },
       domains: {
         suggestions: state.domainsSuggestions.count,

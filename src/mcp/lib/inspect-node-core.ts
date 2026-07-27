@@ -1,6 +1,6 @@
 import type { EdgeKind, NodeViewChild, NodeViewDetail, RepositoryGraph } from '../../types.js';
 import { buildNodeView, forwardImportClosure } from '../../graph/index.js';
-import { computeAnnotationQuality } from '../../annotations/store.js';
+import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { hashedNodeKind, resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { annotationFreshness, annotationFreshnessMeta } from '../../annotations/freshness.js';
 import { isEntrypointBoundedDerivedStale } from '../../annotations/propagation.js';

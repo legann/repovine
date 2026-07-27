@@ -49,7 +49,9 @@ validate_annotations({})
 get_annotation_status({ "view": "coverage" })
 ~~~
 
-If this is first-run onboarding and coverage is low, sample the queue and ask for confirmation before writing:
+If this is first-run onboarding and `allNodeTypes.needsWork` is above 0, sample the queue and ask for
+confirmation before writing. Read `needsWork`, not the fresh percentage: `unconfirmable` nodes hold that
+percentage below 100 and no annotation closes them.
 
 ~~~json
 get_annotation_status({ "view": "queue", "limit": 20 })
@@ -61,7 +63,7 @@ get_annotation_status({ "view": "queue", "limit": 20 })
 get_annotation_status({ "scope": "target-domain", "view": "queue", "limit": 10 })
 ~~~
 
-`view: "queue"` is one backlog (modules, services, infra, domain roll-ups), not four. **Drain order:** content-stale (`staleKind: "content"`) before propagation-stale (`staleKind: "propagation"`), bottom-up within each tier. Use the top page of `view: "queue"` — do not run propagation-first via `derived-review` unless content-stale is cleared or orchestrator requests propagation-only. Drain until `needsWork: 0`. Offsets shift as notes are written.
+`view: "queue"` is one backlog (modules, templates, services, infra, domain roll-ups), not separate queues. **Drain order:** content-stale (`staleKind: "content"`) before propagation-stale (`staleKind: "propagation"`), bottom-up within each tier. Use the top page of `view: "queue"` — do not run propagation-first via `derived-review` unless content-stale is cleared or orchestrator requests propagation-only. Drain until `needsWork: 0`. Offsets shift as notes are written.
 
 Queue statuses:
 
@@ -71,7 +73,7 @@ Queue statuses:
 | `stale` | `propagation` | importBaseline stale (upstreamTriggers) | inspect_node + upstream; refreshImportBaseline or update integrationPoints/dataFlow if contract changed. |
 | `unannotated` | — | No note yet | Write from scratch using recommended fields. |
 
-`inspect_node` reports the same verdict for the same node: `annotationMeta.fresh` is `false` with `staleReason` equal to the queue's reason (`content`, `schema`, `propagation`, or `no-baseline`), so the node you are about to annotate never reads as confirmed in one tool and stale in the other.
+`inspect_node` reports the same verdict for the same node: `annotationMeta.fresh` is `false` whenever the queue lists it. `staleReason` there names one of four causes (`content`, `schema`, `propagation`, `no-baseline`); the queue's `staleKind` collapses them into the two review depths above, so `schema` and `no-baseline` arrive as `content`. A node never reads as confirmed in one tool and stale in the other.
 
 ### 3. Inspect and write
 
@@ -104,7 +106,7 @@ After the batch:
 get_annotation_status({ "view": "coverage" })
 ~~~
 
-Report notes written/updated and `needsWork` remaining. Use `view: "queue"` for the next batch (content-stale before propagation-stale).
+Report notes written/updated and `needsWork` remaining — read `allNodeTypes.needsWork`, not the fresh percentage, and not just the modules bucket. Coverage and the queue count one backlog, so that number equals the queue's `needsWork`; a shortfall in the percentage with `needsWork: 0` is `unconfirmable` nodes, which no annotation closes. Use `view: "queue"` for the next batch (content-stale before propagation-stale).
 
 ## Harness demo — MCP only, do not run
 

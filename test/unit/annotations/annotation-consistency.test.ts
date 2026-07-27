@@ -5,7 +5,7 @@
  * contradict facts the graph already knows, never empty fields, and must never move score/tier.
  */
 import { describe, it, expect } from '@jest/globals';
-import { computeAnnotationQuality } from '../../../src/annotations/store.js';
+import { computeAnnotationQuality } from '../../../src/annotations/quality.js';
 import { detectSideEffectKindsFromHints } from '../../../src/annotations/side-effect-vocab.js';
 import { owningModuleId } from '../../../src/graph/node-ids.js';
 import type { SemanticHints } from '../../../src/types.js';
