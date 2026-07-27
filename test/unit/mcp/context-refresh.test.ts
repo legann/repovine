@@ -382,7 +382,6 @@ describe('Stage 3 cancel checkpoint after annotation load (H2)', () => {
     }, null, 2);
     fs.writeFileSync(annotationPath, externalContent);
 
-    const migrateSpy = jest.spyOn(store, 'migrateServiceAnnotationHashesFromParentTemplate');
     const realReload = store.reloadFromDisk.bind(store);
     const reloadSpy = jest.spyOn(store, 'reloadFromDisk').mockImplementation(async options => {
       expect(options?.signal).toBeDefined(); // active refresh signal is threaded into the shared store
@@ -396,11 +395,9 @@ describe('Stage 3 cancel checkpoint after annotation load (H2)', () => {
       expect(ctx.getState()).toBe(stateBefore); // ready graph/state was not swapped
       expect(ctx.getState().annotations).toBe(store); // refresh still owns the original shared store
       expect(store.get(externalNodeId)).toBeUndefined(); // reload made no cancelled mutation visible
-      expect(migrateSpy).not.toHaveBeenCalled(); // migration (and its debounced save) was never scheduled
       expect(fs.readFileSync(annotationPath, 'utf-8')).toBe(externalContent);
     } finally {
       reloadSpy.mockRestore();
-      migrateSpy.mockRestore();
     }
   });
 });

@@ -221,6 +221,7 @@ When the assignment task includes **`## Repovine orient`** or `requestedChecks` 
 
 - Run **`trace_flow`** on the orient scope before editing shared API/types or SSE routes.
 - Infra/runtime tasks: after trace_flow or inspect_node on a resource:, follow runtimeHandoff (or integrationPoints mod: refs on the resource annotation) to the **handler module** before editing code or declaring a node unchanged. Consumer/boundary obligations live on code nodes; resource listings are topology index only.
+- Annotation freshness: `inspect_node` reports `annotationMeta.fresh` for the note as a whole, and names the cause in `staleReason` when it is `false` — `content`/`no-baseline` means the node's text moved under the note, so verify every field in code before relying on it; `propagation` means the note still matches this node but a module it imports moved, so its `integrationPoints`/`dataFlow` claims are leads to re-check against that upstream, not evidence.
 - Set **`compliance.flowChecked: true`** in AgentRunResult when `trace_flow` ran on touched scope.
 - Include orient `graphNodes` in **`graphNodesTouched`** when you modify those modules — copy canonical ids from a `refresh_context` / `map_context` response. Test sources (`*.test.ts`, `*.spec.ts`) are excluded from the graph and have no node; a file the graph does not return belongs in `filesChanged` only.
 - Before shared contract changes, call **`analyze_dependencies({ "mode": "impact" })`** (`dependencies` check).

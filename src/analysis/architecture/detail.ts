@@ -5,6 +5,7 @@
 
 import type { RepositoryGraph, ModuleInfo } from '../../types.js';
 import { type AnnotationStore, computeAnnotationQuality } from '../../annotations/store.js';
+import { annotationFreshnessMeta, type NodeFreshnessLookup } from '../../annotations/freshness.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { annotationSecretFieldPaths } from './annotation-secret.js';
@@ -34,6 +35,7 @@ export function refactoringNodeSummary(
   modulesById: Map<string, ModuleInfo>,
   annotations: AnnotationStore,
   nodeId: string,
+  freshnessOf: NodeFreshnessLookup,
 ): Record<string, unknown> {
   const node = graph.nodes.get(nodeId);
   const mod = modulesById.get(nodeId);
@@ -65,12 +67,13 @@ export function refactoringNodeSummary(
     summary.domains = nodeDomains(graph, nodeId);
     summary.moduleKind = moduleKind;
     if (ann) {
+      const verdict = freshnessOf(nodeId);
       summary.annotation = {
         summary: ann.annotation.summary,
         assumptions: ann.annotation.assumptions?.slice(0, 5) ?? [],
         sideEffects: ann.annotation.sideEffects?.slice(0, 5) ?? [],
         risks: riskEntryTexts(ann.annotation.risks).slice(0, 5),
-        fresh: annotations.isFresh(nodeId, mod.contentHash),
+        ...(verdict ? annotationFreshnessMeta(verdict) : {}),
         quality,
       };
     }
@@ -122,6 +125,7 @@ export function refactoringCategoryDetail(
   modulesById: Map<string, ModuleInfo>,
   annotations: AnnotationStore,
   finding: RefactoringFinding,
+  freshnessOf: NodeFreshnessLookup,
 ): Record<string, unknown> {
   const nodeSet = new Set(finding.nodes);
   switch (finding.category) {
@@ -431,10 +435,11 @@ export function refactoringCategoryDetail(
       const ann = annotations.get(modId);
       const node = graph.nodes.get(modId);
       const moduleKind = mod ? inferModuleKind({ mod, node }) : undefined;
+      const verdict = freshnessOf(modId);
       return {
         moduleId: modId,
         hasAnnotation: ann != null,
-        fresh: mod && ann ? annotations.isFresh(modId, mod.contentHash) : undefined,
+        ...(verdict ? annotationFreshnessMeta(verdict) : {}),
         moduleKind,
         quality: ann && mod
           ? computeAnnotationQuality(ann.annotation, {

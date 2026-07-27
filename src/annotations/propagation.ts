@@ -3,10 +3,8 @@ import type { PropagationConfig } from '../config.js';
 import { DEFAULT_CONTRACT_HUB_THRESHOLDS } from '../config.js';
 import type { ModuleInfo, RepositoryGraph, RepositoryFactsSnapshot, StoredAnnotation } from '../types.js';
 import { modulePackageId } from '../analysis/architecture/scope.js';
-import {
-  getImportBaselineStaleUpstream,
-  isDerivedStaleModule,
-} from './store.js';
+import { importBaselineStaleUpstream } from './content-hash.js';
+import { annotationFreshness, contentMoved } from './freshness.js';
 
 function snapshotModules(snapshot: RepositoryFactsSnapshot): ModuleInfo[] {
   return snapshot.modules ?? [];
@@ -17,14 +15,21 @@ interface PropagationModuleLookup {
   contentHashById: ReadonlyMap<string, string>;
 }
 
+const MODULE_LOOKUP_BY_SNAPSHOT = new WeakMap<RepositoryFactsSnapshot, PropagationModuleLookup>();
+
+/** Module facts and hashes by id, built once per snapshot object and retired with it. */
 function buildPropagationModuleLookup(snapshot: RepositoryFactsSnapshot): PropagationModuleLookup {
+  const cached = MODULE_LOOKUP_BY_SNAPSHOT.get(snapshot);
+  if (cached) return cached;
   const modulesById = new Map<string, ModuleInfo>();
   const contentHashById = new Map<string, string>();
   for (const mod of snapshotModules(snapshot)) {
     modulesById.set(mod.id, mod);
     contentHashById.set(mod.id, mod.contentHash);
   }
-  return { modulesById, contentHashById };
+  const lookup = { modulesById, contentHashById };
+  MODULE_LOOKUP_BY_SNAPSHOT.set(snapshot, lookup);
+  return lookup;
 }
 
 export interface PropagationPreview {
@@ -60,6 +65,34 @@ function resolveAnn(annotations: AnnotationLookup, id: string): StoredAnnotation
 
 function isModuleRoot(id: string | undefined): id is string {
   return typeof id === 'string' && id.startsWith('mod:');
+}
+
+/** Upstream module ids whose graph contentHash differs from stored importBaseline. */
+export function getImportBaselineStaleUpstream(
+  ann: StoredAnnotation,
+  graph: RepositoryGraph,
+  snapshot: RepositoryFactsSnapshot,
+  moduleId: string,
+  contentHashById?: ReadonlyMap<string, string>,
+): string[] {
+  return importBaselineStaleUpstream(ann.importBaseline, graph, snapshot, moduleId, contentHashById);
+}
+
+/**
+ * True when the annotation still matches the module's own content but a module it imports moved
+ * since the baseline was taken. Content- or schema-stale notes are excluded: they need a rewrite,
+ * which subsumes upstream review.
+ */
+export function isDerivedStaleModule(
+  ann: StoredAnnotation | undefined,
+  mod: ModuleInfo,
+  graph: RepositoryGraph,
+  snapshot: RepositoryFactsSnapshot,
+  contentHashById?: ReadonlyMap<string, string>,
+): boolean {
+  if (!ann) return false;
+  if (annotationFreshness({ annotation: ann, currentHash: mod.contentHash }).state !== 'fresh') return false;
+  return getImportBaselineStaleUpstream(ann, graph, snapshot, mod.id, contentHashById).length > 0;
 }
 
 /** Union of frontend `moduleId` and backend SAM `handlerModule` roots (mod: only). */
@@ -187,7 +220,8 @@ function exportNameSet(mod: ModuleInfo): Set<string> {
  * Same export names with comment-only body edits → false (hard hub only).
  */
 export function isHubContractDrift(mod: ModuleInfo, ann: StoredAnnotation | undefined): boolean {
-  if (!ann || ann.contentHash === mod.contentHash) return false;
+  if (!ann) return false;
+  if (!contentMoved(annotationFreshness({ annotation: ann, currentHash: mod.contentHash }))) return false;
   const annotatedNames = Object.keys(ann.annotation.keyExports ?? {});
   if (annotatedNames.length === 0) return false;
   const current = exportNameSet(mod);
@@ -272,77 +306,101 @@ export function discoverContractHubs(input: {
   return hubs;
 }
 
-function addHubWidenImporters(input: {
-  graph: RepositoryGraph;
-  snapshot: RepositoryFactsSnapshot;
-  annotations: AnnotationLookup;
-  hubId: string;
-  hubSet: Set<string>;
-  narrow: Set<string>;
-  moduleLookup: PropagationModuleLookup;
-}): void {
-  const { graph, snapshot, annotations, hubId, hubSet, narrow, moduleLookup } = input;
-  if (!hubSet.has(hubId)) return;
-
-  const hubMod = moduleLookup.modulesById.get(hubId);
-  const hubAnn = resolveAnn(annotations, hubId);
-  if (!hubMod || !hubAnn) return;
-  if (!isHubContractDrift(hubMod, hubAnn)) return;
-
-  for (const importerId of getDirectImporters(graph, hubId)) {
-    if (importerHasHubBaselineDrift(importerId, hubId, graph, snapshot, annotations, moduleLookup)) {
-      narrow.add(importerId);
-    }
-  }
-}
-
-export function computeEntrypointBoundedDerived(input: {
+export interface DerivedStaleInput {
   graph: RepositoryGraph;
   snapshot: RepositoryFactsSnapshot;
   annotations: AnnotationLookup;
   entrypoints: readonly EntrypointFragment[];
   propagation: PropagationConfig;
-}): Set<string> {
+}
+
+/** Answers the propagation question for one module at a time, over shared per-repository inputs. */
+export interface DerivedStaleEvaluator {
+  isStale(moduleId: string): boolean;
+}
+
+/**
+ * The propagation rule, in one place, for one module or for all of them.
+ *
+ * A module is propagation-stale when its import baseline drifted AND the drift matters: either the
+ * module is reachable from an entrypoint (the app can load it), or a drifted upstream is a contract
+ * hub whose exported surface changed. Building the evaluator is cheap — the entrypoint dependency
+ * cone and the hub set are computed on first use, so a single-node caller pays for them only when
+ * that node actually has baseline drift.
+ */
+export function derivedStaleEvaluator(
+  input: DerivedStaleInput,
+  options: { precomputeHubs?: boolean } = {},
+): DerivedStaleEvaluator {
   const { graph, snapshot, annotations, entrypoints, propagation } = input;
-
-  const entryRoots = collectEntrypointRoots(entrypoints);
-  const depCone = computeDepCone(graph, entryRoots);
   const moduleLookup = buildPropagationModuleLookup(snapshot);
-  const hubSet = discoverContractHubs({ graph, snapshot, annotations, propagation }, moduleLookup);
+  const entryRoots = collectEntrypointRoots(entrypoints);
   const maxDepth = propagation.consumerReachMaxDepth;
+
+  let depConeMemo: Set<string> | undefined;
+  const depCone = (): Set<string> => (depConeMemo ??= computeDepCone(graph, entryRoots));
+
+  let hubSetMemo: Set<string> | undefined;
+  if (options.precomputeHubs) {
+    hubSetMemo = discoverContractHubs({ graph, snapshot, annotations, propagation }, moduleLookup);
+  }
+  const hubExtra = new Set(propagation.hubModulesExtra);
+  const hubDeny = new Set(propagation.hubModulesDeny);
+  const isHub = (id: string): boolean => {
+    if (hubSetMemo) return hubSetMemo.has(id);
+    if (hubDeny.has(id)) return false;
+    if (hubExtra.has(id)) return true;
+    return isContractHubCandidate(
+      graph,
+      snapshot,
+      annotations,
+      id,
+      DEFAULT_CONTRACT_HUB_THRESHOLDS,
+      moduleLookup,
+    );
+  };
+  // A drifted upstream widens review only when that same upstream is a hub whose export surface
+  // changed. Hub-ness on one upstream and drift on another are not the same upstream, and reading
+  // them together would widen on a hub that never moved.
+  const hubContractDrift = (upstreamId: string): boolean => {
+    if (!isHub(upstreamId)) return false;
+    const hubMod = moduleLookup.modulesById.get(upstreamId);
+    const hubAnn = resolveAnn(annotations, upstreamId);
+    return !!hubMod && !!hubAnn && isHubContractDrift(hubMod, hubAnn);
+  };
+
+  return {
+    isStale(moduleId: string): boolean {
+      const mod = moduleLookup.modulesById.get(moduleId);
+      if (!mod) return false;
+      const ann = resolveAnn(annotations, moduleId);
+      if (!isDerivedStaleModule(ann, mod, graph, snapshot, moduleLookup.contentHashById)) return false;
+
+      const staleUpstream = getImportBaselineStaleUpstream(
+        ann!,
+        graph,
+        snapshot,
+        moduleId,
+        moduleLookup.contentHashById,
+      );
+      if (staleUpstream.some(hubContractDrift)) return true;
+      return depCone().has(moduleId) && reachesEntrypoint(graph, moduleId, entryRoots, maxDepth);
+    },
+  };
+}
+
+export function computeEntrypointBoundedDerived(input: DerivedStaleInput): Set<string> {
+  const evaluator = derivedStaleEvaluator(input, { precomputeHubs: true });
   const narrow = new Set<string>();
-
-  for (const mod of snapshotModules(snapshot)) {
-    const ann = resolveAnn(annotations, mod.id);
-    if (!isDerivedStaleModule(ann, mod, graph, snapshot, moduleLookup.contentHashById)) continue;
-
-    const staleUpstream = ann
-      ? getImportBaselineStaleUpstream(ann, graph, snapshot, mod.id, moduleLookup.contentHashById)
-      : [];
-    const inCone = depCone.has(mod.id);
-    const reachesEp = inCone && reachesEntrypoint(graph, mod.id, entryRoots, maxDepth);
-    const hubUpstream = staleUpstream.some(u => hubSet.has(u));
-    const hubWiden = hubUpstream && staleUpstream.some(u => {
-      const hubMod = moduleLookup.modulesById.get(u);
-      const hubAnn = resolveAnn(annotations, u);
-      return hubMod && hubAnn && isHubContractDrift(hubMod, hubAnn);
-    });
-
-    if (hubWiden) {
-      narrow.add(mod.id);
-      continue;
-    }
-
-    if (inCone && reachesEp) {
-      narrow.add(mod.id);
-    }
+  for (const mod of snapshotModules(input.snapshot)) {
+    if (evaluator.isStale(mod.id)) narrow.add(mod.id);
   }
-
-  for (const hubId of hubSet) {
-    addHubWidenImporters({ graph, snapshot, annotations, hubId, hubSet, narrow, moduleLookup });
-  }
-
   return narrow;
+}
+
+/** The propagation verdict for a single module, without materializing the repository-wide set. */
+export function isEntrypointBoundedDerivedStale(input: DerivedStaleInput, moduleId: string): boolean {
+  return derivedStaleEvaluator(input).isStale(moduleId);
 }
 
 export function computePropagationPreview(input: {

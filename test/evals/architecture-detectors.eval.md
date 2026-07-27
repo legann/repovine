@@ -30,7 +30,7 @@ checks:
     na_if:   repo is too small to produce any findings to tune
     severity: warn
   - id: annotation-reasoning
-    assert:  analyze_architecture({ annotationReasoning:"on" }) attaches an annotationContext to findings — question + relevantFields + nodes[].annotation carrying ONLY picked relevant fields (not full annotation blobs) + annotationFresh; nodes lacking annotations yield null slices, not a crash
+    assert:  analyze_architecture({ annotationReasoning:"on" }) attaches an annotationContext to findings — question + relevantFields + nodes[].annotation carrying ONLY picked relevant fields (not full annotation blobs) + annotationContentFresh; nodes lacking annotations yield null slices, not a crash
     fail_if: annotationReasoning:"on" is rejected as unknown, returns full annotation blobs instead of the picked relevantFields, or crashes when implicated nodes are unannotated
     na_if:   repo has no annotations (coveragePct 0) OR analyze_architecture produces zero findings to enrich
     severity: warn
@@ -71,7 +71,7 @@ Honor the shared preamble in `_PREAMBLE.md`. Session id e.g. `arch-YYYY-MM-DD-<r
    This is the annotation-driven path: each finding the agent should judge against
    `repovine.annots.json` carries an `annotationContext` with a `question`, `relevantFields`, and
    `nodes[].annotation` exposing ONLY the picked relevant fields (never the full annotation blob)
-   plus `annotationFresh`. Confirm: (a) the arg is accepted; (b) where findings exist on annotated
+   plus `annotationContentFresh` (module text and schema only; the propagation half of freshness is `inspect_node`'s `annotationMeta`). Confirm: (a) the arg is accepted; (b) where findings exist on annotated
    nodes, `annotationContext` is attached and field-scoped; (c) implicated nodes without annotations
    yield null `annotation` slices rather than crashing. N/A when `coveragePct` is 0 (nothing to
    reason over) or no findings are produced. The *content quality* of those annotations is graded by

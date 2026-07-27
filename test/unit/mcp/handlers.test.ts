@@ -15,7 +15,7 @@ import { ToolResponseSchema, type ToolResponse } from '../../../src/mcp/response
 import type { ToolHandler, McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
 import { CONFIG_DEFAULTS, DEFAULT_PROPAGATION_CONFIG } from '../../../src/config.js';
 import { resolveScope } from '../../../src/mcp/scope/resolve.js';
-import { resolveDomainContentHash } from '../../../src/annotations/store.js';
+import { resolveDomainContentHash } from '../../../src/annotations/content-hash.js';
 import { searchGraph } from '../../../src/mcp/lib/search-graph.js';
 import { analyzeImpact } from '../../../src/mcp/lib/dependencies/impact.js';
 import { toCallToolMcpResult } from '../../../src/mcp/response-format.js';
@@ -805,8 +805,9 @@ describe('inspect_node domain freshness', () => {
   });
 
   // write_annotation stores `contentHash: 'unknown'` for node types it cannot hash (export symbols,
-  // packages, root). Reporting `fresh: true` there stated a comparison that never ran.
-  it('omits fresh and says not-comparable when the stored hash is unknown', async () => {
+  // packages, root). On a node that does hash, such a note is unconfirmed — the annotation queue
+  // ranks it for rewrite — and `provenance` says no comparison stands behind that.
+  it('reports no-baseline when the stored hash is unknown on a hashable node', async () => {
     const { graph, modulesById } = buildSearchModeFixture();
     const snapshot = makeSnapshot([...modulesById.values()]);
     const ctx = makeCtx({
@@ -816,10 +817,11 @@ describe('inspect_node domain freshness', () => {
       annotations: domainAnnotations('unknown'),
     });
     const view = (await buildInspectNodeDetail(ctx, { nodeId: 'domain:order' })) as {
-      annotationMeta?: { fresh?: boolean; provenance?: { basis: string; method: string } };
+      annotationMeta?: { fresh?: boolean; staleReason?: string; provenance?: { basis: string; method: string } };
     };
     expect(view.annotationMeta).toBeDefined();
-    expect(view.annotationMeta!.fresh).toBeUndefined();
+    expect(view.annotationMeta!.fresh).toBe(false);
+    expect(view.annotationMeta!.staleReason).toBe('no-baseline');
     expect(view.annotationMeta!.provenance).toEqual({ basis: 'absent', method: 'not-comparable' });
   });
 

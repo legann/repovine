@@ -371,18 +371,13 @@ export class RepovineRuntime {
     logPipeline(formatPipelineStage('Stage 3: Loading annotations...'));
     this.notifyStageEnter('stage3', suppressBuildHooks);
     const stage3T0 = Date.now();
-    // Cancel checkpoint entering Stage 3: a build cancelled by now must not mutate the annotation store
-    // (migration schedules a save) or write the semantic index below for a graph refreshOnce won't publish.
+    // Cancel checkpoint entering Stage 3: a build cancelled by now must not reload the SHARED annotation
+    // store or write the semantic index below for a graph refreshOnce won't publish.
     this.activeSignal(suppressBuildHooks)?.throwIfAborted();
     const annotations = await this.loadOrReloadAnnotations(this.activeSignal(suppressBuildHooks));
-    // Re-check after the await: an abort that landed DURING the store load/reload must not run the
-    // migration below (it schedules a debounced save on the SHARED store — durable state the
-    // refreshOnce final gate cannot undo).
+    // Re-check after the await: an abort that landed DURING the store load/reload stops here rather
+    // than building indexes for a graph that will never be published.
     this.activeSignal(suppressBuildHooks)?.throwIfAborted();
-    const migrated = annotations.migrateServiceAnnotationHashesFromParentTemplate(graph, snapshot);
-    if (migrated > 0) {
-      logPipeline(formatPipelineDetail(`  Annotation store: migrated ${migrated} service hash(es) to per-resource scheme`));
-    }
     const domainsConfig = loadDomainsConfig(this.repoRoot);
     const declinedDomainsSuggestions = readDeclinedDomainsSuggestions(this.repoRoot);
     const domainsSuggestions = computeDomainsSuggestion(snapshot, graph, undefined, declinedDomainsSuggestions);

@@ -1,4 +1,5 @@
 import {
+  nodeFreshnessLookup,
   runRefactoringOpportunityDetail,
   type RefactoringState,
 } from '../../../../src/analysis/architecture/index.js';
@@ -147,8 +148,13 @@ function finding(
   };
 }
 
+/** Node summary through the same freshness lookup the tool builds. */
+function nodeSummary(state: RefactoringState, nodeId: string): Record<string, unknown> {
+  return refactoringNodeSummary(state.graph, state.modulesById, state.annotations, nodeId, nodeFreshnessLookup(state));
+}
+
 function categoryDetail(state: RefactoringState, candidate: RefactoringFinding): Record<string, unknown> {
-  return refactoringCategoryDetail(state.graph, state.modulesById, state.annotations, candidate);
+  return refactoringCategoryDetail(state.graph, state.modulesById, state.annotations, candidate, nodeFreshnessLookup(state));
 }
 
 describe('architecture detail expansion', () => {
@@ -353,7 +359,7 @@ describe('architecture detail expansion', () => {
     addEdge(state.graph, importer.id, 'domain:orders', 'tagged');
     addEdge(state.graph, importer.id, 'domain:orders', 'implements');
 
-    const summary = refactoringNodeSummary(state.graph, state.modulesById, state.annotations, importer.id);
+    const summary = nodeSummary(state, importer.id);
     expect(summary).toMatchObject({
       id: importer.id,
       packageId: 'pkg:web',
@@ -363,25 +369,15 @@ describe('architecture detail expansion', () => {
         fresh: true,
       }),
     });
-    expect(refactoringNodeSummary(
-      state.graph,
-      state.modulesById,
-      state.annotations,
-      'mod:web/src/legacy/annotated-only',
-    )).toMatchObject({
+    expect(nodeSummary(state, 'mod:web/src/legacy/annotated-only')).toMatchObject({
       id: 'mod:web/src/legacy/annotated-only',
       type: 'unknown',
       annotation: expect.objectContaining({ summary: 'Focused annotation for architecture detail tests.' }),
     });
-    expect(refactoringNodeSummary(
-      state.graph,
-      state.modulesById,
-      state.annotations,
-      'resource:orders-queue',
-    )).toMatchObject({
+    expect(nodeSummary(state, 'resource:orders-queue')).toMatchObject({
       runtimeResource: { kind: 'queue', provider: 'aws', contentHash: 'rq1' },
     });
-    expect(refactoringNodeSummary(state.graph, state.modulesById, state.annotations, 'domain:orders')).toMatchObject({
+    expect(nodeSummary(state, 'domain:orders')).toMatchObject({
       domain: { tier: 'business', subdomains: ['checkout'] },
     });
 
@@ -816,7 +812,7 @@ describe('architecture detail expansion', () => {
             id: mod.id,
             label: 'page',
             annotation: { summary: 'Orders page.' },
-            annotationFresh: true,
+            annotationContentFresh: true,
           }],
           hint: 'Compare annotations.',
         },

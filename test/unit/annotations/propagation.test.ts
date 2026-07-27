@@ -16,12 +16,12 @@ import {
   isHubContractDrift,
   discoverContractHubs,
 } from '../../../src/annotations/propagation.js';
+import { AnnotationStore } from '../../../src/annotations/store.js';
 import {
-  AnnotationStore,
   computeDomainContentHash,
   computeDomainContentHashForPathOnly,
   resolveDomainContentHash,
-} from '../../../src/annotations/store.js';
+} from '../../../src/annotations/content-hash.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../../src/config.js';
 import type {
   ExportInfo,

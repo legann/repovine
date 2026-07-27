@@ -71,6 +71,8 @@ Queue statuses:
 | `stale` | `propagation` | importBaseline stale (upstreamTriggers) | inspect_node + upstream; refreshImportBaseline or update integrationPoints/dataFlow if contract changed. |
 | `unannotated` | — | No note yet | Write from scratch using recommended fields. |
 
+`inspect_node` reports the same verdict for the same node: `annotationMeta.fresh` is `false` with `staleReason` equal to the queue's reason (`content`, `schema`, `propagation`, or `no-baseline`), so the node you are about to annotate never reads as confirmed in one tool and stale in the other.
+
 ### 3. Inspect and write
 
 ~~~json

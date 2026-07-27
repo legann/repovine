@@ -6,10 +6,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { jest } from '@jest/globals';
 import { AnnotationStore } from '../../../src/annotations/store.js';
-import {
-  getResourceContentHashForServiceId,
-  resolveServiceResourceContentHash,
-} from '../../../src/annotations/service-resource-hash.js';
+import { resolveServiceResourceContentHash } from '../../../src/annotations/service-resource-hash.js';
 import { AnnotationFileLockTimeoutError } from '../../../src/annotations/file-lock.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../../src/config.js';
 import { ANNOTATIONS_FILENAME } from '../../../src/paths.js';
@@ -1119,57 +1116,6 @@ describe('AnnotationStore', () => {
       reversed.infraModules = [stackB, stackA];
       expect(store.getStats(graph, reversed, { domainFilter: 'infra' }).services.fresh).toBe(1);
       expect(store.getQueue(graph, reversed, { domain: 'infra', limit: 10 }).some(item => item.nodeId === gatewayId)).toBe(false);
-    });
-
-    it('migrateServiceAnnotationHashesFromParentTemplate rewrites parent-hash records to the resolver value', () => {
-      const store = AnnotationStore.createSync(tmpDir);
-      const gatewayId = 'resource:aws-lambda:Gateway';
-      const workerId = 'resource:aws-lambda:Worker';
-      const makeStack = (id: string, fileHash: string, resourceId: string, resourceHash: string): InfraModuleInfo => ({
-        id,
-        kind: 'sam',
-        filePath: `/repo/${id}.yaml`,
-        relativeFilePath: `${id}.yaml`,
-        contentHash: fileHash,
-        resources: [{
-          id: resourceId,
-          kind: 'lambda',
-          provider: 'aws',
-          contentHash: resourceHash,
-          attributes: { handler: `src/${resourceId}.handler` },
-        }],
-      });
-      const stackA = makeStack('infra:sam:stack-a.yaml', 'file-a', 'Gateway', 'decl-a');
-      const stackB = makeStack('infra:sam:stack-b.yaml', 'file-b', 'Gateway', 'decl-b');
-      const stackC = makeStack('infra:sam:stack-c.yaml', 'file-c', 'Worker', 'worker-v2');
-      const graph = makeGraph([
-        { id: stackA.id, type: 'module', label: 'stack-a.yaml', description: '' },
-        { id: stackB.id, type: 'module', label: 'stack-b.yaml', description: '' },
-        { id: stackC.id, type: 'module', label: 'stack-c.yaml', description: '' },
-        { id: gatewayId, type: 'runtime-resource', label: 'Gateway', description: '' },
-        { id: workerId, type: 'runtime-resource', label: 'Worker', description: '' },
-      ], [
-        { from: stackA.id, to: gatewayId, kind: 'contains' },
-        { from: stackB.id, to: gatewayId, kind: 'contains' },
-        { from: stackC.id, to: workerId, kind: 'contains' },
-      ]);
-      const snapshot = makeSnapshot([], []);
-      snapshot.infraModules = [stackA, stackB, stackC];
-
-      // The migration gate consults only the first contains parent, so the legacy record must
-      // carry stack-a's template hash; a record holding stack-b's hash would never migrate.
-      store.set(gatewayId, makeAnnotation(gatewayId, 'file-a', 'runtime-resource'));
-      store.set(workerId, makeAnnotation(workerId, 'file-c', 'runtime-resource'));
-
-      expect(store.migrateServiceAnnotationHashesFromParentTemplate(graph, snapshot)).toBe(2);
-
-      expect(store.get(workerId)?.contentHash).toBe('worker-v2');
-      const setHash = getResourceContentHashForServiceId(snapshot, gatewayId)!;
-      expect(store.get(gatewayId)?.contentHash).toBe(setHash);
-      expect(setHash).not.toBe('decl-a');
-      expect(setHash).not.toBe('decl-b');
-
-      expect(store.migrateServiceAnnotationHashesFromParentTemplate(graph, snapshot)).toBe(0);
     });
 
     it('getQueuePage preserves queue ordering and hydrates only the requested page', () => {

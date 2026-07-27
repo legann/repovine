@@ -34,6 +34,9 @@ import {
   refactoringNextCalls,
   refactoringNodeSummary,
 } from './detail.js';
+import { annotationFreshness, type NodeFreshnessLookup } from '../../annotations/freshness.js';
+import { resolveNodeContentHash } from '../../annotations/content-hash.js';
+import { derivedStaleEvaluator } from '../../annotations/propagation.js';
 import {
   REFACTORING_CATEGORIES,
   DEFAULT_REFACTORING_CATEGORIES,
@@ -244,6 +247,39 @@ export function runRefactoringReport(
   };
 }
 
+/**
+ * Freshness for detail output, decided by the shared rule over the report's own inputs.
+ *
+ * Without a snapshot there is no current hash to compare an annotation against, so every note reads
+ * as not-comparable — a report that ran without stage-1 facts states that it did not check, rather
+ * than reporting a check it could not run.
+ */
+export function nodeFreshnessLookup(state: RefactoringState): NodeFreshnessLookup {
+  const { graph, modulesById, annotations, snapshot } = state;
+  if (!snapshot) {
+    return (nodeId) => (annotations.get(nodeId) ? { state: 'not-comparable' } : undefined);
+  }
+  const propagation = state.propagation ?? DEFAULT_PROPAGATION_CONFIG;
+  const evaluator = derivedStaleEvaluator({
+    graph,
+    snapshot,
+    annotations,
+    entrypoints: state.entrypoints ?? [],
+    propagation,
+  });
+  return (nodeId) => {
+    const ann = annotations.get(nodeId);
+    if (!ann) return undefined;
+    const currentHash = resolveNodeContentHash(nodeId, { graph, snapshot, propagation });
+    return annotationFreshness({
+      annotation: ann,
+      currentHash,
+      // Propagation is a code-module question; other node kinds carry no import baseline.
+      ...(modulesById.has(nodeId) ? { propagationStale: evaluator.isStale(nodeId) } : {}),
+    });
+  };
+}
+
 export function runRefactoringOpportunityDetail(
   state: RefactoringState,
   args: RefactoringOpportunityDetailArgs,
@@ -281,16 +317,17 @@ export function runRefactoringOpportunityDetail(
   const { graph, modulesById, annotations } = state;
   const maxNodes = Math.min(typeof args.maxNodes === 'number' ? args.maxNodes : 30, 100);
   const affectedNodeIds = finding.nodes.slice(0, maxNodes);
+  const freshnessOf = nodeFreshnessLookup(state);
   return {
     findingId,
     scope: scope.scope,
     finding,
-    affectedNodes: affectedNodeIds.map(nodeId => refactoringNodeSummary(graph, modulesById, annotations, nodeId)),
+    affectedNodes: affectedNodeIds.map(nodeId => refactoringNodeSummary(graph, modulesById, annotations, nodeId, freshnessOf)),
     truncatedAffectedNodes: Math.max(0, finding.nodes.length - affectedNodeIds.length),
     relationships: {
       edgesBetweenAffectedNodes: affectedNodeEdges(graph, modulesById, affectedNodeIds),
     },
-    categoryDetail: refactoringCategoryDetail(graph, modulesById, annotations, finding),
+    categoryDetail: refactoringCategoryDetail(graph, modulesById, annotations, finding, freshnessOf),
     nextCalls: refactoringNextCalls(graph, finding),
     note: 'Read-only detail from the existing graph and annotations. It does not read source files; use nextCalls for targeted follow-up.',
   };

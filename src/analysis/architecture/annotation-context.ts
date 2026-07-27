@@ -178,7 +178,15 @@ export interface SemanticContextNode {
   id: string;
   label: string;
   annotation: Partial<StoredAnnotation['annotation']> | null;
-  annotationFresh: boolean;
+  /**
+   * Whether the note still matches the module's own text and schema.
+   *
+   * Narrower than `inspect_node`'s `annotationMeta.fresh` on purpose, and named for what it
+   * answers: the questions in this packet compare notes across modules, so what matters is
+   * whether each note describes the text it sits on. Whether its upstream claims still hold is the
+   * propagation question, and `inspect_node` reports that one.
+   */
+  annotationContentFresh: boolean;
 }
 
 export interface AnnotationContext {
@@ -315,14 +323,14 @@ export function buildAnnotationContext(
     const ann = annotations.get(id);
     if (!ann) continue;
     const mod = modulesById.get(id);
-    const fresh = mod ? annotations.isFresh(id, mod.contentHash) : false;
+    const contentFresh = mod ? annotations.isFresh(id, mod.contentHash) : false;
     const picked = pickAnnotationFields(ann.annotation, fields);
     if (Object.keys(picked).length === 0) continue;
     nodes.push({
       id,
       label: graph.nodes.get(id)?.label ?? id,
       annotation: picked,
-      annotationFresh: fresh,
+      annotationContentFresh: contentFresh,
     });
   }
   if (nodes.length < MIN_NODES_PER_QUESTION[question]) return undefined;

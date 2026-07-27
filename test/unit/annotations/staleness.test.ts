@@ -2,17 +2,21 @@
  * Tests for staleness mechanics: domain contentHash roll-ups and importBaseline derived-stale.
  */
 import {
-  buildDomainContentHashLookup,
-  computeDomainContentHash,
-  computeDomainContentHashForPathOnly,
-  resolveDomainContentHash,
-  isPackageOnlyDomain,
-  computeImportBaseline,
-  getImportBaselineStaleUpstream,
-  isDerivedStaleModule,
   classifyStale,
   isPropagationStaleItem,
 } from '../../../src/annotations/store.js';
+import {
+  buildNodeContentHashLookup,
+  computeDomainContentHash,
+  computeDomainContentHashForPathOnly,
+  computeImportBaseline,
+  isPackageOnlyDomain,
+  resolveDomainContentHash,
+} from '../../../src/annotations/content-hash.js';
+import {
+  getImportBaselineStaleUpstream,
+  isDerivedStaleModule,
+} from '../../../src/annotations/propagation.js';
 import {
   buildRuntimeResourceContentHashLookup,
   getResourceContentHashForServiceId,
@@ -149,7 +153,7 @@ describe('computeDomainContentHash', () => {
       { from: runtimeId, to: 'domain:infra', kind: 'tagged' },
     ]);
     const snapshot = makeSnapshot([], { infraModules: [infra] });
-    const lookup = buildDomainContentHashLookup(snapshot);
+    const lookup = buildNodeContentHashLookup(snapshot);
 
     const direct = computeDomainContentHash(graph, snapshot, 'domain:infra');
     const viaLookup = computeDomainContentHash(graph, snapshot, 'domain:infra', lookup);
@@ -166,7 +170,7 @@ describe('computeDomainContentHash', () => {
       graph,
       changedSnapshot,
       'domain:infra',
-      buildDomainContentHashLookup(changedSnapshot),
+      buildNodeContentHashLookup(changedSnapshot),
     )).not.toBe(viaLookup);
   });
 });
@@ -240,21 +244,15 @@ describe('importBaseline derived-stale', () => {
 
 describe('classifyStale', () => {
   it('maps content drift to stale+content', () => {
-    expect(classifyStale({
-      annotated: true,
-      contentStale: true,
-      schemaOutdated: false,
-      isDerivedStale: false,
-    })).toEqual({ status: 'stale', staleKind: 'content' });
+    expect(classifyStale({ state: 'stale', reason: 'content' }))
+      .toEqual({ status: 'stale', staleKind: 'content' });
+    expect(classifyStale({ state: 'stale', reason: 'schema' }))
+      .toEqual({ status: 'stale', staleKind: 'content' });
   });
 
   it('maps importBaseline drift to stale+propagation', () => {
-    expect(classifyStale({
-      annotated: true,
-      contentStale: false,
-      schemaOutdated: false,
-      isDerivedStale: true,
-    })).toEqual({ status: 'stale', staleKind: 'propagation' });
+    expect(classifyStale({ state: 'stale', reason: 'propagation' }))
+      .toEqual({ status: 'stale', staleKind: 'propagation' });
   });
 
   it('isPropagationStaleItem recognizes propagation-stale queue items', () => {

@@ -1,18 +1,18 @@
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
-import type { StoredAnnotation, RepositoryGraph, RepositoryFactsSnapshot, ModuleInfo, TemplateFileInfo, GraphEdge } from '../types.js';
+import type { StoredAnnotation, RepositoryGraph, RepositoryFactsSnapshot, ModuleInfo, TemplateFileInfo } from '../types.js';
 import { CURRENT_ANNOTATION_SCHEMA_VERSION } from '../types.js';
 import { writeFileAtomic, writeFileAtomicSync } from '../fs/atomic.js';
+import { getParentInfraModuleId } from './service-resource-hash.js';
 import {
-  buildRuntimeResourceContentHashLookup,
-  resolveServiceResourceContentHash,
-  getParentInfraModuleId,
-  getParentInfraContentHash,
-  getResourceContentHashForServiceId,
-  type RuntimeResourceContentHashLookup,
-} from './service-resource-hash.js';
+  isPackageOnlyDomain,
+  nodeContentHashLookup,
+  resolveCachedDomainContentHash,
+  resolveLeafNodeContentHash,
+  type DomainContentHashCache,
+} from './content-hash.js';
+import { annotationFreshness, type FreshnessVerdict, type StaleReason } from './freshness.js';
 import { ANNOTATIONS_FILENAME, resolveAnnotationsFilePath } from '../paths.js';
 import { ensureEmptyAnnotationsFileAtPath, EMPTY_ANNOTATION_FILE_TEXT } from './maintenance.js';
 import { writeAnnotationBackup } from './backup.js';
@@ -33,21 +33,9 @@ import {
 import type { PropagationConfig } from '../config.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../config.js';
 import type { EntrypointFragment } from '../interpreter/types.js';
-import { computeEntrypointBoundedDerived } from './propagation.js';
+import { computeEntrypointBoundedDerived, getImportBaselineStaleUpstream } from './propagation.js';
 
 export { AnnotationContentSchema };
-export {
-  computeEntrypointBoundedDerived,
-  computePropagationPreview,
-  buildPropagationSlice,
-  collectEntrypointRoots,
-  collectEntrypointRootsDiagnostics,
-  computeDepCone,
-  reachesEntrypoint,
-  isHubContractDrift,
-} from './propagation.js';
-export type { PropagationConfig } from '../config.js';
-export { DEFAULT_PROPAGATION_CONFIG };
 
 // ── Annotation quality scoring ──
 
@@ -106,21 +94,26 @@ export type ModuleQueueClassification =
   | { status: 'unannotated' }
   | { status: 'stale'; staleKind: StaleKind };
 
-/** Classify module freshness for the annotation queue. */
-export function classifyStale(input: {
-  annotated: boolean;
-  contentStale: boolean;
-  schemaOutdated: boolean;
-  isDerivedStale: boolean;
-}): ModuleQueueClassification | null {
-  if (!input.annotated) return { status: 'unannotated' };
-  if (input.contentStale || input.schemaOutdated) {
-    return { status: 'stale', staleKind: 'content' };
+/**
+ * Review depth for a stale reason. Content and schema both mean "rewrite the note"; propagation
+ * means "re-confirm what it says about upstream", which is the shallower pass.
+ */
+export function staleKindForReason(reason: StaleReason): StaleKind {
+  return reason === 'propagation' ? 'propagation' : 'content';
+}
+
+/**
+ * What a freshness verdict means for the queue. `null` is "no work": the annotation is confirmed,
+ * or the node carries no hash to confirm it against and the queue has nothing to ask for.
+ */
+export function classifyStale(verdict: FreshnessVerdict): ModuleQueueClassification | null {
+  switch (verdict.state) {
+    case 'unannotated': return { status: 'unannotated' };
+    case 'stale': return { status: 'stale', staleKind: staleKindForReason(verdict.reason) };
+    case 'fresh':
+    case 'not-comparable':
+      return null;
   }
-  if (input.isDerivedStale) {
-    return { status: 'stale', staleKind: 'propagation' };
-  }
-  return null;
 }
 
 export function isPropagationStaleItem(item: { status: string; staleKind?: StaleKind }): boolean {
@@ -573,164 +566,6 @@ export function computeInconsistentModuleAnnotations(
   return out;
 }
 
-// ── Content hash for non-leaf nodes (domain) ──
-
-export interface DomainContentHashLookup {
-  moduleContentHashById: ReadonlyMap<string, string>;
-  infraContentHashById: ReadonlyMap<string, string>;
-  templateContentHashById: ReadonlyMap<string, string>;
-  runtimeResourceHashes: RuntimeResourceContentHashLookup;
-}
-
-export function buildDomainContentHashLookup(
-  snapshot: RepositoryFactsSnapshot,
-): DomainContentHashLookup {
-  const moduleContentHashById = new Map<string, string>();
-  for (const m of snapshot.modules) moduleContentHashById.set(m.id, m.contentHash);
-  const infraContentHashById = new Map<string, string>();
-  for (const im of snapshot.infraModules ?? []) infraContentHashById.set(im.id, im.contentHash);
-  const templateContentHashById = new Map<string, string>();
-  for (const t of snapshot.templates ?? []) templateContentHashById.set(t.id, t.contentHash);
-  return {
-    moduleContentHashById,
-    infraContentHashById,
-    templateContentHashById,
-    runtimeResourceHashes: buildRuntimeResourceContentHashLookup(snapshot),
-  };
-}
-
-/**
- * Compute a stable content hash for a domain node as a function of its tagged
- * member modules' contentHashes. Two members with the same set of module ids
- * and contentHashes always produce the same domain hash, regardless of insertion
- * order. Used to detect when a domain annotation has become stale because its
- * underlying members changed.
- *
- * Includes module, infra-module, runtime-resource and template nodes that participate in this domain.
- * Export symbols are excluded (already covered transitively via their parent module).
- */
-/**
- * Hash a pre-filtered set of tagged domain-member edges. Shared by the two domain
- * content-hash policies (full rollup vs path-only): they differ ONLY in which tagged
- * edges they pass in, never in how a member set is hashed. Order-independent — members
- * sort so the same set always yields the same hash. Returns the `'empty'` sentinel when
- * no member resolves to a content hash.
- */
-function hashDomainMembers(
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  taggedEdges: GraphEdge[],
-  hashes: DomainContentHashLookup,
-): string {
-  const members: Array<[string, string]> = [];
-  for (const edge of taggedEdges) {
-    const memberId = edge.from;
-    const memberNode = graph.nodes.get(memberId);
-    let hash: string | undefined;
-    if (memberId.startsWith('infra:')) {
-      hash = hashes.infraContentHashById.get(memberId);
-    } else if (memberNode?.type === 'module') {
-      hash = hashes.moduleContentHashById.get(memberId);
-    } else if (memberNode?.type === 'runtime-resource') {
-      hash = resolveServiceResourceContentHash(graph, snapshot, memberId, hashes.runtimeResourceHashes);
-    } else if (memberNode?.type === 'template') {
-      hash = hashes.templateContentHashById.get(memberId);
-    }
-    if (hash) members.push([memberId, hash]);
-  }
-  if (members.length === 0) return 'empty';
-
-  members.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  const payload = members.map(([id, h]) => `${id}:${h}`).join('\n');
-  return createHash('sha256').update(payload).digest('hex').slice(0, 16);
-}
-
-export function computeDomainContentHash(
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  domainId: string,
-  lookup?: DomainContentHashLookup,
-): string | undefined {
-  const node = graph.nodes.get(domainId);
-  if (!node || node.type !== 'domain') return undefined;
-
-  const taggedEdges = (graph.inEdges.get(domainId) ?? []).filter(e => e.kind === 'tagged');
-  if (taggedEdges.length === 0) return 'empty'; // domain with no members — stable sentinel
-
-  return hashDomainMembers(graph, snapshot, taggedEdges, lookup ?? buildDomainContentHashLookup(snapshot));
-}
-
-/**
- * Hash only path/pattern-tagged domain members (path-only domain staleness). A deliberately
- * different scope from computeDomainContentHash — it excludes `cluster`/`package`-sourced tagged
- * members. `resolveDomainContentHash` selects between the two by `domainStalePolicy`; they are not
- * interchangeable, and unifying them would re-flag path-only domains against persisted hashes.
- */
-export function computeDomainContentHashForPathOnly(
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  domainId: string,
-  lookup?: DomainContentHashLookup,
-): string | undefined {
-  const node = graph.nodes.get(domainId);
-  if (!node || node.type !== 'domain') return undefined;
-
-  const taggedEdges = (graph.inEdges.get(domainId) ?? []).filter(e => {
-    if (e.kind !== 'tagged') return false;
-    const src = e.metadata?.tagSource;
-    return src === 'path' || src === 'pattern';
-  });
-  if (taggedEdges.length === 0) return 'empty';
-
-  return hashDomainMembers(graph, snapshot, taggedEdges, lookup ?? buildDomainContentHashLookup(snapshot));
-}
-
-/** True when every tagged edge to this domain is package-sourced only. */
-export function isPackageOnlyDomain(graph: RepositoryGraph, domainId: string): boolean {
-  const tagged = (graph.inEdges.get(domainId) ?? []).filter(e => e.kind === 'tagged');
-  if (tagged.length === 0) return false;
-  return tagged.every(e => e.metadata?.tagSource === 'package');
-}
-
-/**
- * Domain content hash under the active propagation policy. `path-only` policy uses the path/pattern
- * scope for slashed (subdomain) or non-package-only domains, and the full rollup otherwise;
- * `all-tags` policy always uses the full rollup. This selection is load-bearing for staleness — the
- * two scopes are not interchangeable.
- */
-export function resolveDomainContentHash(
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  domainId: string,
-  propagation: PropagationConfig,
-  lookup?: DomainContentHashLookup,
-): string | undefined {
-  if (propagation.domainStalePolicy === 'path-only') {
-    const label = graph.nodes.get(domainId)?.label ?? domainId.replace(/^domain:/, '');
-    if (label.includes('/') || !isPackageOnlyDomain(graph, domainId)) {
-      return computeDomainContentHashForPathOnly(graph, snapshot, domainId, lookup);
-    }
-  }
-  return computeDomainContentHash(graph, snapshot, domainId, lookup);
-}
-
-type DomainContentHashCache = Map<string, string | undefined>;
-
-function resolveCachedDomainContentHash(
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  domainId: string,
-  propagation: PropagationConfig,
-  lookup: DomainContentHashLookup,
-  cache: DomainContentHashCache,
-): string | undefined {
-  const key = `${propagation.domainStalePolicy}\0${domainId}`;
-  if (!cache.has(key)) {
-    cache.set(key, resolveDomainContentHash(graph, snapshot, domainId, propagation, lookup));
-  }
-  return cache.get(key);
-}
-
 function shouldHardQueueDomain(
   graph: RepositoryGraph,
   domainId: string,
@@ -744,84 +579,12 @@ function shouldHardQueueDomain(
   return !isPackageOnlyDomain(graph, domainId);
 }
 
-// ── Derived-stale via importBaseline (v1: direct imports only) ──
-
-/** Direct module import targets (`imports` edges from moduleId). */
-export function getDirectImportModuleIds(graph: RepositoryGraph, moduleId: string): string[] {
-  const out = graph.outEdges.get(moduleId) ?? [];
-  return out
-    .filter(e => e.kind === 'imports' && e.to.startsWith('mod:'))
-    .map(e => e.to);
-}
-
-export function resolveModuleContentHash(
-  snapshot: RepositoryFactsSnapshot,
-  moduleId: string,
-  contentHashById?: ReadonlyMap<string, string>,
-): string | undefined {
-  if (contentHashById) return contentHashById.get(moduleId);
-  return snapshot.modules.find(m => m.id === moduleId)?.contentHash;
-}
-
-export function resolveTemplateContentHash(
-  snapshot: RepositoryFactsSnapshot,
-  templateId: string,
-): string | undefined {
-  return snapshot.templates?.find(t => t.id === templateId)?.contentHash;
-}
-
 function templateQueuePreview(t: TemplateFileInfo): Array<{ name: string; kind: string }> {
   const out: Array<{ name: string; kind: string }> = [];
   if (t.extendsTemplate) out.push({ name: t.extendsTemplate, kind: 'extends' });
   for (const name of t.includesTemplate ?? []) out.push({ name, kind: 'includes' });
   for (const name of t.blocks ?? []) out.push({ name, kind: 'block' });
   return out.slice(0, 10);
-}
-
-/** Snapshot current direct-import content hashes for persisting on write/ack. */
-export function computeImportBaseline(
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  moduleId: string,
-  contentHashById?: ReadonlyMap<string, string>,
-): Record<string, string> {
-  const baseline: Record<string, string> = {};
-  for (const targetId of getDirectImportModuleIds(graph, moduleId)) {
-    const hash = resolveModuleContentHash(snapshot, targetId, contentHashById);
-    if (hash) baseline[targetId] = hash;
-  }
-  return baseline;
-}
-
-/** Upstream module ids whose graph contentHash differs from stored importBaseline. */
-export function getImportBaselineStaleUpstream(
-  ann: StoredAnnotation,
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  moduleId: string,
-  contentHashById?: ReadonlyMap<string, string>,
-): string[] {
-  const stale: string[] = [];
-  const baseline = ann.importBaseline;
-  for (const targetId of getDirectImportModuleIds(graph, moduleId)) {
-    const current = resolveModuleContentHash(snapshot, targetId, contentHashById);
-    if (!current) continue;
-    if (!baseline || baseline[targetId] !== current) stale.push(targetId);
-  }
-  return stale;
-}
-
-export function isDerivedStaleModule(
-  ann: StoredAnnotation | undefined,
-  mod: ModuleInfo,
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-  contentHashById?: ReadonlyMap<string, string>,
-): boolean {
-  if (!ann) return false;
-  if (ann.contentHash !== mod.contentHash) return false;
-  if ((ann.schemaVersion ?? 1) < CURRENT_ANNOTATION_SCHEMA_VERSION) return false;
-  return getImportBaselineStaleUpstream(ann, graph, snapshot, mod.id, contentHashById).length > 0;
 }
 
 const SAVE_DEBOUNCE_MS = 800;
@@ -1625,12 +1388,23 @@ export class AnnotationStore {
     this.touchedFields.set(nodeId, merged);
   }
 
+  /**
+   * Content freshness of one node's annotation: hash and schema, without propagation.
+   *
+   * Propagation needs graph-wide inputs this signature does not carry, so a caller that reports
+   * freshness to a reader passes the propagation verdict to {@link freshnessOf} instead.
+   */
   isFresh(nodeId: string, currentHash: string): boolean {
-    const ann = this.data[nodeId];
-    if (!ann) return false;
-    if (ann.contentHash !== currentHash) return false;
-    const v = ann.schemaVersion ?? 1;
-    return v >= CURRENT_ANNOTATION_SCHEMA_VERSION;
+    return this.freshnessOf(nodeId, currentHash).state === 'fresh';
+  }
+
+  /** The freshness verdict for one node, with propagation folded in when the caller evaluated it. */
+  freshnessOf(nodeId: string, currentHash: string | undefined, propagationStale?: boolean): FreshnessVerdict {
+    return annotationFreshness({
+      annotation: this.data[nodeId],
+      currentHash,
+      ...(propagationStale === undefined ? {} : { propagationStale }),
+    });
   }
 
   getAll(): Record<string, StoredAnnotation> {
@@ -1914,8 +1688,8 @@ export class AnnotationStore {
       entrypoints,
       propagation,
     });
-    const moduleContentHashById = new Map(snapshot.modules.map(mod => [mod.id, mod.contentHash] as const));
-    const contentHashLookup = buildDomainContentHashLookup(snapshot);
+    const contentHashLookup = nodeContentHashLookup(snapshot);
+    const moduleContentHashById = contentHashLookup.moduleContentHashById;
     const domainContentHashCache: DomainContentHashCache = new Map();
 
     for (const mod of snapshot.modules) {
@@ -1928,15 +1702,12 @@ export class AnnotationStore {
       }
 
       const ann = this.data[mod.id];
-      const schemaOutdated = ann && ((ann.schemaVersion ?? 1) < CURRENT_ANNOTATION_SCHEMA_VERSION);
-      const contentStale = ann && ann.contentHash !== mod.contentHash;
-      const isDerivedStale = !!(ann && !contentStale && !schemaOutdated && derivedStaleSet.has(mod.id));
-      const classified = classifyStale({
-        annotated: !!ann,
-        contentStale: !!contentStale,
-        schemaOutdated: !!schemaOutdated,
-        isDerivedStale,
+      const verdict = annotationFreshness({
+        annotation: ann,
+        currentHash: mod.contentHash,
+        propagationStale: derivedStaleSet.has(mod.id),
       });
+      const classified = classifyStale(verdict);
       if (!classified) continue;
 
       const status = classified.status;
@@ -1993,11 +1764,9 @@ export class AnnotationStore {
 
           let reason: string;
           if (status === 'stale' && staleKind === 'content') {
-            reason = schemaOutdated && !contentStale
+            reason = verdict.state === 'stale' && verdict.reason === 'schema'
               ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION}), needs backfill (${downstreamCount} downstream deps)`
-              : contentStale
-                ? `Content changed since last annotation (${downstreamCount} downstream deps)`
-                : `Stale (${downstreamCount} downstream deps)`;
+              : `Content changed since last annotation (${downstreamCount} downstream deps)`;
           } else if (isPropagationStale) {
             const staleUpstream = ann
               ? getImportBaselineStaleUpstream(ann, graph, snapshot, mod.id, moduleContentHashById)
@@ -2068,16 +1837,10 @@ export class AnnotationStore {
       }
 
       const ann = this.data[t.id];
-      const schemaOutdated = ann && ((ann.schemaVersion ?? 1) < CURRENT_ANNOTATION_SCHEMA_VERSION);
-      const contentStale = ann && ann.contentHash !== t.contentHash;
-      let status: QueueStatus;
-      if (!ann) {
-        status = 'unannotated';
-      } else if (contentStale || schemaOutdated) {
-        status = 'stale';
-      } else {
-        continue;
-      }
+      const verdict = annotationFreshness({ annotation: ann, currentHash: t.contentHash });
+      const classified = classifyStale(verdict);
+      if (!classified) continue;
+      const status = classified.status;
 
       const inEdges = graph.inEdges.get(t.id) ?? [];
       const renderCount = inEdges.filter(e => e.kind === 'renders').length;
@@ -2091,13 +1854,13 @@ export class AnnotationStore {
       const urgency = (renderCount * 2) + compositionInCount + compositionOutCount + (t.blocks?.length ?? 0);
       const phase: QueuePhase = 'template';
       const reason = status === 'stale'
-        ? (schemaOutdated && !contentStale
+        ? (verdict.state === 'stale' && verdict.reason === 'schema'
           ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION})`
           : 'Template content changed')
         : `Template not yet annotated (${renderCount} render edge${renderCount === 1 ? '' : 's'}, ${compositionOutCount} composition edge${compositionOutCount === 1 ? '' : 's'})`;
 
       const templateKind: ModuleKind = 'template';
-      const templateStaleKind = status === 'stale' ? ('content' as const) : undefined;
+      const templateStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
       rows.push({
         nodeId: t.id,
         status,
@@ -2143,16 +1906,10 @@ export class AnnotationStore {
       }
 
       const ann = this.data[infraMod.id];
-      const schemaOutdated = ann && ((ann.schemaVersion ?? 1) < CURRENT_ANNOTATION_SCHEMA_VERSION);
-      const contentStale = ann && ann.contentHash !== infraMod.contentHash;
-      let status: QueueStatus;
-      if (!ann) {
-        status = 'unannotated';
-      } else if (contentStale || schemaOutdated) {
-        status = 'stale';
-      } else {
-        continue;
-      }
+      const verdict = annotationFreshness({ annotation: ann, currentHash: infraMod.contentHash });
+      const classified = classifyStale(verdict);
+      if (!classified) continue;
+      const status = classified.status;
 
       const outEdges = graph.outEdges.get(infraMod.id) ?? [];
       const domains = outEdges
@@ -2163,13 +1920,13 @@ export class AnnotationStore {
       const urgency = resourceCount;
       const phase: QueuePhase = 'infra';
       const reason = status === 'stale'
-        ? (schemaOutdated && !contentStale
+        ? (verdict.state === 'stale' && verdict.reason === 'schema'
           ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION})`
           : 'IaC template content changed')
         : `IaC module not yet annotated (${resourceCount} resources)`;
 
       const infraKind: ModuleKind = 'infra';
-      const infraStaleKind = status === 'stale' ? ('content' as const) : undefined;
+      const infraStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
       rows.push({
         nodeId: infraMod.id,
         status,
@@ -2211,12 +1968,13 @@ export class AnnotationStore {
       const parentInfraId = getParentInfraModuleId(graph, serviceId);
       if (!parentInfraId) continue;
 
-      const resourceHash = resolveServiceResourceContentHash(
+      const resourceHash = resolveLeafNodeContentHash(serviceId, {
         graph,
         snapshot,
-        serviceId,
-        contentHashLookup.runtimeResourceHashes,
-      );
+        lookup: contentHashLookup,
+      });
+      // No hash source for this resource: an annotation on it could never be confirmed, so the
+      // queue has nothing to ask for and does not rank it.
       if (resourceHash === undefined) continue;
 
       if (domain) {
@@ -2227,16 +1985,10 @@ export class AnnotationStore {
       }
 
       const ann = this.data[serviceId];
-      const schemaOutdated = ann && ((ann.schemaVersion ?? 1) < CURRENT_ANNOTATION_SCHEMA_VERSION);
-      const contentStale = ann && ann.contentHash !== resourceHash;
-      let status: QueueStatus;
-      if (!ann) {
-        status = 'unannotated';
-      } else if (contentStale || schemaOutdated) {
-        status = 'stale';
-      } else {
-        continue;
-      }
+      const verdict = annotationFreshness({ annotation: ann, currentHash: resourceHash });
+      const classified = classifyStale(verdict);
+      if (!classified) continue;
+      const status = classified.status;
 
       const node = graph.nodes.get(serviceId);
       const domains = parentInfraId
@@ -2245,11 +1997,11 @@ export class AnnotationStore {
       const urgency = 1;
       const phase: QueuePhase = 'runtime-resource';
       const reason = status === 'stale'
-        ? (schemaOutdated && !contentStale ? 'Schema outdated' : 'IaC resource definition changed')
+        ? (verdict.state === 'stale' && verdict.reason === 'schema' ? 'Schema outdated' : 'IaC resource definition changed')
         : 'Runtime resource not yet annotated';
 
       const serviceKind: ModuleKind = 'runtime-resource';
-      const serviceStaleKind = status === 'stale' ? ('content' as const) : undefined;
+      const serviceStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
       rows.push({
         nodeId: serviceId,
         status,
@@ -2309,22 +2061,17 @@ export class AnnotationStore {
         contentHashLookup,
         domainContentHashCache,
       );
+      // No member resolves to a hash: nothing to rank, same as an unhashable resource above.
       if (currentHash === undefined) continue;
 
-      const schemaOutdated = ann && ((ann.schemaVersion ?? 1) < CURRENT_ANNOTATION_SCHEMA_VERSION);
-      const contentStale = ann && ann.contentHash !== currentHash;
       // Membership-stale = the domain hash changed because some member content
       // changed even though the domain itself hasn't been re-annotated. This is
       // reported the same as content-stale because for a domain there's no
       // distinct "code" — its content IS the union of its members.
-      let status: QueueStatus;
-      if (!ann) {
-        status = 'unannotated';
-      } else if (contentStale || schemaOutdated) {
-        status = 'stale';
-      } else {
-        continue;
-      }
+      const verdict = annotationFreshness({ annotation: ann, currentHash });
+      const classified = classifyStale(verdict);
+      if (!classified) continue;
+      const status = classified.status;
 
       const node = graph.nodes.get(domainId);
       const memberCount = (graph.inEdges.get(domainId) ?? []).filter(e => e.kind === 'tagged').length;
@@ -2333,13 +2080,13 @@ export class AnnotationStore {
       const label = node?.label ?? domainId.replace(/^domain:/, '');
       const domainDepth = label.split('/').filter(Boolean).length;
       const reason = status === 'stale'
-        ? (schemaOutdated && !contentStale
+        ? (verdict.state === 'stale' && verdict.reason === 'schema'
           ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION})`
           : `Domain member modules changed; re-check domain-level summary, invariants and integrationPoints (${memberCount} members)`)
         : `Domain not yet annotated (${memberCount} members)`;
 
       const domainKind: ModuleKind = 'domain';
-      const domainStaleKind = status === 'stale' ? ('content' as const) : undefined;
+      const domainStaleKind = classified.status === 'stale' ? classified.staleKind : undefined;
       rows.push({
         nodeId: domainId,
         status,
@@ -2414,7 +2161,7 @@ export class AnnotationStore {
       entrypoints,
       propagation,
     });
-    const contentHashLookup = buildDomainContentHashLookup(snapshot);
+    const contentHashLookup = nodeContentHashLookup(snapshot);
     const domainContentHashCache: DomainContentHashCache = new Map();
 
     let annotated = 0;
@@ -2438,9 +2185,11 @@ export class AnnotationStore {
 
       const ann = this.data[mod.id];
       const isAnnotated = ann !== undefined;
-      const contentFresh = isAnnotated && ann.contentHash === mod.contentHash && (ann.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
-      const propagationStale = isAnnotated && contentFresh && derivedStaleSet.has(mod.id);
-      const isFresh = contentFresh && !propagationStale;
+      const isFresh = annotationFreshness({
+        annotation: ann,
+        currentHash: mod.contentHash,
+        propagationStale: derivedStaleSet.has(mod.id),
+      }).state === 'fresh';
 
       if (inDomain(domains)) {
         moduleTotal++;
@@ -2471,7 +2220,7 @@ export class AnnotationStore {
         .filter((d): d is string => d != null);
       const ann = this.data[t.id];
       const isAnnotated = ann !== undefined;
-      const isFresh = isAnnotated && ann.contentHash === t.contentHash && (ann.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
+      const isFresh = annotationFreshness({ annotation: ann, currentHash: t.contentHash }).state === 'fresh';
       if (inDomain(domains)) {
         templateTotal++;
         if (isAnnotated) {
@@ -2496,7 +2245,7 @@ export class AnnotationStore {
     for (const im of infraModules) {
       const ann = this.data[im.id];
       const isAnnotated = ann !== undefined;
-      const isFresh = isAnnotated && ann.contentHash === im.contentHash && (ann.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
+      const isFresh = annotationFreshness({ annotation: ann, currentHash: im.contentHash }).state === 'fresh';
       const domains = (graph.outEdges.get(im.id) ?? []).filter(e => e.kind === 'tagged').map(e => graph.nodes.get(e.to)?.label ?? e.to).filter((d): d is string => d != null);
       if (inDomain(domains)) {
         infraTotal++;
@@ -2521,17 +2270,16 @@ export class AnnotationStore {
     let svcFresh = 0;
     let svcStale = 0;
     for (const serviceId of serviceIds) {
-      const resourceHash = resolveServiceResourceContentHash(
+      const resourceHash = resolveLeafNodeContentHash(serviceId, {
         graph,
         snapshot,
-        serviceId,
-        contentHashLookup.runtimeResourceHashes,
-      );
+        lookup: contentHashLookup,
+      });
       if (resourceHash === undefined) continue;
       const parentInfraId = getParentInfraModuleId(graph, serviceId);
       const ann = this.data[serviceId];
       const isAnnotated = ann !== undefined;
-      const isFresh = isAnnotated && ann.contentHash === resourceHash && (ann.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
+      const isFresh = annotationFreshness({ annotation: ann, currentHash: resourceHash }).state === 'fresh';
       const parentDomains = parentInfraId
         ? (graph.outEdges.get(parentInfraId) ?? []).filter(e => e.kind === 'tagged').map(e => graph.nodes.get(e.to)?.label ?? e.to).filter((d): d is string => d != null)
         : [];
@@ -2582,8 +2330,7 @@ export class AnnotationStore {
             contentHashLookup,
             domainContentHashCache,
           );
-          const schemaOk = (dAnn.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
-          if (currentHash !== undefined && dAnn.contentHash === currentHash && schemaOk) {
+          if (annotationFreshness({ annotation: dAnn, currentHash }).state === 'fresh') {
             freshDomains++;
           } else {
             staleDomains++;
@@ -2642,36 +2389,4 @@ export class AnnotationStore {
     };
   }
 
-  /**
-   * Legacy: service annotations used to store the parent template file hash. When that value still
-   * matches the current parent module hash, rewrite to the per-resource fragment hash (no pass bump).
-   */
-  migrateServiceAnnotationHashesFromParentTemplate(
-    graph: RepositoryGraph,
-    snapshot: RepositoryFactsSnapshot,
-  ): number {
-    let updated = 0;
-    const runtimeResourceHashes = buildRuntimeResourceContentHashLookup(snapshot);
-    for (const [nodeId, ann] of Object.entries(this.data)) {
-      if (ann.nodeType !== 'runtime-resource') continue;
-      const resourceHash = getResourceContentHashForServiceId(snapshot, nodeId, runtimeResourceHashes);
-      if (!resourceHash || ann.contentHash === resourceHash) continue;
-      const parentId = getParentInfraModuleId(graph, nodeId);
-      if (!parentId) continue;
-      const parentHash = getParentInfraContentHash(snapshot, parentId, runtimeResourceHashes);
-      if (!parentHash || ann.contentHash !== parentHash) continue;
-      this.assertWritable();
-      this.data[nodeId] = {
-        ...ann,
-        contentHash: resourceHash,
-        updatedAt: new Date().toISOString(),
-      };
-      this.touched.add(nodeId);
-      // Whole-record migration write (no field set) with a fresh generation for the save-commit gate.
-      this.opGen.set(nodeId, ++this.mutationSeq);
-      updated++;
-    }
-    if (updated > 0) this.scheduleSave();
-    return updated;
-  }
 }

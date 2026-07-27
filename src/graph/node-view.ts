@@ -6,6 +6,7 @@
 import type { NodeType, EdgeKind, TagEdgeSource } from './model.js';
 import type { FieldInfo, ParamInfo, SsrMarkers, SymbolKind, InternalInfo } from '@repovine/plugin-sdk';
 import type { AnnotationContent } from '../annotations/types.js';
+import type { StaleReason } from '../annotations/freshness.js';
 import type { TruncationMap } from '../response/truncation.js';
 import type { Provenance } from '../response/provenance.js';
 
@@ -70,12 +71,14 @@ export interface NodeView {
     pass: number;
     updatedAt: string;
     /**
-     * Whether the stored content hash still matches the node's current hash. Omitted when no
-     * comparison is possible — `write_annotation` stores `contentHash: 'unknown'` for node types it
-     * cannot hash (export symbols, packages, root), and reporting `fresh: true` there would state a
-     * verification that never ran. Read together with `provenance`.
+     * Whether the annotation is still confirmed for this node: its content hash matches, its schema
+     * is current, and no module it imports drifted since the note was written. Omitted for a node
+     * kind that carries no hash at all, where reporting either value would state a verification that
+     * never ran. Read together with `staleReason` and `provenance`.
      */
     fresh?: boolean;
+    /** Which check decided `fresh: false`; always present when `fresh` is `false`. */
+    staleReason?: StaleReason;
     /** How `fresh` was decided, or why it is absent. */
     provenance?: Provenance;
     /** Inferred module kind (types/ui/api-handler/adapter/service-mgr/infra/runtime-resource/template/domain/generic). */

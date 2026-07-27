@@ -1,14 +1,12 @@
 import type { EdgeKind, NodeViewChild, NodeViewDetail, RepositoryGraph } from '../../types.js';
 import { buildNodeView, forwardImportClosure } from '../../graph/index.js';
-import {
-    computeAnnotationQuality,
-    resolveDomainContentHash,
-    resolveTemplateContentHash,
-  } from '../../annotations/store.js';
-import { CURRENT_ANNOTATION_SCHEMA_VERSION } from '../../types.js';
+import { computeAnnotationQuality } from '../../annotations/store.js';
+import { hashedNodeKind, resolveNodeContentHash } from '../../annotations/content-hash.js';
+import { annotationFreshness, annotationFreshnessMeta } from '../../annotations/freshness.js';
+import { isEntrypointBoundedDerivedStale } from '../../annotations/propagation.js';
+import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../config.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
-import { resolveServiceResourceContentHash } from '../../annotations/service-resource-hash.js';
 import {
   DEFAULT_BODY_LIMIT,
   DEFAULT_INSPECT_CHILD_LIMIT,
@@ -19,7 +17,6 @@ import {
   paginateNodeViewChildren,
 } from '../response/pagination.js';
 import { applyInvestigateTags, computeHubInDegreeThreshold, INVESTIGATE_DEP_GUARD_DEPTH } from './investigate-refs.js';
-import { annotationFreshnessProvenance } from './annotation-freshness.js';
 import { narrowTruncation, pageTruncation, unavailableTruncation } from '../../response/truncation.js';
 import type { McpToolRuntime } from '../types.js';
 import {
@@ -204,50 +201,36 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
   }
 
   const ann = annotations.get(nodeId);
+  const mod = modulesById.get(nodeId);
   if (ann) {
     const { snapshot } = ctx.getState();
-    let fresh: boolean | undefined;
-    const mod = modulesById.get(nodeId);
-    if (mod) {
-      fresh = ann.contentHash === mod.contentHash;
-    } else if (nodeId.startsWith('infra:')) {
-      const infraMod = snapshot.infraModules?.find(m => m.id === nodeId);
-      fresh = !!infraMod && ann.contentHash === infraMod.contentHash;
-      } else if (node.type === 'runtime-resource') {
-        const resourceHash = resolveServiceResourceContentHash(graph, snapshot, nodeId);
-        fresh = !!resourceHash && ann.contentHash === resourceHash;
-      } else if (node.type === 'template') {
-        const templateHash = resolveTemplateContentHash(snapshot, nodeId);
-        fresh = !!templateHash
-          && ann.contentHash === templateHash
-          && (ann.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
-      } else if (node.type === 'domain') {
-      // Domain freshness mirrors the queue/coverage path in annotations/store.ts: a domain
-      // is fresh only when its content hash (the union of member module contentHashes) still
-      // matches the stored annotation. Without this branch, domains fell through to the
-      // `fresh = true` default and disagreed with get_annotation_status queue/coverage —
-      // annotationMeta.fresh:true on a domain the queue reports as staleKind:content.
-      const propagation = ctx.getConfig().annotations.propagation ?? DEFAULT_PROPAGATION_CONFIG;
-      const currentHash = resolveDomainContentHash(graph, snapshot, nodeId, propagation);
-      fresh = currentHash !== undefined
-        && ann.contentHash === currentHash
-        && (ann.schemaVersion ?? 1) >= CURRENT_ANNOTATION_SCHEMA_VERSION;
-    } else {
-      // No hash source for this node type. `write_annotation` stored `contentHash: 'unknown'` here,
-      // so there is nothing to compare against and `fresh` is left unset rather than asserted.
-      fresh = undefined;
-    }
-    // A stored 'unknown' hash cannot match anything meaningfully, whichever branch resolved above.
-    if (ann.contentHash === 'unknown') fresh = undefined;
+    const propagation = ctx.getConfig().annotations.propagation ?? DEFAULT_PROPAGATION_CONFIG;
+    const currentHash = resolveNodeContentHash(nodeId, { graph, snapshot, propagation });
+    // Propagation is a code-module question: only modules carry an import baseline. The node is
+    // reported the same way the annotation queue reports it — an unconfirmed upstream is not fresh.
+    const propagationStale = mod
+      ? isEntrypointBoundedDerivedStale({
+        graph,
+        snapshot,
+        annotations,
+        entrypoints: getInterpreterEntrypoints(graph),
+        propagation,
+      }, nodeId)
+      : undefined;
+    const verdict = annotationFreshness({
+      annotation: ann,
+      currentHash,
+      ...(propagationStale === undefined ? {} : { propagationStale }),
+    });
     view.annotation = ann.annotation;
     const meta: Record<string, unknown> = {
       pass: ann.pass,
       updatedAt: ann.updatedAt,
-      ...(fresh === undefined ? {} : { fresh }),
-      provenance: annotationFreshnessProvenance(fresh),
+      ...annotationFreshnessMeta(verdict),
     };
     const moduleKind = inferModuleKind({ mod, node });
     if (moduleKind !== 'generic' || mod) meta.moduleKind = moduleKind;
+    const nodeKind = hashedNodeKind(graph, nodeId);
     if (mod) {
       const maxLine = mod.exports.reduce((m, e) => Math.max(m, e.lineRange.end), 0);
       meta.quality = computeAnnotationQuality(ann.annotation, {
@@ -256,7 +239,7 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
         envVars: mod.semanticHints?.envVars,
         moduleKind,
       });
-    } else if (nodeId.startsWith('infra:')) {
+    } else if (nodeKind === 'infra') {
       const infraMod = snapshot.infraModules?.find(m => m.id === nodeId);
       if (infraMod) {
         meta.quality = computeAnnotationQuality(ann.annotation, {
@@ -265,8 +248,8 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
           moduleKind,
         });
       }
-      } else if (node.type === 'domain' || node.type === 'runtime-resource' || node.type === 'template') {
-        meta.quality = computeAnnotationQuality(ann.annotation, {
+    } else if (nodeKind !== undefined) {
+      meta.quality = computeAnnotationQuality(ann.annotation, {
         exportCount: 0,
         lineCount: 0,
         moduleKind,

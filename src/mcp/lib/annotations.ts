@@ -4,19 +4,16 @@ import {
   type AnnotationConsistency,
   AnnotationContentSchema,
   computeAnnotationQuality,
-  resolveDomainContentHash,
-  resolveTemplateContentHash,
-  computeImportBaseline,
   computeInconsistentModuleAnnotations,
   isHardConsistencyIssue,
 } from '../../annotations/store.js';
+import { computeImportBaseline, resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { detectSideEffectKindsFromHints } from '../../annotations/side-effect-vocab.js';
 import { clearMergeReviewHints } from '../../annotations/merge-review.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { measureSubmittedAnnotationText } from '../../annotations/annotation-metrics.js';
 import { graphStats } from '../../graph/index.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
-import { resolveServiceResourceContentHash } from '../../annotations/service-resource-hash.js';
 import { owningModuleId } from '../../graph/node-ids.js';
 import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
 import { computePropagationPreview } from '../../annotations/propagation.js';
@@ -413,23 +410,14 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
   const node = graph.nodes.get(nodeId);
   if (!node) return { error: `Node not found: ${rawId}` };
 
-  let contentHash: string;
   const mod = modulesById.get(nodeId);
-  if (mod?.contentHash) {
-    contentHash = mod.contentHash;
-  } else if (nodeId.startsWith('infra:')) {
-    const infraMod = snapshot.infraModules?.find(m => m.id === nodeId);
-    contentHash = infraMod?.contentHash ?? 'unknown';
-  } else if (node.type === 'runtime-resource') {
-    contentHash = resolveServiceResourceContentHash(graph, snapshot, nodeId) ?? 'unknown';
-  } else if (node.type === 'template') {
-    contentHash = resolveTemplateContentHash(snapshot, nodeId) ?? 'unknown';
-  } else if (node.type === 'domain') {
-    const propagation = ctx.getConfig().annotations.propagation;
-    contentHash = resolveDomainContentHash(graph, snapshot, nodeId, propagation) ?? 'unknown';
-  } else {
-    contentHash = 'unknown';
-  }
+  // `unknown` records that this node kind carries no hash to write the annotation against; the
+  // freshness rule reads it back as "not comparable" rather than as a failed comparison.
+  const contentHash = resolveNodeContentHash(nodeId, {
+    graph,
+    snapshot,
+    propagation: ctx.getConfig().annotations.propagation,
+  }) ?? 'unknown';
 
   const moduleKind = inferModuleKind({ mod, node });
   const lineCount = mod ? mod.exports.reduce((m, e) => Math.max(m, e.lineRange.end), 0) : 0;

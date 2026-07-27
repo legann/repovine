@@ -53,6 +53,7 @@ validate_annotations({})
 
 For changed nodes with annotations, derive annotation obligations from `invariants`, `risks`, `dataFlow` / `flowDescription`, `integrationPoints`, and `sideEffects`, then compare the diff against them.
 
+- Read `annotationMeta.fresh` on each of those nodes first: a note with `staleReason: "propagation"` still describes this node, but its `integrationPoints`/`dataFlow` claims about upstream modules are unverified and are leads to check against the upstream, not evidence; `content` or `no-baseline` means the node text moved under the note, so no field of it is evidence for the current code.
 - A violated must-preserve invariant is a review finding.
 - A must-verify flow, integration, or parity obligation without evidence is a review finding.
 - A known risk in the same behavior class as the requested fix is not a residual risk unless the user explicitly accepted it.

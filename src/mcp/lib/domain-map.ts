@@ -1,7 +1,7 @@
 import type { RepositoryGraph } from '../../types.js';
 import { buildNodeView } from '../../graph/index.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
-import { resolveDomainContentHash } from '../../annotations/store.js';
+import { resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../config.js';
 import {
   flattenByPackage,
@@ -12,7 +12,7 @@ import {
 } from '../domain-pagination.js';
 import type { McpToolRuntime } from '../types.js';
 import { argTruncation, truncationMap } from '../../response/truncation.js';
-import { annotationFreshnessProvenance, freshAgainstHash } from './annotation-freshness.js';
+import { annotationFreshness, annotationFreshnessMeta } from '../../annotations/freshness.js';
 
 export function moduleLinkCount(graph: RepositoryGraph, moduleId: string): number {
   const view = buildNodeView(graph, moduleId);
@@ -91,14 +91,12 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
     if (domainAnn) {
       const { snapshot } = ctx.getState();
       const propagation = ctx.getConfig().annotations.propagation ?? DEFAULT_PROPAGATION_CONFIG;
-      const currentHash = resolveDomainContentHash(graph, snapshot, domainId, propagation);
-      const fresh = freshAgainstHash(domainAnn.contentHash, currentHash);
+      const currentHash = resolveNodeContentHash(domainId, { graph, snapshot, propagation });
       result.annotation = domainAnn.annotation;
       result.annotationMeta = {
         pass: domainAnn.pass,
         updatedAt: domainAnn.updatedAt,
-        ...(fresh === undefined ? {} : { fresh }),
-        provenance: annotationFreshnessProvenance(fresh),
+        ...annotationFreshnessMeta(annotationFreshness({ annotation: domainAnn, currentHash })),
       };
     }
     return result;
@@ -207,14 +205,12 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
   if (domainAnn) {
     const { snapshot } = ctx.getState();
     const propagation = ctx.getConfig().annotations.propagation ?? DEFAULT_PROPAGATION_CONFIG;
-    const currentHash = resolveDomainContentHash(graph, snapshot, domainId, propagation);
-    const fresh = freshAgainstHash(domainAnn.contentHash, currentHash);
+    const currentHash = resolveNodeContentHash(domainId, { graph, snapshot, propagation });
     result.annotation = domainAnn.annotation;
     result.annotationMeta = {
       pass: domainAnn.pass,
       updatedAt: domainAnn.updatedAt,
-      ...(fresh === undefined ? {} : { fresh }),
-      provenance: annotationFreshnessProvenance(fresh),
+      ...annotationFreshnessMeta(annotationFreshness({ annotation: domainAnn, currentHash })),
     };
   }
   return result;

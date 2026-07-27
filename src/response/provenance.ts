@@ -25,6 +25,7 @@ export type ProvenanceMethod =
   | 'iam-policy'
   | 'not-declared'
   | 'content-hash'
+  | 'import-baseline'
   | 'not-comparable'
   | 'call-name-index';
 
@@ -38,6 +39,7 @@ const BASIS_BY_METHOD: Record<ProvenanceMethod, ProvenanceBasis> = {
   'iam-policy': 'declared',
   'not-declared': 'absent',
   'content-hash': 'computed',
+  'import-baseline': 'computed',
   'not-comparable': 'absent',
   'call-name-index': 'inferred',
 };
@@ -54,6 +56,7 @@ export const ProvenanceSchema = z.strictObject({
     'iam-policy',
     'not-declared',
     'content-hash',
+    'import-baseline',
     'not-comparable',
     'call-name-index',
   ]),

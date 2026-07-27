@@ -216,6 +216,7 @@ const ANNOTATION_IMPLEMENTATION_CONSTRAINT_CHECKPOINT = `${ANNOTATION_INSPECT_SC
 
 Read relevant annotation fields before editing inspected nodes and derive annotation obligations from the existing fields:
 
+- \`annotationMeta.fresh\`: whether the note is still confirmed for this node, and the same verdict the annotation queue reports for it. When it is \`false\`, \`staleReason\` names the cause: \`content\` or \`no-baseline\` means the node text moved under the note — treat every field as a lead to verify in code, not as a claim; \`schema\` means fields are missing while the present ones still describe this text; \`propagation\` means the note matches this node but a module it imports moved, so \`integrationPoints\`, \`dataFlow\`, and cross-module invariants are the claims to re-verify against the upstream before relying on them.
 - \`invariants\`: implementation constraints that must still hold after the change.
 - \`risks\`: failure modes to mitigate, test, or explicitly ask the user to accept. ${ANNOTATION_CONSUMER_RISK_AUTHORING}
 - \`dataFlow\` / \`flowDescription\`: execution order to preserve, or intentionally change with tests.
@@ -235,6 +236,7 @@ const ANNOTATION_CONSTRAINT_REPORTING_GUIDANCE = `When reporting or handing off 
 
 const ANNOTATION_REVIEW_CONSTRAINT_CHECKPOINT = `For changed nodes with annotations, derive annotation obligations from \`invariants\`, \`risks\`, \`dataFlow\` / \`flowDescription\`, \`integrationPoints\`, and \`sideEffects\`, then compare the diff against them.
 
+- Read \`annotationMeta.fresh\` on each of those nodes first: a note with \`staleReason: "propagation"\` still describes this node, but its \`integrationPoints\`/\`dataFlow\` claims about upstream modules are unverified and are leads to check against the upstream, not evidence; \`content\` or \`no-baseline\` means the node text moved under the note, so no field of it is evidence for the current code.
 - A violated must-preserve invariant is a review finding.
 - A must-verify flow, integration, or parity obligation without evidence is a review finding.
 - A known risk in the same behavior class as the requested fix is not a residual risk unless the user explicitly accepted it.
