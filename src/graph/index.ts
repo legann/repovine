@@ -1,5 +1,6 @@
 import type { GraphNode, GraphEdge, GraphEdgeMetadata, NodeType, EdgeKind, RepositoryGraph, NodeView, ExportSymbolNodeData } from '../types.js';
 import { narrowTruncation, unavailableTruncation, type Truncation } from '../response/truncation.js';
+import { domainLabelFromId } from './node-ids.js';
 
 export { addEdge, addNode, createEmptyGraph } from './mutate.js';
 
@@ -30,6 +31,17 @@ export function countNodesOfType(graph: RepositoryGraph, type: NodeType): number
 }
 
 /**
+ * True when the graph holds this node and it is of this type.
+ *
+ * A missing node is of no type: the question is about the graph, not about the id, so an id that
+ * names nothing answers `false` rather than throwing or reading as a match. Callers that need the
+ * node itself read it — this answers only the predicate seventeen sites wrote inline.
+ */
+export function isNodeType(graph: RepositoryGraph, nodeId: string, type: NodeType): boolean {
+  return graph.nodes.get(nodeId)?.type === type;
+}
+
+/**
  * What to call this node in a response.
  *
  * Falls back to the id, which is always meaningful to the reader and always resolvable back to the
@@ -38,6 +50,17 @@ export function countNodesOfType(graph: RepositoryGraph, type: NodeType): number
  */
 export function nodeLabel(graph: RepositoryGraph, nodeId: string): string {
   return graph.nodes.get(nodeId)?.label ?? nodeId;
+}
+
+/**
+ * What to call a domain, when the caller wants a label rather than an id.
+ *
+ * Falls back to the id with its prefix stripped, so a domain node the graph no longer holds still
+ * reads as the name it had rather than as `domain:whatever`. The general {@link nodeLabel} keeps
+ * the id, which is right everywhere the reader can look the id up.
+ */
+export function domainLabel(graph: RepositoryGraph, domainId: string): string {
+  return graph.nodes.get(domainId)?.label ?? domainLabelFromId(domainId);
 }
 
 export function getParent(graph: RepositoryGraph, nodeId: string): GraphNode | undefined {
@@ -73,7 +96,7 @@ export function modulePackageId(graph: RepositoryGraph, moduleId: string): strin
 /** Module node ids this package contains. */
 export function packageModuleIds(graph: RepositoryGraph, packageId: string): string[] {
   return (graph.outEdges.get(packageId) ?? [])
-    .filter(e => e.kind === 'contains' && graph.nodes.get(e.to)?.type === 'module')
+    .filter(e => e.kind === 'contains' && isNodeType(graph, e.to, 'module'))
     .map(e => e.to);
 }
 
@@ -102,6 +125,26 @@ export function directImporters(graph: RepositoryGraph, nodeId: string): string[
   return (graph.inEdges.get(nodeId) ?? [])
     .filter(e => e.kind === 'imports' && e.from.startsWith('mod:'))
     .map(e => e.from);
+}
+
+/** Module ids this module imports directly, in edge order. The mirror of {@link directImporters}. */
+export function directImportTargets(graph: RepositoryGraph, nodeId: string): string[] {
+  return (graph.outEdges.get(nodeId) ?? [])
+    .filter(e => e.kind === 'imports' && e.to.startsWith('mod:'))
+    .map(e => e.to);
+}
+
+/**
+ * How many edges of one kind touch this node in one direction.
+ *
+ * The general counter behind the kind-specific ones. {@link importerCount} stays separate because it
+ * also asks that the other end be a module; this one answers about the edge alone.
+ */
+export function edgeCount(graph: RepositoryGraph, nodeId: string, kind: EdgeKind, direction: 'in' | 'out'): number {
+  const edges = (direction === 'in' ? graph.inEdges : graph.outEdges).get(nodeId) ?? [];
+  let n = 0;
+  for (const edge of edges) if (edge.kind === kind) n++;
+  return n;
 }
 
 /** How many modules import this node. See {@link directImporters} for why there are four counts. */
@@ -451,6 +494,35 @@ function bfs(
       if (edge.kind === 'reexports' || queuedForExpansion.has(next)) continue;
       queuedForExpansion.add(next);
       queue.push({ id: next, depth: depth + 1 });
+    }
+  }
+}
+
+/**
+ * Walk importers upward from a module, bounded by depth, visiting each once.
+ *
+ * The traversal is the whole shared part: the two callers reduce it differently — one asks whether
+ * an entrypoint is reachable, the other reconstructs the path to it — and a reduction is not a
+ * reason for a second walk. `visit` returns `'stop'` to end the walk; the parent id is passed so a
+ * caller can build a path without keeping its own queue.
+ */
+export function walkImporters(
+  graph: RepositoryGraph,
+  start: string,
+  maxDepth: number,
+  visit: (importerId: string, parentId: string) => 'stop' | 'continue',
+): void {
+  const visited = new Set<string>([start]);
+  const queue: Array<{ id: string; depth: number }> = [{ id: start, depth: 0 }];
+  while (queue.length > 0) {
+    const item = queue.shift();
+    if (item === undefined) break;
+    if (item.depth >= maxDepth) continue;
+    for (const importerId of directImporters(graph, item.id)) {
+      if (visited.has(importerId)) continue;
+      visited.add(importerId);
+      if (visit(importerId, item.id) === 'stop') return;
+      queue.push({ id: importerId, depth: item.depth + 1 });
     }
   }
 }

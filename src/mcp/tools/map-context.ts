@@ -1,4 +1,4 @@
-import { countNodesOfType, graphStats, nodesOfType } from '../../graph/index.js';
+import { countNodesOfType, graphStats, nodeLabel, nodesOfType } from '../../graph/index.js';
 import type { ToolHandler } from '../types.js';
 import { resolveScope } from '../scope/resolve.js';
 import { domainLabelFromId } from '../../graph/node-ids.js';
@@ -24,8 +24,7 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
     const { graph } = ctx.getState();
     const stats = graphStats(graph);
     const packages = nodesOfType(graph, 'package').slice(offset, offset + limit).map(id => {
-      const node = graph.nodes.get(id);
-      return { id, label: node?.label ?? id };
+      return { id, label: nodeLabel(graph, id) };
     });
     const packageTotal = countNodesOfType(graph, 'package');
     const packagesBound = pageTruncation({

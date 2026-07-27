@@ -1,7 +1,7 @@
 import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from '../../annotations/format.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
 import type { RepositoryGraph } from '../../types.js';
-import { handlerModuleIds, nodesOfType } from '../../graph/index.js';
+import { handlerModuleIds, isNodeType, nodesOfType } from '../../graph/index.js';
 import type { McpToolRuntime } from '../types.js';
 import type { ResolvedScope } from '../../scope/resolved.js';
 import { narrowTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
@@ -38,7 +38,7 @@ export function resolveHandlerModuleId(graph: RepositoryGraph, resourceId: strin
   const resourceNode = graph.nodes.get(resourceId);
   const handler = resourceNode?.type === 'runtime-resource' ? resourceNode.data?.handler : undefined;
   if (!handler) return undefined;
-  if (handler.startsWith('mod:') && graph.nodes.get(handler)?.type === 'module') return handler;
+  if (handler.startsWith('mod:') && isNodeType(graph, handler, 'module')) return handler;
 
   return nodesOfType(graph, 'module')
     .filter((moduleId) => {
@@ -97,13 +97,13 @@ export function computeRuntimeHandoff(
 ): RuntimeHandoffResult {
   const { graph } = ctx.getState();
   const candidateResourceIds = new Set(
-    args.serviceIds.filter(id => graph.nodes.get(id)?.type === 'runtime-resource'),
+    args.serviceIds.filter(id => isNodeType(graph, id, 'runtime-resource')),
   );
   const scopedResourceIds = new Set<string>();
 
   if (args.scope.kind === 'runtime-resource') {
     const resourceId = args.scope.nodeId ?? args.scope.resolvedScope;
-    if (graph.nodes.get(resourceId)?.type === 'runtime-resource') {
+    if (isNodeType(graph, resourceId, 'runtime-resource')) {
       candidateResourceIds.add(resourceId);
       scopedResourceIds.add(resourceId);
     }

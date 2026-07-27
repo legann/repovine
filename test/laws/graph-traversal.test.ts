@@ -4,8 +4,16 @@ import { describe, expect, it } from '@jest/globals';
 import {
   addEdge,
   addNode,
+  countNodesOfType,
   createEmptyGraph,
+  directImportTargets,
+  domainLabel,
   domainMembers,
+  edgeCount,
+  isNodeType,
+  nodeLabel,
+  nodesOfType,
+  walkImporters,
   handlerModuleIds,
   hasEdge,
   importerCount,
@@ -457,6 +465,92 @@ describe('core-laws graph traversal (one question, one implementation)', () => {
       .map(holders => holders.join('  ==  '));
 
     expect(duplicates).toEqual([]);
+  });
+
+  it('enumerates a node type in one place', () => {
+    // Five spellings of "the type index may be absent" were the whole difference between the call
+    // sites: `?? []`, a spread, an `if (set)` guard, an early return and a ternary.
+    const shape = /\.byType\.get\(/;
+    const offenders = otherSourceLines([GRAPH_INDEX, path.join('src', 'graph', 'mutate.ts')])
+      .filter(row => shape.test(row.line))
+      // Pruning removes a node from the index; that is a write, not an enumeration.
+      .filter(row => !row.line.includes('.delete('))
+      .map(row => `${row.rel}:${row.number}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('falls back from a missing label in one place', () => {
+    // Three fallback families existed — the id, a file path, a domain label — and the first two
+    // were written inline at every site. The named forms make the choice visible at the call.
+    const shape = /\?\.label \?\? /;
+    const offenders = otherSourceLines([GRAPH_INDEX])
+      .filter(row => shape.test(row.line))
+      // A path fallback answers a different question and says so by naming the path.
+      .filter(row => !/relativeFilePath|filePath/.test(row.line))
+      .map(row => `${row.rel}:${row.number}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('answers the graph-read helpers it declares', () => {
+    const { graph } = fixture();
+    expect(nodesOfType(graph, 'package')).toEqual([PKG]);
+    expect(nodesOfType(graph, 'template')).toEqual([]);
+    expect(countNodesOfType(graph, 'domain')).toBe(2);
+    expect(isNodeType(graph, OWNED, 'module')).toBe(true);
+    expect(isNodeType(graph, 'mod:absent', 'module')).toBe(false);
+    expect(nodeLabel(graph, OWNED)).toBe('owned');
+    expect(nodeLabel(graph, 'mod:absent')).toBe('mod:absent');
+    expect(domainLabel(graph, DOMAIN)).toBe('shared');
+    // A domain the graph no longer holds reads as the name it had, not as its id.
+    expect(domainLabel(graph, 'domain:gone')).toBe('gone');
+    expect(directImportTargets(graph, LOOSE)).toEqual([OWNED]);
+    expect(edgeCount(graph, OWNED, 'imports', 'in')).toBe(2);
+    expect(edgeCount(graph, OWNED, 'imports', 'out')).toBe(0);
+    expect(edgeCount(graph, RESOURCE, 'infra', 'out')).toBe(2);
+  });
+
+  it('walks importers once for callers that reduce it differently', () => {
+    const { graph } = fixture();
+    const seen: Array<[string, string]> = [];
+    walkImporters(graph, OWNED, 4, (importerId, parentId) => {
+      seen.push([importerId, parentId]);
+      return 'continue';
+    });
+    expect(seen.map(([id]) => id).sort()).toEqual([LOOSE, TYPE_ONLY_IMPORTER].sort());
+    expect(seen.every(([, parent]) => parent === OWNED)).toBe(true);
+
+    // `stop` ends the walk, which is what makes one traversal serve a boolean and a path.
+    const visited: string[] = [];
+    walkImporters(graph, OWNED, 4, (importerId) => {
+      visited.push(importerId);
+      return 'stop';
+    });
+    expect(visited).toHaveLength(1);
+
+    // Depth zero visits nothing: the bound is on hops, not on the start node.
+    const none: string[] = [];
+    walkImporters(graph, OWNED, 0, (id) => { none.push(id); return 'continue'; });
+    expect(none).toEqual([]);
+  });
+
+  it('walks graph adjacency in one place', () => {
+    // The merge of two importer walks into `walkImporters` removes the copies but not the option of
+    // writing a third by hand, and one hand-rolled walk is not a duplicate of anything, so the
+    // body-hash check above cannot see it. This one reads the shape.
+    //
+    // What it does not cover: a walk that spells its queue differently, and the two downstream
+    // walks named below — those follow imports outward and accumulate payloads (semantic-hint
+    // targets, a path array) rather than reducing a reachability question, which is a different
+    // traversal and belongs with the detector arithmetic.
+    const DOWNSTREAM_WALKS = [
+      path.join('src', 'analysis', 'architecture', 'detectors.ts'),
+      path.join('src', 'analysis', 'architecture', 'heuristics.ts'),
+    ];
+    const shape = /const queue: Array<\{ id: string; (depth: number|path: string\[\]) \}>/;
+    const offenders = otherSourceLines([GRAPH_INDEX, ...DOWNSTREAM_WALKS])
+      .filter(row => shape.test(row.line))
+      .map(row => `${row.rel}:${row.number}`);
+    expect(offenders).toEqual([]);
   });
 
   it('resolves the owning package in one place', () => {

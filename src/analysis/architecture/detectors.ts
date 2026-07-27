@@ -458,7 +458,7 @@ export function detectFlowConvergence(
     const genericOnly = targetList.length > 0 && targetList.every(id => flow.genericTargetIds.has(id));
     if (genericOnly && repeatedPrepKeys.length === 0) continue;
     const targetLabel = targetList.length === 1
-      ? graph.nodes.get(targetList[0])?.label ?? targetList[0]
+      ? nodeLabel(graph, targetList[0])
       : `${flow.groupKey} (${targetList.length} sibling target(s))`;
     const confidence = Math.min(
       0.9,
@@ -1078,7 +1078,6 @@ export function detectEventDrivenBoundary(
     const producers = (graph.inEdges.get(resourceId) ?? []).filter(e => e.kind === 'publishes' && serviceSet.has(e.from)).map(e => e.from);
     const consumers = (graph.outEdges.get(resourceId) ?? []).filter(e => e.kind === 'consumes' && serviceSet.has(e.to)).map(e => e.to);
     if (producers.length === 0 || consumers.length === 0) continue;
-    const resourceNode = graph.nodes.get(resourceId);
     findings.push(build({
       id: `event-driven-boundary:${resourceId}`,
       category: 'event-driven-boundary',
@@ -1089,7 +1088,7 @@ export function detectEventDrivenBoundary(
       evidence: [
         `${producers.length} producer service(s): ${labelsOf(graph, producers).join(', ')}`,
         `${consumers.length} consumer service(s): ${labelsOf(graph, consumers).join(', ')}`,
-        `Resource: ${resourceNode?.label ?? resourceId}`,
+        `Resource: ${nodeLabel(graph, resourceId)}`,
       ],
       suggestion: 'Treat this as a candidate bounded context boundary: check event schema ownership, idempotency, retry behavior, and whether shared business logic should be extracted instead of imported across services.',
     }));

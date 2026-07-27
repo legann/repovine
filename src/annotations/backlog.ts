@@ -31,7 +31,7 @@ import {
 } from './content-hash.js';
 import { getParentInfraModuleId } from './service-resource-hash.js';
 import { domainLabelFromId, domainNodeId } from '../graph/node-ids.js';
-import { domainMembers, importerCount, isPackageOnlyDomain, nodesOfType, taggedDomains } from '../graph/index.js';
+import { domainLabel, domainMembers, importerCount, isPackageOnlyDomain, nodeLabel, nodesOfType, taggedDomains } from '../graph/index.js';
 import { computeEntrypointBoundedDerived, getImportBaselineStaleUpstream } from './propagation.js';
 import { inferModuleKind, recommendedFieldsForKind, type ModuleKind } from './module-kind.js';
 import { computeAnnotationQuality } from './quality.js';
@@ -377,7 +377,7 @@ function domainCarriesFreshnessQuestion(
   if (propagation.domainStalePolicy !== 'path-only' || propagation.packageDomainHardQueue) {
     return true;
   }
-  const label = graph.nodes.get(domainId)?.label ?? domainLabelFromId(domainId);
+  const label = domainLabel(graph, domainId);
   if (label.includes('/')) return true;
   return !isPackageOnlyDomain(graph, domainId);
 }
@@ -770,7 +770,6 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
     if (!classified) continue;
     const status = classified.status;
 
-    const node = graph.nodes.get(serviceId);
     const urgency = 1;
     const phase: QueuePhase = 'runtime-resource';
     const reason = status === 'stale'
@@ -793,7 +792,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
       },
       hydrate: () => ({
         nodeId: serviceId,
-        label: node?.label ?? serviceId,
+        label: nodeLabel(graph, serviceId),
         status,
         ...(serviceStaleKind ? { staleKind: serviceStaleKind } : {}),
         domains,
@@ -818,7 +817,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
   // the containing domain, and for a domain there is no distinct "code" to compare instead.
   for (const domainId of nodesOfType(graph, 'domain')) {
     const node = graph.nodes.get(domainId);
-    const label = node?.label ?? domainLabelFromId(domainId);
+    const label = domainLabel(graph, domainId);
     const memberCount = domainMembers(graph, domainId).all.length;
 
     // Tier census covers every domain node in the graph, scoped or not.

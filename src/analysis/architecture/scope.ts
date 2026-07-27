@@ -8,7 +8,7 @@
  */
 
 import type { RepositoryGraph } from '../../types.js';
-import { domainMembers, infraTargetIds, modulePackageId, nodesOfType, packageModuleIds } from '../../graph/index.js';
+import { domainMembers, infraTargetIds, isNodeType, modulePackageId, nodesOfType, packageModuleIds } from '../../graph/index.js';
 import type { ResolvedScope, ScopeKind } from '../../scope/resolved.js';
 import type { RefactoringScope } from './types.js';
 
@@ -54,7 +54,7 @@ export function scopedGraphIds(
 
   if (scope.kind === 'all') {
     return {
-      moduleIds: new Set([...modulesById.keys()].filter(id => graph.nodes.get(id)?.type === 'module')),
+      moduleIds: new Set([...modulesById.keys()].filter(id => isNodeType(graph, id, 'module'))),
       serviceIds: new Set(nodesOfType(graph, 'runtime-resource')),
       domainIds: allDomainIds,
       scope: 'all',

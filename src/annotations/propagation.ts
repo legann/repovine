@@ -2,8 +2,8 @@ import { entrypointHandlerModuleId, type EntrypointFragment } from '../interpret
 import type { PropagationConfig } from '../config.js';
 import { DEFAULT_CONTRACT_HUB_THRESHOLDS } from '../config.js';
 import type { ModuleInfo, RepositoryGraph, RepositoryFactsSnapshot, StoredAnnotation } from '../types.js';
-import { countNodesOfType, directImporters, importerCount, isTaggedEdge, modulePackageId } from '../graph/index.js';
-import { domainLabelFromId, isDomainNodeId } from '../graph/node-ids.js';
+import { countNodesOfType, directImporters, domainLabel, importerCount, isTaggedEdge, modulePackageId, walkImporters } from '../graph/index.js';
+import { isDomainNodeId } from '../graph/node-ids.js';
 import { importBaselineStaleUpstream } from './content-hash.js';
 import { annotationFreshness, contentMoved } from './freshness.js';
 
@@ -161,23 +161,13 @@ export function reachesEntrypoint(
 ): boolean {
   if (entryModuleIds.has(moduleId)) return true;
 
-  const visited = new Set<string>([moduleId]);
-  const queue: Array<{ id: string; depth: number }> = [{ id: moduleId, depth: 0 }];
-
-  while (queue.length > 0) {
-    const { id: current, depth } = queue.shift()!;
-    if (depth >= maxDepth) continue;
-
-    for (const edge of graph.inEdges?.get(current) ?? []) {
-      if (edge.kind !== 'imports' || !edge.from.startsWith('mod:')) continue;
-      if (entryModuleIds.has(edge.from)) return true;
-      if (!visited.has(edge.from)) {
-        visited.add(edge.from);
-        queue.push({ id: edge.from, depth: depth + 1 });
-      }
-    }
-  }
-  return false;
+  let reached = false;
+  walkImporters(graph, moduleId, maxDepth, (importerId) => {
+    if (!entryModuleIds.has(importerId)) return 'continue';
+    reached = true;
+    return 'stop';
+  });
+  return reached;
 }
 
 /** True when importer has importBaseline drift on a configured hub upstream. */
@@ -465,10 +455,10 @@ export function computePropagationPreview(input: {
         if (propagation.domainStalePolicy !== 'path-only') return true;
         const tagSource = e.metadata?.tagSource;
         if (tagSource === 'path' || tagSource === 'pattern') return true;
-        const label = graph.nodes.get(e.to)?.label ?? domainLabelFromId(e.to);
+        const label = domainLabel(graph, e.to);
         return label.includes('/');
       })
-      .map(e => graph.nodes.get(e.to)?.label ?? domainLabelFromId(e.to));
+      .map(e => domainLabel(graph, e.to));
   }
 
   const entrypointsOut = entrypoints
@@ -519,28 +509,14 @@ export function buildPropagationSlice(input: {
   }
 
   const parent = new Map<string, string>();
-  const visited = new Set<string>([from]);
-  const queue: Array<{ id: string; depth: number }> = [{ id: from, depth: 0 }];
   let targetEntry: string | undefined;
 
-  while (queue.length > 0 && !targetEntry) {
-    const { id: current, depth } = queue.shift()!;
-    if (depth >= maxDepth) continue;
-
-    for (const edge of graph.inEdges?.get(current) ?? []) {
-      if (edge.kind !== 'imports' || !edge.from.startsWith('mod:')) continue;
-      const importer = edge.from;
-      if (!visited.has(importer)) {
-        visited.add(importer);
-        parent.set(importer, current);
-        if (entryRoots.has(importer)) {
-          targetEntry = importer;
-          break;
-        }
-        queue.push({ id: importer, depth: depth + 1 });
-      }
-    }
-  }
+  walkImporters(graph, from, maxDepth, (importerId, parentId) => {
+    parent.set(importerId, parentId);
+    if (!entryRoots.has(importerId)) return 'continue';
+    targetEntry = importerId;
+    return 'stop';
+  });
 
   if (!targetEntry) return undefined;
 

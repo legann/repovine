@@ -1,4 +1,5 @@
 import { parseIntegrationPointTargets } from '../../annotations/carrier-links.js';
+import { edgeCount } from '../../graph/index.js';
 import { HUB_IMPORTER_FLOOR, DELIVERY_MECHANICS, DELIVERY_MECHANIC_PRIORITY } from '../../mechanics/registry.js';
 import type { DeliveryMechanicContext } from '../../mechanics/types.js';
 import type { AnnotationContent, EdgeKind, InvestigateTag, NodeViewDetail, RepositoryGraph } from '../../types.js';
@@ -45,9 +46,8 @@ const STRUCTURAL_REF_CAPS: ReadonlyArray<{ tag: InvestigateTag; cap: number }> =
  */
 export function computeHubInDegreeThreshold(graph: RepositoryGraph): number {
   const degrees: number[] = [];
-  for (const edges of graph.inEdges.values()) {
-    let n = 0;
-    for (const edge of edges) if (edge.kind === 'imports') n++;
+  for (const targetId of graph.inEdges.keys()) {
+    const n = edgeCount(graph, targetId, 'imports', 'in');
     if (n > 0) degrees.push(n);
   }
   if (degrees.length === 0) return HUB_IMPORTER_FLOOR;

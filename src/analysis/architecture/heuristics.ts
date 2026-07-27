@@ -8,6 +8,7 @@
 
 import type { RepositoryGraph, ModuleInfo, StoredAnnotation, GraphEdge } from '../../types.js';
 import { domainLabelFromId, domainNodeId } from '../../graph/node-ids.js';
+import { isNodeType } from '../../graph/index.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { serializeSideEffect } from '../../annotations/side-effect-vocab.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
@@ -294,7 +295,7 @@ export function rootDomainId(graph: RepositoryGraph, domainId: string): string {
     const node = graph.nodes.get(current);
     if (node?.type === 'domain' && node.data?.parent) {
       const parentId = domainNodeId(domainLabelFromId(node.data.parent));
-      if (graph.nodes.get(parentId)?.type === 'domain') {
+      if (isNodeType(graph, parentId, 'domain')) {
         current = parentId;
         continue;
       }
@@ -303,7 +304,7 @@ export function rootDomainId(graph: RepositoryGraph, domainId: string): string {
     const slashIdx = withoutPrefix.indexOf('/');
     if (slashIdx > 0) {
       const parentId = domainNodeId(withoutPrefix.slice(0, slashIdx));
-      if (graph.nodes.get(parentId)?.type === 'domain') {
+      if (isNodeType(graph, parentId, 'domain')) {
         current = parentId;
         continue;
       }

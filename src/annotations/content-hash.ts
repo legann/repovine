@@ -16,8 +16,8 @@ import type {
   RepositoryGraph,
 } from '../types.js';
 import type { PropagationConfig } from '../config.js';
-import { domainLabelFromId } from '../graph/node-ids.js';
-import { isAuthoredTag, isPackageOnlyDomain, isTaggedEdge } from '../graph/index.js';
+
+import { directImportTargets, domainLabel, isAuthoredTag, isPackageOnlyDomain, isTaggedEdge } from '../graph/index.js';
 import {
   buildRuntimeResourceContentHashLookup,
   resolveServiceResourceContentHash,
@@ -251,7 +251,7 @@ export function resolveDomainContentHash(
   lookup?: NodeContentHashLookup,
 ): string | undefined {
   if (propagation.domainStalePolicy === 'path-only') {
-    const label = graph.nodes.get(domainId)?.label ?? domainLabelFromId(domainId);
+    const label = domainLabel(graph, domainId);
     if (label.includes('/') || !isPackageOnlyDomain(graph, domainId)) {
       return computeDomainContentHashForPathOnly(graph, snapshot, domainId, lookup);
     }
@@ -278,10 +278,7 @@ export function resolveCachedDomainContentHash(
 
 /** Direct module import targets (`imports` edges from moduleId). */
 export function getDirectImportModuleIds(graph: RepositoryGraph, moduleId: string): string[] {
-  const out = graph.outEdges.get(moduleId) ?? [];
-  return out
-    .filter(e => e.kind === 'imports' && e.to.startsWith('mod:'))
-    .map(e => e.to);
+  return directImportTargets(graph, moduleId);
 }
 
 /** Snapshot current direct-import content hashes for persisting on write/ack. */

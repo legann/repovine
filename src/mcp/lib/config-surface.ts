@@ -90,7 +90,7 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
           : edge.kind === 'uses_env' ? 'env' : 'resource-binding';
         push({
           kind: itemKind,
-          name: target?.label ?? edge.to,
+          name: nodeLabel(graph, edge.to),
           resourceId: edge.to,
           relation: edge.kind,
           moduleId: mod.id,

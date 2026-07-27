@@ -1,5 +1,5 @@
 import type { ExportInfo, ModuleInfo, RepositoryGraph, RepositoryFactsSnapshot } from '../../types.js';
-import { addNode, addEdge } from '../../graph/index.js';
+import { addEdge, addNode, directImportTargets } from '../../graph/index.js';
 import { shortModuleLabel } from '../../stage2/module-label.js';
 
 /**
@@ -238,9 +238,7 @@ function passBarrelImportLinks(graph: RepositoryGraph, snapshot: RepositoryFacts
   };
 
   for (const mod of snapshot.modules) {
-    const existing = new Set(
-      (graph.outEdges.get(mod.id) ?? []).filter(e => e.kind === 'imports').map(e => e.to),
-    );
+    const existing = new Set(directImportTargets(graph, mod.id));
     // Accumulate the imported names that route to each leaf, so the redirected edge carries every
     // name (the reverse-by-export query filters on it) and we add one edge per leaf.
     const namesByLeaf = new Map<string, Set<string>>();

@@ -11,7 +11,7 @@ import { riskEntryTexts } from '../../annotations/format.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { annotationSecretFieldPaths } from './annotation-secret.js';
 import { workflowSignalKinds } from './component-signals.js';
-import { modulePackageId, nodeLabel, packageModuleIds, taggedDomains } from '../../graph/index.js';
+import { isNodeType, modulePackageId, nodeLabel, packageModuleIds, taggedDomains } from '../../graph/index.js';
 import type { RefactoringFinding } from './types.js';
 import { coupledTargetRole, frontendDataAccessTargetKey, frontendFeatureKey, isFrontendFlowEntryModule, isRuntimeImportEdge, maxModuleLine, policyTokens, runtimeFanIn, runtimeFanOut, stateModuleKind, uiCouplingTargetRole } from './heuristics.js';
 
@@ -33,7 +33,7 @@ export function refactoringNodeSummary(
   const fanOut = runtimeFanOut(graph, nodeId);
   const summary: Record<string, unknown> = {
     id: nodeId,
-    label: node?.label ?? nodeId,
+    label: nodeLabel(graph, nodeId),
     type: node?.type ?? 'unknown',
   };
   if (mod) {
@@ -120,7 +120,7 @@ export function refactoringCategoryDetail(
   switch (finding.category) {
     case 'boundary': {
       const targetId = finding.nodes[0];
-      const importers = finding.nodes.slice(1).filter(id => graph.nodes.get(id)?.type === 'module');
+      const importers = finding.nodes.slice(1).filter(id => isNodeType(graph, id, 'module'));
       const symbols = new Set<string>();
       for (const importerId of importers) {
         const mod = modulesById.get(importerId);
@@ -130,7 +130,7 @@ export function refactoringCategoryDetail(
       }
       const targetPackageId = modulePackageId(graph, targetId);
       const packageIndexModules = targetPackageId
-        ? packageModuleIds(graph, targetPackageId).filter(id => (graph.nodes.get(id)?.label ?? '').endsWith('/index'))
+        ? packageModuleIds(graph, targetPackageId).filter(id => nodeLabel(graph, id).endsWith('/index'))
         : [];
       return { targetId, targetPackageId, importers, importedSymbols: [...symbols].slice(0, 30), packageIndexModules };
     }
@@ -149,7 +149,7 @@ export function refactoringCategoryDetail(
     case 'god-domain':
     case 'low-cohesion': {
       const domainId = finding.nodes[0];
-      const modules = finding.nodes.slice(1).filter(id => graph.nodes.get(id)?.type === 'module');
+      const modules = finding.nodes.slice(1).filter(id => isNodeType(graph, id, 'module'));
       let internalImports = 0;
       let externalImports = 0;
       for (const modId of modules) {
@@ -193,7 +193,7 @@ export function refactoringCategoryDetail(
       return { targets, entrypoints, targetOrGroupKey: finding.id.replace(/^flow-convergence:/, '') };
     }
     case 'state-fragmentation': {
-      const modules = finding.nodes.filter(id => graph.nodes.get(id)?.type === 'module');
+      const modules = finding.nodes.filter(id => isNodeType(graph, id, 'module'));
       return {
         feature: finding.id.replace(/^state-fragmentation:/, ''),
         stateModules: modules.map(id => ({ id, kind: modulesById.get(id) ? stateModuleKind(modulesById.get(id)!) : undefined })),
@@ -445,8 +445,8 @@ export function refactoringCategoryDetail(
     case 'unclear-architecture':
       return {
         affectedNode: finding.nodes[0],
-        domains: finding.nodes.slice(1).filter(id => graph.nodes.get(id)?.type === 'domain'),
-        runtimeResource: graph.nodes.get(finding.nodes[0])?.type === 'runtime-resource' ? graph.nodes.get(finding.nodes[0])?.data : undefined,
+        domains: finding.nodes.slice(1).filter(id => isNodeType(graph, id, 'domain')),
+        runtimeResource: isNodeType(graph, finding.nodes[0], 'runtime-resource') ? graph.nodes.get(finding.nodes[0])?.data : undefined,
       };
   }
 }

@@ -1,5 +1,5 @@
 import type { EdgeKind, NodeViewChild, NodeViewDetail, RepositoryGraph } from '../../types.js';
-import { buildNodeView, forwardImportClosure, importerCount } from '../../graph/index.js';
+import { buildNodeView, edgeCount, forwardImportClosure, importerCount } from '../../graph/index.js';
 import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { hashedNodeKind, resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { annotationFreshness, annotationFreshnessMeta } from '../../annotations/freshness.js';
@@ -34,11 +34,7 @@ import {
  * mechanics. Same cost class as `importerCount`; no memoization.
  */
 export function graphEdgeCount(graph: RepositoryGraph): (id: string, kind: EdgeKind, dir: 'in' | 'out') => number {
-  return (id, kind, dir) => {
-    let n = 0;
-    for (const e of (dir === 'in' ? graph.inEdges : graph.outEdges).get(id) ?? []) if (e.kind === kind) n++;
-    return n;
-  };
+  return (id, kind, dir) => edgeCount(graph, id, kind, dir);
 }
 
 export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<string, unknown>): Promise<unknown> {

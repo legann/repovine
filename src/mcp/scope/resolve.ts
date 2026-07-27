@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import type { PackageNodeData, RepositoryGraph, TemplateNodeData } from '../../types.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
-import { countNodesOfType, isTaggedInto, modulePackageId, nodesOfType } from '../../graph/index.js';
+import { countNodesOfType, isNodeType, isTaggedInto, modulePackageId, nodesOfType } from '../../graph/index.js';
 import { domainLabelFromId, domainNodeId, isDomainNodeId } from '../../graph/node-ids.js';
 import type { ResolvedScope } from '../../scope/resolved.js';
 import type { McpToolRuntime } from '../types.js';
@@ -162,7 +162,7 @@ export function resolveModulePathAlias(ctx: McpToolRuntime, raw: string): string
 }
 
 export function resolveTemplateAlias(graph: RepositoryGraph, raw: string): string | undefined {
-  if (graph.nodes.has(raw) && graph.nodes.get(raw)?.type === 'template') return raw;
+  if (graph.nodes.has(raw) && isNodeType(graph, raw, 'template')) return raw;
   const value = raw.startsWith('template:') ? raw.slice('template:'.length) : raw;
   if (!value.trim()) return undefined;
   const normalized = normalizeLookupPath(value);
@@ -283,8 +283,8 @@ export function resolveScope(ctx: McpToolRuntime, scopeArg?: unknown): ResolvedS
 }
 
 export function parentModuleId(graph: RepositoryGraph, nodeId: string): string | undefined {
-  if (graph.nodes.get(nodeId)?.type === 'module') return nodeId;
-  const parentEdge = (graph.inEdges.get(nodeId) ?? []).find(e => e.kind === 'contains' && graph.nodes.get(e.from)?.type === 'module');
+  if (isNodeType(graph, nodeId, 'module')) return nodeId;
+  const parentEdge = (graph.inEdges.get(nodeId) ?? []).find(e => e.kind === 'contains' && isNodeType(graph, e.from, 'module'));
   return parentEdge?.from;
 }
 

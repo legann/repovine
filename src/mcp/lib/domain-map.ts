@@ -1,5 +1,5 @@
 import type { RepositoryGraph } from '../../types.js';
-import { buildNodeView, domainMembers, isPatternTag, isPrimaryTag, isTaggedEdge, modulePackageId, nodeLabel } from '../../graph/index.js';
+import { buildNodeView, domainMembers, isNodeType, isPatternTag, isPrimaryTag, isTaggedEdge, modulePackageId, nodeLabel } from '../../graph/index.js';
 import { domainNodeId } from '../../graph/node-ids.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
 import { resolveNodeContentHash } from '../../annotations/content-hash.js';
@@ -75,8 +75,7 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
     }
     if (subdomainIds?.length) {
       result.subdomains = subdomainIds.map(sid => {
-        const sNode = graph.nodes.get(sid);
-        return { id: sid, label: sNode?.label ?? sid, moduleCount: domainMembers(graph, sid).modules.length };
+        return { id: sid, label: nodeLabel(graph, sid), moduleCount: domainMembers(graph, sid).modules.length };
       });
     }
     const domainAnn = annotations.get(domainId);
@@ -116,7 +115,7 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
   // Named for what it holds. An unfiltered set reported runtime resources and subdomain nodes under
   // `taggedModules`, and the `byPackage` listing below — which does filter — then contradicted it in
   // the same response.
-  const taggedModuleIds = new Set(taggedEdges.map(e => e.from).filter(id => graph.nodes.get(id)?.type === 'module'));
+  const taggedModuleIds = new Set(taggedEdges.map(e => e.from).filter(id => isNodeType(graph, id, 'module')));
   const taggedNonModuleCount = taggedEdges.length - taggedModuleIds.size;
   const secondaryMatchCount = incoming.filter(isPatternTag).length;
   const allIds = new Set(taggedModuleIds);
@@ -136,7 +135,7 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
     }
   }
   const groupByPackage = (ids: Iterable<string>): PackageGrouping => regroupByPackage(
-    [...ids].filter(id => graph.nodes.get(id)?.type === 'module').map(id => ({ id, label: nodeLabel(graph, id) })),
+    [...ids].filter(id => isNodeType(graph, id, 'module')).map(id => ({ id, label: nodeLabel(graph, id) })),
     id => modulePackageId(graph, id),
   );
   const domainNode = graph.nodes.get(domainId);

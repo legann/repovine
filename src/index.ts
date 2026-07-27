@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { collectRepositoryFactsAsync } from './stage1/index.js';
 import { composeRepositoryGraph } from './stage2/index.js';
-import { graphStats, pathFromRoot, getImpact, domainMembers } from './graph/index.js';
+import { graphStats, pathFromRoot, getImpact, domainMembers, nodesOfType } from './graph/index.js';
 import { repoRoot, cacheDir } from './paths.js';
 
 async function main(): Promise<void> {
@@ -72,11 +72,8 @@ async function main(): Promise<void> {
   }
 
   console.log('\n── Demo: domain tagged modules ──\n');
-  const domains = graph.byType.get('domain');
-  if (domains) {
-    for (const domainId of domains) {
-      console.log(`  ${domainId}: ${domainMembers(graph, domainId).all.length} members`);
-    }
+  for (const domainId of nodesOfType(graph, 'domain')) {
+    console.log(`  ${domainId}: ${domainMembers(graph, domainId).all.length} members`);
   }
 
   // ── Write snapshot ──
