@@ -1,5 +1,5 @@
 import type { GraphDelta, RepositoryGraph, TemplateFileInfo } from '../../types.js';
-import { addNode, addEdge, emptyGraphDelta } from '../../graph/index.js';
+import { addNode, addEdge, emptyGraphDelta, hasEdge } from '../../graph/index.js';
 import type { InterpreterGraphContext } from '../../interpreter/types.js';
 
 export const SERVER_TEMPLATES_INTERPRETER_ID = 'server-templates';
@@ -44,7 +44,7 @@ export function contributeServerTemplates(ctx: InterpreterGraphContext): GraphDe
         for (const name of names) {
           const templateId = resolve(name);
           if (!templateId) continue;
-          if (hasTemplateEdge(graph, viewId, templateId, 'renders')) continue;
+          if (hasEdge(graph, viewId, 'renders', templateId)) continue;
           addEdge(graph, viewId, templateId, 'renders');
         }
       }
@@ -53,14 +53,14 @@ export function contributeServerTemplates(ctx: InterpreterGraphContext): GraphDe
     for (const t of templates) {
       if (t.extendsTemplate) {
         const parentId = resolve(t.extendsTemplate);
-        if (parentId && parentId !== t.id && !hasTemplateEdge(graph, t.id, parentId, 'extends')) {
+        if (parentId && parentId !== t.id && !hasEdge(graph, t.id, 'extends', parentId)) {
           addEdge(graph, t.id, parentId, 'extends');
         }
       }
 
       for (const name of t.includesTemplate ?? []) {
         const partialId = resolve(name);
-        if (partialId && partialId !== t.id && !hasTemplateEdge(graph, t.id, partialId, 'includes')) {
+        if (partialId && partialId !== t.id && !hasEdge(graph, t.id, 'includes', partialId)) {
           addEdge(graph, t.id, partialId, 'includes');
         }
       }
@@ -131,13 +131,4 @@ function resolveViewNodeId(graph: RepositoryGraph, modId: string, component: str
     if (graph.nodes.has(exportId)) return exportId;
   }
   return modId;
-}
-
-function hasTemplateEdge(
-  graph: RepositoryGraph,
-  from: string,
-  to: string,
-  kind: 'renders' | 'extends' | 'includes',
-): boolean {
-  return (graph.outEdges.get(from) ?? []).some(e => e.kind === kind && e.to === to);
 }

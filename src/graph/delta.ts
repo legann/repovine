@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { EDGE_KINDS, NODE_DATA_KEYS, NODE_TYPES } from '../types.js';
 import type { EdgeKind, GraphDelta, GraphEdge, GraphNode, NodeType, RepositoryGraph } from '../types.js';
+import { compareCodeUnits } from '../platform/ordering.js';
+import { addEdge as addDeltaEdge, addNode as addDeltaNode } from './mutate.js';
 
 export type GraphDeltaLogLevel = 'debug' | 'warn' | 'error';
 
@@ -118,7 +120,7 @@ export function applyValidated(
       nodeIdsInDelta.add(node.id);
       return !existingNodeIds.has(node.id);
     })
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => compareCodeUnits(a.id, b.id));
 
   for (const node of nodes) addDeltaNode(graph, node);
 
@@ -134,39 +136,9 @@ export function applyValidated(
       edgeKeys.add(key);
       return true;
     })
-    .sort((a, b) => edgeKey(a).localeCompare(edgeKey(b)));
+    .sort((a, b) => compareCodeUnits(edgeKey(a), edgeKey(b)));
 
   for (const edge of edges) addDeltaEdge(graph, edge.from, edge.to, edge.kind as EdgeKind, edge.metadata);
-}
-
-function addDeltaNode(graph: RepositoryGraph, node: GraphNode): void {
-  graph.nodes.set(node.id, node);
-
-  let typeSet = graph.byType.get(node.type);
-  if (!typeSet) {
-    typeSet = new Set();
-    graph.byType.set(node.type, typeSet);
-  }
-  typeSet.add(node.id);
-}
-
-function addDeltaEdge(
-  graph: RepositoryGraph,
-  from: string,
-  to: string,
-  kind: EdgeKind,
-  metadata?: GraphEdge['metadata'],
-): void {
-  const edge: GraphEdge = metadata ? { from, to, kind, metadata } : { from, to, kind };
-  graph.edges.push(edge);
-
-  let out = graph.outEdges.get(from);
-  if (!out) { out = []; graph.outEdges.set(from, out); }
-  out.push(edge);
-
-  let inc = graph.inEdges.get(to);
-  if (!inc) { inc = []; graph.inEdges.set(to, inc); }
-  inc.push(edge);
 }
 
 function edgeKey(edge: GraphEdge): string {

@@ -57,6 +57,10 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
       // Cross-platform path primitives: by design shared by core,
       // CLI, and source plugins — dependency-free id/path plumbing.
       'platform/paths.ts',
+      // Code-unit string comparison. Same reason as `fs/read-dir-sorted.ts` one axis over: a
+      // producer that ordered its own output by locale would make the projection depend on
+      // LANG/LC_ALL and the host ICU build. Dependency-free, one function.
+      'platform/ordering.ts',
       // Directory enumeration in a host-independent order. Node order follows discovery order, so
       // every producer must read directories the same way or the same repository projects
       // differently per filesystem. Mechanical, and shared with core for that reason.

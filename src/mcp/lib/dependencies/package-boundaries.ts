@@ -1,4 +1,5 @@
 import type { McpToolRuntime } from '../../types.js';
+import { modulePackageId, nodesOfType } from '../../../graph/index.js';
 import { paginateList } from '../../response/pagination.js';
 import { narrowTruncation, truncationMap } from '../../../response/truncation.js';
 
@@ -10,11 +11,7 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
   const limit = typeof args.limit === 'number' ? Math.max(1, args.limit) : 20;
   const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
 
-  const pkgOfModule = (modId: string): string | undefined => {
-    const edges = graph.inEdges.get(modId) ?? [];
-    const pkgEdge = edges.find(e => e.kind === 'contains' && e.from.startsWith('pkg:'));
-    return pkgEdge?.from;
-  };
+  const pkgOfModule = (modId: string): string | undefined => modulePackageId(graph, modId);
 
   type ModuleBoundaryEdge = {
     fromModuleId: string;
@@ -127,7 +124,7 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
   };
   const groups = new Map<string, ViolationGroup>();
   const moduleLabels = new Set(
-    [...(graph.byType.get('module') ?? [])]
+    nodesOfType(graph, 'module')
       .map(id => graph.nodes.get(id)?.label)
       .filter((label): label is string => typeof label === 'string'),
   );

@@ -149,7 +149,8 @@ const baseToolDefs: ToolDef[] = [
     name: 'map_context',
     description:
       'Map the architectural area for a scope before reading code. Returns domain/package/module context, top connected modules, subdomains, semantic summary, and navigation. ' +
-      'Use this after search_context or when the user names a feature/package/module directly. Empty/unresolved maps include emptyDiagnostic with reason and conditional nextActions.',
+      'Use this after search_context or when the user names a feature/package/module directly. Empty/unresolved maps include emptyDiagnostic with reason and conditional nextActions. ' +
+      'On a domain scope, taggedModules counts modules and taggedNonModuleCount the resources and subdomains beside them; byPackage keys are package ids, and modules under no package sit in withoutPackage.',
     schema: z.object({
       scope: ScopeSchema,
       view: z.enum(['summary', 'modules', 'path']).optional().describe('Map shape to prefer. Default summary.'),

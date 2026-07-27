@@ -1,4 +1,5 @@
 import type { RepositoryFactsSnapshot, RepositoryGraph, StoredAnnotation } from '../types.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 import { owningModuleId } from '../graph/node-ids.js';
 import { normalizeRisks } from './format.js';
 import { parseIntegrationPointTargets } from './carrier-links.js';
@@ -180,7 +181,7 @@ function boundaryReasons(
 function riskScopeCandidateSort(a: RiskScopeCandidate, b: RiskScopeCandidate): number {
   if (a.suggestedScope !== b.suggestedScope) return a.suggestedScope === 'boundary' ? -1 : 1;
   return b.reasons.length - a.reasons.length
-    || a.nodeId.localeCompare(b.nodeId)
+    || compareCodeUnits(a.nodeId, b.nodeId)
     || a.riskIndex - b.riskIndex;
 }
 
@@ -202,7 +203,7 @@ export function computeRiskScopeCandidates(input: {
   suggestedScope?: RiskScopeSuggestion;
 }): RiskScopeCandidatesPage {
   const candidates: RiskScopeCandidate[] = [];
-  for (const [nodeId, annotation] of Object.entries(input.annotations).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [nodeId, annotation] of Object.entries(input.annotations).sort(([a], [b]) => compareCodeUnits(a, b))) {
     if (!nodeInScopeHints(nodeId, input.scopeHints)) continue;
     const node = input.graph.nodes.get(nodeId);
     const nodeType = node && isCandidateNodeType(node.type) ? node.type : annotation.nodeType;

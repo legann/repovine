@@ -10,6 +10,7 @@
  * Needs-work nodes also get a {@link BacklogRow}; item text is built by `hydrate` so a caller that
  * only counts never pays for prose.
  */
+import { compareCodeUnits } from '../platform/ordering.js';
 import type {
   ModuleInfo,
   RepositoryFactsSnapshot,
@@ -23,13 +24,14 @@ import { DEFAULT_PROPAGATION_CONFIG } from '../config.js';
 import type { EntrypointFragment } from '../interpreter/types.js';
 import { annotationFreshness, type FreshnessVerdict, type StaleReason } from './freshness.js';
 import {
-  isPackageOnlyDomain,
   nodeContentHashLookup,
   resolveCachedDomainContentHash,
   resolveLeafNodeContentHash,
   type DomainContentHashCache,
 } from './content-hash.js';
 import { getParentInfraModuleId } from './service-resource-hash.js';
+import { domainLabelFromId, domainNodeId } from '../graph/node-ids.js';
+import { domainMembers, importerCount, isPackageOnlyDomain, nodesOfType, taggedDomains } from '../graph/index.js';
 import { computeEntrypointBoundedDerived, getImportBaselineStaleUpstream } from './propagation.js';
 import { inferModuleKind, recommendedFieldsForKind, type ModuleKind } from './module-kind.js';
 import { computeAnnotationQuality } from './quality.js';
@@ -235,7 +237,7 @@ function compareQueueItems(a: BacklogRow, b: BacklogRow): number {
     || a._sort.dependencyDepth - b._sort.dependencyDepth
     || b._sort.domainDepth - a._sort.domainDepth
     || b._sort.urgency - a._sort.urgency
-    || a.nodeId.localeCompare(b.nodeId);
+    || compareCodeUnits(a.nodeId, b.nodeId);
 }
 
 /** Queue order: content-stale first, then phase, then bottom-up by dependency depth. Sorts in place. */
@@ -375,7 +377,7 @@ function domainCarriesFreshnessQuestion(
   if (propagation.domainStalePolicy !== 'path-only' || propagation.packageDomainHardQueue) {
     return true;
   }
-  const label = graph.nodes.get(domainId)?.label ?? domainId.replace(/^domain:/, '');
+  const label = graph.nodes.get(domainId)?.label ?? domainLabelFromId(domainId);
   if (label.includes('/')) return true;
   return !isPackageOnlyDomain(graph, domainId);
 }
@@ -415,17 +417,6 @@ function computeModuleDependencyDepths(graph: RepositoryGraph, moduleIds: Iterab
 }
 
 /** Domain node ids and labels a node is tagged to, read once per node. */
-function taggedDomains(graph: RepositoryGraph, nodeId: string): { ids: string[]; labels: string[] } {
-  const ids: string[] = [];
-  const labels: string[] = [];
-  for (const edge of graph.outEdges.get(nodeId) ?? []) {
-    if (edge.kind !== 'tagged') continue;
-    ids.push(edge.to);
-    labels.push(graph.nodes.get(edge.to)?.label ?? edge.to);
-  }
-  return { ids, labels };
-}
-
 /**
  * Walk the annotatable surface once, producing the needs-work rows and the coverage tallies that
  * must agree with them.
@@ -441,7 +432,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
   } = input;
 
   const scopedDomainId = domain
-    ? (domain.startsWith('domain:') ? domain : `domain:${domain}`)
+    ? domainNodeId(domainLabelFromId(domain))
     : undefined;
   const inScope = (domainIds: readonly string[]): boolean =>
     scopedDomainId === undefined || domainIds.includes(scopedDomainId);
@@ -520,8 +511,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
     const staleKind = classified.status === 'stale' ? classified.staleKind : undefined;
 
     // Priority inputs (sort key): downstream count, size, and quality.
-    const inEdges = graph.inEdges.get(mod.id) ?? [];
-    const downstreamCount = inEdges.filter(e => e.kind === 'imports').length;
+    const downstreamCount = importerCount(graph, mod.id);
     const maxLine = mod.exports.reduce((m, e) => Math.max(m, e.lineRange.end), 0);
     const moduleKind = inferModuleKind({ mod, node: graph.nodes.get(mod.id) });
     const quality = ann
@@ -752,7 +742,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
   }
 
   // ── Runtime-resource nodes — freshness from the per-resource IaC fragment hash ──
-  for (const serviceId of graph.byType.get('runtime-resource') ?? []) {
+  for (const serviceId of nodesOfType(graph, 'runtime-resource')) {
     // A runtime resource carries its parent IaC module's domain tags; a resource projected without
     // a parent carries none, which under a domain scope puts it outside.
     const parentInfraId = getParentInfraModuleId(graph, serviceId);
@@ -826,10 +816,10 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
   // ── Domain nodes — freshness derived from member content hashes ──
   // A domain annotation becomes stale when a member it rolls up changed: changes percolate up to
   // the containing domain, and for a domain there is no distinct "code" to compare instead.
-  for (const domainId of graph.byType.get('domain') ?? []) {
+  for (const domainId of nodesOfType(graph, 'domain')) {
     const node = graph.nodes.get(domainId);
-    const label = node?.label ?? domainId.replace(/^domain:/, '');
-    const memberCount = (graph.inEdges.get(domainId) ?? []).filter(e => e.kind === 'tagged').length;
+    const label = node?.label ?? domainLabelFromId(domainId);
+    const memberCount = domainMembers(graph, domainId).all.length;
 
     // Tier census covers every domain node in the graph, scoped or not.
     const tier = (node?.type === 'domain' && node.data?.tier) ? node.data.tier : 'technical';
@@ -870,7 +860,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
     const reason = status === 'stale'
       ? (verdict.state === 'stale' && verdict.reason === 'schema'
         ? `Schema outdated (v${ann?.schemaVersion ?? 1} < v${CURRENT_ANNOTATION_SCHEMA_VERSION})`
-        : `Domain member modules changed; re-check domain-level summary, invariants and integrationPoints (${memberCount} members)`)
+        : `Domain member changed; re-check domain-level summary, invariants and integrationPoints (${memberCount} members)`)
       : `Domain not yet annotated (${memberCount} members)`;
 
     const domainKind: ModuleKind = 'domain';

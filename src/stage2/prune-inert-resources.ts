@@ -1,18 +1,7 @@
-import type { EdgeKind, RepositoryGraph } from '../types.js';
+import type { RepositoryGraph } from '../types.js';
+import { isWitnessedNode, nodesOfType } from '../graph/index.js';
 import type { DomainsConfig } from './domains-schema.js';
 import { matchesInfraResourceExclude } from './domains.js';
-
-/**
- * Structural edges that do not witness a runtime-resource's necessity: `contains` ties it to
- * its IaC module, `tagged` to its infra/domain. Every materialized resource has both regardless of
- * whether any query reads it — so a resource carrying *only* these is inert.
- */
-const STRUCTURAL_EDGE_KINDS: ReadonlySet<EdgeKind> = new Set<EdgeKind>(['contains', 'tagged']);
-
-function isWitnessed(graph: RepositoryGraph, id: string): boolean {
-  const incident = [...(graph.outEdges.get(id) ?? []), ...(graph.inEdges.get(id) ?? [])];
-  return incident.some(edge => !STRUCTURAL_EDGE_KINDS.has(edge.kind));
-}
 
 /**
  * Builder-level form of the witness rule: drop runtime-resource nodes that no load-bearing edge
@@ -25,8 +14,8 @@ function isWitnessed(graph: RepositoryGraph, id: string): boolean {
  */
 export function pruneInertRuntimeResources(graph: RepositoryGraph, config: DomainsConfig | null): number {
   if (!config?.infra?.pruneInert) return 0;
-  const resourceIds = graph.byType.get('runtime-resource');
-  if (!resourceIds || resourceIds.size === 0) return 0;
+  const resourceIds = nodesOfType(graph, 'runtime-resource');
+  if (resourceIds.length === 0) return 0;
 
   const keepSuffixes = config.infra.keep?.suffixes;
   const keepPatterns = config.infra.keep?.patterns;
@@ -37,7 +26,7 @@ export function pruneInertRuntimeResources(graph: RepositoryGraph, config: Domai
     const node = graph.nodes.get(id);
     if (!node) continue;
     if (hasKeep && matchesInfraResourceExclude(node.label, keepSuffixes, keepPatterns)) continue;
-    if (!isWitnessed(graph, id)) pruned.add(id);
+    if (!isWitnessedNode(graph, id)) pruned.add(id);
   }
   if (pruned.size === 0) return 0;
 

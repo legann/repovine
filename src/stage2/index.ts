@@ -9,7 +9,8 @@ import type {
   DomainTier,
   DomainNodeData,
 } from '../types.js';
-import { createEmptyGraph, addNode, addEdge } from '../graph/index.js';
+import { addEdge, addNode, createEmptyGraph, domainMembers, infraTargetIds, isTaggedInto, modulePackageId, nodesOfType, taggedDomains } from '../graph/index.js';
+import { domainNodeId } from '../graph/node-ids.js';
 import { collectAllDomainTags, loadDomainsConfig, STRUCTURAL_DIRS } from './domains.js';
 import { MemoryProfiler } from '../perf/memory-profiler.js';
 import { formatPipelineDetail, logPipeline } from '../cli/ui.js';
@@ -171,14 +172,13 @@ export async function composeRepositoryGraphAsync(
 }
 
 function logDomains(graph: RepositoryGraph): void {
-  const domainIds = graph.byType.get('domain');
-  if (!domainIds?.size) return;
-  const list = Array.from(domainIds)
+  const domainIds = nodesOfType(graph, 'domain');
+  if (domainIds.length === 0) return;
+  const list = domainIds
     .map(id => {
       const node = graph.nodes.get(id);
       if (!node) return null;
-      const tagged = graph.inEdges.get(id)?.filter(e => e.kind === 'tagged').length ?? 0;
-      return { label: node.label, tagged };
+      return { label: node.label, tagged: domainMembers(graph, id).all.length };
     })
     .filter((x): x is { label: string; tagged: number } => x !== null)
     .sort((a, b) => b.tagged - a.tagged);
@@ -194,19 +194,15 @@ function logDomains(graph: RepositoryGraph): void {
  * So domain "formula-manager" includes both the TS module and the Lambda → one unified graph.
  */
 function pass5PropagateInfraDomains(graph: RepositoryGraph): void {
-  const serviceSet = graph.byType.get('runtime-resource');
-  const serviceIds = serviceSet ? Array.from(serviceSet) : [];
+  const serviceIds = nodesOfType(graph, 'runtime-resource');
   for (const serviceId of serviceIds) {
-    const outEdges = graph.outEdges.get(serviceId) ?? [];
-    const infraTargets = outEdges.filter(e => e.kind === 'infra').map(e => e.to);
+    const infraTargets = infraTargetIds(graph, serviceId);
     const seenDomain = new Set<string>();
     for (const modId of infraTargets) {
-      const modOut = graph.outEdges.get(modId) ?? [];
-      for (const e of modOut) {
-        if (e.kind === 'tagged' && !seenDomain.has(e.to)) {
-          seenDomain.add(e.to);
-          addEdge(graph, serviceId, e.to, 'tagged');
-        }
+      for (const domainId of taggedDomains(graph, modId).ids) {
+        if (seenDomain.has(domainId)) continue;
+        seenDomain.add(domainId);
+        addEdge(graph, serviceId, domainId, 'tagged');
       }
     }
   }
@@ -220,7 +216,7 @@ function pass4Domains(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot,
 
   for (const [modId, tags] of tagsByModule) {
     for (const tag of tags) {
-      const domainId = `domain:${tag.domain}`;
+      const domainId = domainNodeId(tag.domain);
       const edgeKey = `${modId}\t${domainId}`;
       if (seenEdge.has(edgeKey)) continue;
       seenEdge.add(edgeKey);
@@ -244,11 +240,6 @@ function pass4Domains(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot,
 }
 
 // ── Pass 5: Content-based domains (routing, config) ──
-
-function hasTaggedEdge(graph: RepositoryGraph, fromId: string, domainId: string): boolean {
-  const out = graph.outEdges.get(fromId) ?? [];
-  return out.some(e => e.kind === 'tagged' && e.to === domainId);
-}
 
 /**
  * Domains the engine declares from an observed module property rather than deriving from a path.
@@ -274,7 +265,7 @@ function pass5ContentDomains(graph: RepositoryGraph, snapshot: RepositoryFactsSn
         });
         routingCreated = true;
       }
-      if (!hasTaggedEdge(graph, mod.id, 'domain:routing')) {
+      if (!isTaggedInto(graph, mod.id, 'domain:routing')) {
         addEdge(graph, mod.id, 'domain:routing', 'tagged');
       }
     }
@@ -289,7 +280,7 @@ function pass5ContentDomains(graph: RepositoryGraph, snapshot: RepositoryFactsSn
         });
         configCreated = true;
       }
-      if (!hasTaggedEdge(graph, mod.id, 'domain:config')) {
+      if (!isTaggedInto(graph, mod.id, 'domain:config')) {
         addEdge(graph, mod.id, 'domain:config', 'tagged');
       }
     }
@@ -302,15 +293,14 @@ const SUBDOMAIN_MIN_MODULES = 10;
 const SUBDOMAIN_MIN_CLUSTER = 3;
 
 function pass7Subdomains(graph: RepositoryGraph, modulesById: Map<string, ModuleInfo>): void {
-  const domainIds = graph.byType.get('domain');
-  if (!domainIds?.size) return;
+  const domainIds = nodesOfType(graph, 'domain');
+  if (domainIds.length === 0) return;
 
   // Count tagged modules per domain so we can process biggest parents first. This way, when
   // `client-ui` (108 modules) and `ui` (108 same modules — UI files are tagged by both via
   // package + path) both could spawn a `dashboard` subdomain, the bigger parent claims it and
   // the smaller one skips on duplicate detection below.
-  const taggedCount = (id: string): number =>
-    (graph.inEdges.get(id) ?? []).filter(e => e.kind === 'tagged').length;
+  const taggedCount = (id: string): number => domainMembers(graph, id).all.length;
 
   const domainSnapshot = Array.from(domainIds).sort((a, b) => taggedCount(b) - taggedCount(a));
 
@@ -325,14 +315,7 @@ function pass7Subdomains(graph: RepositoryGraph, modulesById: Map<string, Module
     if (tier !== 'business' && tier !== 'feature') continue;
     if (node.data?.parent) continue;
 
-    const incoming = graph.inEdges.get(domainId) ?? [];
-    const taggedModIds = incoming
-      .filter(e => e.kind === 'tagged')
-      .map(e => e.from)
-      .filter(id => {
-        const n = graph.nodes.get(id);
-        return n?.type === 'module';
-      });
+    const taggedModIds = domainMembers(graph, domainId).modules;
 
     if (taggedModIds.length < SUBDOMAIN_MIN_MODULES) continue;
 
@@ -343,7 +326,7 @@ function pass7Subdomains(graph: RepositoryGraph, modulesById: Map<string, Module
       if (modIds.length < SUBDOMAIN_MIN_CLUSTER) continue;
       if (subLabel === node.label) continue;
 
-      const subdomainId = `domain:${node.label}/${subLabel}`;
+      const subdomainId = domainNodeId(`${node.label}/${subLabel}`);
       if (graph.nodes.has(subdomainId)) continue;
 
       // Skip if an equivalent subdomain (same suffix + same module set) already exists under a
@@ -429,19 +412,13 @@ function classifyDomainTier(domainId: string, graph: RepositoryGraph): DomainTie
 
   if (LAYER_NAMES.has(node.label)) return 'layer';
 
-  const incoming = graph.inEdges.get(domainId) ?? [];
-  const taggedModuleIds = incoming.filter(e => e.kind === 'tagged').map(e => e.from);
-  const modules = taggedModuleIds.filter(id => {
-    const n = graph.nodes.get(id);
-    return n?.type === 'module' || n?.type === 'runtime-resource';
-  });
+  const members = domainMembers(graph, domainId);
+  const modules = [...members.modules, ...members.resources];
 
   const packages = new Set<string>();
   for (const modId of modules) {
-    const containsEdge = (graph.inEdges.get(modId) ?? []).find(
-      e => e.kind === 'contains' && e.from.startsWith('pkg:'),
-    );
-    if (containsEdge) packages.add(containsEdge.from);
+    const pkgId = modulePackageId(graph, modId);
+    if (pkgId) packages.add(pkgId);
   }
 
   if (modules.length >= 5 && packages.size >= 2) return 'business';
@@ -450,8 +427,8 @@ function classifyDomainTier(domainId: string, graph: RepositoryGraph): DomainTie
 }
 
 function pass6ClassifyDomains(graph: RepositoryGraph): void {
-  const domainIds = graph.byType.get('domain');
-  if (!domainIds?.size) return;
+  const domainIds = nodesOfType(graph, 'domain');
+  if (domainIds.length === 0) return;
 
   for (const domainId of domainIds) {
     const node = graph.nodes.get(domainId);

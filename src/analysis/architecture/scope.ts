@@ -8,13 +8,9 @@
  */
 
 import type { RepositoryGraph } from '../../types.js';
+import { domainMembers, infraTargetIds, modulePackageId, nodesOfType, packageModuleIds } from '../../graph/index.js';
 import type { ResolvedScope, ScopeKind } from '../../scope/resolved.js';
 import type { RefactoringScope } from './types.js';
-
-export function modulePackageId(graph: RepositoryGraph, modId: string): string | undefined {
-  const pkgEdge = (graph.inEdges.get(modId) ?? []).find(e => e.kind === 'contains' && e.from.startsWith('pkg:'));
-  return pkgEdge?.from;
-}
 
 /**
  * The scope kinds architecture analysis can inspect.
@@ -54,12 +50,12 @@ export function scopedGraphIds(
     );
   }
 
-  const allDomainIds = new Set([...(graph.byType.get('domain') ?? [])]);
+  const allDomainIds = new Set(nodesOfType(graph, 'domain'));
 
   if (scope.kind === 'all') {
     return {
       moduleIds: new Set([...modulesById.keys()].filter(id => graph.nodes.get(id)?.type === 'module')),
-      serviceIds: new Set([...(graph.byType.get('runtime-resource') ?? [])]),
+      serviceIds: new Set(nodesOfType(graph, 'runtime-resource')),
       domainIds: allDomainIds,
       scope: 'all',
       kind: 'all',
@@ -68,13 +64,10 @@ export function scopedGraphIds(
 
   if (scope.kind === 'package' && scope.packageId) {
     const pkgId = scope.packageId;
-    const moduleIds = new Set<string>();
-    for (const edge of graph.outEdges.get(pkgId) ?? []) {
-      if (edge.kind === 'contains' && graph.nodes.get(edge.to)?.type === 'module') moduleIds.add(edge.to);
-    }
+    const moduleIds = new Set(packageModuleIds(graph, pkgId));
     const serviceIds = new Set<string>();
-    for (const svcId of graph.byType.get('runtime-resource') ?? []) {
-      const infraTargets = (graph.outEdges.get(svcId) ?? []).filter(e => e.kind === 'infra').map(e => e.to);
+    for (const svcId of nodesOfType(graph, 'runtime-resource')) {
+      const infraTargets = infraTargetIds(graph, svcId);
       if (infraTargets.some(modId => modulePackageId(graph, modId) === pkgId)) serviceIds.add(svcId);
     }
     return { moduleIds, serviceIds, domainIds: allDomainIds, scope: pkgId, kind: 'package', packageId: pkgId };
@@ -82,14 +75,9 @@ export function scopedGraphIds(
 
   if (scope.kind === 'domain' && scope.domainId) {
     const domainId = scope.domainId;
-    const moduleIds = new Set<string>();
-    const serviceIds = new Set<string>();
-    for (const edge of graph.inEdges.get(domainId) ?? []) {
-      if (edge.kind !== 'tagged') continue;
-      const node = graph.nodes.get(edge.from);
-      if (node?.type === 'module') moduleIds.add(edge.from);
-      if (node?.type === 'runtime-resource') serviceIds.add(edge.from);
-    }
+    const members = domainMembers(graph, domainId);
+    const moduleIds = new Set(members.modules);
+    const serviceIds = new Set(members.resources);
     return { moduleIds, serviceIds, domainIds: new Set([domainId]), scope: domainId, kind: 'domain' };
   }
 

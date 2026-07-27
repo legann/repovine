@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import { compareCodeUnits } from '../platform/ordering.js';
 import * as path from 'node:path';
 import { ARTIFACTS_DIR_NAME } from '../paths.js';
 import { serializeKeyedRecordFile } from '../fs/keyed-json.js';
@@ -112,7 +113,7 @@ export function buildBoundaryIndex(state: RepovineState): BoundaryIndexFile {
 
   const entries: Record<string, BoundaryIndexEntry[]> = {};
   for (const relPath of [...byPath.keys()].sort()) {
-    entries[relPath] = byPath.get(relPath)!.sort((a, b) => a.nodeId.localeCompare(b.nodeId));
+    entries[relPath] = byPath.get(relPath)!.sort((a, b) => compareCodeUnits(a.nodeId, b.nodeId));
   }
 
   return { version: BOUNDARY_INDEX_VERSION, builtAt: state.builtAt, entries };

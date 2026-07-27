@@ -1,4 +1,5 @@
 import type { InterpreterEntrypointContext } from '../../interpreter/types.js';
+import { infraTargetIds, nodesOfType } from '../../graph/index.js';
 import {
   LAYER_ENTRYPOINT_SLOT_KEY,
   type SlottedEntrypointFragment,
@@ -16,11 +17,10 @@ export function collectServiceTriggerEntrypoints(ctx: InterpreterEntrypointConte
   const { graph } = ctx;
   const out: SlottedEntrypointFragment[] = [];
 
-  for (const svcId of graph.byType.get('runtime-resource') ?? []) {
+  for (const svcId of nodesOfType(graph, 'runtime-resource')) {
     const node = graph.nodes.get(svcId);
     if (!node || node.type !== 'runtime-resource') continue;
-    const handlerEdge = (graph.outEdges.get(svcId) ?? []).find(e => e.kind === 'infra');
-    const handlerModule = handlerEdge?.to;
+    const [handlerModule] = infraTargetIds(graph, svcId);
     for (const trigger of node.data?.triggers ?? []) {
       const kind = triggerEntryKind(trigger);
       out.push({

@@ -1,4 +1,6 @@
 import { resolveScope, nodeInScope } from '../scope/resolve.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
+import { nodeLabel, nodesOfType } from '../../graph/index.js';
 import { limitFrom, offsetFrom, DEFAULT_LIST_LIMIT } from '../response/pagination.js';
 import type { McpToolRuntime } from '../types.js';
 import { isUnsafeRegexPattern } from './node-body.js';
@@ -106,7 +108,7 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
   const emittedSecretIds = new Set(
     all.filter(item => item.kind === 'secret').map(item => item.resourceId as string),
   );
-  for (const consumerId of graph.byType.get('runtime-resource') ?? []) {
+  for (const consumerId of nodesOfType(graph, 'runtime-resource')) {
     for (const edge of graph.outEdges.get(consumerId) ?? []) {
       if (edge.kind !== 'uses_env') continue;
       const target = graph.nodes.get(edge.to);
@@ -119,13 +121,13 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
         resourceId: edge.to,
         relation: edge.kind,
         moduleId: consumerId,
-        moduleLabel: graph.nodes.get(consumerId)?.label ?? consumerId,
+        moduleLabel: nodeLabel(graph, consumerId),
       }, consumerId);
     }
   }
 
   const sorted = all.sort((a, b) =>
-    String(a[groupBy] ?? a.name ?? '').localeCompare(String(b[groupBy] ?? b.name ?? '')),
+    compareCodeUnits(String(a[groupBy] ?? a.name ?? ''), String(b[groupBy] ?? b.name ?? '')),
   );
   const page = sorted.slice(offset, offset + limit);
   const truncation = truncationMap({

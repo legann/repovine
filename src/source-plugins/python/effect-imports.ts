@@ -1,4 +1,5 @@
 import type { ImportInfo } from '@repovine/plugin-sdk';
+import { compareCodeUnits } from '../../platform/ordering.js';
 
 /**
  * Conservative import → side-effect-kind mapping for Python modules.
@@ -59,6 +60,6 @@ export function effectImportsFromPythonImports(
       out.push({ kind: entry.kind, source: entry.prefix });
     }
   }
-  out.sort((a, b) => a.kind.localeCompare(b.kind) || a.source.localeCompare(b.source));
+  out.sort((a, b) => compareCodeUnits(a.kind, b.kind) || compareCodeUnits(a.source, b.source));
   return out;
 }

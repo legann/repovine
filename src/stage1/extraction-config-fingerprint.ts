@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 import type { ScanPatternInput } from '../scan-filters.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 
 export interface ExtractionConfigFingerprintInput {
   repoRoot: string;
@@ -43,7 +44,7 @@ function stableSerialize(value: unknown, repoRoot: string, onStack = new Set<obj
           stableSerialize(key, repoRoot, onStack),
           stableSerialize(entry, repoRoot, onStack),
         ] as const)
-        .sort(([a], [b]) => a.localeCompare(b));
+        .sort(([a], [b]) => compareCodeUnits(a, b));
       return `map:{${entries.map(([key, entry]) => `${key}:${entry}`).join(',')}}`;
     }
     if (value instanceof Set) {

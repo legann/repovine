@@ -16,6 +16,8 @@ import type {
   RepositoryGraph,
 } from '../types.js';
 import type { PropagationConfig } from '../config.js';
+import { domainLabelFromId } from '../graph/node-ids.js';
+import { isAuthoredTag, isPackageOnlyDomain, isTaggedEdge } from '../graph/index.js';
 import {
   buildRuntimeResourceContentHashLookup,
   resolveServiceResourceContentHash,
@@ -207,17 +209,18 @@ export function computeDomainContentHash(
   const node = graph.nodes.get(domainId);
   if (!node || node.type !== 'domain') return undefined;
 
-  const taggedEdges = (graph.inEdges.get(domainId) ?? []).filter(e => e.kind === 'tagged');
+  const taggedEdges = (graph.inEdges.get(domainId) ?? []).filter(isTaggedEdge);
   if (taggedEdges.length === 0) return 'empty'; // domain with no members — stable sentinel
 
   return hashDomainMembers(graph, snapshot, taggedEdges, lookup ?? nodeContentHashLookup(snapshot));
 }
 
 /**
- * Hash only path/pattern-tagged domain members (path-only domain staleness). A deliberately
- * different scope from computeDomainContentHash — it excludes `cluster`/`package`-sourced tagged
- * members. `resolveDomainContentHash` selects between the two by `domainStalePolicy`; they are not
- * interchangeable, and unifying them would re-flag path-only domains against persisted hashes.
+ * Hash the authored members of a domain (path-only domain staleness): everything the path/pattern
+ * collector or an untagged writer put there, without the members an import cluster or a package
+ * name pulled in. A deliberately narrower scope than computeDomainContentHash;
+ * `resolveDomainContentHash` selects between the two by `domainStalePolicy`, and unifying them
+ * would re-flag path-only domains against persisted hashes.
  */
 export function computeDomainContentHashForPathOnly(
   graph: RepositoryGraph,
@@ -228,21 +231,10 @@ export function computeDomainContentHashForPathOnly(
   const node = graph.nodes.get(domainId);
   if (!node || node.type !== 'domain') return undefined;
 
-  const taggedEdges = (graph.inEdges.get(domainId) ?? []).filter(e => {
-    if (e.kind !== 'tagged') return false;
-    const src = e.metadata?.tagSource;
-    return src === 'path' || src === 'pattern';
-  });
+  const taggedEdges = (graph.inEdges.get(domainId) ?? []).filter(isAuthoredTag);
   if (taggedEdges.length === 0) return 'empty';
 
   return hashDomainMembers(graph, snapshot, taggedEdges, lookup ?? nodeContentHashLookup(snapshot));
-}
-
-/** True when every tagged edge to this domain is package-sourced only. */
-export function isPackageOnlyDomain(graph: RepositoryGraph, domainId: string): boolean {
-  const tagged = (graph.inEdges.get(domainId) ?? []).filter(e => e.kind === 'tagged');
-  if (tagged.length === 0) return false;
-  return tagged.every(e => e.metadata?.tagSource === 'package');
 }
 
 /**
@@ -259,7 +251,7 @@ export function resolveDomainContentHash(
   lookup?: NodeContentHashLookup,
 ): string | undefined {
   if (propagation.domainStalePolicy === 'path-only') {
-    const label = graph.nodes.get(domainId)?.label ?? domainId.replace(/^domain:/, '');
+    const label = graph.nodes.get(domainId)?.label ?? domainLabelFromId(domainId);
     if (label.includes('/') || !isPackageOnlyDomain(graph, domainId)) {
       return computeDomainContentHashForPathOnly(graph, snapshot, domainId, lookup);
     }

@@ -1,4 +1,6 @@
 import type { AnnotationContent, ModuleInfo, StoredAnnotation } from '../../types.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
+import { importerCount } from '../../graph/index.js';
 import { CURRENT_ANNOTATION_SCHEMA_VERSION } from '../../types.js';
 import { AnnotationContentSchema } from '../../annotations/store.js';
 import {
@@ -13,7 +15,7 @@ import { clearMergeReviewHints } from '../../annotations/merge-review.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { measureSubmittedAnnotationText } from '../../annotations/annotation-metrics.js';
 import { graphStats } from '../../graph/index.js';
-import { owningModuleId } from '../../graph/node-ids.js';
+import { domainNodeId, owningModuleId } from '../../graph/node-ids.js';
 import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
 import { computePropagationPreview } from '../../annotations/propagation.js';
 import { describeMergeKeeps } from '../../annotations/store.js';
@@ -460,7 +462,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
 
   const includeLightweight = args.includeLightweight === true;
   const isHeavyDomain = (label: string): boolean => {
-    const node = graph.nodes.get(`domain:${label}`);
+    const node = graph.nodes.get(domainNodeId(label));
     return !node || node.type !== 'domain' || node.data?.weight !== 'lightweight';
   };
   let lightweightStaleSuppressed = 0;
@@ -488,7 +490,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
     const scored: Array<{ nodeId: string; label: string; downstreamCount: number }> = [];
     for (const mod of snapshot.modules) {
       if (annotationsData[mod.id]) continue;
-      const downstreamCount = (graph.inEdges.get(mod.id) ?? []).filter(e => e.kind === 'imports').length;
+      const downstreamCount = importerCount(graph, mod.id);
       const label = graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath;
       scored.push({ nodeId: mod.id, label, downstreamCount });
     }
@@ -566,7 +568,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
   };
 
   if (includeAllDomains) {
-    const domainEntries = Object.entries(full.byDomain).sort(([a], [b]) => a.localeCompare(b));
+    const domainEntries = Object.entries(full.byDomain).sort(([a], [b]) => compareCodeUnits(a, b));
     const page = domainEntries.slice(offset, offset + limit);
     compact.byDomain = Object.fromEntries(page);
     compact.byTier = Object.fromEntries(

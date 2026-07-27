@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import * as fsPromises from 'node:fs/promises';
 import { writeJsonObjectStreamed } from '../fs/atomic.js';
 import type { Embedder } from './embedder.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 
 export const SEMANTIC_INDEX_FILENAME = 'semantic-index.json';
 
@@ -199,7 +200,7 @@ export class SemanticIndex {
     // a single JSON.stringify would both stall the loop and risk V8's ~512 MB string cap. The header
     // (`{ version, embedder, dims, entries }`) keeps its key order; `entries` is rendered one
     // `"nodeId":{hash,vector}` pair at a time, byte-for-byte identical to the previous whole-file form.
-    const sorted = [...this.entries.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const sorted = [...this.entries.entries()].sort(([a], [b]) => compareCodeUnits(a, b));
     const members = (function* (): Generator<string> {
       for (const [nodeId, entry] of sorted) {
         const value = { hash: entry.hash, vector: encodeVector(entry.vector) };

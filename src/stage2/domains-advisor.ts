@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
+import { compareCodeUnits } from '../platform/ordering.js';
 import * as path from 'node:path';
-import type { EdgeKind, InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
+import type { InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
+import { isWitnessedNode } from '../graph/index.js';
 import { domainsConfigFilePath } from '../paths.js';
 import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 import { matchesInfraResourceExclude } from './domains.js';
@@ -18,7 +20,7 @@ const INFRA_NOISE_SUFFIXES = [
 ] as const;
 
 const INFRA_NOISE_SUFFIXES_LONGEST_FIRST = [...INFRA_NOISE_SUFFIXES]
-  .sort((a, b) => b.length - a.length || a.localeCompare(b));
+  .sort((a, b) => b.length - a.length || compareCodeUnits(a, b));
 
 export type DomainsSuggestionAxis =
   | 'infra.excludeSuffixes'
@@ -116,7 +118,7 @@ export function collectSuffixLabels(snapshot: RepositoryFactsSnapshot): Record<s
   // Dedup: a logical resource id can appear in more than one infra module (e.g. a resource declared
   // in both a nested and a parent stack), and we suggest/anchor by label, so each label counts once.
   return Object.fromEntries(
-    Object.entries(labelsBySuffix).map(([suffix, labels]) => [suffix, [...new Set(labels)].sort((a, b) => a.localeCompare(b))]),
+    Object.entries(labelsBySuffix).map(([suffix, labels]) => [suffix, [...new Set(labels)].sort((a, b) => compareCodeUnits(a, b))]),
   );
 }
 
@@ -209,22 +211,11 @@ export function applyDomainsKeep(
 }
 
 /**
- * Structural edges do not witness a resource's necessity: `contains` ties it to its IaC
- * module, `tagged` to its infra domain. Every materialized runtime-resource has both regardless of
- * whether anything reads it. A resource is *witnessed* only by a load-bearing edge — anything else.
- */
-const STRUCTURAL_EDGE_KINDS: ReadonlySet<EdgeKind> = new Set<EdgeKind>(['contains', 'tagged']);
-
-/**
- * True when the graph materialized this resource AND some non-structural (load-bearing) edge —
- * `uses_env | binds_to | consumes | publishes | infra | implements | routes_to` — touches it in
- * either direction. A resource absent from the graph, or carrying only `contains`/`tagged`, is inert.
+ * True when the graph materialized this resource and some load-bearing edge touches it. A resource
+ * absent from the graph, or carrying only `contains`/`tagged`, is inert.
  */
 function isResourceWitnessed(graph: RepositoryGraph, res: InfraResource): boolean {
-  const nodeId = makeRuntimeResourceId(res);
-  if (!graph.nodes.has(nodeId)) return false;
-  const incident = [...(graph.outEdges.get(nodeId) ?? []), ...(graph.inEdges.get(nodeId) ?? [])];
-  return incident.some(edge => !STRUCTURAL_EDGE_KINDS.has(edge.kind));
+  return isWitnessedNode(graph, makeRuntimeResourceId(res));
 }
 
 /** Lookup from resource id (the suffix-label) back to the InfraResource, to recover provider/kind. */
@@ -312,7 +303,7 @@ function computeInfraSuffixSuggestions(
     });
   }
 
-  return additions.sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+  return additions.sort((a, b) => b.count - a.count || compareCodeUnits(a.id, b.id));
 }
 
 function computeBasenameSuggestion(
@@ -356,7 +347,7 @@ function computeInfraDomainPathSuggestions(
       const folder = domain.replace(/^infra-/, '');
       return count >= 2 && !existingDomains.has(domain) && !existingPaths.has(`^infrastructure/${folder}`);
     })
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .sort((a, b) => b[1] - a[1] || compareCodeUnits(a[0], b[0]))
     .map(([domain, count]) => {
       const folder = domain.replace(/^infra-/, '');
       return {

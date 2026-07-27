@@ -1,6 +1,8 @@
 import * as path from 'node:path';
 import type { PackageNodeData, RepositoryGraph, TemplateNodeData } from '../../types.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
+import { countNodesOfType, isTaggedInto, modulePackageId, nodesOfType } from '../../graph/index.js';
+import { domainLabelFromId, domainNodeId, isDomainNodeId } from '../../graph/node-ids.js';
 import type { ResolvedScope } from '../../scope/resolved.js';
 import type { McpToolRuntime } from '../types.js';
 // Side-effect import ensures built-in source plugins are registered so the loose-name-separator
@@ -21,10 +23,6 @@ function resolveNodeId(graph: RepositoryGraph, rawId: string): string | undefine
     .replace(/\.(tsx?|jsx?)$/, '')
     .replace(/\/index$/, '');
   return graph.nodes.has(normalized) ? normalized : undefined;
-}
-
-export function stripDomainPrefix(value: string): string {
-  return value.startsWith('domain:') ? value.slice('domain:'.length) : value;
 }
 
 export function normalizeLookupPath(value: string): string {
@@ -72,7 +70,7 @@ export function resolvePackageId(graph: RepositoryGraph, rawPackage: string): st
   const exactPkgId = `pkg:${value}`;
   if (graph.nodes.has(exactPkgId)) return exactPkgId;
 
-  const packages = [...(graph.byType.get('package') ?? [])]
+  const packages = nodesOfType(graph, 'package')
     .map(id => graph.nodes.get(id))
     .filter((node): node is NonNullable<typeof node> => !!node);
 
@@ -130,7 +128,7 @@ export function resolveResourceInfraAlias(graph: RepositoryGraph, raw: string): 
   const rawLower = raw.toLowerCase();
   const needle = value.toLowerCase();
 
-  const matches = [...(graph.byType.get(nodeType) ?? [])]
+  const matches = nodesOfType(graph, nodeType)
     .map(id => graph.nodes.get(id))
     .filter((node): node is NonNullable<typeof node> => !!node)
     .filter(node => isResource || node.id.startsWith('infra:'))
@@ -168,7 +166,7 @@ export function resolveTemplateAlias(graph: RepositoryGraph, raw: string): strin
   const value = raw.startsWith('template:') ? raw.slice('template:'.length) : raw;
   if (!value.trim()) return undefined;
   const normalized = normalizeLookupPath(value);
-  const candidates = [...(graph.byType.get('template') ?? [])]
+  const candidates = nodesOfType(graph, 'template')
     .map(id => graph.nodes.get(id))
     .filter((node): node is NonNullable<typeof node> => !!node && node.type === 'template');
 
@@ -198,12 +196,12 @@ export function resolveScope(ctx: McpToolRuntime, scopeArg?: unknown): ResolvedS
     return { raw, resolvedScope: `query:${query}`, kind: 'query', query };
   }
 
-  if (raw.startsWith('domain:')) {
-    const label = resolveDomainToCanonical(stripDomainPrefix(raw), domainsConfig);
-    const domainId = label.startsWith('domain:') ? label : `domain:${label}`;
+  if (isDomainNodeId(raw)) {
+    const label = resolveDomainToCanonical(raw, domainsConfig);
+    const domainId = domainNodeId(label);
     return graph.nodes.has(domainId)
       ? { raw, resolvedScope: domainId, kind: 'domain', nodeId: domainId, domainId }
-      : { raw, resolvedScope: domainId, kind: 'unknown', query: stripDomainPrefix(raw) };
+      : { raw, resolvedScope: domainId, kind: 'unknown', query: domainLabelFromId(raw) };
   }
 
   if (raw.startsWith('pkg:')) {
@@ -278,7 +276,7 @@ export function resolveScope(ctx: McpToolRuntime, scopeArg?: unknown): ResolvedS
   if (pkgId) return { raw, resolvedScope: pkgId, kind: 'package', nodeId: pkgId, packageId: pkgId };
 
   const label = resolveDomainToCanonical(raw, domainsConfig);
-  const domainId = label.startsWith('domain:') ? label : `domain:${label}`;
+  const domainId = domainNodeId(label);
   if (graph.nodes.has(domainId)) return { raw, resolvedScope: domainId, kind: 'domain', nodeId: domainId, domainId };
 
   return { raw, resolvedScope: `query:${raw}`, kind: 'query', query: raw };
@@ -288,11 +286,6 @@ export function parentModuleId(graph: RepositoryGraph, nodeId: string): string |
   if (graph.nodes.get(nodeId)?.type === 'module') return nodeId;
   const parentEdge = (graph.inEdges.get(nodeId) ?? []).find(e => e.kind === 'contains' && graph.nodes.get(e.from)?.type === 'module');
   return parentEdge?.from;
-}
-
-export function modulePackageId(graph: RepositoryGraph, moduleId: string): string | undefined {
-  const pkgEdge = (graph.inEdges.get(moduleId) ?? []).find(e => e.kind === 'contains' && e.from.startsWith('pkg:'));
-  return pkgEdge?.from;
 }
 
 export function nodeInScope(ctx: McpToolRuntime, nodeId: string, scope: ResolvedScope): boolean {
@@ -305,10 +298,8 @@ export function nodeInScope(ctx: McpToolRuntime, nodeId: string, scope: Resolved
     return modulePackageId(graph, moduleId) === scope.packageId;
   }
   if (scope.kind === 'domain' && scope.domainId) {
-    const taggedEdges = graph.outEdges.get(moduleId) ?? [];
-    if (taggedEdges.some(e => e.kind === 'tagged' && e.to === scope.domainId)) return true;
-    const nodeTaggedEdges = graph.outEdges.get(nodeId) ?? [];
-    return nodeTaggedEdges.some(e => e.kind === 'tagged' && e.to === scope.domainId);
+    // The owning module carries the tag for its exports; a runtime resource carries its own.
+    return isTaggedInto(graph, moduleId, scope.domainId) || isTaggedInto(graph, nodeId, scope.domainId);
   }
   if (scope.kind === 'module') return moduleId === scope.nodeId;
   if (scope.kind === 'export-symbol') return nodeId === scope.nodeId;
@@ -364,11 +355,11 @@ export function graphIsEffectivelyEmpty(ctx: McpToolRuntime): boolean {
   const { graph, snapshot } = ctx.getState();
   const indexedNodeCount =
     snapshot.modules.length
-    + (graph.byType.get('module')?.size ?? 0)
-    + (graph.byType.get('export-symbol')?.size ?? 0)
-    + (graph.byType.get('runtime-resource')?.size ?? 0)
-    + (graph.byType.get('template')?.size ?? 0)
-    + (graph.byType.get('domain')?.size ?? 0);
+    + countNodesOfType(graph, 'module')
+    + countNodesOfType(graph, 'export-symbol')
+    + countNodesOfType(graph, 'runtime-resource')
+    + countNodesOfType(graph, 'template')
+    + countNodesOfType(graph, 'domain');
   return indexedNodeCount === 0;
 }
 

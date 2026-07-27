@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AnnotationContent, NodeType, RiskEntry, StoredAnnotation } from '../types.js';
+import { isDomainNodeId } from '../graph/node-ids.js';
 import { SideEffectSchema } from './side-effect-vocab.js';
 
 export type NormalizedRisk = { text: string; scope: 'local' | 'consumer' | 'boundary' };
@@ -167,7 +168,7 @@ function sortRecord<T>(record: Record<string, T> | undefined): Record<string, T>
 export function inferAnnotationNodeType(nodeId: string): StoredAnnotation['nodeType'] | undefined {
   if (nodeId.startsWith('mod:') || nodeId.startsWith('infra:')) return 'module';
   if (nodeId.startsWith('export:')) return 'export-symbol';
-  if (nodeId.startsWith('domain:')) return 'domain';
+  if (isDomainNodeId(nodeId)) return 'domain';
   if (nodeId.startsWith('resource:')) return 'runtime-resource';
   if (nodeId.startsWith('template:')) return 'template';
   return undefined;

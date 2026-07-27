@@ -9,6 +9,7 @@ import type {
   InfraTrigger,
 } from '@repovine/plugin-sdk';
 import { hashResourcePayload } from '../../stage1/iac/utils.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
 
 const samResourceKindMap: Record<string, InfraResourceKind> = {
   'AWS::Serverless::Function': 'lambda',
@@ -834,7 +835,7 @@ export const samParser: IaCParser = {
       }
 
       if (syntheticResources.size > 0) {
-        resources.push(...[...syntheticResources.values()].sort((a, b) => a.id.localeCompare(b.id)));
+        resources.push(...[...syntheticResources.values()].sort((a, b) => compareCodeUnits(a.id, b.id)));
       }
     }
 

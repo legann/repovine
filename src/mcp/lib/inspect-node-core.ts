@@ -1,5 +1,5 @@
 import type { EdgeKind, NodeViewChild, NodeViewDetail, RepositoryGraph } from '../../types.js';
-import { buildNodeView, forwardImportClosure } from '../../graph/index.js';
+import { buildNodeView, forwardImportClosure, importerCount } from '../../graph/index.js';
 import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { hashedNodeKind, resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { annotationFreshness, annotationFreshnessMeta } from '../../annotations/freshness.js';
@@ -274,13 +274,7 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
     nodeExists: (id) => graph.nodes.has(id),
     hubThreshold,
     // 1-hop importer count for the `hub` tag: count `imports` in-edges only, no traversal.
-    importerCount: (id) => {
-      const edges = graph.inEdges.get(id);
-      if (!edges) return 0;
-      let count = 0;
-      for (const edge of edges) if (edge.kind === 'imports') count++;
-      return count;
-    },
+    importerCount: (id) => importerCount(graph, id),
     // 1-hop kind+direction edge count for the `wiring`/`co-change` tags.
     edgeCount: graphEdgeCount(graph),
   });

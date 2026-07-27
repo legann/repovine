@@ -1,6 +1,7 @@
 import type { ToolHandler } from '../../types.js';
 import type { ResolvedScope } from '../../../scope/resolved.js';
-import { resolveScope, stripDomainPrefix } from '../../scope/resolve.js';
+import { resolveScope } from '../../scope/resolve.js';
+import { domainLabelFromId } from '../../../graph/node-ids.js';
 import { scopeNavigation } from '../../scope/navigation.js';
 import { envelope, envelopeError, nav } from '../../response/envelope.js';
 import { limitFrom, offsetFrom, DEFAULT_SEMANTIC_LIMIT } from '../../response/pagination.js';
@@ -15,7 +16,7 @@ import {
 
 export function domainLabelForQueue(scope: ResolvedScope): string | undefined {
   if (scope.kind !== 'domain') return undefined;
-  return stripDomainPrefix(scope.resolvedScope);
+  return domainLabelFromId(scope.resolvedScope);
 }
 
 export const handleGetAnnotationStatus: ToolHandler = (ctx, args) => {

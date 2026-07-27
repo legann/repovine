@@ -8,7 +8,7 @@ import type {
   UnresolvedInfraRef,
 } from '../../types.js';
 import type { HandlerResolveContext } from '@repovine/plugin-sdk';
-import { addNode, addEdge } from '../../graph/index.js';
+import { addEdge, addNode, hasEdge, infraTargetIds } from '../../graph/index.js';
 import { makeRuntimeResourceId } from '../../graph/make-runtime-resource-id.js';
 import { resolveInfraRef, type InfraRefScope } from '../../graph/resolve-infra-ref.js';
 import { matchesInfraResourceExclude, type DomainsConfig } from '../../stage2/domains.js';
@@ -180,14 +180,6 @@ function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.filter(v => v !== undefined))];
 }
 
-function hasUsesEnvEdge(graph: RepositoryGraph, from: string, to: string): boolean {
-  return (graph.outEdges.get(from) ?? []).some(e => e.kind === 'uses_env' && e.to === to);
-}
-
-function hasConsumesEdge(graph: RepositoryGraph, queueId: string, lambdaId: string): boolean {
-  return (graph.outEdges.get(queueId) ?? []).some(e => e.kind === 'consumes' && e.to === lambdaId);
-}
-
 /**
  * IaC resources can reference env/config targets declared in later files (e.g. SAM compute.yaml
  * references data.yaml, K8s workloads reference Secret manifests in sibling files).
@@ -208,7 +200,7 @@ function linkDeferredInfraEdges(graph: RepositoryGraph, infraModules: InfraModul
           const isStreamLike = !!getTriggerTypeMeta(trigger.type)?.isStreamLike;
           if (!isStreamLike || !trigger.queueRef) continue;
           const queueServiceId = findServiceIdByLogicalId(graph, trigger.queueRef, serviceId, scope);
-          if (queueServiceId && graph.nodes.has(queueServiceId) && !hasConsumesEdge(graph, queueServiceId, serviceId)) {
+          if (queueServiceId && graph.nodes.has(queueServiceId) && !hasEdge(graph, queueServiceId, 'consumes', serviceId)) {
             addEdge(graph, queueServiceId, serviceId, 'consumes');
           }
         }
@@ -219,17 +211,13 @@ function linkDeferredInfraEdges(graph: RepositoryGraph, infraModules: InfraModul
           if (!envRef.targetLogicalId) continue;
           const targetServiceId = findServiceIdByLogicalId(graph, envRef.targetLogicalId, serviceId, scope, envRef.varName);
           if (!targetServiceId || !graph.nodes.has(targetServiceId)) continue;
-          if (!hasUsesEnvEdge(graph, serviceId, targetServiceId)) {
+          if (!hasEdge(graph, serviceId, 'uses_env', targetServiceId)) {
             addEdge(graph, serviceId, targetServiceId, 'uses_env');
           }
         }
       }
     }
   }
-}
-
-function hasBindsToEdge(graph: RepositoryGraph, fromModuleId: string, toServiceId: string): boolean {
-  return (graph.outEdges.get(fromModuleId) ?? []).some(e => e.kind === 'binds_to' && e.to === toServiceId);
 }
 
 /**
@@ -243,7 +231,7 @@ function linkHandlerModuleEnvBindings(graph: RepositoryGraph, infraModules: Infr
       const serviceId = makeRuntimeResourceId(res);
       if (!graph.nodes.has(serviceId)) continue;
 
-      const handlerModId = (graph.outEdges.get(serviceId) ?? []).find(e => e.kind === 'infra')?.to;
+      const [handlerModId] = infraTargetIds(graph, serviceId);
       if (!handlerModId || !handlerModId.startsWith('mod:')) continue;
       const handlerNode = graph.nodes.get(handlerModId);
       if (!handlerNode || handlerNode.type !== 'module') continue;
@@ -255,15 +243,11 @@ function linkHandlerModuleEnvBindings(graph: RepositoryGraph, infraModules: Infr
         if (!targetServiceId || !graph.nodes.has(targetServiceId)) continue;
         // Every env-ref target is a generic `binds_to` resource binding. Secret targets are not a
         // distinct edge — config-surface reports kind:'secret' by reading target.data.kind.
-        if (hasBindsToEdge(graph, handlerModId, targetServiceId)) continue;
+        if (hasEdge(graph, handlerModId, 'binds_to', targetServiceId)) continue;
         addEdge(graph, handlerModId, targetServiceId, 'binds_to');
       }
     }
   }
-}
-
-function hasPublishesEdge(graph: RepositoryGraph, fromServiceId: string, toServiceId: string): boolean {
-  return (graph.outEdges.get(fromServiceId) ?? []).some(e => e.kind === 'publishes' && e.to === toServiceId);
 }
 
 function linkRuntimePublishes(
@@ -277,7 +261,7 @@ function linkRuntimePublishes(
       const serviceId = makeRuntimeResourceId(res);
       if (!graph.nodes.has(serviceId)) continue;
 
-      const handlerModId = (graph.outEdges.get(serviceId) ?? []).find(e => e.kind === 'infra')?.to;
+      const [handlerModId] = infraTargetIds(graph, serviceId);
       if (!handlerModId) continue;
       const actions = collectRuntimeActionsForModule(handlerModId, modulesById);
       if (actions.length === 0) continue;
@@ -285,7 +269,7 @@ function linkRuntimePublishes(
       const scope = refScopeFor(infraMod, res);
       for (const action of actions) {
         const targetServiceId = findPublishTargetForAction(graph, serviceId, scope, res.envRefs ?? [], action.action, action.envVar);
-        if (!targetServiceId || hasPublishesEdge(graph, serviceId, targetServiceId)) continue;
+        if (!targetServiceId || hasEdge(graph, serviceId, 'publishes', targetServiceId)) continue;
         addEdge(graph, serviceId, targetServiceId, 'publishes');
       }
     }

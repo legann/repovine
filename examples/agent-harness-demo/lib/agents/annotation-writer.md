@@ -73,6 +73,10 @@ Queue statuses:
 | `stale` | `propagation` | importBaseline stale (upstreamTriggers) | inspect_node + upstream; refreshImportBaseline or update integrationPoints/dataFlow if contract changed. |
 | `unannotated` | — | No note yet | Write from scratch using recommended fields. |
 
+A domain roll-up is stale when a member the author placed there changed; a member an import cluster
+or a package name pulled in does not move it. Take members before the roll-up that holds them — a
+roll-up rewritten first is stale again by the end of the batch.
+
 `inspect_node` reports the same verdict for the same node: `annotationMeta.fresh` is `false` whenever the queue lists it. `staleReason` there names one of four causes (`content`, `schema`, `propagation`, `no-baseline`); the queue's `staleKind` collapses them into the two review depths above, so `schema` and `no-baseline` arrive as `content`. A node never reads as confirmed in one tool and stale in the other.
 
 ### 3. Inspect and write

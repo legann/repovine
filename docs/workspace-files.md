@@ -330,7 +330,7 @@ Product defaults live in `DEFAULT_PROPAGATION_CONFIG` (`repovine/src/config.ts`)
 
 | Field | Default | Meaning |
 |---|---|---|
-| `domainStalePolicy` | `path-only` | Path/pattern domains only; package roll-ups advisory. |
+| `domainStalePolicy` | `path-only` | A domain roll-up hashes the members the author placed there: everything except members an import cluster or a package name pulled in. `all-tags` hashes every member. |
 | `packageDomainHardQueue` | `false` | Package domains (e.g. `client-ui`) carry no freshness question with path-only: outside the queue, counted as `unconfirmable` in coverage. |
 | `consumerReachMaxDepth` | `32` | Max BFS depth importer → entrypoint. |
 | `hubModulesExtra` | `[]` | Force-include hub candidates missed by auto-discovery. |

@@ -2133,6 +2133,17 @@
       "webFramework": "drf"
     },
     {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/open/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/c/billing/open/",
+      "component": "InvoiceViewSet.open_invoices",
+      "method": "GET",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
       "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/{pk}/:DELETE",
       "kind": "api",
       "layer": "backend",
@@ -2188,17 +2199,6 @@
       "webFramework": "drf"
     },
     {
-      "id": "entrypoint:api:mod:django-app/drf_advanced:/c/billing/open/:GET",
-      "kind": "api",
-      "layer": "backend",
-      "path": "/c/billing/open/",
-      "component": "InvoiceViewSet.open_invoices",
-      "method": "GET",
-      "moduleId": "mod:django-app/drf_advanced",
-      "source": "django-urlpatterns",
-      "webFramework": "drf"
-    },
-    {
       "id": "entrypoint:api:mod:django-app/drf_advanced:/ro/reports/:GET",
       "kind": "api",
       "layer": "backend",
@@ -2238,6 +2238,17 @@
       "path": "/v2/invoices/",
       "component": "InvoiceViewSet",
       "method": "POST",
+      "moduleId": "mod:django-app/drf_advanced",
+      "source": "django-urlpatterns",
+      "webFramework": "drf"
+    },
+    {
+      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/open/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/v2/invoices/open/",
+      "component": "InvoiceViewSet.open_invoices",
+      "method": "GET",
       "moduleId": "mod:django-app/drf_advanced",
       "source": "django-urlpatterns",
       "webFramework": "drf"
@@ -2293,17 +2304,6 @@
       "path": "/v2/invoices/{pk}/void/",
       "component": "InvoiceViewSet.void_invoice",
       "method": "POST",
-      "moduleId": "mod:django-app/drf_advanced",
-      "source": "django-urlpatterns",
-      "webFramework": "drf"
-    },
-    {
-      "id": "entrypoint:api:mod:django-app/drf_advanced:/v2/invoices/open/:GET",
-      "kind": "api",
-      "layer": "backend",
-      "path": "/v2/invoices/open/",
-      "component": "InvoiceViewSet.open_invoices",
-      "method": "GET",
       "moduleId": "mod:django-app/drf_advanced",
       "source": "django-urlpatterns",
       "webFramework": "drf"

@@ -7,6 +7,7 @@ import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/pl
 import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
 import { hostPathKey } from '../../platform/paths.js';
 import { readDirSorted } from '../../fs/read-dir-sorted.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
 
 /**
  * Python discovery (Pass 1). Finds Python packages (`pyproject.toml` / `setup.py`) and their
@@ -152,14 +153,14 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
         });
       }
     }
-    for (const e of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const e of entries) {
       if (!e.isDirectory()) continue;
       if (SKIP_DIRS.has(e.name)) continue;
       walk(path.join(dir, e.name));
     }
   };
   walk(repoRoot);
-  return packages.sort((a, b) => a.path.localeCompare(b.path));
+  return packages.sort((a, b) => compareCodeUnits(a.path, b.path));
 }
 
 function discoverPyFiles(
@@ -176,7 +177,7 @@ function discoverPyFiles(
     } catch {
       return;
     }
-    for (const e of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const e of entries) {
       const full = path.join(dir, e.name);
       const relFromRoot = path.normalize(path.relative(repoRoot, full)).split(path.sep).join('/');
       if (e.isDirectory()) {

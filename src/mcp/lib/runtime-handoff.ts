@@ -1,5 +1,7 @@
 import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from '../../annotations/format.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
 import type { RepositoryGraph } from '../../types.js';
+import { handlerModuleIds, nodesOfType } from '../../graph/index.js';
 import type { McpToolRuntime } from '../types.js';
 import type { ResolvedScope } from '../../scope/resolved.js';
 import { narrowTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
@@ -30,18 +32,15 @@ const TRIGGER_PRIORITY: Record<RuntimeHandoffTrigger, number> = {
 };
 
 export function resolveHandlerModuleId(graph: RepositoryGraph, resourceId: string): string | undefined {
-  const infraMods = (graph.outEdges.get(resourceId) ?? [])
-    .filter(edge => edge.kind === 'infra' && edge.to.startsWith('mod:') && graph.nodes.has(edge.to))
-    .map(edge => edge.to)
-    .sort();
-  if (infraMods[0]) return infraMods[0];
+  const [infraMod] = handlerModuleIds(graph, resourceId);
+  if (infraMod) return infraMod;
 
   const resourceNode = graph.nodes.get(resourceId);
   const handler = resourceNode?.type === 'runtime-resource' ? resourceNode.data?.handler : undefined;
   if (!handler) return undefined;
   if (handler.startsWith('mod:') && graph.nodes.get(handler)?.type === 'module') return handler;
 
-  return [...(graph.byType.get('module') ?? [])]
+  return nodesOfType(graph, 'module')
     .filter((moduleId) => {
       const node = graph.nodes.get(moduleId);
       if (!node) return false;
@@ -146,8 +145,8 @@ export function computeRuntimeHandoff(
 
   entries.sort((a, b) =>
     TRIGGER_PRIORITY[a.trigger] - TRIGGER_PRIORITY[b.trigger]
-    || a.resourceId.localeCompare(b.resourceId)
-    || a.handlerModuleId.localeCompare(b.handlerModuleId),
+    || compareCodeUnits(a.resourceId, b.resourceId)
+    || compareCodeUnits(a.handlerModuleId, b.handlerModuleId),
   );
 
   const items = entries.slice(0, RUNTIME_HANDOFF_LIMIT);

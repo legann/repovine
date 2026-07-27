@@ -7,6 +7,7 @@
  * `search_context` improve as annotation coverage grows.
  */
 
+import { compareCodeUnits } from '../../platform/ordering.js';
 import type { RepositoryGraph, StoredAnnotation } from '../../types.js';
 
 export interface SearchIndex {
@@ -115,7 +116,7 @@ export function suggestVocabulary(missingToken: string, index: SearchIndex, limi
   scored.sort((a, b) =>
     b.quality - a.quality
     || b.docFreq - a.docFreq
-    || a.candidate.localeCompare(b.candidate),
+    || compareCodeUnits(a.candidate, b.candidate),
   );
   return scored.slice(0, limit).map(item => item.candidate);
 }

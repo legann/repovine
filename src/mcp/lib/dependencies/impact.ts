@@ -1,4 +1,4 @@
-import { getImpact, getParent } from '../../../graph/index.js';
+import { getImpact, getParent, nodeLabel } from '../../../graph/index.js';
 import type { McpToolRuntime } from '../../types.js';
 import { paginateList } from '../../response/pagination.js';
 import { PER_BUCKET_CAP } from '../../../source-plugins/typescript/call-graph.js';
@@ -28,7 +28,6 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   const importTargetId = (isExportSymbol ? getParent(graph, nodeId)?.id : nodeId) ?? nodeId;
 
   const impact = getImpact(graph, importTargetId, 'both', maxDepth);
-  const nodeLabel = (id: string) => graph.nodes.get(id)?.label ?? id;
   const findUsedNames = (dependentId: string, targetId: string): string[] | undefined => {
     const imp = modulesById.get(dependentId)?.imports.find(i => i.resolvedModuleId === targetId);
     if (imp?.importedNames.length) return imp.importedNames;
@@ -41,7 +40,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   let downstreamEntries = impact.downstream
     .filter(id => id !== nodeId)
     .map(id => {
-      const entry: Record<string, unknown> = { id, label: nodeLabel(id), type: graph.nodes.get(id)?.type };
+      const entry: Record<string, unknown> = { id, label: nodeLabel(graph, id), type: graph.nodes.get(id)?.type };
       const uses = findUsedNames(id, importTargetId);
       if (uses) entry.uses = uses;
       return entry;
@@ -67,7 +66,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
       nameMatchedCallers++;
       downstreamEntries.push({
         id: callerId,
-        label: nodeLabel(callerId),
+        label: nodeLabel(graph, callerId),
         type: graph.nodes.get(callerId)?.type,
         provenance: provenance('call-name-index'),
       });
@@ -76,7 +75,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   const upstreamEntries = impact.upstream
     .filter(id => id !== nodeId)
     .map(id => {
-      const entry: Record<string, unknown> = { id, label: nodeLabel(id), type: graph.nodes.get(id)?.type };
+      const entry: Record<string, unknown> = { id, label: nodeLabel(graph, id), type: graph.nodes.get(id)?.type };
       const uses = findUsedNames(importTargetId, id);
       if (uses) entry.uses = uses;
       return entry;
@@ -89,7 +88,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   const truncation = truncationMap({ downstream: down.truncation, upstream: up.truncation });
   return {
     nodeId,
-    label: nodeLabel(nodeId),
+    label: nodeLabel(graph, nodeId),
     ...(filterName ? { filteredByExport: filterName } : {}),
     ...(nameMatchedCallers > 0 ? { nameMatchedCallers } : {}),
     downstream: down.page,

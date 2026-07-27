@@ -1,4 +1,5 @@
 import { forwardImportClosure, owningModuleId } from '../graph/index.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 import { NODE_ID_PREFIXES } from '../graph/node-ids.js';
 import type { AnnotationContent, RepositoryGraph, StoredAnnotation } from '../types.js';
 import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from './format.js';
@@ -168,7 +169,7 @@ function structuralCarrierTargets(graph: RepositoryGraph, importerId: string): S
 
 function carrierSampleSort(a: CarrierLinkGapSample, b: CarrierLinkGapSample): number {
   if (a.kind !== b.kind) return a.kind === 'missing-carrier-link' ? -1 : 1;
-  return a.importerId.localeCompare(b.importerId) || a.targetId.localeCompare(b.targetId);
+  return compareCodeUnits(a.importerId, b.importerId) || compareCodeUnits(a.targetId, b.targetId);
 }
 
 function consumerRiskTargets(graph: RepositoryGraph, annotations: Record<string, StoredAnnotation>): string[] {
@@ -210,7 +211,7 @@ export function computeCarrierLinkGaps(input: {
     candidateTargets.map((id) => [id, new Set(equivalentCarrierIds(input.graph, id))]),
   );
 
-  for (const [importerId, importerAnnotation] of Object.entries(input.annotations).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [importerId, importerAnnotation] of Object.entries(input.annotations).sort(([a], [b]) => compareCodeUnits(a, b))) {
     if (!isCarrierImporter(input.graph, importerId)) continue;
     if (!nodeInScopeHints(importerId, input.scopeHints)) continue;
 

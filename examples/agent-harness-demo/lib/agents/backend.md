@@ -72,6 +72,9 @@ In implementation phase, list touched module ids in `graphNodesTouched` and keep
 `annotationsWritten` empty when annotation sync is deferred. In annotation-sync
 phase, list every `write_annotation` node id in `annotationsWritten` (canonical
 `mod:…` ids from `inspect_node`, never `"."` or path guesses).
+In that phase a domain roll-up can be in the queue because a member moved — the
+member can be a runtime resource, not only a module. Take members before the
+roll-up that holds them.
 
 ## Project layout
 

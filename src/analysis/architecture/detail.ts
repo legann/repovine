@@ -11,24 +11,12 @@ import { riskEntryTexts } from '../../annotations/format.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { annotationSecretFieldPaths } from './annotation-secret.js';
 import { workflowSignalKinds } from './component-signals.js';
-import { modulePackageId } from './scope.js';
+import { modulePackageId, nodeLabel, packageModuleIds, taggedDomains } from '../../graph/index.js';
 import type { RefactoringFinding } from './types.js';
-import {
-  coupledTargetRole,
-  frontendDataAccessTargetKey,
-  frontendFeatureKey,
-  isFrontendFlowEntryModule,
-  isRuntimeImportEdge,
-  maxModuleLine,
-  policyTokens,
-  stateModuleKind,
-  uiCouplingTargetRole,
-} from './heuristics.js';
+import { coupledTargetRole, frontendDataAccessTargetKey, frontendFeatureKey, isFrontendFlowEntryModule, isRuntimeImportEdge, maxModuleLine, policyTokens, runtimeFanIn, runtimeFanOut, stateModuleKind, uiCouplingTargetRole } from './heuristics.js';
 
 function nodeDomains(graph: RepositoryGraph, nodeId: string): string[] {
-  return (graph.outEdges.get(nodeId) ?? [])
-    .filter(edge => edge.kind === 'tagged')
-    .map(edge => edge.to);
+  return taggedDomains(graph, nodeId).ids;
 }
 
 export function refactoringNodeSummary(
@@ -41,8 +29,8 @@ export function refactoringNodeSummary(
   const node = graph.nodes.get(nodeId);
   const mod = modulesById.get(nodeId);
   const ann = annotations.get(nodeId);
-  const fanIn = (graph.inEdges.get(nodeId) ?? []).filter(isRuntimeImportEdge).length;
-  const fanOut = (graph.outEdges.get(nodeId) ?? []).filter(isRuntimeImportEdge).length;
+  const fanIn = runtimeFanIn(graph, nodeId);
+  const fanOut = runtimeFanOut(graph, nodeId);
   const summary: Record<string, unknown> = {
     id: nodeId,
     label: node?.label ?? nodeId,
@@ -104,8 +92,8 @@ export function affectedNodeEdges(
       from: edge.from,
       to: edge.to,
       kind: edge.kind,
-      fromLabel: graph.nodes.get(edge.from)?.label ?? edge.from,
-      toLabel: graph.nodes.get(edge.to)?.label ?? edge.to,
+      fromLabel: nodeLabel(graph, edge.from),
+      toLabel: nodeLabel(graph, edge.to),
     };
     if (edge.kind === 'imports') {
       const fromMod = modulesById.get(edge.from);
@@ -142,10 +130,7 @@ export function refactoringCategoryDetail(
       }
       const targetPackageId = modulePackageId(graph, targetId);
       const packageIndexModules = targetPackageId
-        ? (graph.outEdges.get(targetPackageId) ?? [])
-            .filter(edge => edge.kind === 'contains' && graph.nodes.get(edge.to)?.type === 'module')
-            .filter(edge => (graph.nodes.get(edge.to)?.label ?? '').endsWith('/index'))
-            .map(edge => edge.to)
+        ? packageModuleIds(graph, targetPackageId).filter(id => (graph.nodes.get(id)?.label ?? '').endsWith('/index'))
         : [];
       return { targetId, targetPackageId, importers, importedSymbols: [...symbols].slice(0, 30), packageIndexModules };
     }
@@ -155,8 +140,8 @@ export function refactoringCategoryDetail(
       return {
         moduleId: modId,
         exportCount: mod?.exports.length ?? 0,
-        fanIn: (graph.inEdges.get(modId) ?? []).filter(isRuntimeImportEdge).length,
-        fanOut: (graph.outEdges.get(modId) ?? []).filter(isRuntimeImportEdge).length,
+        fanIn: runtimeFanIn(graph, modId),
+        fanOut: runtimeFanOut(graph, modId),
         envVars: mod?.semanticHints?.envVars ?? [],
         lineEstimate: maxModuleLine(mod),
       };
@@ -259,8 +244,8 @@ export function refactoringCategoryDetail(
             role: mod?.semanticHints?.ui?.serviceWrapper?.role,
             lineCount: mod?.semanticHints?.ui?.serviceWrapper?.lineCount,
             delegateCallCount: mod?.semanticHints?.ui?.serviceWrapper?.delegateCallCount,
-            fanIn: (graph.inEdges.get(id) ?? []).filter(isRuntimeImportEdge).length,
-            fanOut: (graph.outEdges.get(id) ?? []).filter(isRuntimeImportEdge).length,
+            fanIn: runtimeFanIn(graph, id),
+            fanOut: runtimeFanOut(graph, id),
           };
         }),
       };

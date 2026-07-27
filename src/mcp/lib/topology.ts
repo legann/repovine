@@ -1,6 +1,7 @@
 import type { McpToolRuntime } from '../types.js';
 import type { EdgeKind } from '../../types.js';
 import { ALL_SCOPE, type ResolvedScope, type ScopeKind } from '../../scope/resolved.js';
+import { handlerModuleIds, infraTargetIds, isTaggedInto, modulePackageId, nodeLabel, nodesOfType, taggedDomains } from '../../graph/index.js';
 import { resolveInfraRef } from '../../graph/resolve-infra-ref.js';
 import { provenance } from '../../response/provenance.js';
 
@@ -37,8 +38,7 @@ export function projectRuntimeTopology(
   const includeResources = args.includeResources !== false;
   const includeApiRoutes = args.includeApiRoutes !== false;
 
-  const serviceSet = graph.byType.get('runtime-resource');
-  const serviceIds = serviceSet ? Array.from(serviceSet) : [];
+  const serviceIds = nodesOfType(graph, 'runtime-resource');
 
   const hullSeedId = scope.kind === 'runtime-resource' || scope.kind === 'module' ? scope.nodeId : undefined;
 
@@ -73,16 +73,11 @@ export function projectRuntimeTopology(
     if (scope.kind === 'all') return true;
     if (hullSeedId) return hullServiceIds.has(svcId);
     if (scope.kind === 'domain' && scope.domainId) {
-      const outEdges = graph.outEdges.get(svcId) ?? [];
-      return outEdges.some(e => e.kind === 'tagged' && e.to === scope.domainId);
+      return isTaggedInto(graph, svcId, scope.domainId);
     }
     if (scope.kind === 'package' && scope.packageId) {
-      const outEdges = graph.outEdges.get(svcId) ?? [];
-      const infraTargets = outEdges.filter(e => e.kind === 'infra').map(e => e.to);
-      for (const modId of infraTargets) {
-        const inEdges = graph.inEdges.get(modId) ?? [];
-        if (inEdges.some(e => e.kind === 'contains' && e.from === scope.packageId)) return true;
-      }
+      const infraTargets = infraTargetIds(graph, svcId);
+      if (infraTargets.some(modId => modulePackageId(graph, modId) === scope.packageId)) return true;
     }
     if (scope.kind === 'query' && scope.query) {
       const q = scope.query.toLowerCase();
@@ -115,10 +110,7 @@ export function projectRuntimeTopology(
     const outEdges = graph.outEdges.get(svcId) ?? [];
     const inEdges = graph.inEdges.get(svcId) ?? [];
 
-    const domains = outEdges
-      .filter(e => e.kind === 'tagged')
-      .map(e => graph.nodes.get(e.to)?.label)
-      .filter((d): d is string => d != null);
+    const domains = taggedDomains(graph, svcId).labels;
 
     // Two different facts used to share the name `handler`: what the IaC document declares, and
     // which code the resolver bound the resource to. They answer different questions and can
@@ -126,10 +118,10 @@ export function projectRuntimeTopology(
     // a container with more than one image reaches more than one Dockerfile — and naming the first
     // one `handler` was a guess. Only `mod:` targets are code; `infra:dockerfile:*` is a build
     // artifact, not the module that runs.
-    const handlerModules = outEdges
-      .filter(e => e.kind === 'infra' && e.to.startsWith('mod:'))
-      .map(e => graph.nodes.get(e.to)?.label)
-      .filter((label): label is string => label != null)
+    // Sorted by label, which is what the reader sees; the resolver sorts by id, and the two orders
+    // differ once a label is a truncated display form of a longer path.
+    const handlerModules = handlerModuleIds(graph, svcId)
+      .map(id => nodeLabel(graph, id))
       .sort();
 
     const triggers: unknown[] = [];

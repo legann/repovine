@@ -1,4 +1,5 @@
 import type { RepositoryGraph } from '../types.js';
+import { nodesOfType } from './index.js';
 
 /**
  * Scope a logical-id reference is made from. Resolution prefers a target the reference's own
@@ -84,8 +85,8 @@ export function resolveInfraRef(
   logicalId: string,
   scope: InfraRefScope,
 ): InfraRefResolution {
-  const serviceSet = graph.byType.get('runtime-resource');
-  if (!serviceSet) return MISSING;
+  const serviceSet = nodesOfType(graph, 'runtime-resource');
+  if (serviceSet.length === 0) return MISSING;
 
   // The exact label decides on its own: when it matches, an alias match is a weaker reading of the
   // same reference and cannot break a tie the exact name already produced.

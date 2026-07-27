@@ -678,6 +678,7 @@ export function annotationSyncTask(subAgent, scope, claims = []) {
     'Use the current provider session context plus the current repovine graph to write annotations only.',
     `repovine annotation scope for this sub-agent: ${JSON.stringify(scope)}. Annotate only nodes in this scope — do not drain backend/frontend code modules from a sibling sub-agent.`,
     'Run refresh_context, inspect/get_annotation_status({ "view": "queue" }) for this scope and the nodes/files below, write_annotation to detailed tier, then refresh_context({ "cleanupOrphans": true }) and validate_annotations hard checks. Drain the queue to needsWork:0 in scope (content-stale before propagation-stale; propagation-stale is in needsWork).',
+    'A domain roll-up in the queue went stale because a member moved, not because its own text did — the member can be a runtime resource, not only a module. Take the members first: a roll-up rewritten before them is stale again by the end of the pass.',
     'Emit an annotation-only AgentRunResult with filesChanged: [], contractsChanged: [], and annotationsWritten containing the canonical node ids you wrote.',
     ...claimsSection,
     '',

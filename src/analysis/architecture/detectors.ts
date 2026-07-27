@@ -14,39 +14,10 @@ import { annotationSecretFieldPaths } from './annotation-secret.js';
 import { workflowSignalKinds } from './component-signals.js';
 import { DEFAULT_THRESHOLDS, type RefactoringThresholds } from './config.js';
 import { clampConfidence, findingSeverity } from './finding.js';
-import { modulePackageId } from './scope.js';
+import { domainMembers, infraTargetIds, modulePackageId, nodeLabel, taggedDomains } from '../../graph/index.js';
 import { buildAnnotationContext } from './annotation-context.js';
 import type { RefactoringFinding, RefactoringScope } from './types.js';
-import {
-  annotationText,
-  convergenceTargetGroupKey,
-  coupledTargetRole,
-  exportedNamesText,
-  findFlowPaths,
-  flowPrepKeys,
-  frontendDataAccessTargetKey,
-  frontendFeatureKey,
-  isBuildOrToolingModule,
-  isBackendContext,
-  isConvergenceTargetModule,
-  isDesignSystemPrimitive,
-  isFrontendFlowEntryModule,
-  isFrontendServiceWrapperCandidate,
-  isFrontendSurfaceModule,
-  isGenericConvergenceTarget,
-  hasHttpHandlerSignals,
-  isPureTypesModule,
-  isRouteOrScreenEntryModule,
-  isRuntimeImportEdge,
-  isUiCouplingSourceModule,
-  uiCouplingTargetRole,
-  maxModuleLine,
-  normalizeResponsibilityKey,
-  policySubjectKey,
-  policyTokens,
-  rootDomainId,
-  stateModuleKind,
-} from './heuristics.js';
+import { annotationText, convergenceTargetGroupKey, coupledTargetRole, exportedNamesText, findFlowPaths, flowPrepKeys, frontendDataAccessTargetKey, frontendFeatureKey, hasHttpHandlerSignals, isBackendContext, isBuildOrToolingModule, isConvergenceTargetModule, isDesignSystemPrimitive, isFrontendFlowEntryModule, isFrontendServiceWrapperCandidate, isFrontendSurfaceModule, isGenericConvergenceTarget, isPureTypesModule, isRouteOrScreenEntryModule, isRuntimeImportEdge, isUiCouplingSourceModule, maxModuleLine, normalizeResponsibilityKey, policySubjectKey, policyTokens, rootDomainId, runtimeFanIn, runtimeFanOut, stateModuleKind, uiCouplingTargetRole } from './heuristics.js';
 
 export type DetectorOptions = {
   includeComponentEntrypoints?: boolean;
@@ -63,7 +34,7 @@ function build(finding: Omit<RefactoringFinding, 'severity'>): RefactoringFindin
 }
 
 function labelsOf(graph: RepositoryGraph, ids: Iterable<string>): string[] {
-  return [...ids].map(id => graph.nodes.get(id)?.label ?? id).slice(0, 8);
+  return [...ids].map(id => nodeLabel(graph, id)).slice(0, 8);
 }
 
 // ── duplicate-like ──
@@ -80,7 +51,7 @@ export function detectDuplicateLike(
   const groups = new Map<string, string[]>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    const key = normalizeResponsibilityKey(mod?.relativeFilePath ?? graph.nodes.get(modId)?.label ?? modId);
+    const key = normalizeResponsibilityKey(mod?.relativeFilePath ?? nodeLabel(graph, modId));
     if (!key || key.length < 3) continue;
     let group = groups.get(key);
     if (!group) { group = []; groups.set(key, group); }
@@ -164,7 +135,7 @@ export function detectBoundary(
       confidence,
       nodes: [targetId, ...group.importers],
       evidence: [
-        `${group.importers.length} importer(s) reach ${graph.nodes.get(targetId)?.label ?? targetId} directly`,
+        `${group.importers.length} importer(s) reach ${nodeLabel(graph, targetId)} directly`,
         `Target package has an index module, so a public re-export boundary likely exists`,
         `Imported symbols: ${[...group.symbols].slice(0, 10).join(', ') || 'unknown'}`,
       ],
@@ -194,8 +165,8 @@ export function detectGodModule(
   const findings: RefactoringFinding[] = [];
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    const fanIn = (graph.inEdges.get(modId) ?? []).filter(isRuntimeImportEdge).length;
-    const fanOut = (graph.outEdges.get(modId) ?? []).filter(isRuntimeImportEdge).length;
+    const fanIn = runtimeFanIn(graph, modId);
+    const fanOut = runtimeFanOut(graph, modId);
     const exportCount = mod?.exports.length ?? 0;
     const envCount = mod?.semanticHints?.envVars?.length ?? 0;
     const lineCount = maxModuleLine(mod);
@@ -320,9 +291,7 @@ export function detectDomainShape(
   for (const domainId of scope.domainIds) {
     const domainNode = graph.nodes.get(domainId);
     if (domainNode?.type !== 'domain') continue;
-    const taggedModuleIds = (graph.inEdges.get(domainId) ?? [])
-      .filter(e => e.kind === 'tagged' && graph.nodes.get(e.from)?.type === 'module')
-      .map(e => e.from);
+    const taggedModuleIds = domainMembers(graph, domainId).modules;
     const moduleIds = taggedModuleIds.filter(id => scope.moduleIds.size === 0 || scope.moduleIds.has(id));
     const subdomainCount = domainNode.data?.subdomains?.length ?? 0;
     if (enabled.godDomain && (moduleIds.length >= gd.minModules || subdomainCount >= gd.minSubdomains)) {
@@ -721,7 +690,7 @@ export function detectUiDomainCoupling(
       nodes: [modId, ...targets.map(target => target.id)],
       evidence: [
         `Frontend module: ${mod.relativeFilePath}`,
-        `${targets.length} direct coupled import(s): ${targets.map(target => `${target.role}:${graph.nodes.get(target.id)?.label ?? target.id}`).slice(0, 8).join(', ')}`,
+        `${targets.length} direct coupled import(s): ${targets.map(target => `${target.role}:${nodeLabel(graph, target.id)}`).slice(0, 8).join(', ')}`,
         `Imported symbols: ${targets.flatMap(target => target.importedNames).slice(0, 12).join(', ') || 'unknown'}`,
       ],
       suggestion: 'Route UI through a feature/domain boundary or a framework-neutral adapter; keep rendering components from depending directly on API, storage, repository, or server modules.',
@@ -832,7 +801,7 @@ export function detectServiceWrapperExplosion(
     if (!mod || !isFrontendServiceWrapperCandidate(mod)) continue;
     const hint = mod.semanticHints?.ui?.serviceWrapper;
     if (!hint) continue;
-    const fanIn = (graph.inEdges.get(modId) ?? []).filter(isRuntimeImportEdge).length;
+    const fanIn = runtimeFanIn(graph, modId);
     const lineCount = maxModuleLine(mod) || hint.lineCount;
     if (lineCount > t.maxLineCount) continue;
     const feature = frontendFeatureKey(mod);
@@ -1340,7 +1309,7 @@ export function detectPrivilegedClientSideEffect(
       nodes: [modId, ...coupledTargets.map(target => target.id)],
       evidence: [
         `Client/UI module: ${mod.relativeFilePath}`,
-        coupledTargets.length > 0 ? `Privileged imports: ${coupledTargets.map(target => `${target.role}:${graph.nodes.get(target.id)?.label ?? target.id}`).slice(0, 8).join(', ')}` : 'No privileged imports detected',
+        coupledTargets.length > 0 ? `Privileged imports: ${coupledTargets.map(target => `${target.role}:${nodeLabel(graph, target.id)}`).slice(0, 8).join(', ')}` : 'No privileged imports detected',
         runtimeActions.length > 0 ? `${runtimeActions.length} runtime action hint(s)` : 'No runtime action hints',
         mutationAccess.length > 0 ? `${mutationAccess.length} mutation/API-client data access call(s)` : 'No mutation/API-client data access calls',
         secretSignals.length > 0 ? `${secretSignals.length} secret-like env reference(s)` : 'No secret-like env references',
@@ -1445,7 +1414,7 @@ export function detectServerClientBoundary(
       nodes: [modId, ...targetIds],
       evidence: [
         `Client module: ${mod.relativeFilePath}`,
-        `${targetIds.length} server/privileged target(s): ${targetIds.map(id => graph.nodes.get(id)?.label ?? id).slice(0, 8).join(', ')}`,
+        `${targetIds.length} server/privileged target(s): ${targetIds.map(id => nodeLabel(graph, id)).slice(0, 8).join(', ')}`,
         `Imported symbols: ${leakedTargets.flatMap(item => item.imp.importedNames).slice(0, 12).join(', ') || 'unknown'}`,
       ],
       suggestion: 'Introduce a client-safe adapter or package export. Keep server-only/storage/credential-owning implementation behind server actions, API routes, or runtime-only packages.',
@@ -1560,7 +1529,7 @@ function isSecretishName(name: string, flagGenericPublicAuthEnv: boolean): boole
 }
 
 function rootDomainOf(graph: RepositoryGraph, modId: string): string | undefined {
-  const domain = (graph.outEdges.get(modId) ?? []).find(edge => edge.kind === 'tagged')?.to;
+  const [domain] = taggedDomains(graph, modId).ids;
   return domain ? rootDomainId(graph, domain) : undefined;
 }
 
@@ -1687,8 +1656,8 @@ export function detectAnnotationRisk(
   const findings: RefactoringFinding[] = [];
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    const fanIn = (graph.inEdges.get(modId) ?? []).filter(isRuntimeImportEdge).length;
-    const fanOut = (graph.outEdges.get(modId) ?? []).filter(isRuntimeImportEdge).length;
+    const fanIn = runtimeFanIn(graph, modId);
+    const fanOut = runtimeFanOut(graph, modId);
     const exportCount = mod?.exports.length ?? 0;
     const importance = fanIn + fanOut + exportCount;
     if (importance < t.minImportance) continue;
@@ -1777,9 +1746,7 @@ export function detectUnclearArchitecture(
   const t = options.thresholds ?? DEFAULT_THRESHOLDS.unclearArchitecture;
   const findings: RefactoringFinding[] = [];
   for (const modId of scope.moduleIds) {
-    const domains = (graph.outEdges.get(modId) ?? [])
-      .filter(e => e.kind === 'tagged')
-      .map(e => e.to);
+    const domains = taggedDomains(graph, modId).ids;
     const rootDomains = [...new Set(domains.map(domainId => rootDomainId(graph, domainId)))];
     if (rootDomains.length < t.minDomainTags) continue;
     findings.push(build({
@@ -1790,7 +1757,7 @@ export function detectUnclearArchitecture(
       confidence: Math.min(0.9, 0.55 + rootDomains.length * 0.06),
       nodes: [modId, ...rootDomains],
       evidence: [
-        `${domains.length} raw domain tag(s), ${rootDomains.length} root domain(s): ${rootDomains.map(d => graph.nodes.get(d)?.label ?? d).join(', ')}`,
+        `${domains.length} raw domain tag(s), ${rootDomains.length} root domain(s): ${rootDomains.map(d => nodeLabel(graph, d)).join(', ')}`,
         'Parent/subdomain tags are collapsed before counting so hierarchical domains do not inflate this signal.',
       ],
       suggestion: 'Check whether this should be tagged as a technical layer, split into domain-specific adapters, or excluded from broad pattern tags.',
@@ -1799,8 +1766,7 @@ export function detectUnclearArchitecture(
   for (const svcId of scope.serviceIds) {
     const node = graph.nodes.get(svcId);
     if (node?.type !== 'runtime-resource' || node.data?.kind !== 'lambda') continue;
-    const handlerEdges = (graph.outEdges.get(svcId) ?? []).filter(e => e.kind === 'infra');
-    if (handlerEdges.length > 0 || node.data.handler) continue;
+    if (infraTargetIds(graph, svcId).length > 0 || node.data.handler) continue;
     findings.push(build({
       id: `unclear-architecture:${svcId}:handler`,
       category: 'unclear-architecture',

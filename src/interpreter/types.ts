@@ -12,6 +12,18 @@ export interface EntrypointFragment {
   [key: string]: unknown;
 }
 
+/**
+ * The module a service-trigger entrypoint dispatches into, when the fragment names one.
+ *
+ * `handlerModule` reaches readers through the index signature above, so every reader had to narrow
+ * `unknown` itself and they did it four different ways, including one that compared `unknown` to a
+ * string. The read is one question, so it has one answer here.
+ */
+export function entrypointHandlerModuleId(fragment: EntrypointFragment): string | undefined {
+  const value = fragment.handlerModule;
+  return typeof value === 'string' ? value : undefined;
+}
+
 export interface InterpreterGraphContext {
   graph: RepositoryGraph;
   snapshot: RepositoryFactsSnapshot;

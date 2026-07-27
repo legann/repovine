@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import { compareCodeUnits } from '../platform/ordering.js';
 
 /**
  * Directory entries in a platform-independent order.
@@ -9,10 +10,10 @@ import * as fs from 'node:fs';
  * discovery, so an unsorted read makes node order a property of the host filesystem: the same
  * repository projects differently on Windows and Linux, and a frozen golden captures one host.
  *
- * The comparison is by UTF-16 code unit, not `localeCompare` — collation is locale-dependent and
- * would reintroduce the difference it exists to remove.
+ * The comparison is `compareCodeUnits`; see its rationale for why collation stays out of the
+ * discovery path. Callers that re-sort this output use the same comparator.
  */
 export function readDirSorted(dir: string): fs.Dirent[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
-  return entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return entries.sort((a, b) => compareCodeUnits(a.name, b.name));
 }

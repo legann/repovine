@@ -10,9 +10,9 @@ import {
   computeDomainContentHash,
   computeDomainContentHashForPathOnly,
   computeImportBaseline,
-  isPackageOnlyDomain,
   resolveDomainContentHash,
 } from '../../../src/annotations/content-hash.js';
+import { isPackageOnlyDomain } from '../../../src/graph/index.js';
 import {
   getImportBaselineStaleUpstream,
   isDerivedStaleModule,

@@ -11,6 +11,7 @@
  * suppress / confirm / boost the finding when reporting to the user.
  */
 
+import { nodeLabel } from '../../graph/index.js';
 import type { RepositoryGraph, ModuleInfo, StoredAnnotation } from '../../types.js';
 import type { AnnotationStore } from '../../annotations/store.js';
 import { normalizeRisks } from '../../annotations/format.js';
@@ -328,7 +329,7 @@ export function buildAnnotationContext(
     if (Object.keys(picked).length === 0) continue;
     nodes.push({
       id,
-      label: graph.nodes.get(id)?.label ?? id,
+      label: nodeLabel(graph, id),
       annotation: picked,
       annotationContentFresh: contentFresh,
     });

@@ -1,4 +1,5 @@
 import type { McpToolRuntime } from '../../types.js';
+import { nodesOfType } from '../../../graph/index.js';
 import { paginateList } from '../../response/pagination.js';
 
 /**
@@ -17,7 +18,7 @@ export function findInterfaceImplementations(ctx: McpToolRuntime, args: Record<s
   const implementations: Array<Record<string, unknown>> = [];
   const seenClass = new Set<string>();
 
-  for (const ifaceId of (graph.byType.get('export-symbol') ?? [])) {
+  for (const ifaceId of nodesOfType(graph, 'export-symbol')) {
     const ifaceNode = graph.nodes.get(ifaceId);
     if (ifaceNode?.type !== 'export-symbol' || ifaceNode.label !== ifaceName) continue;
 

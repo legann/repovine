@@ -345,13 +345,18 @@ describe('core-laws annotation backlog — no second walk, no derived bucket', (
   // the text that produces them — a partial walk that disagrees fails there, and one that agrees is
   // dead weight rather than a contradiction.
 
-  /** Reading every annotatable population in one file is the shape of a backlog walk. */
+  /**
+   * Reading every annotatable population in one file is the shape of a backlog walk.
+   *
+   * Graph populations are named through `nodesOfType`, the one enumeration helper; the token is the
+   * call, not the index access, because reading `graph.byType` directly is itself guarded elsewhere.
+   */
   const POPULATIONS = [
     'snapshot.modules',
     'snapshot.templates',
     'snapshot.infraModules',
-    "byType.get('runtime-resource')",
-    "byType.get('domain')",
+    "nodesOfType(graph, 'runtime-resource')",
+    "nodesOfType(graph, 'domain')",
   ];
 
   it('walks the annotatable surface in exactly one module', () => {

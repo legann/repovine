@@ -5,7 +5,7 @@ import path from 'node:path';
 import { DEFAULT_EMBEDDING_MODEL, loadConfig } from '../config.js';
 import { describeTransformersInstall, resolveModelCacheDir } from '../semantic/embedder.js';
 import { detectPython } from '../source-plugins/python/discover.js';
-import { graphStats } from '../graph/index.js';
+import { countNodesOfType, graphStats } from '../graph/index.js';
 import {
   publishedCoverageBucket,
   publishedDomainCoverage,
@@ -942,8 +942,8 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
         modules: state.snapshot.modules.length,
         nodes: stats.totalNodes,
         edges: stats.totalEdges,
-        packages: state.graph.byType.get('package')?.size ?? 0,
-        domains: state.graph.byType.get('domain')?.size ?? 0,
+        packages: countNodesOfType(state.graph, 'package'),
+        domains: countNodesOfType(state.graph, 'domain'),
         // The module count above silently excludes refused files, and this command muted the build log
         // that would have named them, so this is the only place the fact survives here.
         ...(outsideRepo ? { outsideRepo } : {}),

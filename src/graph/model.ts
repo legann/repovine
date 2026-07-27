@@ -258,8 +258,16 @@ const _assertNodeDataKeysExact: [_MissingNodeDataKey, _ExtraNodeDataKey] extends
   : 'NODE_DATA_KEYS must exactly mirror NodeDataByType keys' = true;
 void _assertNodeDataKeysExact;
 
-/** Source of a 'tagged' edge: 'path' = directory-derived, 'cluster' = import-graph, 'pattern' = regex config. */
-export type TagEdgeSource = 'path' | 'package' | 'cluster' | 'pattern';
+/**
+ * Source of a 'tagged' edge: 'path' = directory-derived, 'cluster' = import-graph,
+ * 'pattern' = regex config, 'package' = package name.
+ *
+ * Only the path/cluster/pattern/package collector stamps this. Content domains, subdomain rollups,
+ * infra tagging and infra→service propagation write tagged edges without it, so a partition over
+ * this vocabulary must say what it does with an edge that carries no source.
+ */
+export const TAG_EDGE_SOURCES = ['path', 'package', 'cluster', 'pattern'] as const;
+export type TagEdgeSource = (typeof TAG_EDGE_SOURCES)[number];
 
 export interface GraphEdgeMetadata {
   /** For 'tagged' edges: where the tag came from. Used to distinguish primary (path/cluster) from secondary (pattern). */

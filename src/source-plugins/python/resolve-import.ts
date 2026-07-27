@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import type { PackageInfo } from '@repovine/plugin-sdk';
 import { hostKeyedView, hostPathKey } from '../../platform/paths.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
 
 /**
  * Python import resolution (structural graph). Mirror of `typescript/resolve-specifier.ts`:
@@ -59,7 +60,7 @@ function packageMatchesTopLevel(pkg: PackageInfo, topLevel: string): boolean {
 function sortedPythonPackages(packages: PackageInfo[]): PackageInfo[] {
   return packages
     .filter(p => p.sourcePluginId === 'python')
-    .sort((a, b) => a.path.localeCompare(b.path));
+    .sort((a, b) => compareCodeUnits(a.path, b.path));
 }
 
 function dottedToSegments(moduleDotted: string): string[] {

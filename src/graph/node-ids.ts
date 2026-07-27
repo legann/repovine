@@ -33,6 +33,28 @@ export function hasScopePrefix(value: string): boolean {
 }
 
 /**
+ * The node id of a domain, from its label.
+ *
+ * Mints unconditionally: a label is a label, even one that reads like an id. A caller holding a
+ * string that may already be an id composes the pair — `domainNodeId(domainLabelFromId(value))` —
+ * which is total and says which of the two it meant. Folding that coercion in here would silently
+ * merge a domain whose configured name starts with `domain:` into the domain it names.
+ */
+export function domainNodeId(label: string): string {
+  return `domain:${label}`;
+}
+
+/** The label a domain node id carries. Returns the input unchanged when it carries no prefix. */
+export function domainLabelFromId(labelOrId: string): string {
+  return labelOrId.startsWith('domain:') ? labelOrId.slice('domain:'.length) : labelOrId;
+}
+
+/** True when the string is a domain node id. Says nothing about the node existing. */
+export function isDomainNodeId(value: string): boolean {
+  return value.startsWith('domain:');
+}
+
+/**
  * Map an export-symbol node id to its owning module id (pure string transform).
  *
  * Export-symbol ids are built in stage2 as `export:${moduleId.slice(4)}/${exportName}`, so the owning

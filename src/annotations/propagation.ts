@@ -1,8 +1,9 @@
-import type { EntrypointFragment } from '../interpreter/types.js';
+import { entrypointHandlerModuleId, type EntrypointFragment } from '../interpreter/types.js';
 import type { PropagationConfig } from '../config.js';
 import { DEFAULT_CONTRACT_HUB_THRESHOLDS } from '../config.js';
 import type { ModuleInfo, RepositoryGraph, RepositoryFactsSnapshot, StoredAnnotation } from '../types.js';
-import { modulePackageId } from '../analysis/architecture/scope.js';
+import { countNodesOfType, directImporters, importerCount, isTaggedEdge, modulePackageId } from '../graph/index.js';
+import { domainLabelFromId, isDomainNodeId } from '../graph/node-ids.js';
 import { importBaselineStaleUpstream } from './content-hash.js';
 import { annotationFreshness, contentMoved } from './freshness.js';
 
@@ -100,10 +101,8 @@ export function collectEntrypointRoots(entrypoints: readonly EntrypointFragment[
   const ids = new Set<string>();
   for (const ep of entrypoints) {
     if (isModuleRoot(ep.moduleId)) ids.add(ep.moduleId);
-    const handlerModule = ep.handlerModule;
-    if (isModuleRoot(typeof handlerModule === 'string' ? handlerModule : undefined)) {
-      ids.add(handlerModule as string);
-    }
+    const handlerModule = entrypointHandlerModuleId(ep);
+    if (isModuleRoot(handlerModule)) ids.add(handlerModule);
   }
   return ids;
 }
@@ -115,10 +114,8 @@ export function collectEntrypointRootsDiagnostics(
   const handlerRoots = new Set<string>();
   for (const ep of entrypoints) {
     if (isModuleRoot(ep.moduleId)) moduleRoots.add(ep.moduleId);
-    const handlerModule = ep.handlerModule;
-    if (isModuleRoot(typeof handlerModule === 'string' ? handlerModule : undefined)) {
-      handlerRoots.add(handlerModule as string);
-    }
+    const handlerModule = entrypointHandlerModuleId(ep);
+    if (isModuleRoot(handlerModule)) handlerRoots.add(handlerModule);
   }
   return {
     moduleRoots: [...moduleRoots].sort(),
@@ -181,12 +178,6 @@ export function reachesEntrypoint(
     }
   }
   return false;
-}
-
-function getDirectImporters(graph: RepositoryGraph, moduleId: string): string[] {
-  return (graph.inEdges?.get(moduleId) ?? [])
-    .filter(e => e.kind === 'imports' && e.from.startsWith('mod:'))
-    .map(e => e.from);
 }
 
 /** True when importer has importBaseline drift on a configured hub upstream. */
@@ -272,7 +263,7 @@ export function isContractHubCandidate(
   const keyExports = ann?.annotation.keyExports;
   if (keyExports && Object.keys(keyExports).length > 0) return true;
 
-  const fanIn = (graph.inEdges?.get(moduleId) ?? []).filter(e => e.kind === 'imports').length;
+  const fanIn = importerCount(graph, moduleId);
   const fanOut = (graph.outEdges?.get(moduleId) ?? []).filter(e => e.kind === 'imports').length;
   const importance = fanIn + fanOut + mod.exports.length;
   if (importance >= thresholds.minImportance) return true;
@@ -420,7 +411,7 @@ export function computePropagationPreview(input: {
   if (rootDiagnostics.total === 0) {
     warnings.push('No entrypoint module roots found on graph; narrow derived may under-propagate.');
   } else if (rootDiagnostics.handlerRoots.length === 0) {
-    const hasRuntime = (graph.byType.get('runtime-resource')?.size ?? 0) > 0;
+    const hasRuntime = countNodesOfType(graph, 'runtime-resource') > 0;
     if (hasRuntime) {
       warnings.push(
         'No handlerModule entrypoint roots found despite runtime-resource nodes; backend propagation may under-propagate. '
@@ -438,9 +429,9 @@ export function computePropagationPreview(input: {
   const fromAnn = resolveAnn(annotations, from);
   const fromHubContractDrift = fromMod && fromAnn ? isHubContractDrift(fromMod, fromAnn) : false;
 
-  const directImporters = getDirectImporters(graph, from);
+  const importers = directImporters(graph, from);
   const derived = new Set<string>();
-  for (const importerId of directImporters) {
+  for (const importerId of importers) {
     const mod = moduleLookup.modulesById.get(importerId);
     const ann = resolveAnn(annotations, importerId);
     if (!mod || !ann) continue;
@@ -469,29 +460,29 @@ export function computePropagationPreview(input: {
   if (includeDomains) {
     const outEdges = graph.outEdges?.get(from) ?? [];
     domains = outEdges
-      .filter(e => e.kind === 'tagged' && e.to.startsWith('domain:'))
+      .filter(e => isTaggedEdge(e) && isDomainNodeId(e.to))
       .filter(e => {
         if (propagation.domainStalePolicy !== 'path-only') return true;
         const tagSource = e.metadata?.tagSource;
         if (tagSource === 'path' || tagSource === 'pattern') return true;
-        const label = graph.nodes.get(e.to)?.label ?? e.to.replace(/^domain:/, '');
+        const label = graph.nodes.get(e.to)?.label ?? domainLabelFromId(e.to);
         return label.includes('/');
       })
-      .map(e => graph.nodes.get(e.to)?.label ?? e.to.replace(/^domain:/, ''));
+      .map(e => graph.nodes.get(e.to)?.label ?? domainLabelFromId(e.to));
   }
 
   const entrypointsOut = entrypoints
     .filter(ep => {
+      const handlerModule = entrypointHandlerModuleId(ep);
       const moduleRoot = isModuleRoot(ep.moduleId) && entryRoots.has(ep.moduleId);
-      const handlerRoot = isModuleRoot(typeof ep.handlerModule === 'string' ? ep.handlerModule : undefined)
-        && entryRoots.has(ep.handlerModule as string);
+      const handlerRoot = isModuleRoot(handlerModule) && entryRoots.has(handlerModule);
       return moduleRoot || handlerRoot;
     })
     .map(ep => ({
       ...(ep.id ? { id: ep.id } : {}),
       ...(isModuleRoot(ep.moduleId) ? { moduleId: ep.moduleId } : {}),
-      ...(isModuleRoot(typeof ep.handlerModule === 'string' ? ep.handlerModule : undefined)
-        ? { handlerModule: ep.handlerModule as string }
+      ...(isModuleRoot(entrypointHandlerModuleId(ep))
+        ? { handlerModule: entrypointHandlerModuleId(ep) }
         : {}),
       kind: ep.kind,
       ...(ep.label ? { label: ep.label } : {}),
@@ -562,7 +553,7 @@ export function buildPropagationSlice(input: {
 
   const matchingEp = entrypoints.find(ep =>
     ep.moduleId === targetEntry
-    || ep.handlerModule === targetEntry,
+    || entrypointHandlerModuleId(ep) === targetEntry,
   );
 
   return {

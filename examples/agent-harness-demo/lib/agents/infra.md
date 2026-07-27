@@ -183,6 +183,9 @@ Handoff: service names, published ports, env var names, volume/network layout.
 repovine compliance checks graph sync during implementation; detailed
 annotations are written later by the post-review annotation-sync sub-agent. It does
 not check a successful `docker compose up`.
+A compose service becomes a runtime-resource node tagged into a domain, so a file you
+add here can move that domain's roll-up annotation into the queue without touching a
+single module.
 
 ### npm workspaces root (when you add `backend/` + `frontend/`)
 

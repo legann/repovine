@@ -1,6 +1,7 @@
 import type { ToolHandler } from '../types.js';
 import type { InvestigateTag, AnnotationContent, RepositoryGraph } from '../../types.js';
 import { resolveScope, parentModuleId } from '../scope/resolve.js';
+import { nodeLabel, taggedDomains } from '../../graph/index.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, envelopeError, nav, type AttentionItem } from '../response/envelope.js';
 import { DEFAULT_BODY_LIMIT } from '../response/pagination.js';
@@ -97,7 +98,7 @@ export function selfWiringAttention(
   const resourceIds: string[] = [];
   for (const e of graph.inEdges.get(nodeId) ?? []) if (e.kind === 'infra') resourceIds.push(e.from);
   for (const e of graph.outEdges.get(nodeId) ?? []) if (e.kind === 'binds_to') resourceIds.push(e.to);
-  const labels = [...new Set(resourceIds)].slice(0, 2).map((id) => graph.nodes.get(id)?.label ?? id);
+  const labels = [...new Set(resourceIds)].slice(0, 2).map((id) => nodeLabel(graph, id));
   return {
     nodeId,
     investigate: ['wiring'],
@@ -183,11 +184,8 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
   }
   const parent = graph.inEdges.get(nodeId)?.find(e => e.kind === 'contains')?.from;
   if (parent) navigation.up.push(nav('map_context', { scope: parent }, 'Return to the parent scope.'));
-  const taggedDomains = (graph.outEdges.get(parentModuleId(graph, nodeId) ?? nodeId) ?? [])
-    .filter(e => e.kind === 'tagged')
-    .map(e => e.to)
-    .slice(0, 3);
-  for (const d of taggedDomains) {
+  const domainIds = taggedDomains(graph, parentModuleId(graph, nodeId) ?? nodeId).ids.slice(0, 3);
+  for (const d of domainIds) {
     navigation.up.push(nav('map_context', { scope: d }, 'Return to a broader domain containing this node.'));
   }
   navigation.crossLayer.push(nav('trace_flow', { scope: nodeId }, 'Look for runtime/data-flow links around this node.'));

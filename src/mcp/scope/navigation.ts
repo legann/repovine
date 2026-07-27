@@ -1,4 +1,5 @@
 import type { ResolvedScope } from '../../scope/resolved.js';
+import { domainLabelFromId } from '../../graph/node-ids.js';
 import type { Navigation, NavigationItem } from '../response/envelope.js';
 import {
   DEFAULT_LIST_LIMIT,
@@ -26,7 +27,7 @@ export function scopeNavigation(scope: ResolvedScope): Navigation {
     n.validate.push(nav('get_annotation_status', { scope: scope.resolvedScope, view: 'coverage' }, 'Check whether annotations are fresh enough to trust.'));
   }
   if (scope.kind === 'domain') {
-    const label = scope.domainId?.replace(/^domain:/, '') ?? scope.raw.replace(/^domain:/, '');
+    const label = domainLabelFromId(scope.domainId ?? scope.raw);
     n.deeper.push(nav('map_context', { scope: scope.resolvedScope, view: 'modules', limit: DEFAULT_MAP_LIMIT }, 'List modules tagged with this semantic/path domain.'));
     n.sideways.push(nav('search_context', { query: `${label} handler route lambda`, limit: DEFAULT_SEARCH_LIMIT }, 'Look for runtime anchors related to this domain instead of tracing the domain tag directly.'));
     n.sideways.push(nav('analyze_dependencies', { scope: scope.resolvedScope, mode: 'import-map' }, 'Check imports for modules tagged with this domain.'));

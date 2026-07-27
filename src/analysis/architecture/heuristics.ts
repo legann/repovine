@@ -7,6 +7,7 @@
  */
 
 import type { RepositoryGraph, ModuleInfo, StoredAnnotation, GraphEdge } from '../../types.js';
+import { domainLabelFromId, domainNodeId } from '../../graph/node-ids.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { serializeSideEffect } from '../../annotations/side-effect-vocab.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
@@ -38,6 +39,16 @@ const STATE_SUFFIX_RE = new RegExp(`(store|state|slice|atom|signal)\\.${JS_EXT}$
  */
 export function isRuntimeImportEdge(edge: GraphEdge): boolean {
   return edge.kind === 'imports' && edge.metadata?.isTypeOnly !== true;
+}
+
+/** Runtime coupling into a module: `imports` in-edges that survive the build. */
+export function runtimeFanIn(graph: RepositoryGraph, nodeId: string): number {
+  return (graph.inEdges.get(nodeId) ?? []).filter(isRuntimeImportEdge).length;
+}
+
+/** Runtime coupling out of a module: `imports` out-edges that survive the build. */
+export function runtimeFanOut(graph: RepositoryGraph, nodeId: string): number {
+  return (graph.outEdges.get(nodeId) ?? []).filter(isRuntimeImportEdge).length;
 }
 
 // ── Module shape ──
@@ -282,16 +293,16 @@ export function rootDomainId(graph: RepositoryGraph, domainId: string): string {
     seen.add(current);
     const node = graph.nodes.get(current);
     if (node?.type === 'domain' && node.data?.parent) {
-      const parentId = node.data.parent.startsWith('domain:') ? node.data.parent : `domain:${node.data.parent}`;
+      const parentId = domainNodeId(domainLabelFromId(node.data.parent));
       if (graph.nodes.get(parentId)?.type === 'domain') {
         current = parentId;
         continue;
       }
     }
-    const withoutPrefix = current.replace(/^domain:/, '');
+    const withoutPrefix = domainLabelFromId(current);
     const slashIdx = withoutPrefix.indexOf('/');
     if (slashIdx > 0) {
-      const parentId = `domain:${withoutPrefix.slice(0, slashIdx)}`;
+      const parentId = domainNodeId(withoutPrefix.slice(0, slashIdx));
       if (graph.nodes.get(parentId)?.type === 'domain') {
         current = parentId;
         continue;

@@ -1,4 +1,5 @@
 import type { SemanticHints, RouteInfo } from '@repovine/plugin-sdk';
+import { compareCodeUnits } from '../../platform/ordering.js';
 
 /** Raw route row emitted by the stdlib `ast` subprocess (see `extract.ts` PY_AST_SCRIPT). */
 export interface RawFrameworkRoute {
@@ -40,9 +41,9 @@ export function frameworkHintsFromRaw(input: {
 
   routes.sort(
     (a, b) =>
-      a.path.localeCompare(b.path) ||
-      (a.method ?? '').localeCompare(b.method ?? '') ||
-      a.component.localeCompare(b.component),
+      compareCodeUnits(a.path, b.path) ||
+      compareCodeUnits(a.method ?? '', b.method ?? '') ||
+      compareCodeUnits(a.component, b.component),
   );
 
   return {

@@ -62,6 +62,10 @@ Queue statuses:
 | `stale` | `propagation` | `importBaseline` stale (`upstreamTriggers`) | Inspect upstream; `refreshImportBaseline: true` or update integrationPoints/dataFlow if contract changed. |
 | `unannotated` | — | No note yet | Write from scratch using recommended fields. |
 
+A domain roll-up is stale when a member the author placed there changed; a member an import cluster
+or a package name pulled in does not move it. Take members before the roll-up that holds them — a
+roll-up rewritten first is stale again by the end of the batch.
+
 ### 3. Inspect and write
 
 ~~~json

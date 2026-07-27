@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import type { PackageInfo } from '@repovine/plugin-sdk';
 import { readDirSorted } from '../../fs/read-dir-sorted.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
 
 const DISCOVER_SKIP =
   /\/(node_modules|\.git|dist|dist-bundled|target|build|out|coverage|\.next|__tests__|__mocks__|__snapshots__|\.cache|test|tests|e2e|cypress|playwright)(\/|$)/;
@@ -23,7 +24,7 @@ export function discoverPackages(repoRoot: string): PackageInfo[] {
     if (info) packages.push(info);
   }
 
-  return packages.sort((a, b) => a.path.localeCompare(b.path));
+  return packages.sort((a, b) => compareCodeUnits(a.path, b.path));
 }
 
 function findAllTsconfigDirs(repoRoot: string): string[] {

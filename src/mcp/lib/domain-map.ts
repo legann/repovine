@@ -1,10 +1,12 @@
 import type { RepositoryGraph } from '../../types.js';
-import { buildNodeView } from '../../graph/index.js';
+import { buildNodeView, domainMembers, isPatternTag, isPrimaryTag, isTaggedEdge, modulePackageId, nodeLabel } from '../../graph/index.js';
+import { domainNodeId } from '../../graph/node-ids.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
 import { resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../config.js';
 import {
   flattenByPackage,
+  type PackageGrouping,
   paginateDomainModules,
   parseDomainPaginationArgs,
   regroupByPackage,
@@ -19,13 +21,6 @@ export function moduleLinkCount(graph: RepositoryGraph, moduleId: string): numbe
   return view?.truncation?.links?.total ?? view?.links?.length ?? 0;
 }
 
-export function resolveModulePackageId(graph: RepositoryGraph, moduleId: string): string {
-  const pkgEdge = (graph.inEdges.get(moduleId) ?? []).find(
-    e => e.kind === 'contains' && e.from.startsWith('pkg:'),
-  );
-  return pkgEdge?.from ?? 'unknown';
-}
-
 /** The domain view for a domain name. A scope naming a node is answered by the map tool's own path branch. */
 export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
   const { graph, annotations, domainsConfig } = ctx.getState();
@@ -38,17 +33,16 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
     return { error: e instanceof Error ? e.message : String(e) };
   }
   const domainLabel = resolveDomainToCanonical(q, domainsConfig);
-  const domainId = domainLabel.startsWith('domain:') ? domainLabel : `domain:${domainLabel}`;
+  const domainId = domainNodeId(domainLabel);
   if (graph.nodes.has(domainId)) {
     const domainNode = graph.nodes.get(domainId);
     if (!domainNode) return { error: `Not found: ${q}` };
-    const incoming = graph.inEdges.get(domainId) ?? [];
     // `moduleCount` must mean the same thing here as it does per subdomain below, which counts
     // module-typed sources only. Infra propagation tags runtime resources into domains too, so an
     // unfiltered count reported more "modules" than the subdomain rows could ever add up to.
-    const allTagged = incoming.filter(e => e.kind === 'tagged');
-    const taggedModuleIds = allTagged.filter(e => graph.nodes.get(e.from)?.type === 'module').map(e => e.from);
-    const taggedNonModuleCount = allTagged.length - taggedModuleIds.length;
+    const members = domainMembers(graph, domainId);
+    const taggedModuleIds = members.modules;
+    const taggedNonModuleCount = members.all.length - members.modules.length;
     const moduleRows: DomainModuleRow[] = [];
     for (const id of taggedModuleIds) {
       const view = buildNodeView(graph, id);
@@ -82,9 +76,7 @@ export function buildDomainContext(ctx: McpToolRuntime, args: Record<string, unk
     if (subdomainIds?.length) {
       result.subdomains = subdomainIds.map(sid => {
         const sNode = graph.nodes.get(sid);
-        const sIncoming = graph.inEdges.get(sid) ?? [];
-        const sModCount = sIncoming.filter(e => e.kind === 'tagged' && graph.nodes.get(e.from)?.type === 'module').length;
-        return { id: sid, label: sNode?.label ?? sid, moduleCount: sModCount };
+        return { id: sid, label: sNode?.label ?? sid, moduleCount: domainMembers(graph, sid).modules.length };
       });
     }
     const domainAnn = annotations.get(domainId);
@@ -116,15 +108,17 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
   const includeConsumers = args.includeConsumers === true;
   const includeSecondary = args.includeSecondaryMatches === true;
   const domainLabel = resolveDomainToCanonical(tag, domainsConfig);
-  const domainId = domainLabel.startsWith('domain:') ? domainLabel : `domain:${domainLabel}`;
+  const domainId = domainNodeId(domainLabel);
   if (!graph.nodes.has(domainId)) return { error: `Domain not found: ${tag}` };
 
   const incoming = graph.inEdges.get(domainId) ?? [];
-  const isPrimaryTag = (e: { kind: string; metadata?: { tagSource?: string } }) =>
-    e.kind === 'tagged' && (e.metadata?.tagSource !== 'pattern');
-  const taggedEdges = incoming.filter(e => includeSecondary ? e.kind === 'tagged' : isPrimaryTag(e));
-  const taggedModuleIds = new Set(taggedEdges.map(e => e.from));
-  const secondaryMatchCount = incoming.filter(e => e.kind === 'tagged' && e.metadata?.tagSource === 'pattern').length;
+  const taggedEdges = incoming.filter(e => includeSecondary ? isTaggedEdge(e) : isPrimaryTag(e));
+  // Named for what it holds. An unfiltered set reported runtime resources and subdomain nodes under
+  // `taggedModules`, and the `byPackage` listing below — which does filter — then contradicted it in
+  // the same response.
+  const taggedModuleIds = new Set(taggedEdges.map(e => e.from).filter(id => graph.nodes.get(id)?.type === 'module'));
+  const taggedNonModuleCount = taggedEdges.length - taggedModuleIds.size;
+  const secondaryMatchCount = incoming.filter(isPatternTag).length;
   const allIds = new Set(taggedModuleIds);
   for (const modId of taggedModuleIds) {
     const outEdges = graph.outEdges.get(modId) ?? [];
@@ -141,22 +135,10 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
       }
     }
   }
-  const nodeLabel = (id: string) => graph.nodes.get(id)?.label ?? id;
-  const groupByPackage = (ids: Iterable<string>) => {
-    const byPkg = new Map<string, string[]>();
-    for (const id of ids) {
-      const node = graph.nodes.get(id);
-      if (!node || node.type !== 'module') continue;
-      const pkgEdge = (graph.inEdges.get(id) ?? []).find(e => e.kind === 'contains' && e.from.startsWith('pkg:'));
-      const pkg = pkgEdge?.from ?? 'unknown';
-      let arr = byPkg.get(pkg);
-      if (!arr) { arr = []; byPkg.set(pkg, arr); }
-      arr.push(id);
-    }
-    return Object.fromEntries(
-      [...byPkg.entries()].map(([pkg, mods]) => [pkg, mods.map(id => ({ id, label: nodeLabel(id) }))])
-    );
-  };
+  const groupByPackage = (ids: Iterable<string>): PackageGrouping => regroupByPackage(
+    [...ids].filter(id => graph.nodes.get(id)?.type === 'module').map(id => ({ id, label: nodeLabel(graph, id) })),
+    id => modulePackageId(graph, id),
+  );
   const domainNode = graph.nodes.get(domainId);
   const tier = domainNode?.type === 'domain' ? domainNode.data?.tier : undefined;
   const fullByPackage = groupByPackage(allIds);
@@ -171,12 +153,15 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
     ? undefined
     : regroupByPackage(
         pagedRows.map(m => ({ id: m.id, label: m.label })),
-        id => resolveModulePackageId(graph, id),
+        id => modulePackageId(graph, id),
       );
   const result: Record<string, unknown> = {
     domain: tag,
     ...(tier ? { tier } : {}),
     taggedModules: taggedModuleIds.size,
+    // Tagged nodes that are not modules (infra propagation attaches runtime resources, subdomains
+    // carry a domain tag of their own) are counted rather than dropped in silence.
+    ...(taggedNonModuleCount > 0 ? { taggedNonModuleCount } : {}),
     totalWithDeps: allIds.size,
     summaryOnly: pagination.summaryOnly,
   };
@@ -196,10 +181,16 @@ export function buildDomainModulesSlice(ctx: McpToolRuntime, args: Record<string
   if (pagination.summaryOnly) {
     if (topModules?.length) result.topModules = topModules;
   } else if (pagedByPackage) {
-    result.byPackage = pagedByPackage;
+    result.byPackage = pagedByPackage.byPackage;
+    if (pagedByPackage.withoutPackage.length > 0) result.withoutPackage = pagedByPackage.withoutPackage;
   }
   if (includeConsumers && consumerIds.size > 0) {
-    result.consumers = { count: consumerIds.size, byPackage: groupByPackage(consumerIds) };
+    const consumerGrouping = groupByPackage(consumerIds);
+    result.consumers = {
+      count: consumerIds.size,
+      byPackage: consumerGrouping.byPackage,
+      ...(consumerGrouping.withoutPackage.length > 0 ? { withoutPackage: consumerGrouping.withoutPackage } : {}),
+    };
   }
   const domainAnn = annotations.get(domainId);
   if (domainAnn) {

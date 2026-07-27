@@ -1,5 +1,5 @@
 import type { InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
-import { addEdge } from '../graph/index.js';
+import { addEdge, hasEdge, nodesOfType } from '../graph/index.js';
 import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 import { normalizeLinkingConfig } from '../stage1/linking-config.js';
 
@@ -179,21 +179,13 @@ function shouldLinkResource(res: InfraResource): boolean {
   return Boolean(res.attributes.containerImages || res.attributes.containerImage0);
 }
 
-function hasInfraEdge(graph: RepositoryGraph, from: string, to: string): boolean {
-  return (graph.outEdges.get(from) ?? []).some(e => e.kind === 'infra' && e.to === to);
-}
-
-function hasRoutesToEdge(graph: RepositoryGraph, from: string, to: string): boolean {
-  return (graph.outEdges.get(from) ?? []).some(e => e.kind === 'routes_to' && e.to === to);
-}
-
 function findK8sIngressBackendServiceId(
   graph: RepositoryGraph,
   label: string,
   namespace: string | undefined,
 ): string | undefined {
-  const serviceSet = graph.byType.get('runtime-resource');
-  if (!serviceSet) return undefined;
+  const serviceSet = nodesOfType(graph, 'runtime-resource');
+  if (serviceSet.length === 0) return undefined;
   const namespacePrefix = `resource:k8s:${namespace ?? '_'}/`;
   let untypedServiceId: string | undefined;
   for (const id of serviceSet) {
@@ -248,7 +240,7 @@ export function linkK8sIngressRoutes(
         if (
           !targetServiceId
           || targetServiceId === ingressServiceId
-          || hasRoutesToEdge(graph, ingressServiceId, targetServiceId)
+          || hasEdge(graph, ingressServiceId, 'routes_to', targetServiceId)
         ) continue;
         addEdge(graph, ingressServiceId, targetServiceId, 'routes_to');
       }
@@ -285,7 +277,7 @@ export function linkContainerRuntimeTargets(
           if (dockerfileId) imageToDockerfile.set(image, dockerfileId);
         }
         if (!dockerfileId || !graph.nodes.has(dockerfileId)) continue;
-        if (hasInfraEdge(graph, serviceId, dockerfileId)) continue;
+        if (hasEdge(graph, serviceId, 'infra', dockerfileId)) continue;
         addEdge(graph, serviceId, dockerfileId, 'infra');
       }
 
@@ -296,7 +288,7 @@ export function linkContainerRuntimeTargets(
         const dockerfileId = imageToDockerfile.get(envImage)
           ?? resolveDockerfileModuleId(envImage, graph, linking.containers.dockerfileRoots, res.id);
         if (dockerfileId) imageToDockerfile.set(envImage, dockerfileId);
-        if (!dockerfileId || hasInfraEdge(graph, serviceId, dockerfileId)) continue;
+        if (!dockerfileId || hasEdge(graph, serviceId, 'infra', dockerfileId)) continue;
         addEdge(graph, serviceId, dockerfileId, 'infra');
       }
     }

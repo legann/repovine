@@ -1,5 +1,8 @@
 import type { RepositoryFactsSnapshot, RepositoryGraph, ModuleInfo } from '../types.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 import { loadDomainsConfig, type DomainsConfig } from './domains-schema.js';
+import { domainLabelFromId } from '../graph/node-ids.js';
+import { importerCount } from '../graph/index.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
 // registry which extensions to strip, so a Python path reduces the same way a TypeScript one does.
 import '../stage1/source/bootstrap.js';
@@ -266,7 +269,7 @@ export function evaluateBasenameCandidate(
   });
   if (isRuntimeResourceHandler) return { domain: slug, rejected: false, highConfidence: true };
 
-  const incomingImports = inEdges.filter(e => e.kind === 'imports').length;
+  const incomingImports = importerCount(graph, modId);
   if (incomingImports >= BASENAME_PROMOTION_MIN_INCOMING) {
     return { domain: slug, rejected: false, highConfidence: false };
   }
@@ -367,7 +370,7 @@ function labelPropagation(
   neighbors: Map<string, Set<string>>,
   maxIterations: number = 10,
 ): Map<string, string> {
-  const sortedIds = [...modIds].sort((a, b) => a.localeCompare(b));
+  const sortedIds = [...modIds].sort((a, b) => compareCodeUnits(a, b));
   const label = new Map<string, string>();
   for (const id of sortedIds) label.set(id, id);
   for (let iter = 0; iter < maxIterations; iter++) {
@@ -469,13 +472,17 @@ export function matchFileAsDomain(relativeFilePath: string, config: DomainsConfi
 /**
  * Resolve a domain name or alias to the canonical domain label used in the graph.
  * E.g. "kubernetes" or "k8s" -> "infra-k8s" when domains["infra-k8s"].aliases includes them.
+ *
+ * Returns a bare label for every input, including one that arrived with the `domain:` prefix. The
+ * caller turns it back into an id with `domainNodeId`; a return that is bare on an alias hit and
+ * prefixed on a miss made every caller re-test the prefix.
  */
 export function resolveDomainToCanonical(input: string, config: DomainsConfig | null): string {
-  if (!input || !config) return input;
-  const normalized = input.startsWith('domain:') ? input.slice(7) : input;
+  const normalized = domainLabelFromId(input);
+  if (!input || !config) return normalized;
   const canonical = config._aliasToCanonical?.[normalized.toLowerCase()];
   if (canonical !== undefined) return canonical;
-  return input;
+  return normalized;
 }
 
 /**
@@ -689,7 +696,7 @@ export function collectAllDomainTags(
       const bh = classification.get(b.domain)?.weight === 'heavy' ? 1 : 0;
       if (bh !== ah) return bh - ah;
       const ps = priority[b.source] - priority[a.source];
-      return ps !== 0 ? ps : a.domain.localeCompare(b.domain);
+      return ps !== 0 ? ps : compareCodeUnits(a.domain, b.domain);
     });
     tagsByModule.set(modId, kept.slice(0, MAX_DOMAINS_PER_MODULE));
   }

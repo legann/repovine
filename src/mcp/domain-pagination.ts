@@ -1,6 +1,7 @@
 /**
  * Shared pagination / summary helpers for domain MCP tools.
  */
+import { compareCodeUnits } from '../platform/ordering.js';
 import { argTruncation, pageTruncation, type Truncation } from '../response/truncation.js';
 
 export const DOMAIN_TOP_MODULES_DEFAULT = 15;
@@ -42,7 +43,7 @@ export function parseDomainPaginationArgs(args: Record<string, unknown>): Domain
 
 export function sortModulesByConnectivity(modules: DomainModuleRow[]): DomainModuleRow[] {
   return [...modules].sort(
-    (a, b) => (b.links ?? 0) - (a.links ?? 0) || a.label.localeCompare(b.label) || a.id.localeCompare(b.id),
+    (a, b) => (b.links ?? 0) - (a.links ?? 0) || compareCodeUnits(a.label, b.label) || compareCodeUnits(a.id, b.id),
   );
 }
 
@@ -103,19 +104,28 @@ export function paginateDomainModules(
   };
 }
 
-export function flattenByPackage(
-  byPackage: Record<string, Array<{ id: string; label: string }>>,
-): Array<{ id: string; label: string }> {
-  return Object.values(byPackage).flat();
+export interface PackageGrouping {
+  byPackage: Record<string, Array<{ id: string; label: string }>>;
+  /** Entries whose owning package the graph does not name. Kept as a list: a package id is an id. */
+  withoutPackage: Array<{ id: string; label: string }>;
+}
+
+export function flattenByPackage(grouping: PackageGrouping): Array<{ id: string; label: string }> {
+  return [...Object.values(grouping.byPackage).flat(), ...grouping.withoutPackage];
 }
 
 export function regroupByPackage(
   entries: Array<{ id: string; label: string }>,
-  graphPkgResolver: (moduleId: string) => string,
-): Record<string, Array<{ id: string; label: string }>> {
+  graphPkgResolver: (moduleId: string) => string | undefined,
+): PackageGrouping {
   const byPkg = new Map<string, Array<{ id: string; label: string }>>();
+  const withoutPackage: Array<{ id: string; label: string }> = [];
   for (const entry of entries) {
     const pkg = graphPkgResolver(entry.id);
+    if (pkg === undefined) {
+      withoutPackage.push(entry);
+      continue;
+    }
     let arr = byPkg.get(pkg);
     if (!arr) {
       arr = [];
@@ -123,5 +133,5 @@ export function regroupByPackage(
     }
     arr.push(entry);
   }
-  return Object.fromEntries(byPkg.entries());
+  return { byPackage: Object.fromEntries(byPkg.entries()), withoutPackage };
 }

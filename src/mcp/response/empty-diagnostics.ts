@@ -7,7 +7,7 @@ import {
   scopeLabel,
 } from '../scope/resolve.js';
 import { ARCHITECTURE_SCOPE_KINDS, architectureCanScope } from '../../analysis/architecture/scope.js';
-import { owningModuleId } from '../../graph/node-ids.js';
+import { domainLabelFromId, owningModuleId } from '../../graph/node-ids.js';
 import { RUNTIME_TOPOLOGY_SCOPE_KINDS, topologyCanScope } from '../lib/topology.js';
 import {
   DEFAULT_ARCHITECTURE_LIMIT,
@@ -148,7 +148,7 @@ export function entrypointsEmptyDiagnostic(
   }
 
   if (scope.kind === 'domain') {
-    const label = scope.domainId?.replace(/^domain:/, '') ?? scope.raw.replace(/^domain:/, '');
+    const label = domainLabelFromId(scope.domainId ?? scope.raw);
     return {
       reason: 'semantic_domain_not_runtime_boundary',
       message: `${scope.resolvedScope} is a semantic/path tag. Entrypoints are owned by handler modules, pages, packages, or runtime resources, not by the domain tag itself.`,
@@ -242,7 +242,7 @@ export function traceFlowEmptyDiagnostic(
     };
   }
   if (scope.kind === 'domain') {
-    const label = scope.domainId?.replace(/^domain:/, '') ?? scope.raw.replace(/^domain:/, '');
+    const label = domainLabelFromId(scope.domainId ?? scope.raw);
     return {
       reason: 'semantic_domain_not_runtime_boundary',
       message: `${scope.resolvedScope} is a semantic/path tag. Runtime flow is graph-proven through services/resources/entrypoints, which may live outside that domain tag.`,
@@ -453,7 +453,7 @@ export function mapContextEmptyDiagnostic(
           : typeof result?.totalWithDeps === 'number' ? result.totalWithDeps
             : undefined;
     if (moduleCount === 0) {
-      const label = scope.domainId?.replace(/^domain:/, '') ?? scope.raw.replace(/^domain:/, '');
+      const label = domainLabelFromId(scope.domainId ?? scope.raw);
       return {
         reason: 'scope_has_no_map_context',
         message: `${scope.resolvedScope} exists as a domain tag, but no modules are currently tagged into that scope.`,

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import type { TemplateFileInfo } from '../types.js';
 import { shouldScanSourcePath, type CompiledScanPatterns } from '../scan-filters.js';
 import { readDirSorted } from '../fs/read-dir-sorted.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 
 /**
  * Stage 1 template artifact discovery for the built-in server-templates producer (no AST).
@@ -120,7 +121,7 @@ export function collectTemplates(opts: {
     } catch {
       return;
     }
-    for (const e of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const e of entries) {
       const full = path.join(dir, e.name);
       const relPath = path.normalize(path.relative(repoRoot, full)).split(path.sep).join('/');
       if (e.isDirectory()) {
@@ -149,5 +150,5 @@ export function collectTemplates(opts: {
   };
   walk(repoRoot);
 
-  return [...out.values()].sort((a, b) => a.relPath.localeCompare(b.relPath));
+  return [...out.values()].sort((a, b) => compareCodeUnits(a.relPath, b.relPath));
 }

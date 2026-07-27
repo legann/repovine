@@ -179,6 +179,7 @@ Sum `result.submittedAnnotation.estimatedTokens` from successful writes (heurist
 ## Notes
 
 - Queue order is bottom-up within each tier: content-stale before propagation-stale before unannotated, then modules before services/infra/domains, lower dependency depth before importers.
+- A domain roll-up goes stale when a member the author placed there changes — a member an import cluster or a package name pulled in does not move it. Annotate members first: a roll-up rewritten before its members is stale again by the end of the batch.
 - Derived-stale: `importBaseline` vs direct imports (`upstreamTriggers`); clear via rewrite or `refreshImportBaseline: true`.
 - The `repovine-annotation-writer` subagent must `inspect_node` each node before `write_annotation` (the harness checks this provenance over `annotationsWritten`) and fix any `quality.consistency.issues`; `quality.score` is completeness only — an empty field beats a fabricated one.
 - Drain hard-work batches until `needsWork: 0` in scope. Keep batches small. Annotating modules and reading source to summarize them is summary-class work. Use the cheapest, fastest model for exploration/annotation; reserve stronger models for implementation and hard reasoning.

@@ -27,6 +27,7 @@ import { getRegisteredIaCPluginIds } from './iac/registry.js';
 import type { SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
 // Side-effect: register built-in source plugins (typescript, …) before discovery runs.
 import './source/bootstrap.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 
 /** Schema version of the Stage 1 facts snapshot; a mismatch invalidates the on-disk cache.
  *  2: `ExportInfo.defaultLocalName` — a cached module extracted before it would still project no
@@ -549,7 +550,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
     extractContextByPlugin.set(plugin.id, extractContext);
   }
 
-  const packages = allPackages.sort((a, b) => a.path.localeCompare(b.path));
+  const packages = allPackages.sort((a, b) => compareCodeUnits(a.path, b.path));
   const extractionConfigFingerprint = computeExtractionConfigFingerprint({
     repoRoot,
     scanInclude: options?.scanInclude,

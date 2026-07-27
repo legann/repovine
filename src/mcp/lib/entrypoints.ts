@@ -1,4 +1,5 @@
-import type { EntrypointFragment } from '../../interpreter/types.js';
+import { entrypointHandlerModuleId, type EntrypointFragment } from '../../interpreter/types.js';
+import { nodesOfType } from '../../graph/index.js';
 import {
   LAYER_ENTRYPOINT_SLOT_KEY,
   type EntrypointSlot,
@@ -57,7 +58,7 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
       stripEntrypointFragmentInternals(entry),
       entry.moduleId,
       entry.serviceId as string | undefined,
-      entry.handlerModule as string | undefined,
+      entrypointHandlerModuleId(entry),
     );
   };
 
@@ -97,7 +98,7 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
     pushInterpreterEntry(interpreterEntrypoints.get(filePageLayerKey(r)));
   }
 
-  for (const svcId of graph.byType.get('runtime-resource') ?? []) {
+  for (const svcId of nodesOfType(graph, 'runtime-resource')) {
     const node = graph.nodes.get(svcId);
     if (!node || node.type !== 'runtime-resource') continue;
     for (const trigger of node.data?.triggers ?? []) {

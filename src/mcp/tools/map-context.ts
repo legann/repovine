@@ -1,6 +1,7 @@
-import { graphStats } from '../../graph/index.js';
+import { countNodesOfType, graphStats, nodesOfType } from '../../graph/index.js';
 import type { ToolHandler } from '../types.js';
-import { resolveScope, stripDomainPrefix } from '../scope/resolve.js';
+import { resolveScope } from '../scope/resolve.js';
+import { domainLabelFromId } from '../../graph/node-ids.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, resultError, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom, pathFromRootPaginated, DEFAULT_MAP_LIMIT } from '../response/pagination.js';
@@ -22,11 +23,11 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
   if (scope.kind === 'all') {
     const { graph } = ctx.getState();
     const stats = graphStats(graph);
-    const packages = [...(graph.byType.get('package') ?? [])].slice(offset, offset + limit).map(id => {
+    const packages = nodesOfType(graph, 'package').slice(offset, offset + limit).map(id => {
       const node = graph.nodes.get(id);
       return { id, label: node?.label ?? id };
     });
-    const packageTotal = graph.byType.get('package')?.size ?? 0;
+    const packageTotal = countNodesOfType(graph, 'package');
     const packagesBound = pageTruncation({
       shown: packages.length,
       total: packageTotal,
@@ -42,7 +43,7 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
     };
     summary = `Repository map: ${stats.totalNodes} nodes and ${stats.totalEdges} edges.`;
   } else if (scope.kind === 'domain') {
-    const domainArg = stripDomainPrefix(scope.resolvedScope);
+    const domainArg = domainLabelFromId(scope.resolvedScope);
     result = view === 'modules'
       ? buildDomainModulesSlice(ctx, {
         domainTag: domainArg,

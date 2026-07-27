@@ -9,7 +9,7 @@ This file configures **inter-sub-agent handoff inside one multi-agent run**. It 
 
 repovine **annotations** are **durable graph memory** — summaries, sideEffects, risks, integration points. Use them via MCP whenever they help (within this run or later).
 
-A note carries its own verdict: `inspect_node` returns `annotationMeta.fresh`, and `staleReason` when that is `false`. A `propagation`-stale note still describes its node, but what it says about the modules it imports is unconfirmed; a `content`- or `no-baseline`-stale note describes text that has moved. Read the verdict before threading a note's claims into an assignment as ground truth.
+A note carries its own verdict: `inspect_node` returns `annotationMeta.fresh`, and `staleReason` when that is `false`. A `propagation`-stale note still describes its node, but what it says about the modules it imports is unconfirmed; a `content`- or `no-baseline`-stale note describes text that has moved — on a domain roll-up, which has no text of its own, `content` means a member moved instead. Read the verdict before threading a note's claims into an assignment as ground truth.
 
 **AgentRunResult** fields (`summary`, `filesChanged`, `contractsChanged`, `blockers`) are what the **orchestrator threads** to the next sub-agent in the same multi-agent run. Emit `contractsChanged` for facts a sibling must not miss; do not substitute annotation-sync prose for that.
 

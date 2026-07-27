@@ -1,5 +1,6 @@
 import { Node, SyntaxKind, type BindingElement, type SourceFile } from 'ts-morph';
 import { importDeclarationSpecifier } from './module-specifier.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
 import type {
   SemanticHints,
   UiChildComponentHint,
@@ -895,7 +896,7 @@ function isLikelyNextAppRouterPath(parts: string[], appIdx: number, basename: st
 function exportedHttpMethods(sf: SourceFile): string[] {
   return [...sf.getExportedDeclarations().keys()]
     .filter(name => FILE_ROUTE_HTTP_METHODS.has(name))
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => compareCodeUnits(a, b));
 }
 
 function apiFileRoutes(
@@ -1453,7 +1454,7 @@ function collectAcceptedProps(fn: ComponentFunction): UiComponentPropHint[] {
     }
   }
 
-  return [...props.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...props.values()].sort((a, b) => compareCodeUnits(a.name, b.name));
 }
 
 function collectBindingPatternProps(
@@ -1570,7 +1571,7 @@ function collectVueProps(text: string): UiComponentPropHint[] {
   for (const match of text.matchAll(/defineProps\s*\(\s*\{([\s\S]*?)\}\s*\)/g)) {
     for (const propMatch of match[1].matchAll(/([A-Za-z_$][\w$]*)\s*:/g)) add(propMatch[1]);
   }
-  return [...props.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...props.values()].sort((a, b) => compareCodeUnits(a.name, b.name));
 }
 
 function collectSvelteProps(sf: SourceFile): UiComponentPropHint[] {
@@ -1589,7 +1590,7 @@ function collectSvelteProps(sf: SourceFile): UiComponentPropHint[] {
       });
     }
   });
-  return [...props.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...props.values()].sort((a, b) => compareCodeUnits(a.name, b.name));
 }
 
 function collectAngularProps(cls: import('ts-morph').ClassDeclaration): UiComponentPropHint[] {
@@ -1606,7 +1607,7 @@ function collectAngularProps(cls: import('ts-morph').ClassDeclaration): UiCompon
       lineRange: nodeLineRange(prop),
     });
   }
-  return props.sort((a, b) => a.name.localeCompare(b.name));
+  return props.sort((a, b) => compareCodeUnits(a.name, b.name));
 }
 
 function collectVueTemplateChildren(template: string, propNames: string[]): UiChildComponentHint[] {
