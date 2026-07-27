@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import type { IaCParser, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
+import { shortenText } from '@repovine/plugin-sdk';
 import { hashResourcePayload } from '../../../stage1/iac/utils.js';
 
 export const helmChartParser: IaCParser = {
@@ -33,7 +34,7 @@ export const helmChartParser: IaCParser = {
       attributes: {
         ...(d.version ? { version: String(d.version) } : {}),
         ...(d.appVersion ? { appVersion: String(d.appVersion) } : {}),
-        ...(d.description ? { description: String(d.description).slice(0, 200) } : {}),
+        ...(d.description ? { description: shortenText(String(d.description), 200) } : {}),
       },
     }];
     return { kind: 'helm', resources };

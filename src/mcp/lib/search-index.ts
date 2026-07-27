@@ -9,6 +9,7 @@
 
 import { compareCodeUnits } from '../../platform/ordering.js';
 import type { RepositoryGraph, StoredAnnotation } from '../../types.js';
+import { splitCamelCase } from '../../platform/text.js';
 
 export interface SearchIndex {
   /** Inverted index: token (lowercase) -> Set<nodeId>. */
@@ -34,13 +35,9 @@ const ANNOTATION_STOPWORDS = new Set([
 ]);
 
 export function searchTokenize(s: string): string[] {
-  const splitCamel = (value: string): string =>
-    value
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
   const splitPlain = (value: string): string[] =>
     value.toLowerCase().replace(/[/\-_.:]/g, ' ').split(/\s+/).filter(Boolean);
-  return [...new Set([...splitPlain(s), ...splitPlain(splitCamel(s))])];
+  return [...new Set([...splitPlain(s), ...splitPlain(splitCamelCase(s))])];
 }
 
 /** All string leaves of the annotation content, joined and lowercased. Generic walk so new fields index automatically. */

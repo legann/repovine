@@ -1,4 +1,5 @@
 import { Node, type ArrowFunction, type FunctionExpression, type FunctionDeclaration } from 'ts-morph';
+import { shortenText } from '@repovine/plugin-sdk';
 
 export type FunctionLike = FunctionDeclaration | ArrowFunction | FunctionExpression;
 
@@ -15,9 +16,5 @@ export function getFunctionNode(node: Node): FunctionLike | undefined {
 }
 
 export function normalizeType(text: string, maxLength = 150): string {
-  const result = text.replace(/import\("[^"]+"\)\./g, '');
-  if (result.length > maxLength) {
-    return result.slice(0, maxLength) + '…';
-  }
-  return result;
+  return shortenText(text.replace(/import\("[^"]+"\)\./g, ''), maxLength);
 }

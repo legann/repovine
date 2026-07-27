@@ -178,8 +178,8 @@ export interface RefactoringThresholds {
     allowGenericStorageName: boolean;
   };
   sourceDisclosureSurface: {
-    /** Min source-disclosure signals before emitting. */
-    minSignals: number;
+    /** Min weighted evidence before emitting; each source-disclosure signal weighs 1. */
+    minEvidenceScore: number;
   };
   annotationSecretHygiene: {
     /** Allow repo owners to disable annotation hygiene reports if they run a separate scanner. */
@@ -235,7 +235,7 @@ export const STRICTNESS_PROFILES: Record<RefactoringStrictness, RefactoringThres
     privilegedClientSideEffect: { minEvidenceScore: 1, includeMutationOnly: true, allowGenericStorageName: true },
     sensitiveBrowserStorage: { requireSensitiveKey: false, minAnnotationStorageSignals: 1 },
     serverClientBoundary: { minTargets: 1, allowGenericStorageName: true },
-    sourceDisclosureSurface: { minSignals: 1 },
+    sourceDisclosureSurface: { minEvidenceScore: 1 },
     annotationSecretHygiene: { enabled: true },
   },
   normal: {
@@ -271,7 +271,7 @@ export const STRICTNESS_PROFILES: Record<RefactoringStrictness, RefactoringThres
     privilegedClientSideEffect: { minEvidenceScore: 1, includeMutationOnly: true, allowGenericStorageName: true },
     sensitiveBrowserStorage: { requireSensitiveKey: false, minAnnotationStorageSignals: 1 },
     serverClientBoundary: { minTargets: 1, allowGenericStorageName: true },
-    sourceDisclosureSurface: { minSignals: 1 },
+    sourceDisclosureSurface: { minEvidenceScore: 1 },
     annotationSecretHygiene: { enabled: true },
   },
   strict: {
@@ -307,7 +307,7 @@ export const STRICTNESS_PROFILES: Record<RefactoringStrictness, RefactoringThres
     privilegedClientSideEffect: { minEvidenceScore: 2, includeMutationOnly: false, allowGenericStorageName: false },
     sensitiveBrowserStorage: { requireSensitiveKey: false, minAnnotationStorageSignals: 2 },
     serverClientBoundary: { minTargets: 1, allowGenericStorageName: false },
-    sourceDisclosureSurface: { minSignals: 1 },
+    sourceDisclosureSurface: { minEvidenceScore: 1 },
     annotationSecretHygiene: { enabled: true },
   },
 };

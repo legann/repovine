@@ -39,6 +39,7 @@ import { type McpToolRuntime } from '../types.js';
 import { resolveScope } from '../scope/resolve.js';
 import { writeBoundaryIndex } from '../boundary-index.js';
 import { hasBoundaryScopedRisk } from '../../annotations/format.js';
+import { shortenList, omittedNote } from '../../platform/text.js';
 
 /** Canonical key order follows the validation schema, so new accepted fields cannot be dropped. */
 const ANNOTATION_CONTENT_KEY_ORDER = (
@@ -102,18 +103,21 @@ function consistencyWarnings(consistency: AnnotationConsistency, mod: ModuleInfo
   const warnings: string[] = [];
   const ke = byField.get('keyExports');
   if (ke?.length) {
-    const sample = ke.slice(0, 5).join(', ');
-    const more = ke.length > 5 ? ` (+${ke.length - 5} more)` : '';
-    const realSample = mod ? mod.exports.slice(0, 8).map(e => e.name).join(', ') : '';
+    const keShown = shortenList(ke, 5);
+    const sample = keShown.shown.join(', ');
+    const more = omittedNote(keShown.omitted);
+    const realExports = shortenList(mod?.exports ?? [], 8);
+    const realSample = mod ? realExports.shown.map(e => e.name).join(', ') : '';
     warnings.push(
       `keyExports contains ${ke.length} name(s) not present in module exports: ${sample}${more}.`
-      + (mod ? ` Real exports: ${realSample}${mod.exports.length > 8 ? ` (+${mod.exports.length - 8} more)` : ''}.` : ''),
+      + (mod ? ` Real exports: ${realSample}${omittedNote(realExports.omitted)}.` : ''),
     );
   }
   const env = byField.get('envDependencies');
   if (env?.length) {
-    const sample = env.slice(0, 5).join(', ');
-    const more = env.length > 5 ? ` (+${env.length - 5} more)` : '';
+    const envShown = shortenList(env, 5);
+    const sample = envShown.shown.join(', ');
+    const more = omittedNote(envShown.omitted);
     warnings.push(`envDependencies declares ${env.length} var(s) not detected in module hints: ${sample}${more}.`);
   }
   for (const detail of byField.get('sideEffects') ?? []) {

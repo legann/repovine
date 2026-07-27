@@ -30,6 +30,7 @@ import './source/bootstrap.js';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { repoRelativePosix } from '../platform/paths.js';
 import { packageNodeId } from '../graph/node-ids.js';
+import { shortenList, omittedNote } from '../platform/text.js';
 
 /** Schema version of the Stage 1 facts snapshot; a mismatch invalidates the on-disk cache.
  *  2: `ExportInfo.defaultLocalName` — a cached module extracted before it would still project no
@@ -594,8 +595,8 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
   logPipeline(formatPipelineDetail(`  Discovered ${pendingModules.length} unique modules across ${pkgsWithModules} packages`));
   const outsideRepoPaths = Array.from(outsideRepo).sort();
   if (outsideRepoPaths.length > 0) {
-    const sample = outsideRepoPaths.slice(0, OUTSIDE_REPO_SAMPLE);
-    const more = outsideRepoPaths.length > sample.length ? ` (+${outsideRepoPaths.length - sample.length} more)` : '';
+    const { shown: sample, omitted } = shortenList(outsideRepoPaths, OUTSIDE_REPO_SAMPLE);
+    const more = omittedNote(omitted);
     logPipelineWarn(`  ⚠ Refused ${outsideRepoPaths.length} file(s) resolving outside the workspace root: ${sample.join(', ')}${more}`);
   }
 

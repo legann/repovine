@@ -12,6 +12,7 @@ import { setPipelineLogSink } from './ui.js';
 import type { AgentsCliEnv } from './agents.js';
 import { moduleTailFromId, packageNameFromId } from '../graph/node-ids.js';
 import { extractPackageName } from '../stage1/utils.js';
+import { shortenText } from '../platform/text.js';
 
 export type OrientReport = {
   query: string;
@@ -94,7 +95,7 @@ export function normalizeOrientQuery(raw: string): string {
   }
   if (t.length > 800) {
     const paras = t.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-    t = (paras[paras.length - 1] ?? t).slice(0, 800);
+    t = shortenText(paras[paras.length - 1] ?? t, 800);
   }
   return t.trim();
 }

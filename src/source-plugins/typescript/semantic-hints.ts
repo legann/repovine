@@ -1,7 +1,7 @@
 import { Node, SyntaxKind, type BindingElement, type SourceFile } from 'ts-morph';
 import { importDeclarationSpecifier } from './module-specifier.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
-import { pathMatchKey, toPosixPath } from '../../platform/paths.js';
+import { lastPathSegment, pathMatchKey, toPosixPath } from '../../platform/paths.js';
 import { JSX_EXT_SUFFIX_RE, SFC_EXT_SUFFIX_RE, SFC_VIRTUAL_TS_SUFFIX_RE, SOURCE_EXT_SUFFIX_RE } from './extensions.js';
 import type {
   SemanticHints,
@@ -21,6 +21,7 @@ import type {
   RuntimeAction,
   SecuritySignal,
 } from '@repovine/plugin-sdk';
+import { shortenText } from '@repovine/plugin-sdk';
 
 const ROUTE_PATTERN = /<Route[\s>]/;
 const FASTIFY_MARKER_PATTERN = /(?:from\s+['"]fastify['"]|\bFastifyInstance\b|\bfastify\b)/;
@@ -338,7 +339,7 @@ function collectConditionalRenders(sf: SourceFile): ConditionalRender[] {
 
       renders.push({
         component,
-        condition: condition.length > 100 ? condition.slice(0, 100) + '…' : condition,
+        condition: shortenText(condition, 100),
         renderedIn,
         lineRange: { start: node.getStartLineNumber(), end: node.getEndLineNumber() },
       });
@@ -375,7 +376,7 @@ function collectConditionalRenders(sf: SourceFile): ConditionalRender[] {
 
         renders.push({
           component,
-          condition: condition.length > 100 ? condition.slice(0, 100) + '…' : condition,
+          condition: shortenText(condition, 100),
           renderedIn,
           lineRange: { start: node.getStartLineNumber(), end: node.getEndLineNumber() },
         });
@@ -407,7 +408,7 @@ function collectConditionalRenders(sf: SourceFile): ConditionalRender[] {
 
           renders.push({
             component,
-            condition: condition.length > 100 ? condition.slice(0, 100) + '…' : condition,
+            condition: shortenText(condition, 100),
             renderedIn,
             lineRange: { start: node.getStartLineNumber(), end: node.getEndLineNumber() },
           });
@@ -919,7 +920,7 @@ function collectFileRoutes(relativeFilePath: string, sf: SourceFile): RouteInfo[
 
   const noExt = rel.replace(ROUTE_FILE_EXT_RE, '');
   const parts = noExt.split('/');
-  const basename = parts[parts.length - 1];
+  const basename = lastPathSegment(noExt);
 
   const appIdx = parts.indexOf('app');
   if (appIdx >= 0 && isLikelyNextAppRouterPath(parts, appIdx, basename)) {
@@ -1751,7 +1752,7 @@ function sfcTemplateFromVirtualSource(text: string): string | undefined {
 }
 
 function componentNameFromPath(filePath: string): string {
-  const base = toPosixPath(filePath).split('/').pop() ?? 'Component';
+  const base = lastPathSegment(toPosixPath(filePath)) || 'Component';
   return normalizeTemplateComponentName(
     base.replace(SFC_VIRTUAL_TS_SUFFIX_RE, '').replace(SFC_EXT_SUFFIX_RE, '').replace(SOURCE_EXT_SUFFIX_RE, ''),
   );
@@ -1974,7 +1975,7 @@ function collectServiceWrapperHint(
   rel: string,
   text: string,
 ): UiHints['serviceWrapper'] | undefined {
-  const file = rel.split('/').pop() ?? rel;
+  const file = lastPathSegment(rel);
   const role =
     /(?:^|[-_.])api(?:[-_.]|$)|(^|\/)api\//.test(rel) ? 'api'
     : /(?:^|[-_.])client(?:[-_.]|$)|(^|\/)(clients?|sdk)\//.test(rel) ? 'client'

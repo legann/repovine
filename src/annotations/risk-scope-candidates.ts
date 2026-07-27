@@ -4,6 +4,8 @@ import { owningModuleId } from '../graph/node-ids.js';
 import { normalizeRisks } from './format.js';
 import { parseIntegrationPointTargets } from './carrier-links.js';
 import { nodeInScopeHints } from './scope-hints.js';
+import { shortenText } from '../platform/text.js';
+import { ANNOTATION_EXCERPT } from './excerpt.js';
 
 export type RiskScopeSuggestion = 'consumer' | 'boundary';
 
@@ -99,9 +101,15 @@ function orderedReasons(reasons: Set<RiskScopeCandidateReason>): RiskScopeCandid
   return REASON_ORDER.filter((reason) => reasons.has(reason));
 }
 
+/**
+ * The candidate's risk text, at the excerpt width every quoting surface uses.
+ *
+ * A preview answers "is this the entry I meant", which is the same question `annotationContext`
+ * answers, so it gets the same width. It used to be 180 against that surface's 150 — two literals
+ * written apart, not two decisions.
+ */
 function textPreview(text: string): string {
-  const compact = text.replace(/\s+/g, ' ').trim();
-  return compact.length > 180 ? `${compact.slice(0, 177)}...` : compact;
+  return shortenText(text.replace(/\s+/g, ' ').trim(), ANNOTATION_EXCERPT.entryChars);
 }
 
 function appendNodePathParts(

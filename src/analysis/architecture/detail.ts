@@ -7,9 +7,9 @@ import type { RepositoryGraph, ModuleInfo } from '../../types.js';
 import type { AnnotationStore } from '../../annotations/store.js';
 import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { annotationFreshnessMeta, type NodeFreshnessLookup } from '../../annotations/freshness.js';
-import { riskEntryTexts } from '../../annotations/format.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { annotationSecretFieldPaths } from './annotation-secret.js';
+import { annotationExcerpt } from './annotation-context.js';
 import { workflowSignalKinds } from './component-signals.js';
 import { isNodeType, modulePackageId, nodeLabel, packageModuleIds, taggedDomains } from '../../graph/index.js';
 import type { RefactoringFinding } from './types.js';
@@ -59,21 +59,13 @@ export function refactoringNodeSummary(
     if (ann) {
       const verdict = freshnessOf(nodeId);
       summary.annotation = {
-        summary: ann.annotation.summary,
-        assumptions: ann.annotation.assumptions?.slice(0, 5) ?? [],
-        sideEffects: ann.annotation.sideEffects?.slice(0, 5) ?? [],
-        risks: riskEntryTexts(ann.annotation.risks).slice(0, 5),
+        ...annotationExcerpt(ann.annotation),
         ...(verdict ? annotationFreshnessMeta(verdict) : {}),
         quality,
       };
     }
   } else if (ann) {
-    summary.annotation = {
-      summary: ann.annotation.summary,
-      assumptions: ann.annotation.assumptions?.slice(0, 5) ?? [],
-      sideEffects: ann.annotation.sideEffects?.slice(0, 5) ?? [],
-      risks: riskEntryTexts(ann.annotation.risks).slice(0, 5),
-    };
+    summary.annotation = annotationExcerpt(ann.annotation);
   }
   if (node?.type === 'runtime-resource') summary.runtimeResource = node.data;
   if (node?.type === 'domain') summary.domain = node.data;
@@ -371,14 +363,15 @@ export function refactoringCategoryDetail(
     case 'sensitive-browser-storage': {
       const modId = finding.nodes[0];
       const mod = modulesById.get(modId);
+      const stored = annotations.get(modId)?.annotation;
       return {
         moduleId: modId,
         storageSignals: mod?.semanticHints?.security?.filter(signal => signal.kind === 'browser-storage' || signal.kind === 'browser-storage-sensitive' || signal.kind === 'cookie-access') ?? [],
-        annotation: annotations.get(modId)?.annotation
+        annotation: stored
           ? {
-              stateShape: annotations.get(modId)?.annotation.stateShape,
-              dataFlow: annotations.get(modId)?.annotation.dataFlow,
-              risks: riskEntryTexts(annotations.get(modId)?.annotation.risks).slice(0, 5),
+              stateShape: stored.stateShape,
+              dataFlow: stored.dataFlow,
+              risks: annotationExcerpt(stored).risks,
             }
           : undefined,
       };

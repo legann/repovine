@@ -179,7 +179,7 @@ export const AnalyzeArchitectureThresholdsSchema = z.object({
     allowGenericStorageName: z.boolean().optional(),
   }).optional(),
   sourceDisclosureSurface: z.object({
-    minSignals: z.number().int().min(1).optional(),
+    minEvidenceScore: z.number().int().min(1).optional(),
   }).optional(),
   annotationSecretHygiene: z.object({
     enabled: z.boolean().optional(),

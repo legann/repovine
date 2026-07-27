@@ -88,3 +88,73 @@ function stableValue(value: unknown): unknown {
   for (const key of Object.keys(value).sort()) out[key] = stableValue((value as Record<string, unknown>)[key]);
   return out;
 }
+
+// ── text guards ──
+// A guard that reads source, not the graph: it catches a SECOND declaration of a form that was just
+// centralized. Shared by the laws that hold such forms, so a guard fixed in one place is fixed for
+// both — stage 8 had five guards pass their own rollback, and every one of them was a text guard.
+
+export function repoRoot(): string {
+  return path.resolve(findFixturesRoot(), '..', '..');
+}
+
+export function* sourceFiles(dir: string): Generator<string> {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      yield* sourceFiles(full);
+      continue;
+    }
+    if (entry.isFile() && full.endsWith('.ts')) yield full;
+  }
+}
+
+/** Every engine and SDK source root a text guard reads. */
+export function guardedRoots(): Array<{ root: string; dir: string }> {
+  const root = repoRoot();
+  return [
+    { root, dir: path.join(root, 'src') },
+    { root, dir: path.join(root, 'packages', 'plugin-sdk', 'src') },
+  ].filter(entry => fs.existsSync(entry.dir));
+}
+
+/** A file's code with comments dropped, one entry per file. */
+export function codeFiles(exempt: readonly string[]): Array<{ where: string; text: string }> {
+  const exemptRel = exempt.map(rel => path.join(...rel.split('/')));
+  const out: Array<{ where: string; text: string }> = [];
+  for (const { root, dir } of guardedRoots()) {
+    for (const file of sourceFiles(dir)) {
+      const rel = path.relative(root, file);
+      if (exemptRel.some(e => rel.endsWith(path.join(...e.split('/'))))) continue;
+      // Prose names a form without declaring it, so comment lines are dropped before the text is
+      // joined. Joined without newlines: a chain broken across lines is the same declaration, and
+      // a line-local guard is one `prettier` run away from blind.
+      const code = fs.readFileSync(file, 'utf8').split('\n')
+        .filter(line => {
+          const t = line.trim();
+          return !(t.startsWith('*') || t.startsWith('//') || t.startsWith('/*'));
+        })
+        .join(' ');
+      out.push({ where: rel, text: code });
+    }
+  }
+  return out;
+}
+
+/** Code lines of every guarded root, minus the module each form is allowed to live in. */
+export function codeLines(exempt: readonly string[]): Array<{ where: string; text: string }> {
+  const exemptRel = exempt.map(rel => path.join(...rel.split('/')));
+  const out: Array<{ where: string; text: string }> = [];
+  for (const { root, dir } of guardedRoots()) {
+    for (const file of sourceFiles(dir)) {
+      const rel = path.relative(root, file);
+      if (exemptRel.some(e => rel.endsWith(path.join(...e.split('/'))))) continue;
+      fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+        out.push({ where: `${rel}:${i + 1}`, text: line });
+      });
+    }
+  }
+  return out;
+}

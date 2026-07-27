@@ -13,7 +13,7 @@ import { isPure } from '../../annotations/side-effect-vocab.js';
 import { annotationSecretFieldPaths } from './annotation-secret.js';
 import { workflowSignalKinds } from './component-signals.js';
 import { DEFAULT_THRESHOLDS, type RefactoringThresholds } from './config.js';
-import { clampConfidence, findingSeverity } from './finding.js';
+import { clampConfidence, detectorConfidence, evidenceAxisCount, findingSeverity } from './finding.js';
 import { domainMembers, infraTargetIds, moduleLabelOf, modulePackageId, nodeLabel, taggedDomains } from '../../graph/index.js';
 import { buildAnnotationContext } from './annotation-context.js';
 import type { RefactoringFinding, RefactoringScope } from './types.js';
@@ -96,7 +96,7 @@ export function detectDuplicateLike(
   for (const [key, ids] of groups) {
     const pkgs = new Set(ids.map(id => modulePackageId(graph, id)).filter((p): p is string => p != null));
     if (ids.length < t.minGroupSize && pkgs.size < t.minPackages) continue;
-    const confidence = Math.min(0.9, 0.45 + ids.length * 0.08 + pkgs.size * 0.08);
+    const confidence = detectorConfidence({ base: 0.45, ceiling: 0.9, add: [ids.length * 0.08, pkgs.size * 0.08] });
     const finding = build({
       id: `duplicate-like:${key}`,
       category: 'duplicate-like',
@@ -160,7 +160,7 @@ export function detectBoundary(
     }
   }
   for (const [targetId, group] of targetGroups) {
-    const confidence = Math.min(0.92, 0.6 + group.importers.length * 0.06);
+    const confidence = detectorConfidence({ base: 0.6, ceiling: 0.92, add: [group.importers.length * 0.06] });
     const finding = build({
       id: `boundary:${targetId}`,
       category: 'boundary',
@@ -188,6 +188,25 @@ export function detectBoundary(
 
 // ── god-module ──
 
+/**
+ * Two detectors score breadth of responsibility, and they share a settings key rather than a scale.
+ *
+ * `thresholds.godModule` names one config entry read by {@link detectGodModule} and by
+ * {@link detectServerHandlerOrchestration}; `minScore` and `linesPerScorePoint` mean the same thing
+ * to a person tuning them and land on different arithmetic. The plain module score weighs exports,
+ * fan-in, fan-out, env vars and size — five dimensions any module has. The handler score drops
+ * fan-in (a handler is called by the framework, not by modules), weighs each import 1.5, each
+ * distinct target role 3, and adds runtime actions and API routes: a handler is broad when it
+ * reaches many KINDS of collaborator, not when many modules reach it.
+ *
+ * So the two scores are not comparable, and the same `minScore` does not mean the same evidence in
+ * both. The handler detector answers that with an independent gate — {@link SERVER_HANDLER_MIN_EVIDENCE_AXES}
+ * of seven axes must fire — which the plain module detector has no equivalent of and does not need:
+ * its dimensions are cheap to have all at once, and a big module really is a big module.
+ *
+ * Merging them was considered and refused: one shared scale would have to drop either fan-in or
+ * target roles, and each is the load-bearing dimension of its own side.
+ */
 export function detectGodModule(
   graph: RepositoryGraph,
   modulesById: Map<string, ModuleInfo>,
@@ -206,7 +225,7 @@ export function detectGodModule(
     const lineCount = maxModuleLine(mod);
     const score = exportCount * 1.5 + fanIn + fanOut + envCount * 2 + Math.floor(lineCount / t.linesPerScorePoint);
     if (score < t.minScore) continue;
-    const confidence = Math.min(0.95, 0.55 + score / 80);
+    const confidence = detectorConfidence({ base: 0.55, ceiling: 0.95, add: [score / 80] });
     const finding = build({
       id: `god-module:${modId}`,
       category: 'god-module',
@@ -229,6 +248,17 @@ export function detectGodModule(
   }
   return findings;
 }
+
+/**
+ * Axes that must agree before a handler counts as orchestrating, out of the seven measured below.
+ *
+ * The gate exists because this detector's score is easy to inflate from one dimension: a handler
+ * with twenty imports and nothing else clears `minScore` on fan-out alone. Requiring four different
+ * axes makes the finding say "several independent things point the same way" rather than "one
+ * number is large". See the note on {@link detectGodModule} for why the two breadth detectors share
+ * a settings key and not a scale.
+ */
+const SERVER_HANDLER_MIN_EVIDENCE_AXES = 4;
 
 export function detectServerHandlerOrchestration(
   graph: RepositoryGraph,
@@ -269,7 +299,7 @@ export function detectServerHandlerOrchestration(
       + runtimeActionCount * 2
       + routeCount * 2
       + Math.floor(lineCount / t.linesPerScorePoint);
-    const evidenceAxes = [
+    const evidenceAxes = evidenceAxisCount([
       importEdges.length >= 3,
       targetRoles.size >= 2,
       envCount > 0,
@@ -277,10 +307,10 @@ export function detectServerHandlerOrchestration(
       exportCount >= 3,
       lineCount >= t.linesPerScorePoint,
       routeCount > 0,
-    ].filter(Boolean).length;
-    if (score < t.minScore || evidenceAxes < 4) continue;
+    ]);
+    if (score < t.minScore || evidenceAxes < SERVER_HANDLER_MIN_EVIDENCE_AXES) continue;
 
-    const confidence = Math.min(0.92, 0.58 + score / 100 + targetRoles.size * 0.03);
+    const confidence = detectorConfidence({ base: 0.58, ceiling: 0.92, add: [score / 100, targetRoles.size * 0.03] });
     const finding = build({
       id: `server-handler-orchestration:${modId}`,
       category: 'god-module',
@@ -334,7 +364,7 @@ export function detectDomainShape(
         category: 'god-domain',
         title: 'Domain is large enough to deserve subdivision',
         impact: moduleIds.length >= 80 ? 'high' : 'medium',
-        confidence: Math.min(0.9, 0.55 + moduleIds.length / 120 + subdomainCount * 0.04),
+        confidence: detectorConfidence({ base: 0.55, ceiling: 0.9, add: [moduleIds.length / 120, subdomainCount * 0.04] }),
         nodes: [domainId, ...moduleIds.slice(0, 20)],
         evidence: [
           `${moduleIds.length} tagged module(s)`,
@@ -363,7 +393,7 @@ export function detectDomainShape(
           category: 'low-cohesion',
           title: 'Domain has weak internal coupling compared with external dependencies',
           impact: moduleIds.length >= 20 ? 'high' : 'medium',
-          confidence: Math.min(0.88, 0.55 + (externalImports - internalImports) / Math.max(10, moduleIds.length * 2)),
+          confidence: detectorConfidence({ base: 0.55, ceiling: 0.88, add: [(externalImports - internalImports) / Math.max(10, moduleIds.length * 2)] }),
           nodes: [domainId, ...moduleIds.slice(0, 20)],
           evidence: [
             `${moduleIds.length} module(s) in domain`,
@@ -414,7 +444,7 @@ export function detectClientBusinessLogic(
       category: 'client-business-logic',
       title: 'Client-facing module may contain reusable business logic',
       impact: sideEffectHints > 0 || businessExports.length >= 10 ? 'high' : 'medium',
-      confidence: Math.min(0.86, 0.5 + businessExports.length * 0.04 + sideEffectHints * 0.08),
+      confidence: detectorConfidence({ base: 0.5, ceiling: 0.86, add: [businessExports.length * 0.04, sideEffectHints * 0.08] }),
       nodes: [modId],
       evidence: [
         `Client/UI path or marker: ${mod.relativeFilePath}`,
@@ -494,10 +524,12 @@ export function detectFlowConvergence(
     const targetLabel = targetList.length === 1
       ? nodeLabel(graph, targetList[0])
       : `${flow.groupKey} (${targetList.length} sibling target(s))`;
-    const confidence = Math.min(
-      0.9,
-      0.52 + flow.entries.size * 0.06 + repeatedPrepKeys.length * 0.05 + (targetList.length > 1 ? 0.05 : 0) - (genericOnly ? 0.08 : 0),
-    );
+    const confidence = detectorConfidence({
+      base: 0.52,
+      ceiling: 0.9,
+      add: [flow.entries.size * 0.06, repeatedPrepKeys.length * 0.05, targetList.length > 1 ? 0.05 : 0],
+      subtract: [genericOnly ? 0.08 : 0],
+    });
     const finding = build({
       id: `flow-convergence:${flow.groupKey}`,
       category: 'flow-convergence',
@@ -573,13 +605,11 @@ export function detectEffectSpaghetti(
     const hasPureEffectVolume = effects.length >= t.minEffects + 2 && nestedSideEffectCount === 0 && sideEffectKinds.length === 0;
     if (!hasLifecycleVolume && !hasNestedSideEffects && !hasDiverseSideEffects && !hasPureEffectVolume) continue;
     const confidenceBase = hasPureEffectVolume ? 0.43 : 0.48;
-    const confidence = Math.min(
-      hasPureEffectVolume ? 0.62 : 0.9,
-      confidenceBase
-        + Math.min(effects.length, 8) * 0.04
-        + nestedSideEffectCount * 0.05
-        + sideEffectKinds.length * 0.07,
-    );
+    const confidence = detectorConfidence({
+      base: confidenceBase,
+      ceiling: hasPureEffectVolume ? 0.62 : 0.9,
+      add: [Math.min(effects.length, 8) * 0.04, nestedSideEffectCount * 0.05, sideEffectKinds.length * 0.07],
+    });
     findings.push(build({
       id: `effect-spaghetti:${modId}`,
       category: 'effect-spaghetti',
@@ -653,16 +683,19 @@ export function detectPropDrillingOrchestration(
       if ((!structural && !callbackHeavy && !tunnelSignal && !spreadSignal) || !workflowEnough) continue;
 
       const childModuleIds = unique(component.childComponents.flatMap(child => resolveChildModuleIds(mod, child)));
-      const confidence = Math.min(0.92,
-        0.42
-        + Math.min(propNames.length, 16) * 0.015
-        + callbackProps.length * 0.035
-        + forwardedProps.length * 0.02
-        + Math.min(childCount, 8) * 0.025
-        + Math.min(maxTunnelDepth, 4) * 0.06
-        + workflowKinds.length * 0.045
-        + (spreadForwarding ? 0.04 : 0),
-      );
+      const confidence = detectorConfidence({
+        base: 0.42,
+        ceiling: 0.92,
+        add: [
+          Math.min(propNames.length, 16) * 0.015,
+          callbackProps.length * 0.035,
+          forwardedProps.length * 0.02,
+          Math.min(childCount, 8) * 0.025,
+          Math.min(maxTunnelDepth, 4) * 0.06,
+          workflowKinds.length * 0.045,
+          spreadForwarding ? 0.04 : 0,
+        ],
+      });
       const finding = build({
         // Disambiguate by line (or loop index fallback) so two same-named components in one module
         // get distinct ids — otherwise the second collides and selectBalancedFindings drops it.
@@ -720,7 +753,7 @@ export function detectUiDomainCoupling(
       category: 'ui-domain-coupling',
       title: 'UI module imports domain/API/storage modules directly',
       impact: highRisk || targets.length >= 3 ? 'high' : 'medium',
-      confidence: Math.min(0.9, 0.58 + targets.length * 0.07 + roles.length * 0.04 + (highRisk ? 0.08 : 0)),
+      confidence: detectorConfidence({ base: 0.58, ceiling: 0.9, add: [targets.length * 0.07, roles.length * 0.04, highRisk ? 0.08 : 0] }),
       nodes: [modId, ...targets.map(target => target.id)],
       evidence: [
         `Frontend module: ${mod.relativeFilePath}`,
@@ -808,7 +841,7 @@ export function detectDesignSystemLeakage(
       category: 'design-system-leakage',
       title: 'Design-system primitive depends on product/domain concerns',
       impact: targets.some(target => target.role === 'api' || target.role === 'storage' || target.role === 'server') || dataAccess.length > 0 ? 'high' : 'medium',
-      confidence: Math.min(0.92, 0.62 + targets.length * 0.08 + dataAccess.length * 0.1),
+      confidence: detectorConfidence({ base: 0.62, ceiling: 0.92, add: [targets.length * 0.08, dataAccess.length * 0.1] }),
       nodes: [modId, ...targets.map(target => target.id)],
       evidence: [
         `Design-system module: ${mod.relativeFilePath}`,
@@ -859,7 +892,12 @@ export function detectServiceWrapperExplosion(
     if (roles.every(role => role === 'provider')) continue;
     if (wrappers.length < t.minGroupSize && !(wrappers.length >= Math.max(2, t.minGroupSize - 1) && lowFanIn >= Math.max(2, t.minGroupSize - 2))) continue;
     const providerPenalty = roles.includes('provider') ? 0.04 : 0;
-    const confidence = Math.min(0.88, 0.48 + wrappers.length * 0.05 + lowFanIn * 0.04 + roles.length * 0.03 - providerPenalty);
+    const confidence = detectorConfidence({
+      base: 0.48,
+      ceiling: 0.88,
+      add: [wrappers.length * 0.05, lowFanIn * 0.04, roles.length * 0.03],
+      subtract: [providerPenalty],
+    });
     findings.push(build({
       id: `service-wrapper-explosion:${groupKey}`,
       category: 'service-wrapper-explosion',
@@ -955,7 +993,11 @@ export function detectRouteConvergence(
     if (group.entries.size < t.minEntrypoints) continue;
     const entryIds = [...group.entries.keys()];
     const targetIds = [...group.targetModules];
-    const confidence = Math.min(0.9, 0.55 + group.entries.size * 0.07 + group.accessKinds.size * 0.04 + (targetIds.length > 0 ? 0.04 : 0));
+    const confidence = detectorConfidence({
+      base: 0.55,
+      ceiling: 0.9,
+      add: [group.entries.size * 0.07, group.accessKinds.size * 0.04, targetIds.length > 0 ? 0.04 : 0],
+    });
     findings.push(build({
       id: `route-convergence:${group.key}`,
       category: 'route-convergence',
@@ -1010,7 +1052,11 @@ export function detectStateFragmentation(
         if (isRuntimeImportEdge(edge) && moduleSet.has(edge.to)) internalImports++;
       }
     }
-    const confidence = Math.min(0.88, 0.5 + group.modules.length * 0.06 + group.kinds.size * 0.06 + (internalImports < group.modules.length - 1 ? 0.08 : 0));
+    const confidence = detectorConfidence({
+      base: 0.5,
+      ceiling: 0.88,
+      add: [group.modules.length * 0.06, group.kinds.size * 0.06, internalImports < group.modules.length - 1 ? 0.08 : 0],
+    });
     const finding = build({
       id: `state-fragmentation:${group.feature}`,
       category: 'state-fragmentation',
@@ -1071,7 +1117,7 @@ export function detectDuplicatedClientPolicy(
     const moduleSetKey = [...new Set(group.modules)].sort().join('|');
     if (seenModuleSets.has(moduleSetKey)) continue;
     seenModuleSets.add(moduleSetKey);
-    const confidence = Math.min(0.88, 0.5 + group.modules.length * 0.04 + group.features.size * 0.07);
+    const confidence = detectorConfidence({ base: 0.5, ceiling: 0.88, add: [group.modules.length * 0.04, group.features.size * 0.07] });
     const finding = build({
       id: `duplicated-client-policy:${group.token}`,
       category: 'duplicated-client-policy',
@@ -1117,7 +1163,7 @@ export function detectEventDrivenBoundary(
       category: 'event-driven-boundary',
       title: 'Event resource connects producer and consumer services',
       impact: producers.length + consumers.length >= 4 ? 'high' : 'medium',
-      confidence: Math.min(0.93, 0.68 + (producers.length + consumers.length) * 0.04),
+      confidence: detectorConfidence({ base: 0.68, ceiling: 0.93, add: [(producers.length + consumers.length) * 0.04] }),
       nodes: [resourceId, ...producers, ...consumers],
       evidence: [
         `${producers.length} producer service(s): ${labelsOf(graph, producers).join(', ')}`,
@@ -1157,13 +1203,11 @@ export function detectSecretConfigBoundary(
       + Math.min(clientImporters.length, 2);
     if (evidenceScore < t.minEvidenceScore) continue;
     const envNames = [...new Set([...secretEnv, ...publicSecretEnv].map(signal => signal.name).filter((name): name is string => !!name))];
-    const confidence = Math.min(0.94,
-      0.62
-      + envNames.length * 0.05
-      + (clientSurface ? 0.12 : 0)
-      + clientImporters.length * 0.06
-      + publicSecretEnv.length * 0.08,
-    );
+    const confidence = detectorConfidence({
+      base: 0.62,
+      ceiling: 0.94,
+      add: [envNames.length * 0.05, clientSurface ? 0.12 : 0, clientImporters.length * 0.06, publicSecretEnv.length * 0.08],
+    });
     const finding = build({
       id: `secret-config-boundary:${modId}`,
       category: 'secret-config-boundary',
@@ -1224,7 +1268,7 @@ export function detectAuthorizationPolicyDrift(
     if (uniqueIds.length < t.minModules || features.size < t.minFeatureGroups) continue;
     if (!t.allowGeneralSubject && key.endsWith(':general')) continue;
     if (t.requireAuthzSignal && !modules.some(item => item.hasAuthzSignal)) continue;
-    const confidence = Math.min(0.9, 0.55 + uniqueIds.length * 0.06 + features.size * 0.06);
+    const confidence = detectorConfidence({ base: 0.55, ceiling: 0.9, add: [uniqueIds.length * 0.06, features.size * 0.06] });
     const finding = build({
       id: `authorization-policy-drift:${key}`,
       category: 'authorization-policy-drift',
@@ -1268,12 +1312,11 @@ export function detectTrustBoundaryValidation(
     const evidenceScore = routeCount * 2 + (hasSideEffects ? 2 : 0) + (hasAuthz ? 1 : 0) + (exportedNamesText(mod) ? 1 : 0);
     if (t.requireRouteOrSideEffect && routeCount === 0 && !hasSideEffects && !hasAuthz) continue;
     if (evidenceScore < t.minEvidenceScore) continue;
-    const confidence = Math.min(0.88,
-      0.58
-      + routeCount * 0.08
-      + (hasSideEffects ? 0.08 : 0)
-      + (hasAuthz ? 0.04 : 0),
-    );
+    const confidence = detectorConfidence({
+      base: 0.58,
+      ceiling: 0.88,
+      add: [routeCount * 0.08, hasSideEffects ? 0.08 : 0, hasAuthz ? 0.04 : 0],
+    });
     const finding = build({
       id: `trust-boundary-validation:${modId}`,
       category: 'trust-boundary-validation',
@@ -1325,14 +1368,17 @@ export function detectPrivilegedClientSideEffect(
       + (mutationAccess.length > 0 ? 1 : 0)
       + (annotationPrivileged ? 1 : 0);
     if (evidenceScore < t.minEvidenceScore) continue;
-    const confidence = Math.min(0.92,
-      0.54
-      + coupledTargets.length * 0.07
-      + runtimeActions.length * 0.1
-      + secretSignals.length * 0.08
-      + mutationAccess.length * 0.04
-      + (annotationPrivileged ? 0.08 : 0),
-    );
+    const confidence = detectorConfidence({
+      base: 0.54,
+      ceiling: 0.92,
+      add: [
+        coupledTargets.length * 0.07,
+        runtimeActions.length * 0.1,
+        secretSignals.length * 0.08,
+        mutationAccess.length * 0.04,
+        annotationPrivileged ? 0.08 : 0,
+      ],
+    });
     const finding = build({
       id: `privileged-client-side-effect:${modId}`,
       category: 'privileged-client-side-effect',
@@ -1382,7 +1428,7 @@ export function detectSensitiveBrowserStorage(
     const hasSensitiveKey = targets.some(isSensitiveStorageKey) || sensitiveSignals.length > 0;
     if (t.requireSensitiveKey && !hasSensitiveKey) continue;
     const annotationSensitive = hasSensitiveAnnotationData(ann);
-    const confidence = Math.min(0.9, 0.58 + storageSignals.length * 0.06 + (annotationSensitive ? 0.08 : 0));
+    const confidence = detectorConfidence({ base: 0.58, ceiling: 0.9, add: [storageSignals.length * 0.06, annotationSensitive ? 0.08 : 0] });
     const finding = build({
       id: `sensitive-browser-storage:${modId}`,
       category: 'sensitive-browser-storage',
@@ -1427,7 +1473,11 @@ export function detectServerClientBoundary(
     if (leakedTargets.length === 0) continue;
     const targetIds = [...new Set(leakedTargets.map(item => item.target.id))];
     if (targetIds.length < t.minTargets) continue;
-    const confidence = Math.min(0.93, 0.64 + leakedTargets.length * 0.07 + (mod.semanticHints?.ssr?.useClient ? 0.06 : 0));
+    const confidence = detectorConfidence({
+      base: 0.64,
+      ceiling: 0.93,
+      add: [leakedTargets.length * 0.07, mod.semanticHints?.ssr?.useClient ? 0.06 : 0],
+    });
     const finding = build({
       id: `server-client-boundary:${modId}`,
       category: 'server-client-boundary',
@@ -1474,8 +1524,9 @@ export function detectSourceDisclosureSurface(
     const mod = modulesById.get(modId);
     if (!mod) continue;
     const signals = securitySignals(mod, 'source-disclosure');
-    if (signals.length < t.minSignals) continue;
-    const confidence = Math.min(0.9, 0.62 + signals.length * 0.08 + (mod.exports.length > 0 ? 0.04 : 0));
+    const evidenceScore = signals.length;
+    if (evidenceScore < t.minEvidenceScore) continue;
+    const confidence = detectorConfidence({ base: 0.62, ceiling: 0.9, add: [signals.length * 0.08, mod.exports.length > 0 ? 0.04 : 0] });
     const finding = build({
       id: `source-disclosure-surface:${modId}`,
       category: 'source-disclosure-surface',
@@ -1792,7 +1843,7 @@ export function detectUnclearArchitecture(
       category: 'unclear-architecture',
       title: 'Module belongs to many domains',
       impact: rootDomains.length >= 7 ? 'high' : 'medium',
-      confidence: Math.min(0.9, 0.55 + rootDomains.length * 0.06),
+      confidence: detectorConfidence({ base: 0.55, ceiling: 0.9, add: [rootDomains.length * 0.06] }),
       nodes: [modId, ...rootDomains],
       evidence: [
         `${domains.length} raw domain tag(s), ${rootDomains.length} root domain(s): ${rootDomains.map(d => nodeLabel(graph, d)).join(', ')}`,

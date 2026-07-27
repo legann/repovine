@@ -2,6 +2,7 @@ import { Node, ts, type SourceFile, type BindingElement } from 'ts-morph';
 import type {
   ExportInfo, SymbolKind, ParamInfo, FieldInfo, MemberInfo, InternalInfo,
 } from '@repovine/plugin-sdk';
+import { shortenText } from '@repovine/plugin-sdk';
 import { getFunctionNode } from './ts-utils.js';
 import { collectModuleCalls, type CallBucket } from './call-graph.js';
 import { functionTypeLabel, paramTypeLabel, syntaxReturnTypeText, syntaxTypeText } from './type-syntax.js';
@@ -133,8 +134,7 @@ function getTypeValue(node: Node): string | undefined {
     const typeNode = node.getTypeNode();
     if (typeNode) {
       const text = typeNode.getText();
-      if (text.length <= 300) return text;
-      return text.slice(0, 300) + '…';
+      return shortenText(text, 300);
     }
   }
   if (Node.isEnumDeclaration(node)) {
@@ -142,9 +142,7 @@ function getTypeValue(node: Node): string | undefined {
       const val = m.getValue();
       return val !== undefined ? `${m.getName()} = ${JSON.stringify(val)}` : m.getName();
     });
-    const text = members.join(' | ');
-    if (text.length <= 300) return text;
-    return text.slice(0, 300) + '…';
+    return shortenText(members.join(' | '), 300);
   }
   if (Node.isInterfaceDeclaration(node)) {
     const parts: string[] = [];
@@ -164,9 +162,7 @@ function getTypeValue(node: Node): string | undefined {
         : `${method.getName()}${opt}(${params})`);
     }
     if (parts.length === 0) return undefined;
-    const text = `{ ${parts.join('; ')} }`;
-    if (text.length <= 500) return text;
-    return text.slice(0, 500) + '…';
+    return shortenText(`{ ${parts.join('; ')} }`, 500);
   }
   return undefined;
 }

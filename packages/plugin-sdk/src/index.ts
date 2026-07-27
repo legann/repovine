@@ -43,6 +43,9 @@ export { mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './s
 
 /* ---- content hashing (the width a producer's contentHash must carry) ---- */
 export { HASH_WIDTH, sha256Hex } from './content-hash.js';
+
+// Shortening a shown value, and the one marker that says it continues.
+export { SHORTENED_MARKER, shortenText } from './text.js';
 export type { HashWidth } from './content-hash.js';
 
 /* ---- semanticHints schema (versioned producer↔consumer contract) ---- */

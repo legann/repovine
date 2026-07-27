@@ -6,6 +6,7 @@
  * Graph build progress (stages, packages)       → stderr via logPipeline / pipe.*
  * MCP stdio quiet mode                        → setPipelineLogSink('silent')
  */
+import { shortenText } from '../platform/text.js';
 
 const SGR = {
   reset: '\x1b[0m',
@@ -68,7 +69,7 @@ const MAX_PROGRESS_PKG_LABEL = 40;
 function truncateProgressLabel(label: string, max = MAX_PROGRESS_PKG_LABEL): string {
   const plain = stripAnsi(label);
   if (plain.length <= max) return label;
-  return `${plain.slice(0, Math.max(1, max - 1))}…`;
+  return shortenText(plain, max);
 }
 
 function terminalWidth(stream: NodeJS.WriteStream): number {
@@ -81,7 +82,7 @@ function clipProgressLine(line: string, stream: NodeJS.WriteStream): string {
   const max = terminalWidth(stream);
   const plain = stripAnsi(line);
   if (plain.length <= max) return line;
-  return `${plain.slice(0, Math.max(1, max - 1))}…`;
+  return shortenText(plain, max);
 }
 
 function shouldProgressInPlace(stream: NodeJS.WriteStream): boolean {

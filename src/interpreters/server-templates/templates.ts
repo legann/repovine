@@ -2,7 +2,7 @@ import type { GraphDelta, RepositoryGraph, TemplateFileInfo } from '../../types.
 import { addNode, addEdge, emptyGraphDelta, hasEdge } from '../../graph/index.js';
 import type { InterpreterGraphContext } from '../../interpreter/types.js';
 import { exportSymbolId } from '../../graph/node-ids.js';
-import { toPosixPath } from '../../platform/paths.js';
+import { lastPathSegment, toPosixPath } from '../../platform/paths.js';
 
 export const SERVER_TEMPLATES_INTERPRETER_ID = 'server-templates';
 
@@ -74,8 +74,7 @@ export function contributeServerTemplates(ctx: InterpreterGraphContext): GraphDe
 
 /** Basename of the template path (`users/profile.html` → `profile.html`); id carries the full path. */
 function templateLabel(relPath: string): string {
-  const idx = relPath.lastIndexOf('/');
-  return idx >= 0 ? relPath.slice(idx + 1) : relPath;
+  return lastPathSegment(relPath);
 }
 
 /**

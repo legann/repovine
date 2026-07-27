@@ -15,6 +15,7 @@
 
 import { z } from 'zod';
 import type { SemanticHints } from '@repovine/plugin-sdk';
+import { shortenText } from '../platform/text.js';
 
 export const SIDE_EFFECT_KINDS = [
   /**
@@ -209,10 +210,10 @@ export function hasPersistentEffect(sideEffects: readonly SideEffect[] | undefin
   );
 }
 
-/** Truncate description to keep MCP/refactor responses bounded. */
+/** Shorten description to keep MCP/refactor responses bounded. */
 export function truncateSideEffect(se: SideEffect, maxDescriptionChars: number): SideEffect {
   if (!se.description || se.description.length <= maxDescriptionChars) return se;
-  return { ...se, description: se.description.slice(0, maxDescriptionChars - 1) + '…' };
+  return { ...se, description: shortenText(se.description, maxDescriptionChars) };
 }
 
 /**

@@ -47,6 +47,7 @@ import { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-file
 export { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
 import { moduleNodeId } from '../graph/node-ids.js';
 import { resolveRelPath, toPosixPath } from '../platform/paths.js';
+import { shortenList, omittedNote } from '../platform/text.js';
 
 // The weighted context-quality score was measured against outcome-labelled sessions and did not
 // beat a trivial baseline, so it may not reject a handoff. The report is still emitted in full;
@@ -532,9 +533,10 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
       return isContentStaleItem(q) || isPropagationStaleItem(q);
     });
     if (outOfScopeNeedsWork.length > 0) {
-      const sample = outOfScopeNeedsWork.slice(0, 3).map((q) => q.nodeId).join(', ');
+      const outOfScopeShown = shortenList(outOfScopeNeedsWork, 3);
+      const sample = outOfScopeShown.shown.map((q) => q.nodeId).join(', ');
       warnings.push(
-        `Annotation queue has ${outOfScopeNeedsWork.length} item(s) outside assignment scope (${sample}${outOfScopeNeedsWork.length > 3 ? '…' : ''}); defer to the infra/annotation-sync sub-agent.`,
+        `Annotation queue has ${outOfScopeNeedsWork.length} item(s) outside assignment scope (${sample}${omittedNote(outOfScopeShown.omitted)}); defer to the infra/annotation-sync sub-agent.`,
       );
     }
   }
@@ -563,8 +565,9 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
       return q.status === 'unannotated' || isContentStaleItem(q) || isPropagationStaleItem(q);
     });
     if (uncovered.length > 0) {
-      const sample = uncovered.slice(0, 8).map(q => `${q.nodeId} (${q.staleKind ?? q.status})`).join(', ');
-      const more = uncovered.length > 8 ? ` …+${uncovered.length - 8} more` : '';
+      const { shown, omitted } = shortenList(uncovered, 8);
+      const sample = shown.map(q => `${q.nodeId} (${q.staleKind ?? q.status})`).join(', ');
+      const more = omittedNote(omitted);
       errors.push(`Annotation coverage incomplete in scope (${uncovered.length} node(s) unannotated/stale): ${sample}${more}.`);
       requiredFollowups.push('write_annotation each unannotated/content-stale/propagation-stale node in scope, then refresh_context + validate_annotations until needsWork is 0.');
     }
@@ -621,22 +624,25 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
     }
   }
   if (harnessStrict && annotationPhase && thin.length > 0) {
-    const sample = thin.slice(0, 8).join('; ');
-    const more = thin.length > 8 ? ` …+${thin.length - 8} more` : '';
+    const thinShown = shortenList(thin, 8);
+    const sample = thinShown.shown.join('; ');
+    const more = omittedNote(thinShown.omitted);
     errors.push(`Annotation is missing recommended fields for touched node(s): ${sample}${more}.`);
     requiredFollowups.push('Fill the listed missing recommended fields and re-run write_annotation until no missing fields remain.');
   }
   if (inconsistentHard.length > 0) {
-    const sample = inconsistentHard.slice(0, 8).join('; ');
-    const more = inconsistentHard.length > 8 ? ` …+${inconsistentHard.length - 8} more` : '';
+    const hardShown = shortenList(inconsistentHard, 8);
+    const sample = hardShown.shown.join('; ');
+    const more = omittedNote(hardShown.omitted);
     const message = `Annotation contradicts graph facts for touched node(s): ${sample}${more}.`;
     if (harnessStrict && annotationPhase) errors.push(message);
     else warnings.push(message);
     requiredFollowups.push('Fix the contradicting keyExports/sideEffects to match the current graph, then re-run write_annotation.');
   }
   if (inconsistentEnv.length > 0) {
-    const sample = inconsistentEnv.slice(0, 8).join('; ');
-    const more = inconsistentEnv.length > 8 ? ` …+${inconsistentEnv.length - 8} more` : '';
+    const envShown = shortenList(inconsistentEnv, 8);
+    const sample = envShown.shown.join('; ');
+    const more = omittedNote(envShown.omitted);
     warnings.push(`Annotation declares env dependencies not detected in graph hints (advisory; env detection may be incomplete) for touched node(s): ${sample}${more}.`);
   }
 
@@ -929,8 +935,9 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
       if (!isGrounded(nodeId)) ungroundedAnnotations.push(nodeId);
     }
     if (ungroundedAnnotations.length > 0) {
-      const sample = ungroundedAnnotations.slice(0, 8).join(', ');
-      const more = ungroundedAnnotations.length > 8 ? ` …+${ungroundedAnnotations.length - 8} more` : '';
+      const ungroundedShown = shortenList(ungroundedAnnotations, 8);
+      const sample = ungroundedShown.shown.join(', ');
+      const more = omittedNote(ungroundedShown.omitted);
       const message = `Annotation provenance: ${ungroundedAnnotations.length} written code-module annotation(s) were not inspected or edited in this run/session: ${sample}${more}.`;
       if (harnessStrict && annotationPhase) errors.push(message);
       else warnings.push(message);

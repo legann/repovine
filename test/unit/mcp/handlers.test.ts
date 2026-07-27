@@ -267,7 +267,7 @@ function defaultRefactoringThresholds(): RepovineState['refactoringThresholds'] 
     privilegedClientSideEffect: { minEvidenceScore: 1, includeMutationOnly: true, allowGenericStorageName: true },
     sensitiveBrowserStorage: { requireSensitiveKey: false, minAnnotationStorageSignals: 1 },
     serverClientBoundary: { minTargets: 1, allowGenericStorageName: true },
-    sourceDisclosureSurface: { minSignals: 1 },
+    sourceDisclosureSurface: { minEvidenceScore: 1 },
     annotationSecretHygiene: { enabled: true },
   };
 }

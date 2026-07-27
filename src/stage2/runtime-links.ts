@@ -2,7 +2,7 @@ import type { InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '..
 import { addEdge, hasEdge, nodesOfType } from '../graph/index.js';
 import { k8sNamespacePrefix, makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 import { normalizeLinkingConfig } from '../stage1/linking-config.js';
-import { pathMatchKey, resolveRelPath, toPosixPath } from '../platform/paths.js';
+import { lastPathSegment, pathMatchKey, resolveRelPath, toPosixPath } from '../platform/paths.js';
 
 function dirnameRelPath(relPath: string): string {
   const normalized = resolveRelPath(relPath);
@@ -66,7 +66,7 @@ export function runtimeEntrySearchRoots(
 
 function imagePathTokens(image: string): string[] {
   const ref = image.split('@')[0].toLowerCase();
-  const nameTag = ref.includes('/') ? ref.slice(ref.lastIndexOf('/') + 1) : ref;
+  const nameTag = lastPathSegment(ref);
   const stem = nameTag.includes(':') ? nameTag.slice(0, nameTag.indexOf(':')) : nameTag;
   const tokens = new Set<string>();
   if (stem.length >= 2) tokens.add(stem);
@@ -93,9 +93,9 @@ function dockerfilePathTokens(relPath: string): string[] {
       }
     }
   }
-  const base = normalized.slice(normalized.lastIndexOf('/') + 1);
+  const base = lastPathSegment(normalized);
   if (base.startsWith('dockerfile')) {
-    const parent = dir ? dir.slice(dir.lastIndexOf('/') + 1) : '';
+    const parent = lastPathSegment(dir);
     if (parent.length >= 2) tokens.add(parent);
   }
   return [...tokens];

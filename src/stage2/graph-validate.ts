@@ -11,6 +11,7 @@
  * together with every edge touching it, so a pruned resource leaves no dangling edge to flag.
  */
 import type { RepositoryFactsSnapshot, RepositoryGraph } from '../types.js';
+import { shortenList, omittedNote } from '../platform/text.js';
 
 export interface GraphValidationProblem {
   kind: 'missing-module' | 'missing-template' | 'dangling-edge-from' | 'dangling-edge-to';
@@ -52,7 +53,8 @@ export function validateComposedGraph(
 
 /** One-line summary of the first few problems for a log line or thrown error. */
 export function summarizeGraphValidationProblems(problems: GraphValidationProblem[], max = 5): string {
-  const head = problems.slice(0, max).map(p => `${p.kind}(${p.detail})`).join('; ');
-  const more = problems.length > max ? ` +${problems.length - max} more` : '';
+  const { shown, omitted } = shortenList(problems, max);
+  const head = shown.map(p => `${p.kind}(${p.detail})`).join('; ');
+  const more = omittedNote(omitted);
   return `${problems.length} problem(s): ${head}${more}`;
 }

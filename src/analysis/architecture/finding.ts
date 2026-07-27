@@ -9,6 +9,40 @@ export function clampConfidence(value: number): number {
   return Math.max(0, Math.min(1, Number(value.toFixed(2))));
 }
 
+/**
+ * How sure a detector is: a base its cheapest evidence already earns, one contribution per further
+ * signal, penalties for signals that argue against, and a ceiling it never claims past.
+ *
+ * The parts are named because they are not interchangeable. The base says what a bare match is
+ * worth, the ceiling says how sure this category can ever be from static signals alone, and each
+ * contribution weighs one axis. Written as one arithmetic expression per detector, those roles are
+ * invisible: `Math.min(0.9, 0.55 + a * 0.08 + b * 0.08)` reads as a number, and two detectors that
+ * disagree about what a base means look identical. Rounding is part of the answer, not of the
+ * caller: {@link clampConfidence} lands every detector on the same two decimals.
+ */
+export function detectorConfidence(input: {
+  base: number;
+  ceiling: number;
+  add?: readonly number[];
+  subtract?: readonly number[];
+}): number {
+  const raised = (input.add ?? []).reduce((sum, contribution) => sum + contribution, input.base);
+  const lowered = (input.subtract ?? []).reduce((sum, penalty) => sum - penalty, raised);
+  return clampConfidence(Math.min(input.ceiling, lowered));
+}
+
+/**
+ * How many independent evidence axes fired.
+ *
+ * A gate distinct from {@link detectorConfidence}: the score says how much evidence there is, this
+ * says how many DIFFERENT things pointed the same way. One axis scoring high is a module with a big
+ * number on it; four axes agreeing is a pattern. A detector that gates on the score alone fires on
+ * a single inflated dimension, which is what the axis count exists to refuse.
+ */
+export function evidenceAxisCount(axes: readonly boolean[]): number {
+  return axes.filter(Boolean).length;
+}
+
 export function findingSeverity(confidence: number, impact: RefactoringFinding['impact']): RefactoringFinding['severity'] {
   if (confidence >= 0.8 && impact !== 'low') return 'high';
   if (confidence >= 0.65 || impact === 'high') return 'medium';

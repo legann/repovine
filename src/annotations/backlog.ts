@@ -35,6 +35,7 @@ import { domainLabel, domainMembers, importerCount, isPackageOnlyDomain, moduleL
 import { computeEntrypointBoundedDerived, getImportBaselineStaleUpstream } from './propagation.js';
 import { inferModuleKind, recommendedFieldsForKind, type ModuleKind } from './module-kind.js';
 import { computeAnnotationQuality } from './quality.js';
+import { shortenList, omittedNote } from '../platform/text.js';
 
 // ── Queue vocabulary ──
 
@@ -562,8 +563,9 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
           const staleUpstream = ann
             ? getImportBaselineStaleUpstream(ann, graph, snapshot, mod.id, moduleContentHashById)
             : [];
-          const sample = staleUpstream.slice(0, 3).join(', ');
-          const more = staleUpstream.length > 3 ? ` +${staleUpstream.length - 3} more` : '';
+          const upstreamShown = shortenList(staleUpstream, 3);
+          const sample = upstreamShown.shown.join(', ');
+          const more = omittedNote(upstreamShown.omitted);
           reason = staleUpstream.length > 0
             ? `importBaseline stale (entrypoint-bounded) for upstream (${sample}${more}); review integrationPoints/dataFlow or refreshImportBaseline (${downstreamCount} downstream deps)`
             : `importBaseline review required (entrypoint-bounded, ${downstreamCount} downstream deps)`;

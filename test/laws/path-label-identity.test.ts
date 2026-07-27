@@ -22,7 +22,7 @@ import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { analyzePackageBoundaries } from '../../src/mcp/lib/dependencies/package-boundaries.js';
 import { packageScopeOf } from '../../src/cli/orient.js';
-import { findFixturesRoot } from './graph-law-helpers.js';
+import { codeFiles, codeLines } from './graph-law-helpers.js';
 import type { ModuleInfo, RepositoryFactsSnapshot, RepositoryGraph } from '../../src/types.js';
 import type { McpToolRuntime } from '../../src/mcp/types.js';
 
@@ -45,71 +45,6 @@ import type { McpToolRuntime } from '../../src/mcp/types.js';
 // Text guards below read source, not the graph: they catch a second declaration of a form that was
 // just removed. Behavioural guards catch a second declaration written in a shape the text does not
 // know. Neither alone is enough — stage 7 learned that from a hand-written copy no text guard saw.
-
-function repoRoot(): string {
-  return path.resolve(findFixturesRoot(), '..', '..');
-}
-
-function* sourceFiles(dir: string): Generator<string> {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      yield* sourceFiles(full);
-      continue;
-    }
-    if (entry.isFile() && full.endsWith('.ts')) yield full;
-  }
-}
-
-/** Every engine and SDK source root a text guard reads. */
-function guardedRoots(): Array<{ root: string; dir: string }> {
-  const root = repoRoot();
-  return [
-    { root, dir: path.join(root, 'src') },
-    { root, dir: path.join(root, 'packages', 'plugin-sdk', 'src') },
-  ].filter(entry => fs.existsSync(entry.dir));
-}
-
-/** A file's code with comments dropped, one entry per file. */
-function codeFiles(exempt: readonly string[]): Array<{ where: string; text: string }> {
-  const exemptRel = exempt.map(rel => path.join(...rel.split('/')));
-  const out: Array<{ where: string; text: string }> = [];
-  for (const { root, dir } of guardedRoots()) {
-    for (const file of sourceFiles(dir)) {
-      const rel = path.relative(root, file);
-      if (exemptRel.some(e => rel.endsWith(path.join(...e.split('/'))))) continue;
-      // Prose names a form without declaring it, so comment lines are dropped before the text is
-      // joined. Joined without newlines: a chain broken across lines is the same declaration, and
-      // a line-local guard is one `prettier` run away from blind.
-      const code = fs.readFileSync(file, 'utf8').split('\n')
-        .filter(line => {
-          const t = line.trim();
-          return !(t.startsWith('*') || t.startsWith('//') || t.startsWith('/*'));
-        })
-        .join(' ');
-      out.push({ where: rel, text: code });
-    }
-  }
-  return out;
-}
-
-/** Code lines of every guarded root, minus the module each form is allowed to live in. */
-function codeLines(exempt: readonly string[]): Array<{ where: string; text: string }> {
-  const exemptRel = exempt.map(rel => path.join(...rel.split('/')));
-  const out: Array<{ where: string; text: string }> = [];
-  for (const { root, dir } of guardedRoots()) {
-    for (const file of sourceFiles(dir)) {
-      const rel = path.relative(root, file);
-      if (exemptRel.some(e => rel.endsWith(path.join(...e.split('/'))))) continue;
-      fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
-        out.push({ where: `${rel}:${i + 1}`, text: line });
-      });
-    }
-  }
-  return out;
-}
 
 function fixture(files: Record<string, string>): string {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-pathid-')));

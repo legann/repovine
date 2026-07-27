@@ -3,6 +3,7 @@ import { DEFAULT_MAX_RESPONSE_CHARS } from '../config.js';
 import { narrowTruncation } from '../response/truncation.js';
 import { hasScopePrefix } from '../graph/node-ids.js';
 import { emptyNavigation } from './response/envelope.js';
+import { shortenWords } from '../platform/text.js';
 
 export type McpResponseConfig = ResolvedConfig['mcp']['response'];
 export type ResponseFormatMode = McpResponseConfig['mode'];
@@ -308,10 +309,7 @@ function resolveRefs(value: unknown, refs: Map<string, string>): unknown {
 }
 
 function compactReason(reason: string): string {
-  const cleaned = reason.trim().replace(/[.]+$/, '');
-  const words = cleaned.split(/\s+/).filter(Boolean);
-  if (words.length <= 5) return cleaned;
-  return `${words.slice(0, 5).join(' ')}…`;
+  return shortenWords(reason.trim().replace(/[.]+$/, ''), 5);
 }
 
 function hashString(value: string): string {

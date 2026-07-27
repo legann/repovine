@@ -28,6 +28,7 @@ import {
   redactSecretLikeText,
   scanLinesWithRegex,
 } from './node-body.js';
+import { shortenText } from '../../platform/text.js';
 
 /**
  * 1-hop kind+direction edge count over a graph — the topology input for the `wiring`/`co-change`
@@ -151,9 +152,7 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
                 if (!included.has(j)) {
                   included.add(j);
                   const line = bodyResult.lines[j];
-                  const boundedLine = line.length > MAX_GREP_LINE_CHARS
-                    ? `${line.slice(0, MAX_GREP_LINE_CHARS)}… [truncated]`
-                    : line;
+                  const boundedLine = shortenText(line, MAX_GREP_LINE_CHARS);
                   matches.push({
                     line: bodyResult.lineStart + j + 1,
                     text: redactSecretLikeText(boundedLine),

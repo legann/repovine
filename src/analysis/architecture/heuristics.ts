@@ -15,8 +15,9 @@ import { serializeSideEffect } from '../../annotations/side-effect-vocab.js';
 // registry which extensions to strip, so a responsibility key never carries one.
 import '../../stage1/source/bootstrap.js';
 import { getKnownExtensions, getSourceIndexBasenames, stripSourceExtension } from '../../stage1/source/registry.js';
-import { pathMatchKey, toPosixPath } from '../../platform/paths.js';
+import { lastPathSegment, pathMatchKey, toPosixPath } from '../../platform/paths.js';
 import { UI_COMPONENT_EXTENSIONS_RE } from '../../annotations/module-kind.js';
+import { splitCamelCase } from '../../platform/text.js';
 
 /**
  * JS-family module extensions written once: `.ts/.tsx/.js/.jsx` plus the `.mjs/.cjs/.mts/.cts`
@@ -119,7 +120,7 @@ export function hasHttpHandlerSignals(mod: ModuleInfo): boolean {
 }
 
 export function isBuildOrToolingModule(relPath: string): boolean {
-  const file = relPath.split('/').pop() ?? relPath;
+  const file = lastPathSegment(relPath);
   return /(^|\.)(vite|webpack|rollup|rspack|esbuild|tsup|jest|vitest|playwright|cypress|eslint|prettier|babel|postcss|tailwind|commitlint|storybook|typedoc|tsconfig)\.config\./.test(file)
     || /(^|\/)(vite|webpack|rollup|rspack|esbuild|tsup|jest|vitest|playwright|cypress|eslint|prettier|babel|postcss|tailwind|storybook)\.(config|setup)\./.test(relPath);
 }
@@ -222,14 +223,14 @@ export function isGenericConvergenceTarget(mod: ModuleInfo): boolean {
 
 export function isStaticPageLikeModule(mod: ModuleInfo): boolean {
   const rel = pathMatchKey(mod.relativeFilePath);
-  const file = rel.split('/').pop() ?? rel;
+  const file = lastPathSegment(rel);
   return /(^|\/)(pages|routes|views|screens)\//.test(rel)
     && /(landing|legal|privacy|pricing|terms|how-to|shell|stub|last-updated|public)/.test(file);
 }
 
 export function isPureTypesModule(mod: ModuleInfo): boolean {
   const rel = pathMatchKey(mod.relativeFilePath);
-  if (!/(^|\/)(types?|models?|interfaces?)(\.[^.]+)?$/.test(rel.split('/').pop() ?? rel)) return false;
+  if (!/(^|\/)(types?|models?|interfaces?)(\.[^.]+)?$/.test(lastPathSegment(rel))) return false;
   if (/(schema|validator|validation|rules?|policy|permission|authz|access)/.test(rel)) return false;
   return mod.exports.length > 0 && mod.exports.every(exp =>
     /^(type|interface|enum)$/i.test(exp.kind)
@@ -239,7 +240,7 @@ export function isPureTypesModule(mod: ModuleInfo): boolean {
 
 export function isBarrelLikeModule(mod: ModuleInfo): boolean {
   const rel = pathMatchKey(mod.relativeFilePath);
-  const file = rel.split('/').pop() ?? rel;
+  const file = lastPathSegment(rel);
   if (!BARREL_FILE_RE.test(file)) return false;
   return mod.exports.length === 0 || mod.exports.every(exp => exp.lineRange.end - exp.lineRange.start <= 1);
 }
@@ -290,14 +291,13 @@ export function frontendDataAccessTargetKey(target: string | undefined): string 
 // ── Key/path normalization ──
 
 export function normalizeResponsibilityKey(labelOrPath: string): string {
-  const basename = toPosixPath(labelOrPath).split('/').pop();
+  const basename = lastPathSegment(toPosixPath(labelOrPath));
   // The key reaches the agent inside a finding id and title. Stripping through the source-plugin
   // registry keeps `__init__.py` and `index.ts` reducing the same way, so a duplicate-responsibility
   // finding is never named after a file extension or after a package marker.
-  const stripped = basename !== undefined ? stripSourceExtension(basename) : labelOrPath;
+  const stripped = stripSourceExtension(basename);
   const base = getSourceIndexBasenames().includes(stripped.toLowerCase()) ? '' : stripped;
-  return base
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+  return splitCamelCase(base)
     .toLowerCase()
     .replace(/\b(index|types?|schemas?|models?|utils?|helpers?)\b/g, '')
     .replace(/\b(service|manager|controller|handler|repository|repo|client|adapter|provider|api|view|page|component|hook)\b/g, '')
@@ -396,8 +396,7 @@ export function policySubjectKey(mod: ModuleInfo): string {
     ? [feature, feature.replace(/s$/, '')].filter(Boolean).map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     : [];
   const featurePattern = featureWords.length > 0 ? new RegExp(`\\b(${featureWords.join('|')})\\b`, 'ig') : undefined;
-  const text = `${rel} ${exportText}`
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+  const text = splitCamelCase(`${rel} ${exportText}`)
     .toLowerCase()
     .replace(featurePattern ?? /$^/, ' ')
     .replace(/\b(validate|validator|validation|can|may|should|has|is|allowed|authorize|authz|access|permission|policy|rules?|map|mapper|mapping|transform|normalize|serialize|deserialize|format|schema|model|type|types|config|props|state|data|dto|payload|response|request|build|create|get|set|use)\b/g, ' ');

@@ -1,6 +1,7 @@
 import type { SemanticSyncReport } from '../../semantic/store.js';
 import type { RepositoryFactsSnapshot } from '../../types.js';
 import type { SemanticSearchRefresh } from '../types.js';
+import { shortenList, omittedNote } from '../../platform/text.js';
 
 /** How many refused paths the report names before it falls back to a count. */
 const OUTSIDE_REPO_SAMPLE = 5;
@@ -32,8 +33,8 @@ function outsideRepoCause(paths: readonly string[]): string {
 export function outsideRepoReport(snapshot: RepositoryFactsSnapshot): OutsideRepoReport | undefined {
   const paths = snapshot.outsideRepoPaths ?? [];
   if (paths.length === 0) return undefined;
-  const sample = paths.slice(0, OUTSIDE_REPO_SAMPLE);
-  const more = paths.length > sample.length ? ` (+${paths.length - sample.length} more)` : '';
+  const { shown: sample, omitted } = shortenList(paths, OUTSIDE_REPO_SAMPLE);
+  const more = omittedNote(omitted);
   return {
     count: paths.length,
     sample,

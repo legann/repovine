@@ -84,6 +84,22 @@ export function resolveRelPath(value: string): string {
   return out.join('/');
 }
 
+/**
+ * The last segment of a repo-relative POSIX path.
+ *
+ * A POSIX question, so `path.basename` is not it: on win32 that function also treats `\` as a
+ * separator, and a repo-relative path is already POSIX-normalized at its producers — a backslash
+ * surviving into one is a character in a filename, not a boundary. `path.basename` stays where the
+ * argument is an absolute host path, which is the form the filesystem hands out.
+ *
+ * A path ending in `/` answers `''`, and so does the empty path: the segment after the last
+ * separator is what was asked for, and there it is empty. Callers wanting the directory instead
+ * take `moduleDirPath` in `src/graph/module-files.ts`.
+ */
+export function lastPathSegment(relPath: string): string {
+  return relPath.slice(relPath.lastIndexOf('/') + 1);
+}
+
 const hostKeyedViews = new WeakMap<Map<string, string>, Map<string, string>>();
 const hostKeyedViewSizes = new WeakMap<Map<string, string>, number>();
 

@@ -3,6 +3,7 @@ import type { RepositoryGraph } from '../types.js';
 // registry which basenames mark a package's entry file.
 import '../stage1/source/bootstrap.js';
 import { getSourceIndexBasenames, stripIndexBasename, stripModuleIdSuffix } from '../stage1/source/registry.js';
+import { lastPathSegment } from '../platform/paths.js';
 
 /**
  * What file a module node stands for, asked of the graph rather than of the node's label.
@@ -44,7 +45,7 @@ export function isBarrelModule(graph: RepositoryGraph, moduleId: string): boolea
 export function isBarrelRelPath(relPath: string): boolean {
   // Case-sensitive, matching the mint: `mintModuleId` collapses `index` and leaves `Index` alone,
   // so a case-folding answer here would call a module a barrel that has its own id.
-  const basename = stripModuleIdSuffix(relPath).split('/').pop() ?? '';
+  const basename = lastPathSegment(stripModuleIdSuffix(relPath));
   return getSourceIndexBasenames().some(name => basename === name);
 }
 

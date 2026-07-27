@@ -8,7 +8,7 @@ import { importerCount } from '../graph/index.js';
 import '../stage1/source/bootstrap.js';
 import { stripSourceExtension } from '../stage1/source/registry.js';
 import { domainLabelSlug, domainSlug } from './domain-slug.js';
-import { toPosixPath } from '../platform/paths.js';
+import { lastPathSegment, toPosixPath } from '../platform/paths.js';
 
 export { DOMAINS_CONFIG_MERGE_STRATEGY, DomainsConfigSchema, compileGlob, loadDomainsConfig, type DomainsConfig, type GlobMatcher } from './domains-schema.js';
 
@@ -202,9 +202,9 @@ export function evaluateBasenameCandidate(
   options?: EvaluateBasenameOptions,
 ): BasenameDecision {
   const withoutExt = stripSourceExtension(relativeFilePath);
-  const segments = withoutExt.split(/[/\\]/).filter(Boolean);
-  if (segments.length === 0) return { rejected: true, highConfidence: false };
-  const basename = segments[segments.length - 1];
+  const segments = withoutExt.split('/').filter(Boolean);
+  const basename = lastPathSegment(withoutExt);
+  if (!basename) return { rejected: true, highConfidence: false };
 
   // Reserved or framework-slot basenames are never domains.
   // - `_app.tsx`, `_document.tsx` (Next.js Pages Router private files)
@@ -598,7 +598,7 @@ export function collectAllDomainTags(
     if (override === 'include') {
       // Force basename to be a domain regardless of heuristic verdict.
       const withoutExt = stripSourceExtension(mod.relativeFilePath);
-      const basename = withoutExt.split(/[/\\]/).filter(Boolean).pop() ?? '';
+      const basename = lastPathSegment(withoutExt);
       const { stem, suffix } = splitBasename(basename);
       const label = suffix && DOMAIN_SUFFIXES.has(suffix) ? stem : basename;
       const slug = domainSlug(label);

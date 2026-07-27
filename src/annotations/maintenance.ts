@@ -33,6 +33,7 @@ import {
   computeRiskScopeCandidates,
   type RiskScopeCandidates,
 } from './risk-scope-candidates.js';
+import { shortenText } from '../platform/text.js';
 
 /** Default annotations filename at workspace root when config is absent. */
 export const ANNOTATIONS_RELATIVE_PATH = ANNOTATIONS_FILENAME;
@@ -465,7 +466,7 @@ function stableEquals(a: unknown, b: unknown): boolean {
 function preview(value: unknown): string | undefined {
   if (value === undefined) return undefined;
   const text = typeof value === 'string' ? value : JSON.stringify(value);
-  return text.length > 160 ? `${text.slice(0, 157)}...` : text;
+  return shortenText(text, 160);
 }
 
 function chooseSide(ours: StoredAnnotation, theirs: StoredAnnotation): MergeSide {

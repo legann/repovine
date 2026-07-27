@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { PLUGIN_API_VERSION } from './runtime.js';
 import { HASH_WIDTH, sha256Hex } from './content-hash.js';
 import { validateSemanticModuleDelta, validateSemanticInfraDelta } from './fact-schemas.js';
@@ -153,7 +154,7 @@ export async function checkSourcePluginConformance(
 function iacParserMatchesFile(parser: IaCParser, filePath: string): boolean {
   const fm = parser.fileMatch;
   if (!fm) return true;
-  const base = filePath.split(/[\\/]/).pop() ?? filePath;
+  const base = path.basename(filePath);
   const dot = base.lastIndexOf('.');
   const ext = dot >= 0 ? base.slice(dot).toLowerCase() : '';
   if (fm.extensions?.some(e => e.toLowerCase() === ext)) return true;

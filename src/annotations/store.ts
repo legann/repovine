@@ -37,6 +37,7 @@ import {
 } from './format.js';
 import type { PropagationConfig } from '../config.js';
 import type { EntrypointFragment } from '../interpreter/types.js';
+import { omittedNote, shortenList, shortenText } from '../platform/text.js';
 
 export { AnnotationContentSchema };
 
@@ -105,7 +106,7 @@ export function describeMergeKeeps(keeps: AnnotationMergeKeeps): string | undefi
   const parts: string[] = [];
   if (keeps.readded > 0) parts.push(`${keeps.readded} the file no longer held`);
   if (keeps.reverted > 0) parts.push(`${keeps.reverted} the file held in an older version`);
-  const more = total > keeps.sample.length ? ` (+${total - keeps.sample.length} more)` : '';
+  const more = omittedNote(total - keeps.sample.length);
   return `Kept ${total} in-memory annotation(s) the file disagreed with — ${parts.join(', ')}: `
     + `${keeps.sample.join(', ')}${more}. A revert of the annotations file does not stick while this process `
     + 'holds the newer records; re-apply it after the process exits, or write the intended state through '
@@ -260,8 +261,9 @@ export class AnnotationStore {
       const quarantinedIds = hydrated.errors.map(error => error.nodeId);
       const firstError = hydrated.errors[0];
       if (quarantinedIds.length > 0) {
-        const shown = quarantinedIds.slice(0, 10).join(', ');
-        logPipelineWarn(`  Annotations: ${quarantinedIds.length} entry(ies) failed validation, quarantined (preserved on disk, hidden from queries): ${shown}${quarantinedIds.length > 10 ? ', …' : ''}`);
+        const quarantinedShown = shortenList(quarantinedIds, 10);
+        const shown = quarantinedShown.shown.join(', ');
+        logPipelineWarn(`  Annotations: ${quarantinedIds.length} entry(ies) failed validation, quarantined (preserved on disk, hidden from queries): ${shown}${omittedNote(quarantinedShown.omitted)}`);
         if (firstError) logPipelineWarn(`    Example error (${firstError.nodeId}): ${firstError.message}`);
       }
       logPipeline(formatPipelineStatus(`  Annotations loaded: ${loaded} nodes${quarantinedIds.length ? ` (+${quarantinedIds.length} quarantined)` : ''}`));
@@ -995,7 +997,7 @@ export class AnnotationStore {
           nodeType: ann.nodeType,
           pass: ann.pass,
           updatedAt: ann.updatedAt,
-          summaryPreview: (ann.annotation?.summary ?? '').slice(0, 100),
+          summaryPreview: shortenText(ann.annotation?.summary ?? '', 100),
           reason: 'node_missing',
         });
         byType[ann.nodeType] = (byType[ann.nodeType] ?? 0) + 1;
@@ -1005,7 +1007,7 @@ export class AnnotationStore {
           nodeType: ann.nodeType,
           pass: ann.pass,
           updatedAt: ann.updatedAt,
-          summaryPreview: (ann.annotation?.summary ?? '').slice(0, 100),
+          summaryPreview: shortenText(ann.annotation?.summary ?? '', 100),
           reason: 'node_type_changed',
         });
         byType[ann.nodeType] = (byType[ann.nodeType] ?? 0) + 1;

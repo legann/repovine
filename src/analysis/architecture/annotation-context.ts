@@ -16,6 +16,9 @@ import type { RepositoryGraph, ModuleInfo, StoredAnnotation } from '../../types.
 import type { AnnotationStore } from '../../annotations/store.js';
 import { normalizeRisks } from '../../annotations/format.js';
 import { truncateSideEffect } from '../../annotations/side-effect-vocab.js';
+import { shortenText } from '../../platform/text.js';
+import { ANNOTATION_EXCERPT } from '../../annotations/excerpt.js';
+export { ANNOTATION_EXCERPT } from '../../annotations/excerpt.js';
 
 /**
  * The structured question a caller must answer for a finding. Every
@@ -197,20 +200,42 @@ export interface AnnotationContext {
   hint: string;
 }
 
-// ── Truncation budgets ──
-// Sized so a typical finding's annotationContext fits in ~1-3 KB regardless of
-// annotation depth. Agents already understand summaries; we don't need full text.
+// ── Annotation excerpt budgets ──
+// Declared in `src/annotations/excerpt.ts`: the same widths bound the risk-scope candidate list,
+// which lives beside the annotations rather than beside the analysis.
 
-const MAX_NODES_PER_CONTEXT = 8;
-const MAX_SUMMARY_CHARS = 200;
-const MAX_INVARIANT_CHARS = 150;
-const MAX_LIST_ITEMS = 5;
-const MAX_KEY_EXPORTS = 8;
-const MAX_KEY_EXPORT_VALUE_CHARS = 100;
+const MAX_NODES_PER_CONTEXT = ANNOTATION_EXCERPT.nodesPerContext;
+const MAX_SUMMARY_CHARS = ANNOTATION_EXCERPT.summaryChars;
+const MAX_INVARIANT_CHARS = ANNOTATION_EXCERPT.entryChars;
+const MAX_LIST_ITEMS = ANNOTATION_EXCERPT.listItems;
+const MAX_KEY_EXPORTS = ANNOTATION_EXCERPT.mapEntries;
+const MAX_KEY_EXPORT_VALUE_CHARS = ANNOTATION_EXCERPT.mapValueChars;
 
 function truncate(value: string | undefined, max: number): string | undefined {
   if (!value) return value;
-  return value.length > max ? `${value.slice(0, max)}…` : value;
+  return shortenText(value, max);
+}
+
+/**
+ * The excerpt of an annotation an architecture answer quotes, at {@link ANNOTATION_EXCERPT} budgets.
+ *
+ * Used wherever a finding carries annotation prose — the affected-node summaries of detail mode and
+ * the `annotationContext` packet — so one annotation quoted twice in one answer is quoted at one
+ * length. `nextCalls` points at `inspect_node` for the unbounded text.
+ */
+export function annotationExcerpt(annotation: StoredAnnotation['annotation']): {
+  summary: string | undefined;
+  assumptions: string[];
+  sideEffects: ReturnType<typeof truncateSideEffect>[];
+  risks: string[];
+} {
+  const lists = ANNOTATION_EXCERPT.listItems;
+  return {
+    summary: annotation.summary === undefined ? undefined : shortenText(annotation.summary, ANNOTATION_EXCERPT.summaryChars),
+    assumptions: (annotation.assumptions ?? []).slice(0, lists).map(item => shortenText(item, ANNOTATION_EXCERPT.entryChars)),
+    sideEffects: (annotation.sideEffects ?? []).slice(0, lists).map(se => truncateSideEffect(se, ANNOTATION_EXCERPT.entryChars)),
+    risks: normalizeRisks(annotation.risks).slice(0, lists).map(item => shortenText(item.text, ANNOTATION_EXCERPT.entryChars)),
+  };
 }
 
 function pickAnnotationFields(

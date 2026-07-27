@@ -1,6 +1,5 @@
 import * as fs from 'node:fs';
 import { compareCodeUnits } from '../platform/ordering.js';
-import * as path from 'node:path';
 import type { InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
 import { isWitnessedNode } from '../graph/index.js';
 import { domainsConfigFilePath } from '../paths.js';
@@ -12,6 +11,7 @@ import { domainSlug } from './domain-slug.js';
 // registry which extensions it owns, so every ecosystem reduces by its own declaration.
 import '../stage1/source/bootstrap.js';
 import { hasKnownSourceExtension, stripSourceExtension } from '../stage1/source/registry.js';
+import { lastPathSegment } from '../platform/paths.js';
 
 const INFRA_NOISE_SUFFIXES = [
   'Alarm',
@@ -319,7 +319,7 @@ function computeBasenameSuggestion(
   const codeModules = snapshot.modules.filter(mod => hasKnownSourceExtension(mod.relativeFilePath));
   if (codeModules.length === 0) return undefined;
   const pascalCase = codeModules.filter(mod => {
-    const basename = stripSourceExtension(path.basename(mod.relativeFilePath));
+    const basename = stripSourceExtension(lastPathSegment(mod.relativeFilePath));
     return /^[A-Z]/.test(basename);
   }).length;
   const ratio = pascalCase / codeModules.length;
