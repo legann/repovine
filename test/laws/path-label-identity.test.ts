@@ -84,6 +84,17 @@ describe('core-laws paths, labels and id minting', () => {
 
   // ── the label alphabet ───────────────────────────────────────────────────────────────────────
 
+  it('reports a guard hit at a repo-relative POSIX path, on every host', () => {
+    // The key a guard narrows by, and the key it prints. `path.relative` answers with the host
+    // separator, so a law comparing it against `analysis/architecture/detectors.ts` matches on Linux
+    // and matches nothing on win32 — which is how a green stage 9 failed the Windows CI leg.
+    const keys = [...codeFiles([]).map(file => file.where), ...codeLines([]).map(line => line.where)];
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.filter(key => key.includes('\\'))).toEqual([]);
+    // The same key answers a POSIX-written narrowing, which is what the laws actually do with it.
+    expect(codeFiles([]).filter(file => file.where.includes('platform/paths.ts'))).toHaveLength(1);
+  });
+
   it('writes the kebab chain once', () => {
     // The chain as it was copied: a character-class scrub into dashes.
     const chain = /replace\(\s*\/\[\^a-z0-9-\]\/g\s*,\s*'-'\s*\)/;
