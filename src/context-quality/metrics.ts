@@ -1,4 +1,6 @@
 import type { ContextEvent, ContextEventMetrics } from './types.js';
+import { publishedRefusalMessage } from '../response/refusal.js';
+import { SCOPE_UNRESOLVED } from '../response/empty-reason.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -93,7 +95,10 @@ function extractMetrics(input: BuildContextEventInput): ContextEventMetrics {
   const emptyDiagnosticReason = typeof emptyDiagnostic?.reason === 'string'
     ? emptyDiagnostic.reason
     : undefined;
-  const hasError = hasStringError(result) || hasStringError(resultBody);
+  // Read through the envelope's own reader rather than sniffing for a string field: the shape a
+  // refusal is published in is declared in one place, and a change to it is a compile error here
+  // instead of a metric that silently counts nothing.
+  const hasError = publishedRefusalMessage(result) !== undefined;
   // `filtered_out` is the opposite of a scope miss: the scope anchored, it held rows, and the
   // caller's own filter removed them. Its predecessor `type_filter_excluded` was counted here and
   // named only search's type filter; merging the six narrowing names into one would have widened
@@ -101,7 +106,7 @@ function extractMetrics(input: BuildContextEventInput): ContextEventMetrics {
   const unresolvedScope =
     NAVIGATION_TOOLS.has(input.tool)
     && (resolvedScopeKind === 'unknown'
-      || emptyDiagnosticReason === 'scope_unresolved'
+      || emptyDiagnosticReason === SCOPE_UNRESOLVED
       || hasError);
 
   const search = input.tool === 'search_context' ? extractSearchMetrics(resultBody, input.testPackageRegex) : undefined;
@@ -193,10 +198,6 @@ function findEmptyDiagnostic(value: unknown): JsonObject | undefined {
     }
   }
   return undefined;
-}
-
-function hasStringError(value: unknown): boolean {
-  return isRecord(value) && typeof value.error === 'string';
 }
 
 function isRecord(value: unknown): value is JsonObject {

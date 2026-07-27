@@ -5,6 +5,7 @@ import { outsideRepoReport, semanticSearchRefreshFromSync } from '../../../src/m
 import { CONFIG_DEFAULTS } from '../../../src/config.js';
 import type { RepovineState, McpToolRuntime, RefreshRepoStateOptions } from '../../../src/mcp/types.js';
 import type { GraphNode, RepositoryFactsSnapshot } from '../../../src/types.js';
+import { outsideRepoRefusal } from '../../../src/stage1/index.js';
 
 function moduleNode(id: string): GraphNode {
   return { id, type: 'module', label: id, description: '' };
@@ -19,7 +20,7 @@ function containmentCtx(outsideRepoPaths: string[]): McpToolRuntime {
       timestamp: '2026-06-10T00:00:00.000Z',
       modules: [],
       packages: [],
-      ...(outsideRepoPaths.length > 0 ? { outsideRepoPaths } : {}),
+      ...(outsideRepoPaths.length > 0 ? { buildRefusals: [outsideRepoRefusal(outsideRepoPaths)] } : {}),
     },
     modulesById: new Map(),
     searchIndex: { tokens: new Map(), annotationText: new Map() },
@@ -230,8 +231,13 @@ describe('refreshContextCore', () => {
 });
 
 describe('outsideRepoReport', () => {
-  const snapshotWith = (outsideRepoPaths: string[]): RepositoryFactsSnapshot =>
-    ({ repoRoot: '/repo', timestamp: '2026-06-10T00:00:00.000Z', modules: [], packages: [], outsideRepoPaths });
+  const snapshotWith = (paths: string[]): RepositoryFactsSnapshot => ({
+    repoRoot: '/repo',
+    timestamp: '2026-06-10T00:00:00.000Z',
+    modules: [],
+    packages: [],
+    buildRefusals: paths.length > 0 ? [outsideRepoRefusal(paths)] : [],
+  });
 
   it('is absent when nothing was refused', () => {
     expect(outsideRepoReport(snapshotWith([]))).toBeUndefined();

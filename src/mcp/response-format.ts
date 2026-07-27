@@ -4,6 +4,7 @@ import { narrowTruncation } from '../response/truncation.js';
 import { hasScopePrefix } from '../graph/node-ids.js';
 import { emptyNavigation } from './response/envelope.js';
 import { shortenWords } from '../platform/text.js';
+import { publishedRefusalMessage } from '../response/refusal.js';
 
 export type McpResponseConfig = ResolvedConfig['mcp']['response'];
 export type ResponseFormatMode = McpResponseConfig['mode'];
@@ -35,10 +36,7 @@ const MAX_REFS = 500;
  * A failure withheld for size carries both, and this reads the message off the pre-bounded payload.
  */
 export function toolErrorMessage(result: unknown): string | undefined {
-  if (!isObject(result)) return undefined;
-  const inner = result.result;
-  if (isObject(inner) && typeof inner.error === 'string') return inner.error;
-  return undefined;
+  return publishedRefusalMessage(result);
 }
 
 export function isToolErrorResult(result: unknown): boolean {

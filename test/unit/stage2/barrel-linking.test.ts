@@ -4,6 +4,7 @@ import { createEmptyGraph } from '../../../src/graph/index.js';
 import { analyzeImpact } from '../../../src/mcp/lib/dependencies/impact.js';
 import type { ModuleInfo, RepositoryFactsSnapshot, RepositoryGraph } from '../../../src/types.js';
 import type { McpToolRuntime } from '../../../src/mcp/types.js';
+import { deliveredValue } from '../../../src/response/refusal.js';
 
 function snapshot(): RepositoryFactsSnapshot {
   const barrel: ModuleInfo = {
@@ -80,7 +81,7 @@ describe('Part 4 — cross-package barrel → leaf linking', () => {
 
   it('reverse query on the leaf export resolves the cross-package consumer (not name-only)', () => {
     const { graph, modulesById } = build();
-    const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:@shared/utils/slugify' }) as {
+    const result = deliveredValue(analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:@shared/utils/slugify' })) as {
       downstream: Array<{ id: string; uses?: string[]; provenance?: { basis: string; method: string } }>;
     };
     const consumer = result.downstream.find(e => e.id === 'mod:@web/tool');

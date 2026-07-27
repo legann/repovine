@@ -234,8 +234,19 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
     ? [...selfItems, ...refAttention.filter((item) => item.nodeId !== nodeId)]
     : refAttention;
 
+  // A body or grep the node view could not produce is a refusal, and it used to arrive only as a
+  // field on an otherwise-successful response — including the containment refusal, which is the one
+  // a reader most needs to see. It is said where the response says what it could not give.
+  //
+  // `confidence` is not touched. The envelope defines it as how well the scope resolved, and the
+  // scope resolved: a node whose kind carries no body, or a caller's own malformed regex, is not a
+  // weaker answer about the node. Lowering it here would also cost the call its stable anchor in
+  // the session score, penalising a session that asked a complete question.
+  const withheld = [result.bodyError, result.grepError].filter((m): m is string => typeof m === 'string');
+
   return envelope(scope, `Inspected ${nodeId}.`, result, {
     confidence: 'high',
+    gaps: withheld,
     navigation,
     ...(attention.length ? { attention } : {}),
   });

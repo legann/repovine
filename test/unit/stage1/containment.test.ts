@@ -72,7 +72,11 @@ describeSymlink('stage 1 — containment of discovered candidates', () => {
   });
 
   it('refuses a file symlink and a file under a directory symlink that leave the repo', () => {
-    expect(snapshot.outsideRepoPaths).toEqual(['src/leak.ts', 'src/vendor/leaked.ts']);
+    const containment = (snapshot.buildRefusals ?? []).find(r => r.kind === 'outside-workspace');
+
+    expect(containment?.reason).toBe('rejected-by-policy');
+    expect(containment?.details).toEqual({ count: 2, sample: ['src/leak.ts', 'src/vendor/leaked.ts'] });
+    expect(containment?.message).toContain('src/leak.ts, src/vendor/leaked.ts');
   });
 
   it('publishes no identifier extracted from an out-of-repo file', () => {

@@ -16,6 +16,7 @@ import type {
   SsrMarkers,
   SymbolKind,
 } from '@repovine/plugin-sdk';
+import type { Refusal } from '../response/refusal.js';
 
 // ── Symbol & Node taxonomy ──
 
@@ -83,10 +84,14 @@ export interface RepositoryFactsSnapshot {
   packages: PackageInfo[];
   modules: ModuleInfo[];
   infraModules?: InfraModuleInfo[];
-  /** Repo-relative candidates refused by containment because they resolve outside the repository.
-   * They are absent from `modules`, so the graph reports why rather than losing them silently.
-   * Recomputed by every discovery pass, never reused from a cached snapshot. */
-  outsideRepoPaths?: string[];
+  /**
+   * What the scan refused, and why. A refused candidate is absent from `modules`, so without this
+   * the graph reports it as never having existed; the pipeline log carries the same facts and is
+   * silent under the MCP server and under `repovine status`, which is where a reader looks for them.
+   * `repovine doctor` does not publish it: that command diagnoses the setup and never loads a graph.
+   * Recomputed by every discovery pass, never reused from a cached snapshot.
+   */
+  buildRefusals?: Refusal[];
   /** Template/rendered-surface artifacts discovered by stage1 producers. */
   templates?: TemplateFileInfo[];
   /**

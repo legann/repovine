@@ -29,6 +29,7 @@ import {
   scanLinesWithRegex,
 } from './node-body.js';
 import { shortenText } from '../../platform/text.js';
+import { isRefused } from '../../response/refusal.js';
 
 /**
  * 1-hop kind+direction edge count over a graph — the topology input for the `wiring`/`co-change`
@@ -109,11 +110,12 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
         // Compile before file IO so malformed patterns fail cheaply on the request thread. Pattern
         // length is capped above; execution happens in a killable worker below.
         new RegExp(grepBody, 'i');
-        const bodyResult = await readNodeBody(graph, modulesById, ctx.repoRoot, nodeId, node.type, view.lineRange);
-        if ('error' in bodyResult) {
-          view.grepError = bodyResult.error;
+        const bodyOutcome = await readNodeBody(graph, modulesById, ctx.repoRoot, nodeId, node.type, view.lineRange);
+        if (isRefused(bodyOutcome)) {
+          view.grepError = bodyOutcome.refusal.message;
           console.error(`[get_context_detail] grepBody: ${view.grepError}`);
         } else {
+          const bodyResult = bodyOutcome.value;
           const CONTEXT_LINES = 3;
           const scan = await scanLinesWithRegex(bodyResult.lines, grepBody, { signal: ctx.signal });
           if (scan.timedOut) {
@@ -174,11 +176,12 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
   }
 
   if (includeBody) {
-    const bodyResult = await readNodeBody(graph, modulesById, ctx.repoRoot, nodeId, node.type, view.lineRange);
-    if ('error' in bodyResult) {
-      view.bodyError = bodyResult.error;
+    const bodyOutcome = await readNodeBody(graph, modulesById, ctx.repoRoot, nodeId, node.type, view.lineRange);
+    if (isRefused(bodyOutcome)) {
+      view.bodyError = bodyOutcome.refusal.message;
       console.error(`[get_context_detail] includeBody: ${view.bodyError}`);
     } else {
+      const bodyResult = bodyOutcome.value;
       const full = redactSecretLikeText(bodyResult.lines.join('\n'));
       const slice = full.slice(bodyOffset, bodyOffset + bodyLimit);
       view.body = slice;

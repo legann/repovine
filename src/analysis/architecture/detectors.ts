@@ -10,7 +10,7 @@ import type { AnnotationStore } from '../../annotations/store.js';
 import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import { isPure } from '../../annotations/side-effect-vocab.js';
-import { annotationSecretFieldPaths } from './annotation-secret.js';
+import { annotationSecretFieldPaths } from '../../annotations/secret-values.js';
 import { workflowSignalKinds } from './component-signals.js';
 import { DEFAULT_THRESHOLDS, type RefactoringThresholds } from './config.js';
 import { clampConfidence, detectorConfidence, evidenceAxisCount, findingSeverity } from './finding.js';

@@ -154,7 +154,17 @@ describe('source body containment', () => {
 
     // The refusal names the in-repo link, not its target: the operator learns which file to remove
     // and the out-of-repo path never reaches the client.
-    expect(result).toEqual({ error: `Refusing to read source outside repo root: ${path.join('src', 'leak.ts')}` });
+    expect(result).toEqual({
+      ok: false,
+      refusal: {
+        reason: 'rejected-by-policy',
+        kind: 'body-outside-workspace',
+        // The sentence keeps the host's separators; the machine-readable slot is POSIX on every
+        // platform, like every other repo-relative value the engine publishes.
+        message: `Refusing to read source outside repo root: ${path.join('src', 'leak.ts')}`,
+        details: { path: 'src/leak.ts' },
+      },
+    });
   });
 
   itSymlink('reads a module reached through a symlink that stays inside the repo', async () => {
@@ -168,7 +178,7 @@ describe('source body containment', () => {
     const { graph, modulesById } = moduleGraph('mod:repo/src/alias', link);
     const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/alias', 'module');
 
-    expect(result).toMatchObject({ lines: ['export const a = 1;', ''], lineStart: 0 });
+    expect(result).toMatchObject({ ok: true, value: { lines: ['export const a = 1;', ''], lineStart: 0 } });
   });
 
   it('reports a missing in-repo module as unreadable rather than as an escape', async () => {
@@ -177,7 +187,15 @@ describe('source body containment', () => {
     const { graph, modulesById } = moduleGraph('mod:repo/src/gone', missing);
     const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/gone', 'module');
 
-    expect(result).toEqual({ error: `Could not read file: ${path.join('src', 'gone.ts')} — ENOENT` });
+    expect(result).toEqual({
+      ok: false,
+      refusal: {
+        reason: 'unreadable',
+        kind: 'body-unreadable',
+        message: `Could not read file: ${path.join('src', 'gone.ts')} — ENOENT`,
+        details: { path: 'src/gone.ts' },
+      },
+    });
   });
 
   it('labels an out-of-repo path without echoing it', () => {

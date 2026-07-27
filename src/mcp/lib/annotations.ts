@@ -34,11 +34,12 @@ import { narrowTruncation, pageTruncation, truncationMap, type TruncationMap } f
 
 /** Ranking cut on the unannotated-module anomaly list, applied before the page limit sees it. */
 const TOP_UNANNOTATED_MODULE_CAP = 20;
-import { outsideRepoReport } from './refresh-summary.js';
+import { buildRefusalReport, outsideRepoReport } from './refresh-summary.js';
 import { type McpToolRuntime } from '../types.js';
 import { resolveScope } from '../scope/resolve.js';
 import { writeBoundaryIndex } from '../boundary-index.js';
 import { hasBoundaryScopedRisk } from '../../annotations/format.js';
+import { annotationSecretFieldPaths } from '../../annotations/secret-values.js';
 import { shortenList, omittedNote } from '../../platform/text.js';
 
 /** Canonical key order follows the validation schema, so new accepted fields cannot be dropped. */
@@ -61,35 +62,6 @@ function annotationContentWithStableKeyOrder(content: AnnotationContent): Annota
     if (value !== undefined) Object.assign(out, { [k]: value });
   }
   return out;
-}
-
-function annotationSecretFieldPaths(content: AnnotationContent): string[] {
-  const paths: string[] = [];
-  const visit = (value: unknown, pathName: string): void => {
-    if (typeof value === 'string') {
-      if (containsSecretValue(value)) paths.push(pathName);
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach((item, idx) => visit(item, `${pathName}[${idx}]`));
-      return;
-    }
-    if (value && typeof value === 'object') {
-      for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-        visit(nested, `${pathName}.${key}`);
-      }
-    }
-  };
-  visit(content as unknown as Record<string, unknown>, 'annotation');
-  return paths;
-}
-
-function containsSecretValue(text: string): boolean {
-  const trimmed = text.trim();
-  if (/^(?:[A-Z][A-Z0-9_]{5,}|[A-Z][A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD)[A-Z0-9_]*)$/.test(trimmed)) return false;
-  return /\b(sk_(?:live|test)_[A-Za-z0-9]{12,}|xox[baprs]-[A-Za-z0-9-]{12,}|gh[pousr]_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})\b/.test(text)
-    || /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text)
-    || /\b(?:secret|token|password|api[_ -]?key|client[_ -]?secret)\b\s*[:=]\s*['"]?[A-Za-z0-9_./+=-]{8,}/i.test(text);
 }
 
 function consistencyWarnings(consistency: AnnotationConsistency, mod: ModuleInfo | undefined): string[] {
@@ -799,6 +771,7 @@ export async function refreshContextCore(ctx: McpToolRuntime, args: Record<strin
   const totalAnnotations = Object.keys(annotationsData).length;
   const domainsSuggestions = afterState.domainsSuggestions ?? { count: 0, axes: [], declinedHidden: 0 };
   const outsideRepo = outsideRepoReport(afterState.snapshot);
+  const buildRefusals = buildRefusalReport(afterState.snapshot);
   const mergeKeeps = afterState.annotations.lastMergeKeeps;
   const mergeKeepsWarning = describeMergeKeeps(mergeKeeps);
 
@@ -825,6 +798,7 @@ export async function refreshContextCore(ctx: McpToolRuntime, args: Record<strin
       declinedHidden: domainsSuggestions.declinedHidden,
     },
     ...(outsideRepo ? { outsideRepo } : {}),
+    ...(buildRefusals ? { buildRefusals } : {}),
     // A separate key, not `annotations.warning`: that field is a single scalar and the orphan report
     // already owns it, and the two conditions are independent.
     ...(mergeKeepsWarning ? {

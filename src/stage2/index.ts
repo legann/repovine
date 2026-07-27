@@ -22,6 +22,27 @@ import { rememberInterpreterEntrypoints } from './interpreter/entrypoint-store.j
 import type { EntrypointFragment } from '../interpreter/types.js';
 import { pruneInertRuntimeResources } from './prune-inert-resources.js';
 import { validateComposedGraph, summarizeGraphValidationProblems } from './graph-validate.js';
+import { refusal, type Refusal } from '../response/refusal.js';
+import { GRAPH_VALIDATION_REFUSAL } from '../stage1/refusal-kinds.js';
+
+/**
+ * Refusals composition made, keyed by the graph it made them about.
+ *
+ * Process-local and keyed by object identity, exactly like the interpreter entrypoint store: the
+ * worker's map does not survive structured clone, so the value is posted across the boundary and
+ * re-keyed onto the cloned graph on the parent side.
+ */
+const composedRefusals = new WeakMap<RepositoryGraph, Refusal[]>();
+
+/** What composition refused about this graph. Empty for a graph that took every record. */
+export function getComposedRefusals(graph: RepositoryGraph): Refusal[] {
+  return composedRefusals.get(graph) ?? [];
+}
+
+/** Re-key composition refusals onto a graph that crossed an isolate boundary. */
+export function rememberComposedRefusals(graph: RepositoryGraph, refusals: Refusal[]): void {
+  composedRefusals.set(graph, refusals);
+}
 import { domainSlug } from './domain-slug.js';
 import { getSourceIndexBasenames, stripSourceExtension } from '../stage1/source/registry.js';
 
@@ -64,12 +85,22 @@ export function composeRepositoryGraph(
   // edge. Healthy graphs produce zero problems, so this is silent in normal operation. It throws under
   // REPOVINE_DEV (git checkout / CI) to catch a pass regression at the source, and otherwise warns.
   const problems = validateComposedGraph(graph, snapshot);
+  // Returned, not written onto `snapshot`: composition runs in a worker over a structured clone, so
+  // a refusal recorded on the argument would be dropped at the isolate boundary — the same loss the
+  // interpreter entrypoints already pay for and carry across explicitly.
+  composedRefusals.set(graph, []);
   if (problems.length > 0) {
     const summary = summarizeGraphValidationProblems(problems);
     if (process.env.REPOVINE_DEV) {
       throw new Error(`stage2 graph validation failed: ${summary}`);
     }
     logPipeline(formatPipelineDetail(`  ⚠ graph validation: ${summary}`));
+    composedRefusals.set(graph, [refusal(
+      'incomplete',
+      GRAPH_VALIDATION_REFUSAL,
+      `The graph did not take every record the scan produced: ${summary}. What is named there is missing from the graph or points at a node that is not in it.`,
+      { problems: problems.length },
+    )]);
   }
 
   return graph;
@@ -107,7 +138,7 @@ function runStage2InWorker(snapshot: RepositoryFactsSnapshot, signal?: AbortSign
   if (signal?.aborted) return Promise.reject(new Stage2Aborted());
   return new Promise<RepositoryGraph>((resolve, reject) => {
     const worker = new Worker(url, { workerData: { snapshot } });
-    let result: { type?: string; graph?: RepositoryGraph; entrypoints?: EntrypointFragment[]; message?: string; stack?: string } | undefined;
+    let result: { type?: string; graph?: RepositoryGraph; entrypoints?: EntrypointFragment[]; refusals?: Refusal[]; message?: string; stack?: string } | undefined;
     let settled = false;
     // Holder breaks the settle ↔ onAbort mutual reference without a reassigned `let` (prefer-const).
     const abortRef: { fn?: () => void } = {};
@@ -129,6 +160,7 @@ function runStage2InWorker(snapshot: RepositoryFactsSnapshot, signal?: AbortSign
         // Re-key the interpreter entrypoints onto the cloned graph — the worker's WeakMap entry did
         // not survive structured clone (see R5). Absent field ⇒ empty (stale/pre-fix worker).
         rememberInterpreterEntrypoints(result.graph, result.entrypoints ?? []);
+        rememberComposedRefusals(result.graph, result.refusals ?? []);
         resolve(result.graph);
       } else {
         const err = new Error(result?.message ?? 'stage2 worker exited before returning a graph');

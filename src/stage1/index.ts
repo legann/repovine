@@ -31,6 +31,13 @@ import { compareCodeUnits } from '../platform/ordering.js';
 import { repoRelativePosix } from '../platform/paths.js';
 import { packageNodeId } from '../graph/node-ids.js';
 import { shortenList, omittedNote } from '../platform/text.js';
+import { refusal, type Refusal } from '../response/refusal.js';
+import {
+  FILE_CLAIMED_TWICE_REFUSAL,
+  OUTSIDE_WORKSPACE_REFUSAL,
+  PLUGIN_UNLOADABLE_REFUSAL,
+  SOURCE_PLUGIN_UNAVAILABLE_REFUSAL,
+} from './refusal-kinds.js';
 
 /** Schema version of the Stage 1 facts snapshot; a mismatch invalidates the on-disk cache.
  *  2: `ExportInfo.defaultLocalName` — a cached module extracted before it would still project no
@@ -60,6 +67,37 @@ const DEFAULT_SHARD_TARGET_SIZE = 800;
  *  refuses everything beneath it, so the count is the number to act on. Matches the cap the MCP
  *  `outsideRepo` report uses, so both surfaces name the same set. */
 const OUTSIDE_REPO_SAMPLE = 5;
+
+/**
+ * How the refused paths left the repository. A path spelled with a leading `..` was reached by a
+ * scan or tsconfig entry pointing past the workspace root; one spelled inside the repository got out
+ * through a link. Sending someone hunting for the wrong one wastes the report.
+ */
+function outsideRepoCause(paths: readonly string[]): string {
+  const named = paths.filter(p => p.startsWith('../')).length;
+  if (named === paths.length) return 'are named past the workspace root by the scan or tsconfig configuration';
+  if (named === 0) return 'name an in-repo path but resolve outside the repository through a link';
+  return `resolve outside the repository — ${named} named past the workspace root, ${paths.length - named} through a link`;
+}
+
+/**
+ * The containment refusal, composed where the paths were refused. `refresh_context`,
+ * `get_build_status` and `repovine status` republish this sentence rather than re-deriving a cause
+ * from a path list that has already lost the context it was refused in.
+ */
+export function outsideRepoRefusal(paths: readonly string[]): Refusal {
+  const { shown: sample, omitted } = shortenList(paths, OUTSIDE_REPO_SAMPLE);
+  return refusal(
+    'rejected-by-policy',
+    OUTSIDE_WORKSPACE_REFUSAL,
+    `${paths.length} file(s) ${outsideRepoCause(paths)}, `
+    + `so they are absent from the graph: ${sample.join(', ')}${omittedNote(omitted)}. `
+    + 'repovine indexes one workspace root (see docs/workspace-files.md).',
+    // Sampled, not listed whole: one directory link refuses everything beneath it, and three
+    // surfaces publish this array verbatim into a size-capped response.
+    { count: paths.length, sample: [...sample] },
+  );
+}
 
 /** Split a package's pendingModules into evenly sized shards. Stable per-module ordering
  * (relies on caller's order, which is filesystem-discovery order for cold scans and
@@ -388,7 +426,7 @@ function buildSnapshot(
   extractionConfigFingerprint: string,
   scanPatterns: ReturnType<typeof compileScanPatterns>,
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
-  outsideRepoPaths: string[],
+  buildRefusals: Refusal[],
   profiler: MemoryProfiler,
 ): RepositoryFactsSnapshot {
   const normalizedLinking = linkingOpt ? normalizeLinkingConfig(linkingOpt) : undefined;
@@ -435,7 +473,7 @@ function buildSnapshot(
     packages,
     modules: allModules,
     infraModules,
-    ...(outsideRepoPaths.length > 0 ? { outsideRepoPaths } : {}),
+    ...(buildRefusals.length > 0 ? { buildRefusals } : {}),
     ...(templates.length > 0 ? { templates } : {}),
     ...(Object.keys(bundleOutputHandlerMap).length > 0 ? { bundleOutputHandlerMap } : {}),
     ...(linkingOpt && hasLinkingConfig(linkingOpt) ? {
@@ -465,8 +503,8 @@ interface PreparedRun {
   extractionConfigFingerprint: string;
   scanPatterns: ReturnType<typeof compileScanPatterns>;
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined;
-  /** Repo-relative candidates refused by containment; sorted, so the report is deterministic. */
-  outsideRepoPaths: string[];
+  /** What discovery refused, in the order the phases produced it. */
+  buildRefusals: Refusal[];
   profiler: MemoryProfiler;
 }
 
@@ -490,6 +528,11 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
   // A Set, so a file two packages both enumerate is one refused file, matching how
   // `mergedPendingByPath` counts an accepted one.
   const outsideRepo = new Set<string>();
+  const refusals: Refusal[] = [];
+  // Collected, not pushed one-per-item: three surfaces publish the sink verbatim into a size-capped
+  // response, and one bad config can name every file in the repository.
+  const skippedPlugins: Array<{ id: string; reason: string }> = [];
+  const claimedTwice: string[] = [];
 
   for (const plugin of getSourcePlugins()) {
     // Graceful degradation: a plugin self-probes its prerequisites
@@ -500,6 +543,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
       if (!availability.ok) {
         const reason = availability.reason ?? `${plugin.requires?.runtime ?? 'prerequisite'} unavailable`;
         logPipelineWarn(`  ⚠ Skipping source plugin "${plugin.id}": ${reason}.`);
+        skippedPlugins.push({ id: plugin.id, reason });
         extractContextByPlugin.set(plugin.id, undefined);
         continue;
       }
@@ -535,6 +579,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
       const existing = mergedPendingByPath.get(filePath);
       if (existing) {
         logPipelineWarn(`  ⚠ File claimed by multiple source plugins (${existing.sourcePluginId} kept over ${pending.sourcePluginId}): ${pending.filePath}`);
+        claimedTwice.push(repoRelativePosix(repoRoot, pending.filePath));
         continue;
       }
       // The engine mints the id, here, from what the producer reported. `mod:<pkg>/<path>` is
@@ -593,11 +638,32 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
   profiler.setCounter('uniqueModules', pendingModules.length);
   const pkgsWithModules = new Set(pendingModules.map(p => p.pkg.name)).size;
   logPipeline(formatPipelineDetail(`  Discovered ${pendingModules.length} unique modules across ${pkgsWithModules} packages`));
+  for (const { id, reason } of skippedPlugins) {
+    refusals.push(refusal(
+      'not-ready',
+      SOURCE_PLUGIN_UNAVAILABLE_REFUSAL,
+      `Source plugin "${id}" was skipped because ${reason}, so the files it reads are absent from the graph.`,
+      { sourcePluginId: id },
+    ));
+  }
+  if (claimedTwice.length > 0) {
+    const { shown, omitted } = shortenList(claimedTwice.sort(compareCodeUnits), OUTSIDE_REPO_SAMPLE);
+    refusals.push(refusal(
+      'conflict',
+      FILE_CLAIMED_TWICE_REFUSAL,
+      `${claimedTwice.length} file(s) were claimed by two source plugins and indexed by the first: `
+      + `${shown.join(', ')}${omittedNote(omitted)}.`,
+      { count: claimedTwice.length, sample: shown },
+    ));
+  }
   const outsideRepoPaths = Array.from(outsideRepo).sort();
   if (outsideRepoPaths.length > 0) {
     const { shown: sample, omitted } = shortenList(outsideRepoPaths, OUTSIDE_REPO_SAMPLE);
     const more = omittedNote(omitted);
     logPipelineWarn(`  ⚠ Refused ${outsideRepoPaths.length} file(s) resolving outside the workspace root: ${sample.join(', ')}${more}`);
+    // Containment first in the sink: it is the refusal a reader is most likely to be looking for,
+    // and the report `refresh_context` publishes reads its paths back off the details.
+    refusals.unshift(outsideRepoRefusal(outsideRepoPaths));
   }
 
   return {
@@ -609,7 +675,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
     extractionConfigFingerprint,
     scanPatterns,
     linkingOpt: options?.linking,
-    outsideRepoPaths,
+    buildRefusals: refusals,
     profiler,
   };
 }
@@ -622,7 +688,7 @@ function finalize(
   extractionConfigFingerprint: string,
   scanPatterns: ReturnType<typeof compileScanPatterns>,
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
-  outsideRepoPaths: string[],
+  buildRefusals: Refusal[],
   profiler: MemoryProfiler,
 ): { snapshot: RepositoryFactsSnapshot; reused: number; rescanned: number } {
   const allModules: ModuleInfo[] = [];
@@ -644,7 +710,7 @@ function finalize(
     extractionConfigFingerprint,
     scanPatterns,
     linkingOpt,
-    outsideRepoPaths,
+    buildRefusals,
     profiler,
   );
   return { snapshot, reused, rescanned };
@@ -712,13 +778,25 @@ export async function collectRepositoryFactsAsync(
   // any external SOURCE plugin is active, force inline extraction — worker isolates only carry the
   // bundled preset, so an external source plugin's extract() must run on the main thread.
   let forceInlineExtraction = false;
+  const pluginRefusals: Refusal[] = [];
   if (resolvedOptions?.plugins) {
     const report = await applyPluginConfig({ repoRoot, config: resolvedOptions.plugins });
     forceInlineExtraction = report.externalSourceIds.size > 0;
+    for (const { name, reason } of report.refused) {
+      pluginRefusals.push(refusal(
+        'unreadable',
+        PLUGIN_UNLOADABLE_REFUSAL,
+        `Plugin "${name}" from repovine.config.json could not be loaded: ${reason}. What it would have contributed is absent from the graph.`,
+        { plugin: name },
+      ));
+    }
   }
 
   const signal = resolvedOptions?.signal;
   const prep = await prepareRun(repoRoot, resolvedOptions);
+  // Plugin loading happens before discovery, so its refusals are prepended: the sink reads as the
+  // order the build made them.
+  prep.buildRefusals.unshift(...pluginRefusals);
   signal?.throwIfAborted();
 
   // Calibration: read the previous run's observations (if any) and let them advise
@@ -787,7 +865,7 @@ export async function collectRepositoryFactsAsync(
       prep.extractionConfigFingerprint,
       prep.scanPatterns,
       prep.linkingOpt,
-      prep.outsideRepoPaths,
+      prep.buildRefusals,
       prep.profiler,
     );
     snap = finalized.snapshot;

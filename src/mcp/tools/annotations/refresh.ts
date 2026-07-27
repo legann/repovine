@@ -1,6 +1,7 @@
 import type { ToolHandler } from '../../types.js';
 import { emptyNavigation, envelope, nav } from '../../response/envelope.js';
 import { cleanupOrphanedAnnotations, refreshContextCore } from '../../lib/annotations.js';
+import type { Refusal } from '../../../response/refusal.js';
 
 export const handleRefreshContext: ToolHandler = async (ctx, args) => {
   const result = await refreshContextCore(ctx, args) as Record<string, unknown>;
@@ -23,8 +24,10 @@ export const handleRefreshContext: ToolHandler = async (ctx, args) => {
 
   const gaps: string[] = [];
   if (orphanCount > 0 && !cleanupOrphans) gaps.push(`${orphanCount} orphaned annotation(s) remain until cleanup is requested.`);
-  const outsideRepo = result.outsideRepo as { warning?: string } | undefined;
-  if (outsideRepo?.warning) gaps.push(outsideRepo.warning);
+  // Every refusal the build made, said where the response says what it could not give — the same
+  // place `get_build_status` says them. Containment is one of them, so it is not repeated beside
+  // the bounded `outsideRepo` block that projects it.
+  for (const refused of (result.buildRefusals as Refusal[] | undefined) ?? []) gaps.push(refused.message);
 
   return envelope('all', cleanupOrphans ? 'Refreshed graph and cleaned orphaned annotations when present.' : 'Refreshed repository context graph.', {
     refresh: result,

@@ -4,6 +4,7 @@ import { getCallersByName, callersOfName } from '../../../../src/mcp/lib/depende
 import { analyzeImpact } from '../../../../src/mcp/lib/dependencies/impact.js';
 import type { ModuleInfo, RepositoryGraph } from '../../../../src/types.js';
 import type { McpToolRuntime } from '../../../../src/mcp/types.js';
+import { deliveredValue } from '../../../../src/response/refusal.js';
 
 function mod(id: string, opts: { exportCalls?: Record<string, string[]>; moduleCalls?: string[] } = {}): ModuleInfo {
   const exports = Object.entries(opts.exportCalls ?? {}).map(([name, calls]) => ({
@@ -51,7 +52,7 @@ describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
       ['mod:app/formatter', mod('mod:app/formatter', { exportCalls: { ProjectMonitorFormatter: ['validateMonitor'] } })],
     ]);
 
-    const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:app/validator/validateMonitor' }) as {
+    const result = deliveredValue(analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:app/validator/validateMonitor' })) as {
       downstream: Array<{ id: string; provenance?: { basis: string; method: string } }>;
       nameMatchedCallers?: number;
     };
@@ -76,7 +77,7 @@ describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
       ['mod:web/tool', mod('mod:web/tool', { exportCalls: { run: ['slugify'] } })],
     ]);
 
-    const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:shared/utils/slugify' }) as {
+    const result = deliveredValue(analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:shared/utils/slugify' })) as {
       downstream: Array<{ id: string; provenance?: { basis: string; method: string } }>;
     };
     expect(result.downstream.find(e => e.id === 'mod:web/tool')?.provenance)
@@ -107,7 +108,7 @@ describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
       ['mod:other/thing', mod('mod:other/thing')],
     ]);
 
-    const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:app/validator/validateMonitor' }) as {
+    const result = deliveredValue(analyzeImpact(runtime(graph, modulesById), { nodeId: 'export:app/validator/validateMonitor' })) as {
       downstream: Array<{ id: string; uses?: string[]; provenance?: { basis: string; method: string } }>;
     };
     const resolved = result.downstream.find(e => e.id === 'mod:app/caller');
@@ -127,7 +128,7 @@ describe('analyzeImpact — reverse-by-name union (Part 2)', () => {
       ['mod:app/a', mod('mod:app/a')],
       ['mod:app/b', mod('mod:app/b', { moduleCalls: ['a'] })],
     ]);
-    const result = analyzeImpact(runtime(graph, modulesById), { nodeId: 'mod:app/a' }) as {
+    const result = deliveredValue(analyzeImpact(runtime(graph, modulesById), { nodeId: 'mod:app/a' })) as {
       downstream: Array<{ id: string }>; nameMatchedCallers?: number;
     };
     expect(result.nameMatchedCallers).toBeUndefined();

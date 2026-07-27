@@ -1,4 +1,6 @@
 import type { ToolHandler } from '../types.js';
+import { isRefused, type Refusal } from '../../response/refusal.js';
+import type { ToolResponse } from '../response/envelope.js';
 import { resolveScope, parentModuleId } from '../scope/resolve.js';
 import type { ResolvedScope } from '../../scope/resolved.js';
 import { scopeNavigation } from '../scope/navigation.js';
@@ -44,6 +46,35 @@ function impactNameMatchedCallerFollowup(result: unknown): {
     : 0;
   const total = Math.max(reportedTotal, unresolvedCurrentPage.length);
   return total > 0 ? { total, unresolvedCurrentPage } : undefined;
+}
+
+/**
+ * One delivery for every refusal the analyses make, in the shape this tool's own argument guards
+ * already answer with.
+ *
+ * The branch is reachable and the reason is worth stating: `resolveModulePathAlias` answers a
+ * path-shaped scope out of `modulesById` without asking whether the graph holds the id, so a module
+ * composition dropped — the case `graph-validation` reports — resolves to `kind:'module'` and then
+ * finds no node. Handing that to `deliveredValue` would trade an answer carrying the scope, the
+ * navigation and a low confidence for the wrapper's own sentence under scope `all`.
+ */
+function dependencyRefusal(
+  ctx: Parameters<ToolHandler>[0],
+  scope: ResolvedScope,
+  mode: string,
+  navigation: ReturnType<typeof scopeNavigation>,
+  value: Refusal,
+): ToolResponse {
+  return envelope(scope, value.message, resultError(value.message, {
+    reason: value.reason,
+    ...(value.details ? { details: value.details } : {}),
+    resolvedScope: scope.resolvedScope,
+    emptyDiagnostic: dependencyModeScopeMismatchDiagnostic(ctx, scope, mode, value.message),
+  }), {
+    confidence: 'low',
+    gaps: [value.message],
+    navigation,
+  });
 }
 
 export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
@@ -98,7 +129,9 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
         navigation,
       });
     }
-    result = analyzeCallgraph(ctx, { nodeId });
+    const callgraph = analyzeCallgraph(ctx, { nodeId });
+    if (isRefused(callgraph)) return dependencyRefusal(ctx, scope, mode, navigation, callgraph.refusal);
+    result = callgraph.value;
   } else if (mode === 'impact') {
     let nodeId = scope.nodeId;
     let exportName = args.exportName as string | undefined;
@@ -117,13 +150,9 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
         navigation,
       });
     }
-    result = analyzeImpact(ctx, {
-      nodeId,
-      exportName,
-      maxDepth: args.depth,
-      limit,
-      offset,
-    });
+    const impact = analyzeImpact(ctx, { nodeId, exportName, maxDepth: args.depth, limit, offset });
+    if (isRefused(impact)) return dependencyRefusal(ctx, scope, mode, navigation, impact.refusal);
+    result = impact.value;
   } else {
     const packageId = scope.kind === 'package' ? scope.packageId : undefined;
     result = analyzePackageBoundaries(ctx, {
@@ -135,16 +164,13 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
     });
   }
 
-  const error = (result as { error?: string }).error;
-  const emptyDiagnostic = error
-    ? undefined
-    : dependenciesEmptyDiagnostic(ctx, scope, args, mode, result as Record<string, unknown>);
+  const emptyDiagnostic = dependenciesEmptyDiagnostic(ctx, scope, args, mode, result as Record<string, unknown>);
   // The gap is the diagnostic's own sentence. A second one used to sit beside it for
   // package-boundaries mode, wording the same absence differently in the same response.
-  const outcome = emptyOutcome(emptyDiagnostic);
-  const gaps = error ? [error] : [...outcome.gaps];
+  const empty = emptyOutcome(emptyDiagnostic);
+  const gaps = [...empty.gaps];
   navigation.validate.push(nav('inspect_node', { scope: scope.resolvedScope }, 'Inspect the primary node before editing dependency-sensitive code.'));
-  if (!error && mode === 'impact') {
+  if (mode === 'impact') {
     const followup = impactNameMatchedCallerFollowup(result);
     if (followup) {
       if (followup.unresolvedCurrentPage.length > 0) {
@@ -170,7 +196,7 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
     analysis: result,
     ...(emptyDiagnostic ? { emptyDiagnostic } : {}),
   }, {
-    confidence: error ? 'low' : outcome.confidence,
+    confidence: empty.confidence,
     gaps,
     navigation,
   });

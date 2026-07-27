@@ -4,6 +4,28 @@ export type ContextPhase = typeof CONTEXT_PHASES[number];
 export const CONTEXT_ENFORCEMENT_MODES = ['harness', 'client'] as const;
 export type ContextEnforcementMode = typeof CONTEXT_ENFORCEMENT_MODES[number];
 
+/**
+ * Why a session's recorded call sequence did not clear the quality bar.
+ *
+ * Not a refusal, and kept apart from the engine's refusal vocabulary (`response/refusal.ts`) on
+ * purpose. Three differences decide it, and all three are in the code:
+ *
+ * - **Subject.** A refusal answers one request the engine would not serve. A member here is a fact
+ *   about a whole recorded sequence — how many calls searched without mapping, how many bytes the
+ *   session accumulated, what it ended on. `calculateReport` never sees a graph or a scope; its
+ *   only input is `ContextSession.events`.
+ * - **Delivery.** The report ships inside a SUCCESS envelope at `confidence: 'high'`
+ *   (`mcp/tools/context-session-quality.ts`). The refusals in that same handler are `envelopeError`.
+ *   A low score is a finding in `result`, not a failure to answer.
+ * - **Authority.** It has none: `CONTEXT_QUALITY_HARD_GATE_VALIDATED` is false, so both gates in
+ *   `agents/validation.ts` degrade to warnings, and the CLI returns 0 regardless.
+ *
+ * Two members do read the other vocabularies rather than duplicate them: `UNRESOLVED_SCOPE` counts
+ * how often the engine answered with `SCOPE_UNRESOLVED` or a refusal, and `LOW_CONFIDENCE_CONTEXT`
+ * counts how often it answered at low confidence. Both are counts OF those answers, not peers of
+ * them, which is why they are computed from the published response in `metrics.ts` rather than
+ * produced alongside it.
+ */
 export type ContextRejectReason =
   | 'QUALITY_BELOW_THRESHOLD'
   | 'OR_WITHOUT_RECOVERY'

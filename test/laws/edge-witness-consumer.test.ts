@@ -7,6 +7,7 @@ import { projectRuntimeTopology } from '../../src/mcp/lib/topology.js';
 import { EDGE_KINDS } from '../../src/types.js';
 import type { EdgeKind, ModuleInfo, RepositoryFactsSnapshot, RepositoryGraph } from '../../src/types.js';
 import { cloneWithoutEdgeKind, lawRuntime } from './graph-law-helpers.js';
+import { deliveredValue } from '../../src/response/refusal.js';
 
 function expectDifferential(
   kind: EdgeKind,
@@ -255,7 +256,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
   imports: () => {
     const { graph, snapshot } = importsGraph();
     expectDifferential('imports', graph, candidate => {
-      const result = analyzeImpact(lawRuntime(candidate, snapshot), { nodeId: 'mod:app/target' }) as {
+      const result = deliveredValue(analyzeImpact(lawRuntime(candidate, snapshot), { nodeId: 'mod:app/target' })) as {
         downstream: Array<{ id: string }>;
       };
       return result.downstream.map(entry => entry.id).sort();
@@ -263,7 +264,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
   },
   reexports: () => {
     expectDifferential('reexports', reExportsGraph(), candidate => {
-      const result = analyzeImpact(lawRuntime(candidate), { nodeId: 'mod:pkg/utils' }) as {
+      const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'mod:pkg/utils' })) as {
         downstream: Array<{ id: string }>;
       };
       return result.downstream.map(entry => entry.id).sort();
@@ -280,7 +281,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
   routes_to: () => expectDifferential('routes_to', routesToGraph(), topologyProjection),
   renders: () => {
     expectDifferential('renders', rendersGraph(), candidate => {
-      const result = analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/home.html' }) as {
+      const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/home.html' })) as {
         downstream: Array<{ id: string }>;
       };
       return result.downstream.map(entry => entry.id).sort();
@@ -288,7 +289,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
   },
   extends: () => {
     expectDifferential('extends', templateCompositionGraph(), candidate => {
-      const result = analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/base.html' }) as {
+      const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/base.html' })) as {
         downstream: Array<{ id: string }>;
       };
       return result.downstream.map(entry => entry.id).sort();
@@ -296,7 +297,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
   },
   includes: () => {
     expectDifferential('includes', templateCompositionGraph(), candidate => {
-      const result = analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/partials/nav.html' }) as {
+      const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/partials/nav.html' })) as {
         downstream: Array<{ id: string }>;
       };
       return result.downstream.map(entry => entry.id).sort();

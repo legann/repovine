@@ -37,6 +37,7 @@ import { rememberInterpreterEntrypoints } from '../../../src/stage2/interpreter/
 import type { InterpreterEntrypointContext } from '../../../src/interpreter/types.js';
 import type { InfraModuleInfo, RepositoryFactsSnapshot, RepositoryGraph, ModuleInfo, StoredAnnotation } from '../../../src/types.js';
 import { buildRuntimeResourceContentHashLookup } from '../../../src/annotations/service-resource-hash.js';
+import { deliveredValue } from '../../../src/response/refusal.js';
 
 let fsPromises: typeof import('node:fs/promises');
 let toolHandlers: Record<string, ToolHandler>;
@@ -4377,19 +4378,22 @@ describe('get_dependency_impact', () => {
   it('returns error for unknown node', () => {
     const ctx = makeCtx();
     const result = analyzeImpact(ctx, { nodeId: 'mod:test/nonexistent' });
-    expect(result).toMatchObject({ error: expect.stringContaining('not found') });
+    expect(result).toMatchObject({
+      ok: false,
+      refusal: { reason: 'not-found', message: expect.stringContaining('not found') },
+    });
   });
 
   it('returns downstream for mod:test/alpha (imported by beta)', () => {
     const ctx = makeCtx();
-    const result = analyzeImpact(ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const result = deliveredValue(analyzeImpact(ctx, { nodeId: 'mod:test/alpha' })) as Record<string, unknown>;
     const downstream = result.downstream as Array<{ id: string }>;
     expect(downstream.some(d => d.id === 'mod:test/beta')).toBe(true);
   });
 
   it('returns uses[] in downstream entry', () => {
     const ctx = makeCtx();
-    const result = analyzeImpact(ctx, { nodeId: 'mod:test/alpha' }) as Record<string, unknown>;
+    const result = deliveredValue(analyzeImpact(ctx, { nodeId: 'mod:test/alpha' })) as Record<string, unknown>;
     const downstream = result.downstream as Array<{ id: string; uses?: string[] }>;
     const betaEntry = downstream.find(d => d.id === 'mod:test/beta');
     expect(betaEntry?.uses).toContain('Foo');
@@ -4397,7 +4401,7 @@ describe('get_dependency_impact', () => {
 
   it('filters downstream by exportName', () => {
     const ctx = makeCtx();
-    const result = analyzeImpact(ctx, { nodeId: 'mod:test/alpha', exportName: 'NonExistent' }) as Record<string, unknown>;
+    const result = deliveredValue(analyzeImpact(ctx, { nodeId: 'mod:test/alpha', exportName: 'NonExistent' })) as Record<string, unknown>;
     const downstream = result.downstream as unknown[];
     expect(downstream.length).toBe(0);
   });
@@ -4553,14 +4557,14 @@ describe('analyze_dependencies output bounding', () => {
   }
 
   it('caps impact downstream at the build site with total/nextOffset', () => {
-    const result = analyzeImpact(highFanCtx(60), { nodeId: 'mod:test/hub', limit: 20, offset: 0 }) as Record<string, unknown>;
+    const result = deliveredValue(analyzeImpact(highFanCtx(60), { nodeId: 'mod:test/hub', limit: 20, offset: 0 })) as Record<string, unknown>;
     const bound = (result.truncation as Record<string, Record<string, unknown>>).downstream;
     expect((result.downstream as unknown[]).length).toBe(20);
     expect(bound).toMatchObject({ shown: 20, total: 60, more: { kind: 'page', nextOffset: 20 } });
   });
 
   it('pages the next slice with offset', () => {
-    const result = analyzeImpact(highFanCtx(60), { nodeId: 'mod:test/hub', limit: 20, offset: 20 }) as Record<string, unknown>;
+    const result = deliveredValue(analyzeImpact(highFanCtx(60), { nodeId: 'mod:test/hub', limit: 20, offset: 20 })) as Record<string, unknown>;
     const bound = (result.truncation as Record<string, Record<string, unknown>>).downstream;
     expect((result.downstream as unknown[]).length).toBe(20);
     expect(bound).toMatchObject({ shown: 20, more: { kind: 'page', nextOffset: 40 } });

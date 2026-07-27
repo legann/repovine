@@ -16,32 +16,9 @@ import {
 } from './pagination.js';
 import { searchTokenize } from '../lib/search-index.js';
 import { nextCall, type NextCall } from '../../response/next-call.js';
+import { SCOPE_UNRESOLVED, type EmptyDiagnosticReason } from '../../response/empty-reason.js';
 
-export type EmptyDiagnosticReason =
-  | 'graph_empty'
-  | 'semantic_domain_not_runtime_boundary'
-  | 'library_module_no_entrypoint'
-  | 'package_has_no_entrypoints'
-  | 'filtered_out'
-  | 'query_no_entrypoints'
-  | 'scope_unresolved'
-  | 'no_entrypoints_indexed'
-  | 'semantic_scope_has_no_runtime_topology'
-  | 'no_producer_resource_consumer_edges'
-  | 'no_token_hits'
-  | 'strict_and_no_single_node'
-  | 'scope_has_no_config_surface'
-  | 'scope_has_no_map_context'
-  | 'package_has_no_modules'
-  | 'offset_out_of_range'
-  | 'dependency_mode_scope_mismatch'
-  | 'no_cross_package_edges'
-  | 'no_dependency_edges'
-  | 'no_interface_implementations'
-  | 'no_callgraph_edges'
-  | 'no_architecture_findings'
-  | 'scope_kind_not_analyzable'
-  | 'finding_not_found';
+export { SCOPE_UNRESOLVED, type EmptyDiagnosticReason };
 
 /**
  * What to call once the answer came back empty. The same {@link NextCall} the envelope's
@@ -221,7 +198,7 @@ export function scopeUnresolvedDiagnostic(
   nextActions: EmptyDiagnosticAction[],
 ): EmptyDiagnostic {
   return {
-    reason: 'scope_unresolved',
+    reason: SCOPE_UNRESOLVED,
     message: `The scope "${scope.raw}" ${tail}`,
     confidence: 'high',
     nextActions,

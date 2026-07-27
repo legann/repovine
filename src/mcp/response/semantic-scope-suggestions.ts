@@ -2,6 +2,7 @@ import type { McpToolRuntime } from '../types.js';
 import type { ToolResponse } from './envelope.js';
 import { nextCall, type NextCall } from '../../response/next-call.js';
 import { SEMANTIC_MIN_COSINE } from '../../semantic/relevance.js';
+import { SCOPE_UNRESOLVED } from '../../response/empty-reason.js';
 
 const MAX_SUGGESTIONS = 3;
 
@@ -94,6 +95,6 @@ function scopeMissDiagnosticOf(response: ToolResponse): DiagnosticShape | undefi
   if (typeof diagnostic !== 'object' || diagnostic === null) return undefined;
 
   const shape = diagnostic as DiagnosticShape;
-  if (shape.reason === 'scope_unresolved') return shape;
+  if (shape.reason === SCOPE_UNRESOLVED) return shape;
   return response.resolvedScope.kind === 'query' ? shape : undefined;
 }

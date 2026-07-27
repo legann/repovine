@@ -15,7 +15,7 @@ import {
 import { RepovineRuntime } from '../mcp/context.js';
 import { toolDefs } from '../mcp/tool-defs.js';
 import { boundaryIndexFilePath, readBoundaryIndex, BOUNDARY_INDEX_VERSION } from '../mcp/boundary-index.js';
-import { outsideRepoReport } from '../mcp/lib/refresh-summary.js';
+import { buildRefusalReport, outsideRepoReport } from '../mcp/lib/refresh-summary.js';
 import { renderNextCall } from '../response/next-call.js';
 import {
   getAnnotationMergeStatus,
@@ -40,6 +40,7 @@ import {
   formatModuleCoverageLine,
 } from './human-output.js';
 import { cli, logCli, setPipelineLogSink } from './ui.js';
+import { OUTSIDE_WORKSPACE_REFUSAL } from '../stage1/refusal-kinds.js';
 
 export interface HealthCliEnv {
   repoRoot: string;
@@ -934,6 +935,7 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
     const configuredClients = mcpConfigs.filter(check => check.hasrepovine).map(check => check.client);
     const statusNextActions = annotationHealth.nextActions.map(renderNextCall);
     const outsideRepo = outsideRepoReport(state.snapshot);
+    const buildRefusals = buildRefusalReport(state.snapshot);
     const result = {
       ok: annotationHealth.status === 'clean' && agentAssets.summary.errors === 0,
       workspace: env.repoRoot,
@@ -944,9 +946,10 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
         edges: stats.totalEdges,
         packages: countNodesOfType(state.graph, 'package'),
         domains: countNodesOfType(state.graph, 'domain'),
-        // The module count above silently excludes refused files, and this command muted the build log
-        // that would have named them, so this is the only place the fact survives here.
+        // The counts above silently exclude everything the build refused, and this command muted the
+        // pipeline log that would have named it, so this is the only place the fact survives here.
         ...(outsideRepo ? { outsideRepo } : {}),
+        ...(buildRefusals ? { buildRefusals } : {}),
       },
       cache,
       mcp: {
@@ -977,6 +980,12 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
       logCli(`  ${cli.dim('Cache:')}       ${cache.severity === 'ok' ? cli.success('warm') : cli.warn('missing')}`);
       if (outsideRepo) {
         logCli(`  ${cli.dim('Containment:')} ${cli.warn(`${outsideRepo.count} file(s) refused`)} (${outsideRepo.sample.join(', ')})`);
+      }
+      for (const refused of buildRefusals ?? []) {
+        // By declared kind: containment already prints as its own line above, and a refusal picked
+        // out by whichever field it happens to carry would swallow the next one that carries it too.
+        if (outsideRepo && refused.kind === OUTSIDE_WORKSPACE_REFUSAL) continue;
+        logCli(`  ${cli.dim('Build:')}       ${cli.warn(refused.message)}`);
       }
       logCli(`  ${cli.dim('Annotations:')} ${annotationHealth.status === 'clean' ? cli.success('clean') : cli.warn('needs review')} `
         + `(needsWork ${annotationHealth.needsWork}, stale ${annotationHealth.counts.stale}, propagation-stale ${annotationHealth.counts.stalePropagation}, unannotated ${annotationHealth.counts.unannotated})`);

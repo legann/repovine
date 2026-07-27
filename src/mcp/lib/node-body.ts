@@ -5,6 +5,8 @@ import { Worker } from 'node:worker_threads';
 import type { RepositoryGraph, ModuleInfo } from '../../types.js';
 import { isLexicallyInsideRepo, isPathInsideRepo } from '../../fs/containment.js';
 import { createLimiter } from '../../semantic/serialize.js';
+import { toPosixPath } from '../../platform/paths.js';
+import { delivered, refused, type Outcome } from '../../response/refusal.js';
 
 export const GREP_EXECUTION_TIMEOUT_MS = 5_000;
 export const MAX_GREP_LINE_CHARS = 4_096;
@@ -82,41 +84,41 @@ export async function readNodeBody(
   nodeId: string,
   nodeType: string,
   lineRange?: { start: number; end: number },
-): Promise<NodeBodyResult | { error: string }> {
+): Promise<Outcome<NodeBodyResult>> {
   if (nodeType === 'export-symbol' && lineRange) {
     const parentEdge = (graph.inEdges.get(nodeId) ?? []).find(e => e.kind === 'contains');
     const parentMod = parentEdge ? modulesById.get(parentEdge.from) : undefined;
-    if (!parentMod) return { error: `Parent module not found for export-symbol: ${nodeId}` };
+    if (!parentMod) return refused('not-found', 'body-parent-missing', `Parent module not found for export-symbol: ${nodeId}`, { nodeId });
     if (!isPathInsideRepo(repoRoot, parentMod.filePath)) {
-      return { error: `Refusing to read source outside repo root: ${displayPath(repoRoot, parentMod.filePath)}` };
+      return refused('rejected-by-policy', 'body-outside-workspace', `Refusing to read source outside repo root: ${displayPath(repoRoot, parentMod.filePath)}`, { path: refusalPath(repoRoot, parentMod.filePath) });
     }
     try {
       const raw = await fsPromises.readFile(parentMod.filePath, 'utf-8');
       const allLines = raw.split('\n');
       const lineStart = Math.max(0, lineRange.start - 1);
       const lineEnd = Math.min(allLines.length, lineRange.end);
-      return { lines: allLines.slice(lineStart, lineEnd), lineStart, filePath: parentMod.filePath };
+      return delivered({ lines: allLines.slice(lineStart, lineEnd), lineStart, filePath: parentMod.filePath });
     } catch (e) {
-      return { error: `Could not read file: ${displayPath(repoRoot, parentMod.filePath)} — ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}` };
+      return refused('unreadable', 'body-unreadable', `Could not read file: ${displayPath(repoRoot, parentMod.filePath)} — ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`, { path: refusalPath(repoRoot, parentMod.filePath) });
     }
   }
 
   if (nodeType === 'module') {
     const mod = modulesById.get(nodeId);
     const filePath = mod?.filePath ?? (graph.nodes.get(nodeId)?.data as { filePath?: string } | undefined)?.filePath;
-    if (!filePath) return { error: `Module file info not found: ${nodeId}` };
+    if (!filePath) return refused('not-found', 'body-module-missing', `Module file info not found: ${nodeId}`, { nodeId });
     if (!isPathInsideRepo(repoRoot, filePath)) {
-      return { error: `Refusing to read source outside repo root: ${displayPath(repoRoot, filePath)}` };
+      return refused('rejected-by-policy', 'body-outside-workspace', `Refusing to read source outside repo root: ${displayPath(repoRoot, filePath)}`, { path: refusalPath(repoRoot, filePath) });
     }
     try {
       const raw = await fsPromises.readFile(filePath, 'utf-8');
-      return { lines: raw.split('\n'), lineStart: 0, filePath };
+      return delivered({ lines: raw.split('\n'), lineStart: 0, filePath });
     } catch (e) {
-      return { error: `Could not read file: ${displayPath(repoRoot, filePath)} — ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}` };
+      return refused('unreadable', 'body-unreadable', `Could not read file: ${displayPath(repoRoot, filePath)} — ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`, { path: refusalPath(repoRoot, filePath) });
     }
   }
 
-  return { error: `Unsupported node type for body: ${nodeType}` };
+  return refused('unsupported', 'body-unsupported-node', `Unsupported node type for body: ${nodeType}`, { nodeType });
 }
 
 /**
@@ -124,6 +126,18 @@ export async function readNodeBody(
  * asked about, so a refused symlink still reports the in-repo file to remove. The read guard is
  * `isPathInsideRepo`.
  */
+/**
+ * The same path a refusal's sentence shows, POSIX-normalized for the machine-readable slot.
+ *
+ * The sentence is read by a person and keeps the host's separators; `details` is read by a program
+ * and must answer the same on every platform, the way every other repo-relative value the engine
+ * publishes does. Two producers of one field with two spellings is a reader that works until it
+ * meets the other one.
+ */
+export function refusalPath(repoRoot: string, filePath: string): string {
+  return toPosixPath(displayPath(repoRoot, filePath));
+}
+
 export function displayPath(repoRoot: string, filePath: string): string {
   const root = path.resolve(repoRoot);
   if (!isLexicallyInsideRepo(root, filePath)) return '[outside-repo]';

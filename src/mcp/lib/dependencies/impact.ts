@@ -5,8 +5,9 @@ import { PER_BUCKET_CAP } from '../../../source-plugins/typescript/call-graph.js
 import { getCallersByName } from './reverse-calls.js';
 import { truncationMap } from '../../../response/truncation.js';
 import { provenance } from '../../../response/provenance.js';
+import { delivered, refused, type Outcome } from '../../../response/refusal.js';
 
-export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>): unknown {
+export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>): Outcome<unknown> {
   const { graph, modulesById } = ctx.getState();
   const rawId = args.nodeId as string;
   const exportName = args.exportName as string | undefined;
@@ -16,7 +17,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   // Takes a resolved node id: the caller's own string is read once, by resolveScope at the tool
   // boundary. A second, weaker ladder here answered differently for the same argument.
   const nodeId = graph.nodes.has(rawId) ? rawId : undefined;
-  if (!nodeId) return { error: `Node not found: ${rawId}` };
+  if (!nodeId) return refused('not-found', 'impact-node-missing', `Node not found: ${rawId}`, { nodeId: rawId });
   const node = graph.nodes.get(nodeId);
 
   // Part 3 — export-symbol scope precision. Import edges run module → module; an export-symbol node
@@ -86,7 +87,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
   });
   const up = paginateList(upstreamEntries, { limit, offset, noun: 'upstream dependency', narrow: 'reduce depth' });
   const truncation = truncationMap({ downstream: down.truncation, upstream: up.truncation });
-  return {
+  return delivered({
     nodeId,
     label: nodeLabel(graph, nodeId),
     ...(filterName ? { filteredByExport: filterName } : {}),
@@ -94,7 +95,7 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
     downstream: down.page,
     upstream: up.page,
     ...(truncation ? { truncation } : {}),
-  };
+  });
 }
 
 /**

@@ -1,6 +1,7 @@
 import { collectRepositoryFactsAsync } from '../stage1/index.js';
 import { createFileCache, snapshotContentFingerprint, type SnapshotCache } from '../stage1/cache.js';
-import { composeRepositoryGraph, composeRepositoryGraphAsync } from '../stage2/index.js';
+import { composeRepositoryGraph, composeRepositoryGraphAsync, getComposedRefusals } from '../stage2/index.js';
+import { GRAPH_VALIDATION_REFUSAL } from '../stage1/refusal-kinds.js';
 import { loadDomainsConfig } from '../stage2/domains.js';
 import { computeDomainsSuggestion } from '../stage2/domains-advisor.js';
 import { hasLinkingConfig } from '../stage1/linking-config.js';
@@ -340,6 +341,15 @@ export class RepovineRuntime {
     // Cancel checkpoint after Stage 2: an abort that landed during compose (worker terminated) must
     // not proceed to Stage 3 or its side-effect writes (onboarding state / boundary index).
     this.activeSignal(suppressBuildHooks)?.throwIfAborted();
+
+    // Composition's own refusals join the scan's on the snapshot the publishers read. Assembled
+    // here rather than inside compose: compose may run in a worker over a clone, so the parent is
+    // the only place both halves exist. Replaced, not appended — a rebuild over the same snapshot
+    // reports a still-present problem once.
+    const scanRefusals = (snapshot.buildRefusals ?? []).filter(r => r.kind !== GRAPH_VALIDATION_REFUSAL);
+    const allRefusals = [...scanRefusals, ...getComposedRefusals(graph)];
+    if (allRefusals.length > 0) snapshot.buildRefusals = allRefusals;
+    else delete snapshot.buildRefusals;
 
     const stats = graphStats(graph);
     profiler.setCounter('graphNodes', stats.totalNodes);

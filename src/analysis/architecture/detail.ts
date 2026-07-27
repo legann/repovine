@@ -9,7 +9,7 @@ import type { AnnotationStore } from '../../annotations/store.js';
 import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { annotationFreshnessMeta, type NodeFreshnessLookup } from '../../annotations/freshness.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
-import { annotationSecretFieldPaths } from './annotation-secret.js';
+import { annotationSecretFieldPaths } from '../../annotations/secret-values.js';
 import { annotationExcerpt } from './annotation-context.js';
 import { workflowSignalKinds } from './component-signals.js';
 import { isNodeType, modulePackageId, nodeLabel, packageModuleIds, taggedDomains } from '../../graph/index.js';

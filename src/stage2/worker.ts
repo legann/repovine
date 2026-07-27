@@ -3,7 +3,7 @@ import { setPipelineLogSink } from '../cli/ui.js';
 import type { RepositoryFactsSnapshot } from '../types.js';
 // Importing ./index.js also side-effect registers the built-in interpreters (its bootstrap import),
 // so composeRepositoryGraph has the full interpreter set inside this isolate.
-import { composeRepositoryGraph } from './index.js';
+import { composeRepositoryGraph, getComposedRefusals } from './index.js';
 import { getInterpreterEntrypoints } from './interpreter/entrypoint-store.js';
 
 if (!parentPort) {
@@ -23,7 +23,14 @@ try {
   // Interpreter entrypoints live in a process-local WeakMap keyed by the graph object; structured
   // clone gives the parent a NEW graph object with no WeakMap entry, so carry them over the boundary
   // explicitly (the parent re-remembers them against the cloned graph).
-  parentPort.postMessage({ type: 'ok', graph, entrypoints: getInterpreterEntrypoints(graph) });
+  // Refusals composition made live in a process-local map keyed by the graph object, for the same
+  // reason the entrypoints do, and cross the boundary the same way.
+  parentPort.postMessage({
+    type: 'ok',
+    graph,
+    entrypoints: getInterpreterEntrypoints(graph),
+    refusals: getComposedRefusals(graph),
+  });
 } catch (e) {
   const error = e instanceof Error ? e : new Error(String(e));
   parentPort.postMessage({ type: 'error', message: error.message, stack: error.stack });

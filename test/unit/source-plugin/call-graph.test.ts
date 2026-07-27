@@ -6,6 +6,7 @@
  */
 import { Project, ScriptTarget } from 'ts-morph';
 import { collectExports } from '../../../src/source-plugins/typescript/exports.js';
+import { deliveredValue } from '../../../src/response/refusal.js';
 
 function makeSf(source: string, fileName = '/virtual/file.tsx') {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ScriptTarget.ES2022, jsx: 2 } });
@@ -223,7 +224,7 @@ describe('PER_BUCKET_CAP is disclosed to callers', () => {
     });
     const ctx = { getState: () => ({ graph }) } as never;
 
-    const atCap = analyzeCallgraph(ctx, { nodeId: 'export:app/wide' }) as Record<string, unknown>;
+    const atCap = deliveredValue(analyzeCallgraph(ctx, { nodeId: 'export:app/wide' })) as Record<string, unknown>;
     expect(atCap.truncation).toEqual({
       calls: {
         shown: PER_BUCKET_CAP,
@@ -233,7 +234,7 @@ describe('PER_BUCKET_CAP is disclosed to callers', () => {
       },
     });
 
-    const belowCap = analyzeCallgraph(ctx, { nodeId: 'export:app/narrow' }) as Record<string, unknown>;
+    const belowCap = deliveredValue(analyzeCallgraph(ctx, { nodeId: 'export:app/narrow' })) as Record<string, unknown>;
     expect(belowCap).not.toHaveProperty('truncation');
   });
 
@@ -269,7 +270,7 @@ describe('PER_BUCKET_CAP is disclosed to callers', () => {
     expect((composed?.data as { callsTotal?: number } | undefined)?.callsTotal).toBe(87);
 
     const ctx = { getState: () => ({ graph }) } as never;
-    const result = analyzeCallgraph(ctx, { nodeId: 'export:app/wide/wide' }) as Record<string, unknown>;
+    const result = deliveredValue(analyzeCallgraph(ctx, { nodeId: 'export:app/wide/wide' })) as Record<string, unknown>;
     expect(result.truncation).toMatchObject({ calls: { shown: PER_BUCKET_CAP, total: 87 } });
   });
 });
