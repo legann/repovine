@@ -4,6 +4,7 @@
  */
 
 import type { RepositoryGraph, ModuleInfo } from '../../types.js';
+import { nextCall, type NextCall } from '../../response/next-call.js';
 import type { AnnotationStore } from '../../annotations/store.js';
 import { computeAnnotationQuality } from '../../annotations/quality.js';
 import { annotationFreshnessMeta, type NodeFreshnessLookup } from '../../annotations/freshness.js';
@@ -445,46 +446,81 @@ export function refactoringCategoryDetail(
   }
 }
 
-export function refactoringNextCalls(graph: RepositoryGraph, finding: RefactoringFinding): string[] {
+/**
+ * Follow-up calls for one finding. Structured, not rendered: these had been strings holding a
+ * hand-written `tool({json})` literal, which is a second spelling of the {@link NextCall} the
+ * envelope and the empty diagnostic already carry.
+ */
+export function refactoringNextCalls(graph: RepositoryGraph, finding: RefactoringFinding): NextCall[] {
   const primaryNode = finding.nodes[0];
-  const calls = [
-    `inspect_node({ "nodeId": "${primaryNode}" })`,
-    `analyze_dependencies({ "scope": "${primaryNode}", "mode": "impact", "depth": 3 })`,
+  const calls: NextCall[] = [
+    nextCall('inspect_node', { nodeId: primaryNode }, 'Read the primary node before recommending code movement.'),
+    nextCall('analyze_dependencies', { scope: primaryNode, mode: 'impact', depth: 3 }, 'Size the blast radius of moving it.'),
   ];
   if (finding.category === 'boundary') {
     const pkgId = modulePackageId(graph, primaryNode);
-    calls.push(pkgId
-      ? `analyze_dependencies({ "scope": "${pkgId}", "mode": "package-boundaries" })`
-      : 'analyze_dependencies({ "mode": "package-boundaries" })');
+    calls.push(nextCall(
+      'analyze_dependencies',
+      pkgId ? { scope: pkgId, mode: 'package-boundaries' } : { mode: 'package-boundaries' },
+      'Check the package boundary this finding crosses.',
+    ));
   }
-  if (finding.category === 'event-driven-boundary') calls.push('trace_flow({ "include": ["entrypoints", "services", "resources", "flows"] })');
+  if (finding.category === 'event-driven-boundary') {
+    calls.push(nextCall(
+      'trace_flow',
+      { include: ['entrypoints', 'services', 'resources', 'flows'] },
+      'Follow the runtime path the event boundary sits on.',
+    ));
+  }
   if (
     finding.category === 'secret-config-boundary'
     || finding.category === 'privileged-client-side-effect'
     || finding.category === 'server-client-boundary'
   ) {
-    calls.push(`get_config_surface({ "scope": "${primaryNode}", "kinds": ["env", "secret", "resource-binding"] })`);
+    calls.push(nextCall(
+      'get_config_surface',
+      { scope: primaryNode, kinds: ['env', 'secret', 'resource-binding'] },
+      'Read the config and secret bindings this node reaches.',
+    ));
   }
   if (finding.category === 'trust-boundary-validation') {
-    calls.push(`inspect_node({ "nodeId": "${primaryNode}", "grepBody": "schema|validate|safeParse|parse|guard|assert" })`);
+    calls.push(nextCall(
+      'inspect_node',
+      { nodeId: primaryNode, grepBody: 'schema|validate|safeParse|parse|guard|assert' },
+      'Look for the validation this boundary would need.',
+    ));
   }
   if (finding.category === 'source-disclosure-surface') {
-    calls.push(`inspect_node({ "nodeId": "${primaryNode}", "grepBody": "includeBody|grepBody|privateMembers|readFile" })`);
+    calls.push(nextCall(
+      'inspect_node',
+      { nodeId: primaryNode, grepBody: 'includeBody|grepBody|privateMembers|readFile' },
+      'Look for the source-reading affordances this surface exposes.',
+    ));
   }
-  if (finding.category === 'annotation-risk') calls.push(`write_annotation({ "nodeId": "${primaryNode}", "annotation": { "summary": "..." } })`);
-  if (finding.category === 'annotation-secret-hygiene') calls.push(`write_annotation({ "nodeId": "${primaryNode}", "annotation": { "summary": "redacted summary without secret values" } })`);
+  if (finding.category === 'annotation-risk') {
+    calls.push(nextCall('write_annotation', { nodeId: primaryNode, annotation: { summary: '...' } }, 'Record what this node is before its risk is read again.'));
+  }
+  if (finding.category === 'annotation-secret-hygiene') {
+    calls.push(nextCall(
+      'write_annotation',
+      { nodeId: primaryNode, annotation: { summary: 'redacted summary without secret values' } },
+      'Rewrite the annotation without the secret value it carries.',
+    ));
+  }
 
   // If the finding carries a annotationContext, the FIRST step is to read those
   // excerpts and answer the question — drilling into source is wasteful until
-  // the annotation-based verdict is made.
+  // the annotation-based verdict is made. No tool: the excerpts already shipped in this response.
   if (finding.annotationContext) {
     const fields = finding.annotationContext.relevantFields.join(', ');
-    calls.unshift(
+    calls.unshift(nextCall(
+      undefined,
+      undefined,
       `READ finding.annotationContext.nodes[].annotation.{${fields}} `
       + `and answer "${finding.annotationContext.question}". `
       + 'If annotations are stale or missing, call inspect_node on the listed nodes. '
       + 'Then suppress, confirm, or boost this finding when reporting to the user.',
-    );
+    ));
   }
   return calls;
 }

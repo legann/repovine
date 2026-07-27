@@ -36,7 +36,7 @@ function unresolvedResponse(): ToolResponse {
       emptyDiagnostic: {
         reason: 'scope_unresolved',
         message: 'The scope "auth sessions" did not resolve.',
-        nextActions: [{ when: 'if this is a symbol or path', tool: 'search_context', args: { query: 'auth sessions' } }],
+        nextActions: [{ reason: 'if this is a symbol or path', tool: 'search_context', args: { query: 'auth sessions' } }],
       },
     },
   };
@@ -80,8 +80,8 @@ describe('semantic scope suggestions on scope_unresolved', () => {
     const semantic = actions.slice(1);
     expect(semantic.map(a => a.tool)).toEqual(['map_context', 'map_context', 'map_context']);
     expect(semantic[0].args).toEqual({ scope: 'domain:auth', view: 'summary' });
-    expect(String(semantic[0].when)).toContain('semantic similarity 0.82');
-    expect(String(semantic[0].when)).toContain('advisory');
+    expect(String(semantic[0].reason)).toContain('semantic similarity 0.82');
+    expect(String(semantic[0].reason)).toContain('advisory');
   });
 
   it('filters hits below the cosine floor and dedupes the original scope', async () => {

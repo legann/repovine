@@ -179,7 +179,7 @@ describe('architecture detail expansion', () => {
     const result = detail(state, `god-module:${orchestrator.id}`);
     const affectedNodes = result.affectedNodes as Array<Record<string, unknown>>;
     const categoryDetail = result.categoryDetail as Record<string, unknown>;
-    const nextCalls = result.nextCalls as string[];
+    const nextCalls = result.nextCalls as Array<Record<string, unknown>>;
 
     expect(result).toMatchObject({
       findingId: `god-module:${orchestrator.id}`,
@@ -204,8 +204,8 @@ describe('architecture detail expansion', () => {
       lineEstimate: 118,
     });
     expect(nextCalls).toEqual(expect.arrayContaining([
-      `inspect_node({ "nodeId": "${orchestrator.id}" })`,
-      `analyze_dependencies({ "scope": "${orchestrator.id}", "mode": "impact", "depth": 3 })`,
+      expect.objectContaining({ tool: 'inspect_node', args: { nodeId: orchestrator.id } }),
+      expect.objectContaining({ tool: 'analyze_dependencies', args: { scope: orchestrator.id, mode: 'impact', depth: 3 } }),
     ]));
   });
 
@@ -246,7 +246,7 @@ describe('architecture detail expansion', () => {
 
     const result = detail(state, `trust-boundary-validation:${apiRoute.id}`);
     const categoryDetail = result.categoryDetail as Record<string, unknown>;
-    const nextCalls = result.nextCalls as string[];
+    const nextCalls = result.nextCalls as Array<Record<string, unknown>>;
 
     expect((result.finding as Record<string, unknown>).category).toBe('trust-boundary-validation');
     expect(categoryDetail).toMatchObject({
@@ -256,8 +256,11 @@ describe('architecture detail expansion', () => {
       authzSignals: [],
       imports: [],
     });
-    expect(nextCalls).toContain(
-      `inspect_node({ "nodeId": "${apiRoute.id}", "grepBody": "schema|validate|safeParse|parse|guard|assert" })`,
+    expect(nextCalls).toContainEqual(
+      expect.objectContaining({
+        tool: 'inspect_node',
+        args: { nodeId: apiRoute.id, grepBody: 'schema|validate|safeParse|parse|guard|assert' },
+      }),
     );
   });
 
@@ -272,7 +275,7 @@ describe('architecture detail expansion', () => {
     const result = detail(state, `annotation-risk:${hub.id}`);
     const affectedNodes = result.affectedNodes as Array<Record<string, unknown>>;
     const categoryDetail = result.categoryDetail as Record<string, unknown>;
-    const nextCalls = result.nextCalls as string[];
+    const nextCalls = result.nextCalls as Array<Record<string, unknown>>;
 
     expect((result.finding as Record<string, unknown>).category).toBe('annotation-risk');
     expect(affectedNodes[0]).toMatchObject({
@@ -298,7 +301,9 @@ describe('architecture detail expansion', () => {
         ],
       }),
     });
-    expect(nextCalls).toContain(`write_annotation({ "nodeId": "${hub.id}", "annotation": { "summary": "..." } })`);
+    expect(nextCalls).toContainEqual(
+      expect.objectContaining({ tool: 'write_annotation', args: { nodeId: hub.id, annotation: { summary: '...' } } }),
+    );
   });
 
   it('returns structured errors for unknown and missing detail finding ids', () => {
@@ -784,23 +789,23 @@ describe('architecture detail expansion', () => {
     expect(refactoringNextCalls(
       state.graph,
       finding('boundary', `boundary:${mod.id}`, [mod.id]),
-    )).toContain('analyze_dependencies({ "scope": "pkg:web", "mode": "package-boundaries" })');
+    )).toContainEqual(expect.objectContaining({ tool: 'analyze_dependencies', args: { scope: 'pkg:web', mode: 'package-boundaries' } }));
     expect(refactoringNextCalls(
       state.graph,
       finding('event-driven-boundary', 'event-driven-boundary:resource:orders-topic', ['resource:orders-topic']),
-    )).toContain('trace_flow({ "include": ["entrypoints", "services", "resources", "flows"] })');
+    )).toContainEqual(expect.objectContaining({ tool: 'trace_flow', args: { include: ['entrypoints', 'services', 'resources', 'flows'] } }));
     expect(refactoringNextCalls(
       state.graph,
       finding('server-client-boundary', `server-client-boundary:${mod.id}`, [mod.id]),
-    )).toContain(`get_config_surface({ "scope": "${mod.id}", "kinds": ["env", "secret", "resource-binding"] })`);
+    )).toContainEqual(expect.objectContaining({ tool: 'get_config_surface', args: { scope: mod.id, kinds: ['env', 'secret', 'resource-binding'] } }));
     expect(refactoringNextCalls(
       state.graph,
       finding('source-disclosure-surface', `source-disclosure-surface:${mod.id}`, [mod.id]),
-    )).toContain(`inspect_node({ "nodeId": "${mod.id}", "grepBody": "includeBody|grepBody|privateMembers|readFile" })`);
+    )).toContainEqual(expect.objectContaining({ tool: 'inspect_node', args: { nodeId: mod.id, grepBody: 'includeBody|grepBody|privateMembers|readFile' } }));
     expect(refactoringNextCalls(
       state.graph,
       finding('annotation-secret-hygiene', `annotation-secret-hygiene:${mod.id}`, [mod.id]),
-    )).toContain(`write_annotation({ "nodeId": "${mod.id}", "annotation": { "summary": "redacted summary without secret values" } })`);
+    )).toContainEqual(expect.objectContaining({ tool: 'write_annotation', args: { nodeId: mod.id, annotation: { summary: 'redacted summary without secret values' } } }));
 
     const calls = refactoringNextCalls(
       state.graph,
@@ -818,11 +823,12 @@ describe('architecture detail expansion', () => {
         },
       }),
     );
-    expect(calls[0]).toBe(
-      'READ finding.annotationContext.nodes[].annotation.{summary, risks} '
-      + 'and answer "same-concept". '
-      + 'If annotations are stale or missing, call inspect_node on the listed nodes. '
-      + 'Then suppress, confirm, or boost this finding when reporting to the user.',
-    );
+    expect(calls[0]).toEqual({
+      reason:
+        'READ finding.annotationContext.nodes[].annotation.{summary, risks} '
+        + 'and answer "same-concept". '
+        + 'If annotations are stale or missing, call inspect_node on the listed nodes. '
+        + 'Then suppress, confirm, or boost this finding when reporting to the user.',
+    });
   });
 });

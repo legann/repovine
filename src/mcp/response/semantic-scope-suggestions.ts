@@ -1,11 +1,11 @@
 import type { McpToolRuntime } from '../types.js';
 import type { ToolResponse } from './envelope.js';
+import { nextCall, type NextCall } from '../../response/next-call.js';
 import { SEMANTIC_MIN_COSINE } from '../../semantic/relevance.js';
 
 const MAX_SUGGESTIONS = 3;
 
-type DiagnosticAction = { when?: string; tool?: string; args?: Record<string, unknown>; note?: string };
-type DiagnosticShape = { reason?: unknown; nextActions?: DiagnosticAction[] };
+type DiagnosticShape = { reason?: unknown; nextActions?: NextCall[] };
 
 /**
  * Advisory semantic recovery for scope misses, appended centrally by executeTool for
@@ -56,7 +56,7 @@ export async function withSemanticScopeSuggestions(
   // Retry via scope (dropping any missed nodeId — it would take precedence and miss again).
   const { nodeId: _missedNodeId, ...retryBase } = handlerArgs;
   const seen = new Set<string>([rawScope]);
-  const actions: DiagnosticAction[] = [];
+  const actions: NextCall[] = [];
   for (const hit of hits) {
     if (actions.length >= MAX_SUGGESTIONS) break;
     if (seen.has(hit.id)) continue;
@@ -64,11 +64,11 @@ export async function withSemanticScopeSuggestions(
     // (possibly stale) index still ranks, and suggesting it as a retry scope guarantees another miss.
     if (!graph.nodes.has(hit.id)) continue;
     seen.add(hit.id);
-    actions.push({
-      when: `if "${hit.id}" matches your intent (semantic similarity ${hit.score.toFixed(2)}; advisory)`,
-      tool: toolName,
-      args: { ...retryBase, scope: hit.id },
-    });
+    actions.push(nextCall(
+      toolName,
+      { ...retryBase, scope: hit.id },
+      `if "${hit.id}" matches your intent (semantic similarity ${hit.score.toFixed(2)}; advisory)`,
+    ));
   }
   if (actions.length === 0) return response;
   const result = response.result as Record<string, unknown>;

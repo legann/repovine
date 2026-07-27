@@ -23,6 +23,7 @@ import { detectSideEffectKindsFromHints } from '../annotations/side-effect-vocab
 import { inferModuleKind } from '../annotations/module-kind.js';
 import { nodeInScopeHints } from '../annotations/scope-hints.js';
 import { owningModuleId } from '../graph/node-ids.js';
+import { renderNextCall } from '../response/next-call.js';
 import { validateAnnotationHealth, buildAnnotationHealthScan } from '../annotations/maintenance.js';
 import type { AnnotationHealthScan } from '../annotations/store.js';
 import {
@@ -945,11 +946,10 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
     }
   }
 
-  // Carry the health check's own next actions forward.
-  for (const action of health.nextActions) {
-    if (!requiredFollowups.includes(action) && action !== 'Annotation file is parseable, merged, and fresh for the current graph.') {
-      requiredFollowups.push(action);
-    }
+  // Carry the health check's own next calls forward, rendered for the report's prose list.
+  for (const call of health.nextActions) {
+    const action = renderNextCall(call);
+    if (!requiredFollowups.includes(action)) requiredFollowups.push(action);
   }
 
   // A rejected report remains available for review even though the score is

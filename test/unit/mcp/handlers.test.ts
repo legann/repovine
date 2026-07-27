@@ -525,7 +525,7 @@ describe('inspect_node salience ordering + attention', () => {
     const ctx = makeCtx({ graph, modulesById, annotations });
 
     const result = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha', exportLimit: 2 });
-    const attention = result.attention as Array<{ nodeId: string; investigate: string[]; note: string; next: { tool: string; args: Record<string, unknown> } }>;
+    const attention = result.attention as Array<{ nodeId: string; investigate: string[]; note: string; next: { tool: string; args: Record<string, unknown>; reason: string } }>;
 
     expect(Array.isArray(attention)).toBe(true);
     expect(attention.length).toBeGreaterThan(0);
@@ -533,7 +533,7 @@ describe('inspect_node salience ordering + attention', () => {
     const item = attention.find((a) => a.nodeId === 'export:test/alpha/Qux');
     expect(item).toBeDefined();
     expect(item!.investigate).toEqual(['risk']);
-    expect(item!.next).toEqual({ tool: 'inspect_node', args: { nodeId: 'export:test/alpha/Qux' } });
+    expect(item!.next).toEqual({ tool: 'inspect_node', args: { nodeId: 'export:test/alpha/Qux' }, reason: expect.any(String) });
     expect(typeof item!.note).toBe('string');
   });
 
@@ -617,11 +617,11 @@ describe('inspect_node salience ordering + attention', () => {
     const ctx = makeCtx({ graph, modulesById });
 
     const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/alpha' });
-    const attention = env.attention as Array<{ nodeId: string; investigate: string[]; note: string; next: { tool: string; args: Record<string, unknown> } }>;
+    const attention = env.attention as Array<{ nodeId: string; investigate: string[]; note: string; next: { tool: string; args: Record<string, unknown>; reason: string } }>;
     expect(attention[0].nodeId).toBe('mod:test/alpha');
     expect(attention[0].investigate).toEqual(['wiring']);
     expect(attention[0].note).toContain('AlphaFn');
-    expect(attention[0].next).toEqual({ tool: 'trace_flow', args: { scope: 'mod:test/alpha' } });
+    expect(attention[0].next).toEqual({ tool: 'trace_flow', args: { scope: 'mod:test/alpha' }, reason: expect.any(String) });
   });
 
   it('orders self attention [boundary, wiring, ...] when both fire on the inspected node', async () => {
@@ -1217,7 +1217,7 @@ describe('public v1 context tools', () => {
       }),
     ]));
 
-    const navigation = result.navigation as Record<string, Array<Record<string, unknown>>>;
+    const navigation = result.navigation as unknown as Record<string, Array<Record<string, unknown>>>;
     expect(navigation.deeper[0]).toEqual(expect.objectContaining({
       tool: 'inspect_node',
       args: { nodeId: 'mod:@acme/client-ui/src/pages/TickPricingPage' },
@@ -1349,7 +1349,7 @@ describe('public v1 context tools', () => {
       annotationMatched: true,
     }));
     expect(JSON.stringify(payload)).not.toContain('standing obligation');
-    const navigation = result.navigation as Record<string, Array<Record<string, unknown>>>;
+    const navigation = result.navigation as unknown as Record<string, Array<Record<string, unknown>>>;
     expect(navigation.deeper[0]).toEqual(expect.objectContaining({
       tool: 'inspect_node',
       args: { nodeId: 'mod:app/src/AlphaAnchor' },
@@ -1395,7 +1395,7 @@ describe('public v1 context tools', () => {
       id: 'mod:app/src/BetaNeedle',
       annotationMatched: true,
     }));
-    const navigation = result.navigation as Record<string, Array<Record<string, unknown>>>;
+    const navigation = result.navigation as unknown as Record<string, Array<Record<string, unknown>>>;
     expect(navigation.deeper[0]).toEqual(expect.objectContaining({
       reason: 'Inspect the strongest matching node.',
     }));
@@ -1420,7 +1420,7 @@ describe('public v1 context tools', () => {
       SEARCH_ANNOTATION_ESCALATION_GAP,
     ]));
     expect((result.gaps as string[]).filter(gap => gap === SEARCH_ANNOTATION_ESCALATION_GAP)).toHaveLength(1);
-    const navigation = result.navigation as Record<string, Array<Record<string, unknown>>>;
+    const navigation = result.navigation as unknown as Record<string, Array<Record<string, unknown>>>;
     expect(navigation.deeper[0]).toEqual(expect.objectContaining({
       reason: SEARCH_ANNOTATION_ESCALATION_NAV_REASON,
     }));
@@ -2149,12 +2149,12 @@ describe('public v1 context tools', () => {
       emptyDiagnostic: expect.objectContaining({
         reason: 'semantic_domain_not_runtime_boundary',
         nextActions: expect.arrayContaining([
-          expect.objectContaining({ when: expect.stringContaining('runtime') }),
-          expect.objectContaining({ when: expect.stringContaining('code structure') }),
+          expect.objectContaining({ reason: expect.stringContaining('runtime') }),
+          expect.objectContaining({ reason: expect.stringContaining('code structure') }),
         ]),
       }),
     }));
-    expect((entrypoints.navigation as Record<string, Array<Record<string, unknown>>>).sideways).not.toEqual(expect.arrayContaining([
+    expect((entrypoints.navigation as unknown as Record<string, Array<Record<string, unknown>>>).sideways).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ tool: 'get_entrypoints', args: expect.objectContaining({ scope: 'domain:auth' }) }),
     ]));
 
@@ -2167,7 +2167,7 @@ describe('public v1 context tools', () => {
         reason: 'semantic_domain_not_runtime_boundary',
       }),
     }));
-    expect((flow.navigation as Record<string, Array<Record<string, unknown>>>).crossLayer).not.toEqual(expect.arrayContaining([
+    expect((flow.navigation as unknown as Record<string, Array<Record<string, unknown>>>).crossLayer).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ tool: 'trace_flow', args: expect.objectContaining({ scope: 'domain:auth' }) }),
     ]));
   });
@@ -2275,7 +2275,7 @@ describe('public v1 context tools', () => {
         ],
       },
     }));
-    const deeper = (result.navigation as Record<string, Array<Record<string, unknown>>>).deeper;
+    const deeper = (result.navigation as unknown as Record<string, Array<Record<string, unknown>>>).deeper;
     expect(deeper[0]).toEqual(expect.objectContaining({
       tool: 'inspect_node',
       args: { nodeId: 'mod:test/orders-handler' },
@@ -2329,7 +2329,7 @@ describe('public v1 context tools', () => {
         ],
       },
     }));
-    const deeper = (result.navigation as Record<string, Array<Record<string, unknown>>>).deeper;
+    const deeper = (result.navigation as unknown as Record<string, Array<Record<string, unknown>>>).deeper;
     expect(deeper[0]).toEqual(expect.objectContaining({
       tool: 'inspect_node',
       args: { nodeId: 'mod:test/jobs-handler' },
@@ -2842,7 +2842,7 @@ describe('get_refactoring_report', () => {
       importers: expect.arrayContaining(['mod:app/src/page']),
       importedSymbols: expect.arrayContaining(['applyRules']),
     });
-    expect((detail.nextCalls as string[]).some(call => call.includes('analyze_dependencies'))).toBe(true);
+    expect((detail.nextCalls as Array<{ tool?: string }>).some(call => call.tool === 'analyze_dependencies')).toBe(true);
   });
 
   it('returns a helpful error for an unknown refactoring finding id', async () => {
@@ -4012,8 +4012,9 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     const finding = detail.finding as { annotationContext?: { question: string } };
     expect(finding.annotationContext).toBeDefined();
     expect(finding.annotationContext!.question).toBe('same-concept');
-    const nextCalls = detail.nextCalls as string[];
-    expect(nextCalls[0]).toMatch(/READ finding\.annotationContext\.nodes/);
+    const nextCalls = detail.nextCalls as Array<{ tool?: string; reason: string }>;
+    expect(nextCalls[0].tool).toBeUndefined();
+    expect(nextCalls[0].reason).toMatch(/READ finding\.annotationContext\.nodes/);
   });
 });
 

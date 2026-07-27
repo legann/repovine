@@ -314,6 +314,7 @@ import { toolDefs, getRequiredArgs } from './tool-defs.js';
 import { RepovineRuntime } from './context.js';
 import type { McpToolRuntime } from './types.js';
 import { envelopeError, type ToolResponse } from './response/envelope.js';
+import { nextCall } from '../response/next-call.js';
 import { IndexBuildController } from './build-controller.js';
 import { getSourcePlugins } from '../stage1/source/registry.js';
 import { loadConfig, type ResolvedConfig } from '../config.js';
@@ -466,7 +467,13 @@ async function executeTool(
       'all',
       `Missing required argument(s): ${missing.join(', ')}. `
         + `Pass them in the "arguments" object of the tools/call request; inputSchema.required lists them.`,
-      { fix: `tools/call { "name": "${name}", "arguments": { ${required.map(k => `"${k}": "..."`).join(', ')} } }` },
+      {
+        nextAction: nextCall(
+          name,
+          Object.fromEntries(required.map(k => [k, '...'])),
+          'Retry with every required argument filled in.',
+        ),
+      },
     );
   }
   const parsed = def.schema.safeParse(args);

@@ -1,5 +1,6 @@
 import type { IndexBuildStatus } from '../build-controller.js';
 import { envelope, envelopeError, type ToolResponse } from '../response/envelope.js';
+import { nextCall } from '../../response/next-call.js';
 
 /**
  * The payload a tool returns when the graph is not ready.
@@ -22,16 +23,20 @@ export function notReadyResponse(snapshot: IndexBuildStatus): ToolResponse {
     return envelopeError('all', snapshot.message, {
       status: snapshot.status,
       stage: snapshot.stage,
-      fix: snapshot.status === 'cancelled'
-        ? 'Call refresh_context to start a fresh build, or run `repovine build` and restart the server.'
-        : 'Fix the reported build error, then call refresh_context to rebuild. Direct file reads work meanwhile.',
+      nextAction: snapshot.status === 'cancelled'
+        ? nextCall('refresh_context', {}, 'Start a fresh build; `repovine build` plus a server restart does the same from outside.')
+        : nextCall('refresh_context', {}, 'Fix the reported build error first, then rebuild. Direct file reads work meanwhile.'),
       ...(snapshot.errorMessage ? { errorMessage: snapshot.errorMessage } : {}),
     });
   }
   return envelope('all', snapshot.message, {
     ...snapshot,
-    // The only tool payload that names its own next call. Every other response steers through
-    // `navigation`, which needs a resolved scope; this one answers before there is one.
-    nextAction: 'Call get_build_status (always available) once with waitSec (e.g. { waitSec: 45 }) to wait server-side until the build settles. If it returns still building, report stage/remainingStages and continue with direct file reads when possible instead of polling.',
+    // The one payload that carries its next call outside `navigation`: navigation needs a resolved
+    // scope, and this answers before there is one. Same shape, different slot.
+    nextAction: nextCall(
+      'get_build_status',
+      { waitSec: 45 },
+      'Wait server-side until the build settles. If it returns still building, report stage/remainingStages and continue with direct file reads when possible instead of polling.',
+    ),
   }, { confidence: 'low' });
 }

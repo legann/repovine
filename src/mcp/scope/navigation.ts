@@ -1,19 +1,11 @@
 import type { ResolvedScope } from '../../scope/resolved.js';
 import { domainLabelFromId } from '../../graph/node-ids.js';
-import type { Navigation, NavigationItem } from '../response/envelope.js';
+import { emptyNavigation, nav, type Navigation } from '../response/envelope.js';
 import {
   DEFAULT_LIST_LIMIT,
   DEFAULT_MAP_LIMIT,
   DEFAULT_SEARCH_LIMIT,
 } from '../response/pagination.js';
-
-function emptyNavigation(): Navigation {
-  return { deeper: [], sideways: [], up: [], crossLayer: [], validate: [] };
-}
-
-function nav(tool: string, args: Record<string, unknown>, reason: string): NavigationItem {
-  return { tool, args, reason };
-}
 
 export function scopeNavigation(scope: ResolvedScope): Navigation {
   const n = emptyNavigation();

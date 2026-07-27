@@ -235,7 +235,7 @@ describe('core-laws delivery-invariance (L1)', () => {
       nodeId: DTO,
       investigate: ['boundary'],
       note: 'off-limits boundary surface — this node',
-      next: { tool: 'analyze_dependencies', args: { scope: DTO, mode: 'impact' } },
+      next: { tool: 'analyze_dependencies', args: { scope: DTO, mode: 'impact' }, reason: 'Check consumers before editing an off-limits surface.' },
     });
   });
 

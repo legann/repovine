@@ -15,6 +15,7 @@ import {
   offsetFrom,
 } from './pagination.js';
 import { searchTokenize } from '../lib/search-index.js';
+import { nextCall, type NextCall } from '../../response/next-call.js';
 
 export type EmptyDiagnosticReason =
   | 'graph_empty'
@@ -46,12 +47,13 @@ export type EmptyDiagnosticReason =
   | 'scope_kind_not_analyzable'
   | 'finding_not_found';
 
-export type EmptyDiagnosticAction = {
-  when?: string;
-  tool?: string;
-  args?: Record<string, unknown>;
-  note?: string;
-};
+/**
+ * What to call once the answer came back empty. The same {@link NextCall} the envelope's
+ * `navigation` and an obligation's `next` carry — the diagnostic is a different delivery of one
+ * form, not a different shape. It had three field names of its own (`when`, `note`, and an absent
+ * `reason`) for the one thing all three said: why this call, now.
+ */
+export type EmptyDiagnosticAction = NextCall;
 
 export type EmptyDiagnostic = {
   reason: EmptyDiagnosticReason;
@@ -99,14 +101,65 @@ export function graphEmptyDiagnostic(): EmptyDiagnostic {
       message: 'The repository graph has no indexed modules, templates, runtime resources, export symbols, or domains, so no narrower alternatives can be inferred yet.',
     confidence: 'high',
     nextActions: [
-      { tool: 'refresh_context', args: {}, note: 'Build or refresh the repository syntax index.' },
-      { note: 'If refresh still returns an empty graph, check the repovine repo root and scan configuration.' },
+      emptyAction('Build or refresh the repository syntax index.', 'refresh_context', {}),
+      { reason: 'If refresh still returns an empty graph, check the repovine repo root and scan configuration.' },
     ],
   };
 }
 
-export function emptyAction(when: string, tool: string, args: Record<string, unknown>): EmptyDiagnosticAction {
-  return { when, tool, args };
+export function emptyAction(reason: string, tool: string, args: Record<string, unknown>): EmptyDiagnosticAction {
+  return nextCall(tool, args, reason);
+}
+
+/** Nothing was indexed at all, so no narrower answer exists to look for. Checked before every other branch. */
+export function graphEmptyIf(ctx: McpToolRuntime): EmptyDiagnostic | undefined {
+  return graphIsEffectivelyEmpty(ctx) ? graphEmptyDiagnostic() : undefined;
+}
+
+/** The scope string named nothing the graph knows by any of its addressing forms. */
+export const SCOPE_MATCHED_NOTHING =
+  'did not resolve to a graph node, package, domain, template, runtime resource, or query scope.';
+
+/**
+ * The two answers a scoped diagnostic owes before it reads its own data: the graph holds nothing at
+ * all, or the scope named nothing in it. Both were written out once per builder — eight identical
+ * graph-empty guards and eight `scope_unresolved` bodies whose message tail was the only real
+ * difference, two of them byte-identical down to a stray indent.
+ *
+ * Returns undefined when the scope resolved against a non-empty graph, which is where the caller's
+ * own branches begin.
+ */
+export function unresolvedScopeDiagnostic(
+  ctx: McpToolRuntime,
+  scope: ResolvedScope,
+  tail: string,
+  nextActions: EmptyDiagnosticAction[],
+): EmptyDiagnostic | undefined {
+  return graphEmptyIf(ctx)
+    ?? (scope.kind === 'unknown' ? scopeUnresolvedDiagnostic(scope, tail, nextActions) : undefined);
+}
+
+/**
+ * The body itself, for the one caller whose bar is higher than a resolved scope kind: `inspect_node`
+ * answers about a single node, so a query or repository scope is unresolved for it even though the
+ * tools that take a set resolve it fine.
+ */
+export function scopeUnresolvedDiagnostic(
+  scope: ResolvedScope,
+  tail: string,
+  nextActions: EmptyDiagnosticAction[],
+): EmptyDiagnostic {
+  return {
+    reason: 'scope_unresolved',
+    message: `The scope "${scope.raw}" ${tail}`,
+    confidence: 'high',
+    nextActions,
+  };
+}
+
+/** The recovery every unresolved scope offers first: hand the raw text to search. */
+export function searchForScopeText(scope: ResolvedScope, reason: string): EmptyDiagnosticAction {
+  return emptyAction(reason, 'search_context', { query: scope.query ?? scope.raw });
 }
 
 export function entrypointsEmptyDiagnostic(
@@ -114,18 +167,11 @@ export function entrypointsEmptyDiagnostic(
   scope: ResolvedScope,
   args: Record<string, unknown>,
 ): EmptyDiagnostic {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
-  if (scope.kind === 'unknown') {
-    return {
-      reason: 'scope_unresolved',
-        message: `The scope "${scope.raw}" did not resolve to a graph node, package, domain, template, runtime resource, or query scope.`,
-      confidence: 'high',
-      nextActions: [
-        emptyAction('if you have a symbol or path', 'search_context', { query: scope.query ?? scope.raw }),
-        emptyAction('if you need repository-level entrypoints', 'get_entrypoints', { scope: 'all' }),
-      ],
-    };
-  }
+  const unresolved = unresolvedScopeDiagnostic(ctx, scope, SCOPE_MATCHED_NOTHING, [
+    searchForScopeText(scope, 'if you have a symbol or path'),
+    emptyAction('if you need repository-level entrypoints', 'get_entrypoints', { scope: 'all' }),
+  ]);
+  if (unresolved) return unresolved;
 
   const hasKindFilter =
     (typeof args.kind === 'string' && args.kind !== 'all')
@@ -214,17 +260,10 @@ export function traceFlowEmptyDiagnostic(
   args: Record<string, unknown>,
   counts: { services: number; resources: number; dataFlows: number; entrypoints: number },
 ): EmptyDiagnostic {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
-  if (scope.kind === 'unknown') {
-    return {
-      reason: 'scope_unresolved',
-      message: `The scope "${scope.raw}" did not resolve, so runtime topology cannot be traced for it.`,
-      confidence: 'high',
-      nextActions: [
-        emptyAction('if you have a symbol or runtime name', 'search_context', { query: scope.query ?? scope.raw }),
-      ],
-    };
-  }
+  const unresolved = unresolvedScopeDiagnostic(ctx, scope, 'did not resolve, so runtime topology cannot be traced for it.', [
+    searchForScopeText(scope, 'if you have a symbol or runtime name'),
+  ]);
+  if (unresolved) return unresolved;
   // A scope kind the projection cannot narrow by returns nothing because it was never asked, not
   // because the repository has no runtime topology.
   if (!topologyCanScope(scope.kind)) {
@@ -284,7 +323,8 @@ export function searchEmptyDiagnostic(
   rawTypes: string[] | undefined,
   matches: Record<string, unknown>,
 ): EmptyDiagnostic {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
+  const empty = graphEmptyIf(ctx);
+  if (empty) return empty;
   const strategy = matches.strategy as {
     requested?: string;
     used?: string;
@@ -347,18 +387,11 @@ export function configSurfaceEmptyDiagnostic(
   scope: ResolvedScope,
   args: Record<string, unknown>,
 ): EmptyDiagnostic {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
-  if (scope.kind === 'unknown') {
-    return {
-      reason: 'scope_unresolved',
-      message: `The scope "${scope.raw}" did not resolve, so config/resource bindings cannot be inspected for it.`,
-      confidence: 'high',
-      nextActions: [
-        emptyAction('if you have a config/resource name', 'get_config_surface', { scope: 'all', namePattern: scope.query ?? scope.raw }),
-        emptyAction('if you have a symbol/path', 'search_context', { query: scope.query ?? scope.raw }),
-      ],
-    };
-  }
+  const unresolved = unresolvedScopeDiagnostic(ctx, scope, 'did not resolve, so config/resource bindings cannot be inspected for it.', [
+    emptyAction('if you have a config/resource name', 'get_config_surface', { scope: 'all', namePattern: scope.query ?? scope.raw }),
+    searchForScopeText(scope, 'if you have a symbol/path'),
+  ]);
+  if (unresolved) return unresolved;
 
   const hasKindFilter =
     (typeof args.kind === 'string' && args.kind !== 'all')
@@ -397,18 +430,11 @@ export function mapContextEmptyDiagnostic(
   args: Record<string, unknown>,
   result?: Record<string, unknown>,
 ): EmptyDiagnostic | undefined {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
-  if (scope.kind === 'unknown') {
-    return {
-      reason: 'scope_unresolved',
-        message: `The scope "${scope.raw}" did not resolve to a graph node, package, domain, template, runtime resource, or query scope.`,
-      confidence: 'high',
-      nextActions: [
-        emptyAction('if this is a symbol, file, route, config, or feature name', 'search_context', { query: scope.query ?? scope.raw }),
-        emptyAction('to browse from the repository root', 'map_context', { scope: 'all', view: 'summary' }),
-      ],
-    };
-  }
+  const unresolved = unresolvedScopeDiagnostic(ctx, scope, SCOPE_MATCHED_NOTHING, [
+    searchForScopeText(scope, 'if this is a symbol, file, route, config, or feature name'),
+    emptyAction('to browse from the repository root', 'map_context', { scope: 'all', view: 'summary' }),
+  ]);
+  if (unresolved) return unresolved;
 
   // `truncation` is present only when a bound bit, so a complete page carries its own total: the
   // page IS the whole list. Reading both apart tells "the scope is empty" from "this page is".
@@ -505,18 +531,11 @@ export function dependencyModeScopeMismatchDiagnostic(
   mode: string,
   message: string,
 ): EmptyDiagnostic {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
-  if (scope.kind === 'unknown') {
-    return {
-      reason: 'scope_unresolved',
-      message: `The scope "${scope.raw}" did not resolve, so dependency analysis cannot choose the correct module/package/export-symbol boundary.`,
-      confidence: 'high',
-      nextActions: [
-        emptyAction('if this is a symbol or path', 'search_context', { query: scope.query ?? scope.raw }),
-        emptyAction('to browse package/module scopes', 'map_context', { scope: 'all', view: 'summary' }),
-      ],
-    };
-  }
+  const unresolved = unresolvedScopeDiagnostic(ctx, scope, 'did not resolve, so dependency analysis cannot choose the correct module/package/export-symbol boundary.', [
+    searchForScopeText(scope, 'if this is a symbol or path'),
+    emptyAction('to browse package/module scopes', 'map_context', { scope: 'all', view: 'summary' }),
+  ]);
+  if (unresolved) return unresolved;
 
   const nextActions: EmptyDiagnosticAction[] = [];
   if (mode === 'impact') {
@@ -557,18 +576,11 @@ export function dependenciesEmptyDiagnostic(
   mode: string,
   result?: Record<string, unknown>,
 ): EmptyDiagnostic | undefined {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
-  if (scope.kind === 'unknown') {
-    return {
-      reason: 'scope_unresolved',
-      message: `The scope "${scope.raw}" did not resolve, so dependency analysis could not anchor to imports, exports, packages, or export symbols.`,
-      confidence: 'high',
-      nextActions: [
-        emptyAction('if this is a symbol or path', 'search_context', { query: scope.query ?? scope.raw }),
-        emptyAction('to browse package/module scopes', 'map_context', { scope: 'all', view: 'summary' }),
-      ],
-    };
-  }
+  const unresolved = unresolvedScopeDiagnostic(ctx, scope, 'did not resolve, so dependency analysis could not anchor to imports, exports, packages, or export symbols.', [
+    searchForScopeText(scope, 'if this is a symbol or path'),
+    emptyAction('to browse package/module scopes', 'map_context', { scope: 'all', view: 'summary' }),
+  ]);
+  if (unresolved) return unresolved;
 
   if (mode === 'package-boundaries' || mode === 'import-map') {
     const edgeTotal = boundedTotal(result, 'edges');
@@ -649,18 +661,11 @@ export function architectureEmptyDiagnostic(
   mode: string,
   result: Record<string, unknown>,
 ): EmptyDiagnostic | undefined {
-  if (graphIsEffectivelyEmpty(ctx)) return graphEmptyDiagnostic();
-  if (scope.kind === 'unknown') {
-    return {
-      reason: 'scope_unresolved',
-      message: `The scope "${scope.raw}" did not resolve, so architecture analysis inspected an empty scope.`,
-      confidence: 'high',
-      nextActions: [
-        emptyAction('if this is a feature/symbol/path', 'search_context', { query: scope.query ?? scope.raw }),
-        emptyAction('to browse package/domain scopes', 'map_context', { scope: 'all', view: 'summary' }),
-      ],
-    };
-  }
+  const unresolved = unresolvedScopeDiagnostic(ctx, scope, 'did not resolve, so architecture analysis inspected an empty scope.', [
+    searchForScopeText(scope, 'if this is a feature/symbol/path'),
+    emptyAction('to browse package/domain scopes', 'map_context', { scope: 'all', view: 'summary' }),
+  ]);
+  if (unresolved) return unresolved;
 
   // Before the empty-report branch: a scope kind the detectors do not read produced no finding list
   // to be empty. Saying "no findings" here would report a scope that was never inspected as clean.

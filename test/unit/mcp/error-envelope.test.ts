@@ -14,7 +14,7 @@ const flag = (result: unknown): boolean | undefined => toCallToolMcpResult(resul
 describe('every failure class reaches the client flagged', () => {
   it.each([
     ['unknown tool', envelopeError('all', 'Unknown tool: nope')],
-    ['missing argument with a fix hint', envelopeError('all', 'Missing required argument(s): nodeId', { fix: 'tools/call { ... }' })],
+    ['missing argument with a retry call', envelopeError('all', 'Missing required argument(s): nodeId', { nextAction: { tool: 'inspect_node', args: { nodeId: '...' }, reason: 'Retry with every required argument filled in.' } })],
     ['envelopeError (nested under result)', envelopeError('all', 'query is required')],
     ['envelopeError from a resolved scope', envelopeError({ kind: 'query', raw: 'x', resolvedScope: 'query:x' }, 'Could not resolve node: x')],
     ['envelope whose result carries a not-found', envelope('pkg:a', 'Not found', { error: 'Not found: pkg:a' })],
@@ -79,7 +79,7 @@ describe('a settled build does not advise waiting for it to settle', () => {
     // The progress advice is what makes a terminal state look retryable.
     expect(JSON.stringify(payload)).not.toContain('until the build settles');
     expect(JSON.stringify(payload)).not.toContain('retry this tool');
-    expect(result(payload).fix).toEqual(expect.stringContaining('refresh_context'));
+    expect(result(payload).nextAction).toEqual(expect.objectContaining({ tool: 'refresh_context' }));
   });
 
   it('keeps a running build informational so retry logic does not spin', () => {
@@ -91,7 +91,7 @@ describe('a settled build does not advise waiting for it to settle', () => {
     }));
 
     expect(flag(payload)).toBeUndefined();
-    expect(result(payload).nextAction).toEqual(expect.stringContaining('get_build_status'));
+    expect(result(payload).nextAction).toEqual(expect.objectContaining({ tool: 'get_build_status', args: { waitSec: 45 } }));
     expect(result(payload).retryAfterSec).toBe(5);
     expect(result(payload).stageEtaSec).toBe(12);
     expect(result(payload).remainingStages).toBe(2);
@@ -125,7 +125,7 @@ describe('a settled build does not advise waiting for it to settle', () => {
 // The attention block is capped and hoisted for primacy, so items that do not fit are the ones a
 // reader would otherwise never learn exist. The cap stays; the silence does not.
 describe('attention truncation is disclosed', () => {
-  const item = (id: string) => ({ nodeId: id, note: `check ${id}`, next: { tool: 'inspect_node', args: { nodeId: id } } });
+  const item = (id: string) => ({ nodeId: id, note: `check ${id}`, next: { tool: 'inspect_node', args: { nodeId: id }, reason: `read ${id}` } });
 
   it('reports shown/total when the block is capped', () => {
     const result = envelope('all', 'Inspected x', { ok: true }, {

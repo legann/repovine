@@ -409,7 +409,7 @@ describe('annotation maintenance', () => {
     expect(refused.wroteFile).toBe(false);
     expect(refused.message).toContain('fromIndex');
     expect(getAnnotationMergeStatus(tmpDir).indexUnmerged).toBe(true);
-    expect(getAnnotationMergeStatus(tmpDir).nextActions.join(' ')).toContain('fromIndex');
+    expect(getAnnotationMergeStatus(tmpDir).nextActions.some(a => a.args?.fromIndex === true)).toBe(true);
 
     const merged = mergeAnnotationsOnDisk(tmpDir, { fromIndex: true });
     expect(merged.status).toBe('merged');
@@ -1311,7 +1311,7 @@ describe('validateAnnotationHealth merge-review', () => {
 
     expect(report.counts.mergeReview).toBe(1);
     expect(report.status).toBe('needs-review');
-    expect(report.nextActions.some(a => a.includes('merge-review markers'))).toBe(true);
+    expect(report.nextActions.some(a => a.reason.includes('merge-review markers'))).toBe(true);
   });
 
   it('is clean when no merge-review markers remain', () => {
@@ -1354,7 +1354,7 @@ describe('validateAnnotationHealth merge-review', () => {
 
     // Status must not contradict a "saves are failing" advisory (finding #6).
     expect(report.status).toBe('needs-review');
-    expect(report.nextActions.some(a => a.includes('saves are failing'))).toBe(true);
+    expect(report.nextActions.some(a => a.reason.includes('saves are failing'))).toBe(true);
   });
 
   it('uses one scanAnnotationHealth pass and never materializes the full getQueue', () => {
@@ -1705,7 +1705,7 @@ describe('validateAnnotationHealth consumer-scope density (advisory)', () => {
     expect(density.overGlobalThreshold).toBe(true);
     expect(density.nodesOverPerNodeCap).toEqual([{ nodeId: 'mod:a', count: 4 }]);
     expect(density.unmarkedConsumerRisks).toBe(3); // three bare-fact consumer risks
-    expect(report.nextActions.some(a => a.includes('scope:"consumer"'))).toBe(true);
+    expect(report.nextActions.some(a => a.reason.includes('scope:"consumer"'))).toBe(true);
     // Advisory only: density never flips a fresh, merged graph to needs-review.
     expect(report.status).toBe('clean');
     expect(CONSUMER_SCOPE_PER_NODE_WARN).toBe(3);
@@ -1774,7 +1774,7 @@ describe('validateAnnotationHealth risk-scope candidates (advisory)', () => {
       total: 2,
     }));
     expect(report.riskScopeCandidates.sample).toHaveLength(2);
-    expect(report.nextActions).toEqual(expect.arrayContaining([
+    expect(report.nextActions.map(a => a.reason)).toEqual(expect.arrayContaining([
       'Advisory: 1 plain/local risk(s) look like scope:"consumer" candidates; review before relying on investigate risk delivery.',
       'Advisory: 1 plain/local risk(s) look like scope:"boundary" candidates; review before relying on boundary delivery.',
     ]));
@@ -1836,7 +1836,7 @@ describe('validateAnnotationHealth carrier-link gaps (advisory)', () => {
       suppressedTargets: 0,
       sample: [{ kind: 'missing-carrier-link', importerId: 'mod:facade', targetId: 'mod:target' }],
     });
-    expect(report.nextActions.some(a => a.includes('sit 2 runtime-import-hops from consumer-scoped-risk nodes'))).toBe(true);
+    expect(report.nextActions.some(a => a.reason.includes('sit 2 runtime-import-hops from consumer-scoped-risk nodes'))).toBe(true);
   });
 
   it('keeps carrierLinkGaps zeroed when no carrier advisory applies', () => {
@@ -1908,7 +1908,7 @@ describe('validateAnnotationHealth carrier-link gaps (advisory)', () => {
       sample: [],
     });
     // Fail-loud gate: a fully-suppressed repo still emits the advisory with the suppressed clause.
-    const advisory = report.nextActions.find(a => a.includes('sit 2 runtime-import-hops'));
+    const advisory = report.nextActions.find(a => a.reason.includes('sit 2 runtime-import-hops'))?.reason;
     expect(advisory).toContain('Advisory: 0 candidate importer(s)');
     expect(advisory).toContain('(1 reviewed target(s) suppressed.)');
     expect(report.status).toBe('clean');

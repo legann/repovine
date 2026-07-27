@@ -17,7 +17,7 @@ describe('selfBoundaryAttention', () => {
       nodeId: 'mod:@backend/src/models/tool',
       investigate: ['boundary'],
       note: 'off-limits boundary surface — this node',
-      next: { tool: 'analyze_dependencies', args: { scope: 'mod:@backend/src/models/tool', mode: 'impact' } },
+      next: { tool: 'analyze_dependencies', args: { scope: 'mod:@backend/src/models/tool', mode: 'impact' }, reason: 'Check consumers before editing an off-limits surface.' },
     });
   });
 

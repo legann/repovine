@@ -16,6 +16,7 @@ import { RepovineRuntime } from '../mcp/context.js';
 import { toolDefs } from '../mcp/tool-defs.js';
 import { boundaryIndexFilePath, readBoundaryIndex, BOUNDARY_INDEX_VERSION } from '../mcp/boundary-index.js';
 import { outsideRepoReport } from '../mcp/lib/refresh-summary.js';
+import { renderNextCall } from '../response/next-call.js';
 import {
   getAnnotationMergeStatus,
   validateAnnotationHealth,
@@ -931,8 +932,7 @@ export async function runStatusCli(argv: string[], env: HealthCliEnv): Promise<n
     const agentAssets = buildAgentAssetDoctorReport(env, clientScope);
     const mcpConfigs = inspectMcpConfigs(env);
     const configuredClients = mcpConfigs.filter(check => check.hasrepovine).map(check => check.client);
-    const statusNextActions = annotationHealth.nextActions
-      .filter(action => !action.startsWith('Annotation file is parseable, merged, and fresh'));
+    const statusNextActions = annotationHealth.nextActions.map(renderNextCall);
     const outsideRepo = outsideRepoReport(state.snapshot);
     const result = {
       ok: annotationHealth.status === 'clean' && agentAssets.summary.errors === 0,

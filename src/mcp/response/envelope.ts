@@ -3,14 +3,12 @@ import type { ResolvedScope } from '../../scope/resolved.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { inlineTruncation, truncationMap, TruncationMapSchema, type TruncationMap } from '../../response/truncation.js';
 import { ProvenanceSchema } from '../../response/provenance.js';
+import { dedupeNextCalls, nextCall, NextCallSchema, type NextCall } from '../../response/next-call.js';
 
 export type Confidence = 'high' | 'medium' | 'low';
 export type NavigationSection = 'deeper' | 'sideways' | 'up' | 'crossLayer' | 'validate';
-export type NavigationItem = {
-  tool: string;
-  args: Record<string, unknown>;
-  reason: string;
-};
+/** A navigation entry is one next call, sorted into the section that says which way it moves. */
+export type NavigationItem = NextCall;
 export type Navigation = Record<NavigationSection, NavigationItem[]>;
 
 /**
@@ -21,7 +19,7 @@ export type AttentionItem = {
   nodeId: string;
   investigate?: string[];
   note: string;
-  next: { tool: string; args: Record<string, unknown> };
+  next: NextCall;
 };
 
 /** Max obligations surfaced in the top-level `attention` block. */
@@ -51,18 +49,12 @@ export interface ToolResponse {
   navigation: Navigation;
 }
 
-const NavigationItemSchema = z.object({
-  tool: z.string(),
-  args: z.record(z.string(), z.unknown()),
-  reason: z.string(),
-});
-
 const NavigationSchema = z.object({
-  deeper: z.array(NavigationItemSchema),
-  sideways: z.array(NavigationItemSchema),
-  up: z.array(NavigationItemSchema),
-  crossLayer: z.array(NavigationItemSchema),
-  validate: z.array(NavigationItemSchema),
+  deeper: z.array(NextCallSchema),
+  sideways: z.array(NextCallSchema),
+  up: z.array(NextCallSchema),
+  crossLayer: z.array(NextCallSchema),
+  validate: z.array(NextCallSchema),
 });
 
 /**
@@ -92,7 +84,7 @@ export const ToolResponseSchema = z.strictObject({
     nodeId: z.string(),
     investigate: z.array(z.string()).optional(),
     note: z.string(),
-    next: z.object({ tool: z.string(), args: z.record(z.string(), z.unknown()) }),
+    next: NextCallSchema,
   })).optional(),
   truncation: TruncationMapSchema.optional(),
   result: ToolResultSchema,
@@ -119,31 +111,19 @@ export function emptyNavigation(): Navigation {
 }
 
 export function nav(tool: string, args: Record<string, unknown>, reason: string): NavigationItem {
-  return { tool, args, reason };
+  return nextCall(tool, args, reason);
 }
 
-export function dedupeNavItems(items: NavigationItem[]): NavigationItem[] {
-  if (items.length < 2) return items;
-  const seen = new Set<string>();
-  const out: NavigationItem[] = [];
-  for (const item of items) {
-    const key = `${item.tool}|${JSON.stringify(item.args)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(item);
+/** Max entries kept per navigation section. */
+export const NAV_SECTION_LIMIT = 4;
+
+/** Every section deduped by tool+args and capped, in one pass over the five sections. */
+export function boundNavigation(nav: Navigation): Navigation {
+  const out = emptyNavigation();
+  for (const section of Object.keys(out) as NavigationSection[]) {
+    out[section] = dedupeNextCalls(nav[section]).slice(0, NAV_SECTION_LIMIT);
   }
   return out;
-}
-
-export function dedupeNavigation(nav: Navigation): Navigation {
-  const NAV_SECTION_LIMIT = 4;
-  return {
-    deeper: dedupeNavItems(nav.deeper).slice(0, NAV_SECTION_LIMIT),
-    sideways: dedupeNavItems(nav.sideways).slice(0, NAV_SECTION_LIMIT),
-    up: dedupeNavItems(nav.up).slice(0, NAV_SECTION_LIMIT),
-    crossLayer: dedupeNavItems(nav.crossLayer).slice(0, NAV_SECTION_LIMIT),
-    validate: dedupeNavItems(nav.validate).slice(0, NAV_SECTION_LIMIT),
-  };
 }
 
 export function envelope(
@@ -191,7 +171,7 @@ export function envelope(
     ...(truncation ? { truncation } : {}),
     result,
     gaps: options.gaps ?? [],
-    navigation: dedupeNavigation(baseNav),
+    navigation: boundNavigation(baseNav),
   };
 }
 

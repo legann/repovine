@@ -19,7 +19,7 @@ describe('selfWiringAttention', () => {
       nodeId: 'mod:app/handler',
       investigate: ['wiring'],
       note: expect.stringContaining('ResA'),
-      next: { tool: 'trace_flow', args: { scope: 'mod:app/handler' } },
+      next: { tool: 'trace_flow', args: { scope: 'mod:app/handler' }, reason: 'Follow the deployed topology this node is wired into.' },
     });
   });
 

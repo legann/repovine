@@ -2,6 +2,7 @@ import { validateAnnotationHealth } from '../../../annotations/maintenance.js';
 import type { ToolHandler } from '../../types.js';
 import { resolveScope } from '../../scope/resolve.js';
 import { emptyNavigation, envelope, nav } from '../../response/envelope.js';
+import { renderNextCall } from '../../../response/next-call.js';
 import { limitFrom, DEFAULT_VALIDATE_LIMIT } from '../../response/pagination.js';
 
 function scopeHintsFromArgs(args: Record<string, unknown>): string[] | undefined {
@@ -58,7 +59,11 @@ export const handleValidateAnnotations: ToolHandler = (ctx, args) => {
     validation,
   }, {
     confidence: (scopeHints ? validation.scopedClean : validation.status === 'clean') ? 'high' : 'medium',
-    gaps: (scopeHints ? validation.scopedClean : validation.status === 'clean') ? [] : validation.nextActions,
+    // The health report's own next calls, rendered for the envelope's prose channel. `clean` is a
+    // field on the report now, so nothing has to recognise a status line by its text.
+    gaps: (scopeHints ? validation.scopedClean : validation.status === 'clean')
+      ? []
+      : validation.nextActions.map(renderNextCall),
     navigation,
   });
 };

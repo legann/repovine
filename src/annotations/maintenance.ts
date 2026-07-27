@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { RepositoryGraph, AnnotationContent, StoredAnnotation, RepositoryFactsSnapshot } from '../types.js';
+import { nextCall, type NextCall } from '../response/next-call.js';
 import type { AnnotationStore, AnnotationHealthScan, AnnotationFileStatusSnapshot } from './store.js';
 import { describeMergeKeeps } from './store.js';
 import { isPropagationStaleItem, isContentStaleItem } from './backlog.js';
@@ -105,7 +106,7 @@ export interface AnnotationMergeStatus {
    * (binary/-merge attribute, modify/delete, rename) and for a file already resolved by hand.
    */
   indexUnmerged?: boolean;
-  nextActions: string[];
+  nextActions: NextCall[];
 }
 
 /** Advisory density thresholds for consumer-scoped risks. Never gate (advisory only). */
@@ -154,32 +155,52 @@ export interface AnnotationValidationReport {
     moduleKind?: string;
     reason: string;
   }>;
-  nextActions: string[];
+  /**
+   * What to call next, empty when nothing needs doing. `status` is where "nothing needs doing" is
+   * read; this list had carried a status line as if it were a call, and two consumers recognised
+   * that line by matching its text back out.
+   */
+  nextActions: NextCall[];
+}
+
+/**
+ * What to call about the annotation file's merge state. One builder for both readers of that state —
+ * the cached store snapshot and the fresh disk read — which had carried byte-identical copies.
+ */
+function mergeStatusNextActions(file: AnnotationFileStatusSnapshot, indexUnmerged: boolean): NextCall[] {
+  const nextActions: NextCall[] = [];
+  if (file.hasConflictMarkers) {
+    nextActions.push(nextCall('merge_annotations', {}, 'Resolve annotation JSON with merge rules.'));
+  }
+  if (indexUnmerged) {
+    nextActions.push(nextCall(
+      'merge_annotations',
+      { fromIndex: true },
+      'The git index entry for repovine.annots.json is unmerged although the file has no conflict markers '
+      + '(file-level conflict, or an already hand-resolved file). Merge the index stages, or `git add` the '
+      + 'file if the worktree copy is the intended resolution.',
+    ));
+  }
+  if (!file.parseOk && file.exists && !file.hasConflictMarkers) {
+    nextActions.push({ reason: 'Fix repovine.annots.json parse error or restore it before annotation work.' });
+  }
+  if (file.parseOk) {
+    nextActions.push(nextCall('validate_annotations', {}, 'Check annotation health before handoff or after a git merge/rebase.'));
+  }
+  return nextActions;
 }
 
 function annotationMergeStatusFromSnapshot(
   filePath: string,
   file: AnnotationFileStatusSnapshot,
 ): AnnotationMergeStatus {
-  const nextActions: string[] = [];
   const indexUnmerged = !file.hasConflictMarkers && file.exists && isIndexUnmerged(filePath);
-  if (file.hasConflictMarkers) {
-    nextActions.push('Call merge_annotations({}) to resolve annotation JSON with merge rules.');
-  }
-  if (indexUnmerged) {
-    nextActions.push(
-      'The git index entry for repovine.annots.json is unmerged although the file has no conflict markers '
-      + '(file-level conflict, or an already hand-resolved file). Call merge_annotations({ "fromIndex": true }) '
-      + 'to merge the index stages, or `git add` the file if the worktree copy is the intended resolution.',
-    );
-  }
-  if (!file.parseOk && file.exists && !file.hasConflictMarkers) {
-    nextActions.push('Fix repovine.annots.json parse error or restore it before annotation work.');
-  }
-  if (file.parseOk) {
-    nextActions.push('Call validate_annotations({}) before annotation handoff or after git merge/rebase.');
-  }
-  return { filePath, file, ...(indexUnmerged ? { indexUnmerged } : {}), nextActions };
+  return {
+    filePath,
+    file,
+    ...(indexUnmerged ? { indexUnmerged } : {}),
+    nextActions: mergeStatusNextActions(file, indexUnmerged),
+  };
 }
 
 type MergeSide = 'ours' | 'theirs';
@@ -749,8 +770,6 @@ export function getAnnotationMergeStatus(
   if (options?.annotations) {
     return annotationMergeStatusFromSnapshot(filePath, options.annotations.getMergeStatusSnapshot());
   }
-  const nextActions: string[] = [];
-
   let exists = false;
   let parseOk = false;
   let hasMarkers = false;
@@ -774,34 +793,19 @@ export function getAnnotationMergeStatus(
   }
 
   const indexUnmerged = !hasMarkers && exists && isIndexUnmerged(filePath);
-  if (hasMarkers) {
-    nextActions.push('Call merge_annotations({}) to resolve annotation JSON with merge rules.');
-  }
-  if (indexUnmerged) {
-    nextActions.push(
-      'The git index entry for repovine.annots.json is unmerged although the file has no conflict markers '
-      + '(file-level conflict, or an already hand-resolved file). Call merge_annotations({ "fromIndex": true }) '
-      + 'to merge the index stages, or `git add` the file if the worktree copy is the intended resolution.',
-    );
-  }
-  if (!parseOk && exists && !hasMarkers) {
-    nextActions.push('Fix repovine.annots.json parse error or restore it before annotation work.');
-  }
-  if (parseOk) {
-    nextActions.push('Call validate_annotations({}) before annotation handoff or after git merge/rebase.');
-  }
+  const file: AnnotationFileStatusSnapshot = {
+    exists,
+    parseOk,
+    hasConflictMarkers: hasMarkers,
+    ...(annotationCount !== undefined ? { annotationCount } : {}),
+    ...(fileError ? { error: fileError } : {}),
+  };
 
   return {
     filePath,
-    file: {
-      exists,
-      parseOk,
-      hasConflictMarkers: hasMarkers,
-      ...(annotationCount !== undefined ? { annotationCount } : {}),
-      ...(fileError ? { error: fileError } : {}),
-    },
+    file,
     ...(indexUnmerged ? { indexUnmerged } : {}),
-    nextActions,
+    nextActions: mergeStatusNextActions(file, indexUnmerged),
   };
 }
 
@@ -1121,46 +1125,46 @@ export function validateAnnotationHealth(input: {
   for (const ann of Object.values(annotations.getAll())) {
     if (listMergeReviewFields(ann.annotation).length > 0) mergeReview++;
   }
-  const nextActions: string[] = [];
+  const nextActions: NextCall[] = [];
   const lastSaveError = typeof annotations.lastSaveError === 'string' ? annotations.lastSaveError : null;
   if (lastSaveError) {
-    nextActions.push(`Annotation saves are failing (${lastSaveError}). The file may be conflicted, locked, or unreadable; resolve it (merge_annotations / restore), then re-save — pending writes are still held in memory.`);
+    nextActions.push(nextCall('merge_annotations', {}, `Annotation saves are failing (${lastSaveError}). The file may be conflicted, locked, or unreadable; resolve it (merge or restore), then re-save — pending writes are still held in memory.`));
   }
   // Read defensively like `lastSaveError` above: callers pass store-like objects, and this is runtime
   // state a partial one need not carry.
   const keeps = annotations.lastMergeKeeps;
   const mergeKeeps = keeps ? describeMergeKeeps(keeps) : undefined;
-  if (mergeKeeps) nextActions.push(mergeKeeps);
+  if (mergeKeeps) nextActions.push({ reason: mergeKeeps });
   if (mergeStatus.file.hasConflictMarkers) {
-    nextActions.push('Call merge_annotations({}) before continuing annotation work.');
+    nextActions.push(nextCall('merge_annotations', {}, 'Resolve the conflict before continuing annotation work.'));
   }
   if (mergeReview > 0) {
-    nextActions.push(`${mergeReview} annotation(s) have merge-review markers (patterns merge-review:*); inspect assumptions and rewrite via write_annotation.`);
+    nextActions.push(nextCall('write_annotation', {}, `${mergeReview} annotation(s) have merge-review markers (patterns merge-review:*); inspect assumptions and rewrite them.`));
   }
   if (mergeStatus.file.exists && !mergeStatus.file.parseOk && !mergeStatus.file.hasConflictMarkers) {
-    nextActions.push('Fix repovine.annots.json parse error or restore it before annotation work.');
+    nextActions.push({ reason: 'Fix repovine.annots.json parse error or restore it before annotation work.' });
   }
   if (orphaned.total > 0) {
-    nextActions.push('Review get_annotation_status({ "view": "orphans" }) or run refresh_context({ "cleanupOrphans": true }).');
+    nextActions.push(nextCall('get_annotation_status', { view: 'orphans' }, 'Review orphaned annotations; refresh_context({ cleanupOrphans: true }) removes them afterwards.'));
   }
   if (counts.staleContent > 0 || counts.stalePropagation > 0) {
-    nextActions.push('Process get_annotation_status({ "view": "queue" }) before trusting affected summaries.');
+    nextActions.push(nextCall('get_annotation_status', { view: 'queue' }, 'Process the queue before trusting affected summaries.'));
   }
   if (counts.stalePropagation > 0) {
-    nextActions.push('Clear propagation-stale items via write_annotation({ refreshImportBaseline: true }) or rewrite integrationPoints/dataFlow when upstream contract changed.');
+    nextActions.push(nextCall('write_annotation', { refreshImportBaseline: true }, 'Clear propagation-stale items, or rewrite integrationPoints/dataFlow when the upstream contract changed.'));
   }
   if (counts.unannotated > 0) {
-    nextActions.push('New/unannotated nodes exist; continue annotation onboarding if coverage matters for this handoff.');
+    nextActions.push(nextCall('get_annotation_status', { view: 'queue' }, 'New/unannotated nodes exist; continue annotation onboarding if coverage matters for this handoff.'));
   }
   const consumerScopeDensity = computeConsumerScopeDensity(annotations);
   if (consumerScopeDensity.overGlobalThreshold) {
-    nextActions.push(`Advisory: ${consumerScopeDensity.consumerRisks}/${consumerScopeDensity.totalRisks} risks are scope:"consumer" (ratio ${consumerScopeDensity.ratio.toFixed(2)} > ${CONSUMER_SCOPE_GLOBAL_RATIO_WARN}) — consumer scope is the selective edge-flag exception; over-marking floods inspect_node investigate tags.`);
+    nextActions.push({ reason: `Advisory: ${consumerScopeDensity.consumerRisks}/${consumerScopeDensity.totalRisks} risks are scope:"consumer" (ratio ${consumerScopeDensity.ratio.toFixed(2)} > ${CONSUMER_SCOPE_GLOBAL_RATIO_WARN}) — consumer scope is the selective edge-flag exception; over-marking floods inspect_node investigate tags.` });
   }
   if (consumerScopeDensity.nodesOverPerNodeCap.length > 0) {
-    nextActions.push(`Advisory: ${consumerScopeDensity.nodesOverPerNodeCap.length} node(s) mark more than ${CONSUMER_SCOPE_PER_NODE_WARN} consumer risks; consider keeping only the importer-critical ones consumer-scoped.`);
+    nextActions.push({ reason: `Advisory: ${consumerScopeDensity.nodesOverPerNodeCap.length} node(s) mark more than ${CONSUMER_SCOPE_PER_NODE_WARN} consumer risks; consider keeping only the importer-critical ones consumer-scoped.` });
   }
   if (consumerScopeDensity.unmarkedConsumerRisks > 0) {
-    nextActions.push(`Advisory: ${consumerScopeDensity.unmarkedConsumerRisks} consumer-scoped risk(s) read as bare facts — state the importer obligation (what the caller must verify locally).`);
+    nextActions.push({ reason: `Advisory: ${consumerScopeDensity.unmarkedConsumerRisks} consumer-scoped risk(s) read as bare facts — state the importer obligation (what the caller must verify locally).` });
   }
   const carrierLinkGaps = computeCarrierLinkGaps({
     graph,
@@ -1178,19 +1182,16 @@ export function validateAnnotationHealth(input: {
     const suppressedClause = carrierLinkGaps.suppressedTargets > 0
       ? ` (${carrierLinkGaps.suppressedTargets} reviewed target(s) suppressed.)`
       : '';
-    nextActions.push(`Advisory: ${carrierLinkGaps.missingCarrierLinks} candidate importer(s) sit 2 runtime-import-hops from consumer-scoped-risk nodes without naming them in integrationPoints — review for delegation; name the SSOT only where the importer delegates to it.${suppressedClause}`);
+    nextActions.push(nextCall('get_annotation_status', { view: 'carrier-gaps' }, `Advisory: ${carrierLinkGaps.missingCarrierLinks} candidate importer(s) sit 2 runtime-import-hops from consumer-scoped-risk nodes without naming them in integrationPoints — review for delegation; name the SSOT only where the importer delegates to it.${suppressedClause}`));
   }
   if (carrierLinkGaps.namedButUndeliverable > 0) {
-    nextActions.push(`Advisory: ${carrierLinkGaps.namedButUndeliverable} integrationPoints reference(s) name graph nodes with no import path from the annotating module — investigatePointers cannot fire; keep mod: refs for implementer closure and verify wiring in source.`);
+    nextActions.push({ reason: `Advisory: ${carrierLinkGaps.namedButUndeliverable} integrationPoints reference(s) name graph nodes with no import path from the annotating module — investigatePointers cannot fire; keep mod: refs for implementer closure and verify wiring in source.` });
   }
   if (riskScopeCandidates.consumer > 0) {
-    nextActions.push(`Advisory: ${riskScopeCandidates.consumer} plain/local risk(s) look like scope:"consumer" candidates; review before relying on investigate risk delivery.`);
+    nextActions.push(nextCall('get_annotation_status', { view: 'risk-scope-candidates' }, `Advisory: ${riskScopeCandidates.consumer} plain/local risk(s) look like scope:"consumer" candidates; review before relying on investigate risk delivery.`));
   }
   if (riskScopeCandidates.boundary > 0) {
-    nextActions.push(`Advisory: ${riskScopeCandidates.boundary} plain/local risk(s) look like scope:"boundary" candidates; review before relying on boundary delivery.`);
-  }
-  if (nextActions.length === 0) {
-    nextActions.push('Annotation file is parseable, merged, and fresh for the current graph.');
+    nextActions.push(nextCall('get_annotation_status', { view: 'risk-scope-candidates' }, `Advisory: ${riskScopeCandidates.boundary} plain/local risk(s) look like scope:"boundary" candidates; review before relying on boundary delivery.`));
   }
 
   const clean = !mergeStatus.file.hasConflictMarkers

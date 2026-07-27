@@ -4,6 +4,13 @@ import { resolveScope, parentModuleId } from '../scope/resolve.js';
 import { nodeLabel, taggedDomains } from '../../graph/index.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, envelopeError, nav, type AttentionItem } from '../response/envelope.js';
+import { nextCall } from '../../response/next-call.js';
+import {
+  emptyAction,
+  graphEmptyIf,
+  scopeUnresolvedDiagnostic,
+  searchForScopeText,
+} from '../response/empty-diagnostics.js';
 import { DEFAULT_BODY_LIMIT } from '../response/pagination.js';
 import { priorityWeight } from '../lib/investigate-refs.js';
 import { deliveryMechanic } from '../../mechanics/registry.js';
@@ -60,7 +67,7 @@ function buildAttention(
       nodeId,
       investigate: tags,
       note: tags.map((tag) => TAG_NOTE[tag as InvestigateTag] ?? tag).join('; '),
-      next: { tool: 'inspect_node', args: { nodeId } },
+      next: nextCall('inspect_node', { nodeId }, 'Read this ref\'s own risks and side effects before treating it unchanged.'),
     }));
 }
 
@@ -80,7 +87,7 @@ export function selfBoundaryAttention(
     nodeId,
     investigate: ['boundary'],
     note: `${TAG_NOTE.boundary} — this node`,
-    next: { tool: 'analyze_dependencies', args: { scope: nodeId, mode: 'impact' } },
+    next: nextCall('analyze_dependencies', { scope: nodeId, mode: 'impact' }, 'Check consumers before editing an off-limits surface.'),
   };
 }
 
@@ -103,7 +110,7 @@ export function selfWiringAttention(
     nodeId,
     investigate: ['wiring'],
     note: `${TAG_NOTE.wiring} (wired: ${labels.join(', ')})`,
-    next: { tool: 'trace_flow', args: { scope: nodeId } },
+    next: nextCall('trace_flow', { scope: nodeId }, 'Follow the deployed topology this node is wired into.'),
   };
 }
 
@@ -114,15 +121,13 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
     return envelopeError(scope, 'inspect_node requires nodeId or a scope that resolves to a concrete graph node', {
       scope: scope.raw,
       resolvedScope: scope.resolvedScope,
-      emptyDiagnostic: {
-        reason: 'scope_unresolved',
-        message: `"${scope.raw}" did not resolve to a concrete graph node.`,
-        confidence: 'high',
-        nextActions: [
-          { when: 'if this is a symbol or path', tool: 'search_context', args: { query: scope.query ?? scope.raw } },
-          { when: 'to browse from the repository root', tool: 'map_context', args: { scope: 'all', view: 'summary' } },
-        ],
-      },
+      // Same builder as the other seven tools. Written out by hand here, this one drifted: raw
+      // action literals instead of the shared factory, and a message that dropped the prefix the
+      // rest of the surface uses.
+      emptyDiagnostic: graphEmptyIf(ctx) ?? scopeUnresolvedDiagnostic(scope, 'did not resolve to a concrete graph node.', [
+        searchForScopeText(scope, 'if this is a symbol or path'),
+        emptyAction('to browse from the repository root', 'map_context', { scope: 'all', view: 'summary' }),
+      ]),
     });
   }
   const nodeId = scope.nodeId ?? scope.domainId;
