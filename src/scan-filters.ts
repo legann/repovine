@@ -3,6 +3,7 @@
 // into the scanner's own import cycle.
 import { compileGlob, type GlobMatcher } from './stage2/domains-schema.js';
 import { REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS } from './paths.js';
+import { normalizeRelPath, toPosixPath } from './platform/paths.js';
 
 /** Repo-root-relative glob or scoped pattern entry from `repovine.config.json` → `build.scan`. */
 export type ScanScope = 'all' | 'source' | 'infra';
@@ -22,10 +23,6 @@ export interface CompiledScanPattern {
 export interface CompiledScanPatterns {
   include: CompiledScanPattern[];
   exclude: CompiledScanPattern[];
-}
-
-function normalizeRelPath(value: string): string {
-  return value.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\//, '');
 }
 
 function parsePatternEntry(entry: ScanPatternInput): { glob: string; scope: ScanScope } {
@@ -71,13 +68,59 @@ function matchesAny(
 function matchesEngineIgnore(relPath: string): boolean {
   const norm = normalizeRelPath(relPath);
   for (const fragment of REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS) {
-    const q = fragment.replace(/\\/g, '/').replace(/^\//, '').replace(/\/$/, '');
+    const q = toPosixPath(fragment).replace(/^\//, '').replace(/\/$/, '');
     if (!q) continue;
     if (norm === q) return true;
     if (norm.startsWith(`${q}/`)) return true;
     if (norm.includes(`/${q}/`) || norm.endsWith(`/${q}`)) return true;
   }
   return false;
+}
+
+/**
+ * Whether a walker should descend into this repo-relative directory.
+ *
+ * The engine ignore list is the same one that rejects files, asked one level up: a directory the
+ * list names holds nothing the graph wants, so pruning there and rejecting per file give the same
+ * answer at a fraction of the readdir calls. Walkers that look for PACKAGE MARKERS rather than
+ * source files need this specifically — a `tsconfig.json` under `.venv/` or a `pyproject.toml`
+ * under `coverage/` mints a package node whose every module the file filter then rejects, so the
+ * repository grows a package with no modules in it.
+ *
+ * User `scan.exclude` is deliberately not consulted: an exclude pattern narrows what is indexed,
+ * and a walker that stopped descending on it could not honour a more specific `scan.include`
+ * underneath.
+ */
+function shouldWalkScanDir(relDirPath: string): boolean {
+  return !matchesEngineIgnore(relDirPath);
+}
+
+/**
+ * Directory names that hold tests by convention, in any ecosystem the engine discovers.
+ *
+ * Separate from the engine ignore list because it answers a separate question: those directories
+ * are not build output or dependency trees, they are first-class repository content that the graph
+ * deliberately leaves out. Keeping the two apart also keeps `scan.include` meaningful — a user who
+ * points it at `tests/` is asking for something the engine ignore list would never have allowed.
+ */
+const TEST_LAYOUT_DIRS: ReadonlySet<string> = new Set([
+  'test', 'tests', '__tests__', '__mocks__', '__snapshots__',
+  'e2e', '__e2e__', 'cypress', 'playwright',
+]);
+
+/** True when any segment of the repo-relative path is a test-layout directory. */
+function hasTestLayoutSegment(relPath: string): boolean {
+  return normalizeRelPath(relPath).split('/').some(segment => TEST_LAYOUT_DIRS.has(segment));
+}
+
+/**
+ * Whether a discovery walker should descend into this repo-relative directory at all: neither an
+ * engine-ignored tree nor a test-layout one. Every walker that mints repository content — packages,
+ * modules, templates, infra files — asks this, so a directory is present in the graph or absent
+ * from it, not present through one producer and absent through another.
+ */
+export function shouldWalkDiscoveryDir(relDirPath: string): boolean {
+  return shouldWalkScanDir(relDirPath) && !hasTestLayoutSegment(relDirPath);
 }
 
 /** User `scan.include` match — wins over exclude. */

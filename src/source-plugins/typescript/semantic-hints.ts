@@ -1,6 +1,8 @@
 import { Node, SyntaxKind, type BindingElement, type SourceFile } from 'ts-morph';
 import { importDeclarationSpecifier } from './module-specifier.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
+import { pathMatchKey, toPosixPath } from '../../platform/paths.js';
+import { JSX_EXT_SUFFIX_RE, SFC_EXT_SUFFIX_RE, SFC_VIRTUAL_TS_SUFFIX_RE, SOURCE_EXT_SUFFIX_RE } from './extensions.js';
 import type {
   SemanticHints,
   UiChildComponentHint,
@@ -872,7 +874,8 @@ function collectNestRoutes(sf: SourceFile): RouteInfo[] {
 }
 
 
-const ROUTE_FILE_EXT_RE = /\.(?:tsx?|jsx?|vue|svelte|mts|cts)$/i;
+const ROUTE_FILE_EXT_RE = new RegExp(`(?:${SOURCE_EXT_SUFFIX_RE.source}|${SFC_EXT_SUFFIX_RE.source})`, 'i');
+const APP_ROUTER_FILE_RE = new RegExp(`(^|/)app/.+${SOURCE_EXT_SUFFIX_RE.source}`, 'i');
 const NEXTJS_APP_FILE_RE = /^(page|layout|route|loading|error|not-found|template|default)$/;
 const FILE_ROUTE_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
 /** Folders that usually denote view/component trees, not Next.js App Router segments. */
@@ -911,7 +914,7 @@ function apiFileRoutes(
 }
 
 function collectFileRoutes(relativeFilePath: string, sf: SourceFile): RouteInfo[] {
-  const rel = relativeFilePath.replace(/\\/g, '/');
+  const rel = toPosixPath(relativeFilePath);
   if (!ROUTE_FILE_EXT_RE.test(rel)) return [];
 
   const noExt = rel.replace(ROUTE_FILE_EXT_RE, '');
@@ -1009,7 +1012,7 @@ function collectSecuritySignals(
   envAccesses: EnvAccess[],
   relativeFilePath?: string,
 ): SecuritySignal[] {
-  const rel = (relativeFilePath ?? sf.getBaseName()).replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(relativeFilePath ?? sf.getBaseName());
   const signals: SecuritySignal[] = [];
 
   const addEnvSignal = (name: string, index: number | undefined): void => {
@@ -1149,7 +1152,7 @@ function lineRangeFromTextIndex(text: string, index: number): { start: number; e
 }
 
 function collectUiHints(sf: SourceFile, relativeFilePath?: string): UiHints | undefined {
-  const rel = (relativeFilePath ?? sf.getBaseName()).replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(relativeFilePath ?? sf.getBaseName());
   const text = sf.getFullText();
   const imports = sf.getImportDeclarations()
     .map(imp => importDeclarationSpecifier(imp))
@@ -1748,8 +1751,10 @@ function sfcTemplateFromVirtualSource(text: string): string | undefined {
 }
 
 function componentNameFromPath(filePath: string): string {
-  const base = filePath.replace(/\\/g, '/').split('/').pop() ?? 'Component';
-  return normalizeTemplateComponentName(base.replace(/\.(vue|svelte)\.ts$/i, '').replace(/\.(vue|svelte|tsx?|jsx?)$/i, ''));
+  const base = toPosixPath(filePath).split('/').pop() ?? 'Component';
+  return normalizeTemplateComponentName(
+    base.replace(SFC_VIRTUAL_TS_SUFFIX_RE, '').replace(SFC_EXT_SUFFIX_RE, '').replace(SOURCE_EXT_SUFFIX_RE, ''),
+  );
 }
 
 function sourceFileRange(sf: SourceFile): { start: number; end: number } {
@@ -1840,9 +1845,9 @@ function detectUiFramework(
   // import their decorator from `@angular/core`. The suffix still drives domain promotion, which is
   // a separate mechanism and keeps its fixture-documented behaviour.
   if (imports.some(source => source.startsWith('@angular/'))) return 'angular';
-  if (imports.some(source => source === 'next' || source.startsWith('next/')) || /(^|\/)app\/.+\.(tsx?|jsx?)$/.test(rel)) return 'next';
+  if (imports.some(source => source === 'next' || source.startsWith('next/')) || APP_ROUTER_FILE_RE.test(rel)) return 'next';
   if (imports.some(source => source === 'nuxt' || source.startsWith('#') || source.startsWith('nuxt/')) || /(^|\/)(pages|layouts|composables)\//.test(rel) && rel.endsWith('.vue')) return 'nuxt';
-  if (imports.some(source => source === 'react' || source.startsWith('react/')) || /\.(tsx|jsx)$/.test(rel) && hasJsxSyntax(sf)) return 'react';
+  if (imports.some(source => source === 'react' || source.startsWith('react/')) || JSX_EXT_SUFFIX_RE.test(rel) && hasJsxSyntax(sf)) return 'react';
   if (imports.some(source => source === 'vue' || source.startsWith('vue/')) || rel.endsWith('.vue')) return 'vue';
   if (imports.some(source => source === 'svelte' || source.startsWith('svelte/')) || rel.endsWith('.svelte')) return 'svelte';
   return 'unknown';

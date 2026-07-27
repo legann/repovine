@@ -1,7 +1,6 @@
 import * as fs from 'node:fs';
-import { createHash } from 'node:crypto';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../../types.js';
-import type { SourceFileText, SourcePlugin } from '@repovine/plugin-sdk';
+import { HASH_WIDTH, sha256Hex, type SourceFileText, type SourcePlugin } from '@repovine/plugin-sdk';
 
 /**
  * Engine-owned Stage-1 source extraction boundary.
@@ -17,10 +16,6 @@ import type { SourceFileText, SourcePlugin } from '@repovine/plugin-sdk';
  * so the boundary type crossing the worker bridge stays `ModuleInfo[]` and the assembly logic has
  * exactly one home.
  */
-
-function fingerprint(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 16);
-}
 
 export interface RunSourceExtractionArgs {
   plugin: SourcePlugin;
@@ -53,7 +48,7 @@ export async function runSourceExtraction(args: RunSourceExtractionArgs): Promis
     } catch {
       continue;
     }
-    sourceByModuleId.set(pending.moduleId, { content, contentHash: fingerprint(content) });
+    sourceByModuleId.set(pending.moduleId, { content, contentHash: sha256Hex(content, HASH_WIDTH.content) });
   }
 
   const result = await Promise.resolve(

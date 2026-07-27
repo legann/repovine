@@ -15,6 +15,7 @@ import { nameMatchGap } from '../lib/dependencies/impact.js';
 import { findInterfaceImplementations } from '../lib/dependencies/interfaces.js';
 import { analyzePackageBoundaries } from '../lib/dependencies/package-boundaries.js';
 import type { Provenance } from '../../response/provenance.js';
+import { exportSymbolId } from '../../graph/node-ids.js';
 
 export function defaultDependencyMode(scope: ResolvedScope): string {
   return scope.kind === 'module' || scope.kind === 'export-symbol' ? 'impact' : 'package-boundaries';
@@ -82,9 +83,8 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
   } else if (mode === 'callgraph') {
     let nodeId = scope.nodeId;
     if (scope.kind === 'module' && typeof args.exportName === 'string' && nodeId) {
-      // Minted, not parsed: stage2 builds export ids this way, so the only question is whether the
-      // graph holds it.
-      const exportId = `${nodeId.replace(/^mod:/, 'export:')}/${args.exportName}`;
+      // Minted, not parsed: the only question left is whether the graph holds it.
+      const exportId = exportSymbolId(nodeId, args.exportName);
       nodeId = ctx.getState().graph.nodes.has(exportId) ? exportId : undefined;
     }
     if (!nodeId || !nodeId.startsWith('export:')) {

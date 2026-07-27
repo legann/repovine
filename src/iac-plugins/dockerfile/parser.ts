@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import type { IaCParser, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
 import { hashResourcePayload, pathBasedDomainsFromRelPath } from '../../stage1/iac/utils.js';
+import { toPosixPath } from '../../platform/paths.js';
 
 function parseFirstFrom(content: string): string {
   const line = content.split('\n').find(l => /^\s*FROM\s+/i.test(l));
@@ -24,7 +25,7 @@ export const dockerfileParser: IaCParser = {
     if (typeof doc !== 'string') return null;
     const content = doc;
     const domainPath = pathBasedDomainsFromRelPath(relPath);
-    const normalizedRel = relPath.replace(/\\/g, '/');
+    const normalizedRel = toPosixPath(relPath);
     const baseImage = parseFirstFrom(content);
     const attrs: Record<string, string> = { domainPath };
     if (baseImage) attrs.baseImage = baseImage;

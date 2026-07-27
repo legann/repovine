@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 import type { RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
 import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 
@@ -14,7 +14,7 @@ export interface RuntimeResourceContentHashLookup {
 function resourceSetHash(hashes: string[]): string {
   const distinct = [...new Set(hashes)].sort();
   if (distinct.length === 1) return distinct[0]!;
-  return createHash('sha256').update(distinct.join('\n')).digest('hex').slice(0, 16);
+  return sha256Hex(distinct.join('\n'), HASH_WIDTH.content);
 }
 
 export function buildRuntimeResourceContentHashLookup(

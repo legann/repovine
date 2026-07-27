@@ -1,8 +1,8 @@
-import { createHash } from 'node:crypto';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 
 /** Stable 16-char hash for a single IaC resource payload (not the whole template). */
 export function hashResourcePayload(payload: unknown): string {
-  return createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 16);
+  return sha256Hex(JSON.stringify(payload), HASH_WIDTH.content);
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

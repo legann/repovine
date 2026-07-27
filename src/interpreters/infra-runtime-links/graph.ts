@@ -30,6 +30,9 @@ import {
   getTriggerTypeMeta,
 } from '../../stage1/iac/registry.js';
 import { getKnownExtensions, getSourcePlugins } from '../../stage1/source/registry.js';
+import { resolveRelPath, toPosixPath } from '../../platform/paths.js';
+import { stripIndexBasename } from '../../stage1/source/registry.js';
+import { infraNodeId } from '../../graph/node-ids.js';
 
 type RuntimeActionName = RuntimeAction['action'];
 
@@ -108,7 +111,7 @@ function buildHandlerResolveContext(
     resolveModuleByRepoPath(candidate: string): string | undefined {
       return lookupModuleByRepoPath(moduleIdsByRepoPath, candidate);
     },
-    normalizeRelPath,
+    normalizeRelPath: resolveRelPath,
   };
 }
 
@@ -133,7 +136,7 @@ function buildModuleRepoPathIndex(
     const pkg = packagesByName.get(mod.packageName);
     if (!pkg) continue;
     const repoPath = stripKnownExtension(joinRelPath(pkg.path, mod.relativeFilePath));
-    const keys = uniqueStrings([repoPath, repoPath.replace(/\/index$/, '')]);
+    const keys = uniqueStrings([repoPath, stripIndexBasename(repoPath)]);
     for (const key of keys) {
       let ids = out.get(key);
       if (!ids) { ids = []; out.set(key, ids); }
@@ -144,25 +147,12 @@ function buildModuleRepoPathIndex(
 }
 
 function lookupModuleByRepoPath(index: Map<string, string[]>, candidate: string): string | undefined {
-  const normalized = stripKnownExtension(normalizeRelPath(candidate));
-  return index.get(normalized)?.[0] ?? index.get(normalized.replace(/\/index$/, ''))?.[0];
+  const normalized = stripKnownExtension(resolveRelPath(candidate));
+  return index.get(normalized)?.[0] ?? index.get(stripIndexBasename(normalized))?.[0];
 }
 
 function joinRelPath(...parts: Array<string | undefined>): string {
-  return normalizeRelPath(parts.filter((p): p is string => Boolean(p)).join('/'));
-}
-
-function normalizeRelPath(value: string): string {
-  const out: string[] = [];
-  for (const segment of value.replace(/\\/g, '/').replace(/\/+/g, '/').split('/')) {
-    if (!segment || segment === '.') continue;
-    if (segment === '..') {
-      out.pop();
-      continue;
-    }
-    out.push(segment);
-  }
-  return out.join('/');
+  return resolveRelPath(parts.filter((p): p is string => Boolean(p)).join('/'));
 }
 
 function stripKnownExtension(value: string): string {
@@ -430,7 +420,7 @@ function pass2Infra(
       // Compose services can point at repo Dockerfiles via build.dockerfile.
       // Link them as infra edges so domains can propagate through shared build artifacts.
       if (res.provider === 'generic' && res.attributes.dockerfile) {
-        const dockerfileModuleId = `infra:dockerfile:${res.attributes.dockerfile.replace(/\\/g, '/')}`;
+        const dockerfileModuleId = infraNodeId('dockerfile', toPosixPath(res.attributes.dockerfile));
         deferredComposeDockerfileInfraEdges.push({ fromServiceId: serviceId, toDockerfileModuleId: dockerfileModuleId });
       }
 

@@ -10,9 +10,10 @@
  * The trade-off is zero external dependencies and no impact on non-SFC projects.
  */
 import * as path from 'node:path';
+import { SFC_EXTENSION_LIST } from './extensions.js';
 
 /** Extensions we treat as SFC. Caller must check this before invoking extract*. */
-export const SFC_EXTENSIONS = new Set(['.vue', '.svelte']);
+export const SFC_EXTENSIONS = new Set(SFC_EXTENSION_LIST);
 
 export function isSfcFile(filePath: string): boolean {
   return SFC_EXTENSIONS.has(path.extname(filePath).toLowerCase());

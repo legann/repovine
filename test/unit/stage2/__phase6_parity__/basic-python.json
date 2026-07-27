@@ -282,7 +282,7 @@
     {
       "id": "mod:basic-python/app",
       "type": "module",
-      "label": "app.py",
+      "label": "app",
       "description": "Module app.py in basic-python",
       "data": {
         "filePath": "<FIXTURE>/packages/basic-python/app.py",
@@ -296,7 +296,7 @@
     {
       "id": "mod:basic-python/models",
       "type": "module",
-      "label": "models.py",
+      "label": "models",
       "description": "Module models.py in basic-python",
       "data": {
         "filePath": "<FIXTURE>/packages/basic-python/models.py",
@@ -307,7 +307,7 @@
     {
       "id": "mod:basic-python/services",
       "type": "module",
-      "label": "services.py",
+      "label": "services",
       "description": "Module services.py in basic-python",
       "data": {
         "filePath": "<FIXTURE>/packages/basic-python/services.py",
@@ -318,7 +318,7 @@
     {
       "id": "mod:basic-python/utils",
       "type": "module",
-      "label": "utils/__init__.py",
+      "label": "utils/__init__",
       "description": "Module utils/__init__.py in basic-python",
       "data": {
         "filePath": "<FIXTURE>/packages/basic-python/utils/__init__.py",
@@ -329,7 +329,7 @@
     {
       "id": "mod:sharedlib/gateway",
       "type": "module",
-      "label": "gateway.py",
+      "label": "gateway",
       "description": "Module gateway.py in sharedlib",
       "data": {
         "filePath": "<FIXTURE>/packages/sharedlib/gateway.py",
@@ -340,7 +340,7 @@
     {
       "id": "mod:sharedlib/sharedlib",
       "type": "module",
-      "label": "sharedlib/__init__.py",
+      "label": "sharedlib/__init__",
       "description": "Module sharedlib/__init__.py in sharedlib",
       "data": {
         "filePath": "<FIXTURE>/packages/sharedlib/sharedlib/__init__.py",
@@ -351,7 +351,7 @@
     {
       "id": "mod:sharedlib/sharedlib/helpers",
       "type": "module",
-      "label": "sharedlib/helpers.py",
+      "label": "sharedlib/helpers",
       "description": "Module sharedlib/helpers.py in sharedlib",
       "data": {
         "filePath": "<FIXTURE>/packages/sharedlib/sharedlib/helpers.py",

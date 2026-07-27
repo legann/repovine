@@ -53,6 +53,21 @@ export function nodeLabel(graph: RepositoryGraph, nodeId: string): string {
 }
 
 /**
+ * Label of a module whose stage-1 record the caller already holds.
+ *
+ * The second named fallback beside {@link nodeLabel}: where the id is the only thing left to say
+ * about a missing node, a caller holding the record can say which file it stands for instead, and
+ * a file path reads better in a list of modules than a `mod:` id does. Callers without the record
+ * use {@link nodeLabel}; domain nodes use `domainLabel`.
+ */
+export function moduleLabelOf(
+  graph: RepositoryGraph,
+  mod: { id: string; relativeFilePath: string },
+): string {
+  return graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath;
+}
+
+/**
  * What to call a domain, when the caller wants a label rather than an id.
  *
  * Falls back to the id with its prefix stripped, so a domain node the graph no longer holds still
@@ -202,7 +217,7 @@ export function taggedDomains(graph: RepositoryGraph, nodeId: string): { ids: st
   for (const edge of graph.outEdges.get(nodeId) ?? []) {
     if (edge.kind !== 'tagged') continue;
     ids.push(edge.to);
-    labels.push(graph.nodes.get(edge.to)?.label ?? edge.to);
+    labels.push(nodeLabel(graph, edge.to));
   }
   return { ids, labels };
 }
@@ -297,7 +312,7 @@ export function getLinks(graph: RepositoryGraph, nodeId: string): Array<{ target
       const entry: { targetId: string; relation: EdgeKind; label: string; tagSource?: NonNullable<GraphEdgeMetadata['tagSource']> } = {
         targetId: e.to,
         relation: e.kind,
-        label: graph.nodes.get(e.to)?.label ?? e.to,
+        label: nodeLabel(graph, e.to),
       };
       if (e.kind === 'tagged' && e.metadata?.tagSource) entry.tagSource = e.metadata.tagSource;
       return entry;

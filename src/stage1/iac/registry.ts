@@ -1,5 +1,7 @@
 import type { IaCDocFormat, IaCParser } from '../../types.js';
 import type { IaCPluginDescriptor } from '@repovine/plugin-sdk';
+import { domainNodeId } from '../../graph/node-ids.js';
+import { domainLabelSlug } from '../../stage2/domain-slug.js';
 
 /**
  * Mutable registry of IaC parsers. Built-in parsers register themselves at module load
@@ -130,11 +132,11 @@ export function registerInfraKindDomain(kind: string, meta: InfraKindDomain): vo
 export function getInfraKindDomain(kind: string): InfraKindDomain {
   const explicit = kindDomains.get(kind);
   if (explicit) return explicit;
-  const domainId = `domain:infra-${kind}`;
+  const label = domainLabelSlug(`infra-${kind}`);
   return {
-    domainId,
-    label: `infra-${kind}`,
-    description: `Domain: infra-${kind} (IaC ${kind})`,
+    domainId: domainNodeId(label),
+    label,
+    description: `Domain: ${label} (IaC ${kind})`,
   };
 }
 

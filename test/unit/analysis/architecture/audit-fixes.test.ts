@@ -47,9 +47,11 @@ describe('detectBoundary ignores type-only import edges', () => {
   const nodes: GraphNode[] = [
     { id: 'pkg:a', type: 'package', label: 'a', description: '' },
     { id: 'pkg:b', type: 'package', label: 'b', description: '' },
-    { id: 'mod:a/importer', type: 'module', label: 'a/importer', description: '' },
-    { id: 'mod:b/target', type: 'module', label: 'b/target', description: '' },
-    { id: 'mod:b/index', type: 'module', label: 'b/index', description: '' },
+    // `relativeFilePath` is stamped on every module node the engine builds; the barrel test reads
+    // it rather than the label, so a fixture omitting it would describe no file at all.
+    { id: 'mod:a/importer', type: 'module', label: 'a/importer', description: '', data: { relativeFilePath: 'a/importer.ts' } },
+    { id: 'mod:b/target', type: 'module', label: 'b/target', description: '', data: { relativeFilePath: 'b/target.ts' } },
+    { id: 'mod:b/index', type: 'module', label: 'b/index', description: '', data: { relativeFilePath: 'b/index.ts' } },
   ];
   const containment: GraphEdge[] = [
     { from: 'pkg:a', to: 'mod:a/importer', kind: 'contains' },

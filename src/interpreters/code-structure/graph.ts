@@ -1,6 +1,7 @@
 import type { ExportInfo, ModuleInfo, RepositoryGraph, RepositoryFactsSnapshot } from '../../types.js';
 import { addEdge, addNode, directImportTargets } from '../../graph/index.js';
 import { shortModuleLabel } from '../../stage2/module-label.js';
+import { exportSymbolId, packageNodeId } from '../../graph/node-ids.js';
 
 /**
  * Structural graph contribution: root + packages + modules + import edges + export symbols +
@@ -29,7 +30,7 @@ function pass1Packages(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot
   });
 
   for (const pkg of snapshot.packages) {
-    const pkgId = `pkg:${pkg.name}`;
+    const pkgId = packageNodeId(pkg.name);
     addNode(graph, {
       id: pkgId,
       type: 'package',
@@ -60,7 +61,7 @@ function pass2Modules(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot)
       },
     });
 
-    const pkgId = `pkg:${mod.packageName}`;
+    const pkgId = packageNodeId(mod.packageName);
     if (graph.nodes.has(pkgId)) {
       addEdge(graph, pkgId, mod.id, 'contains');
     }
@@ -94,7 +95,7 @@ function pass3ExportSymbols(graph: RepositoryGraph, snapshot: RepositoryFactsSna
     for (const exp of mod.exports) {
       if (shouldSkipExport(exp)) continue;
 
-      const capId = `export:${mod.id.slice(4)}/${exp.name}`;
+      const capId = exportSymbolId(mod.id, exp.name);
       addNode(graph, {
         id: capId,
         type: 'export-symbol',
@@ -137,7 +138,7 @@ function pass4ImplementsEdges(graph: RepositoryGraph, snapshot: RepositoryFactsS
       const ifaceNames = exp.implementsInterfaces;
       if (!ifaceNames || ifaceNames.length === 0) continue;
 
-      const classId = `export:${mod.id.slice(4)}/${exp.name}`;
+      const classId = exportSymbolId(mod.id, exp.name);
       if (!graph.nodes.has(classId)) continue;
 
       const seen = new Set<string>();
@@ -163,14 +164,14 @@ function resolveImplementsTarget(
   mod: ModuleInfo,
   ifaceName: string,
 ): string | undefined {
-  const sameModuleId = `export:${mod.id.slice(4)}/${ifaceName}`;
+  const sameModuleId = exportSymbolId(mod.id, ifaceName);
   if (graph.nodes.has(sameModuleId)) return sameModuleId;
 
   for (const imp of mod.imports) {
     if (imp.isExternal || !imp.resolvedModuleId) continue;
     if (!imp.resolvedModuleId.startsWith('mod:')) continue;
     if (!imp.importedNames.includes(ifaceName)) continue;
-    const importedId = `export:${imp.resolvedModuleId.slice(4)}/${ifaceName}`;
+    const importedId = exportSymbolId(imp.resolvedModuleId, ifaceName);
     if (graph.nodes.has(importedId)) return importedId;
   }
 

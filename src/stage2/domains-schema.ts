@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import { z } from 'zod';
 import { domainsConfigFilePath } from '../paths.js';
+import { domainLabelSlug, domainSlug } from './domain-slug.js';
 
 const stringArray = z.array(z.string());
 const stringRecord = z.record(z.string(), z.string());
@@ -44,12 +45,12 @@ export const DomainsConfigSchema = z.object({
 export type DomainsConfigFile = z.infer<typeof DomainsConfigSchema>;
 
 export interface DomainsConfig extends DomainsConfigFile {
-  /** Precomputed alias (lowercase) -> canonical; set by loadDomainsConfig for O(1) resolve. */
+  /** Precomputed alias -> canonical, both in the label alphabet; set by loadDomainsConfig. */
   _aliasToCanonical?: Record<string, string>;
   /** Precomputed matchers for basename.files globs; set by loadDomainsConfig. */
   _fileAsDomainInclude?: GlobMatcher[];
   _fileAsDomainExclude?: GlobMatcher[];
-  /** Precomputed structuralDirs set (lowercase); set by loadDomainsConfig. */
+  /** Precomputed structuralDirs set, in the label alphabet; set by loadDomainsConfig. */
   _structuralDirs?: Set<string>;
 }
 
@@ -171,10 +172,16 @@ export function loadDomainsConfig(repoRoot: string): DomainsConfig | null {
 
     const config: DomainsConfig = parsed.data;
     const aliasMap: Record<string, string> = {};
+    // Both halves are spelled in the label alphabet: a config key written `Foo Bar` names the
+    // domain node `domain:foo-bar`, so `foo-bar` is the spelling a caller's scope argument carries
+    // and the spelling the table must answer to.
     for (const [canonical, entry] of Object.entries(config.domains ?? {})) {
-      aliasMap[canonical.toLowerCase()] = canonical;
+      const label = domainLabelSlug(canonical);
+      if (!label) continue;
+      aliasMap[label] = label;
       for (const alias of entry.aliases ?? []) {
-        aliasMap[String(alias).toLowerCase()] = canonical;
+        const aliasLabel = domainLabelSlug(String(alias));
+        if (aliasLabel) aliasMap[aliasLabel] = label;
       }
     }
     if (Object.keys(aliasMap).length > 0) {
@@ -188,7 +195,7 @@ export function loadDomainsConfig(repoRoot: string): DomainsConfig | null {
       config._fileAsDomainExclude = config.basename.files.exclude.map(compileGlob);
     }
     if (Array.isArray(config.structuralDirs)) {
-      config._structuralDirs = new Set(config.structuralDirs.map(d => String(d).toLowerCase()));
+      config._structuralDirs = new Set(config.structuralDirs.map(d => domainSlug(String(d))));
     }
     return config;
   } catch (err) {

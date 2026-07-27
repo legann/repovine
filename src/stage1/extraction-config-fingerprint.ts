@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 import type { ScanPatternInput } from '../scan-filters.js';
 import { compareCodeUnits } from '../platform/ordering.js';
+import { toPosixPath } from '../platform/paths.js';
 
 export interface ExtractionConfigFingerprintInput {
   repoRoot: string;
@@ -14,11 +15,12 @@ export interface ExtractionConfigFingerprintInput {
 
 function portableString(value: string, repoRoot: string): string {
   const rootNative = repoRoot.replace(/[\\/]+$/, '') || repoRoot;
-  const rootPosix = rootNative.replace(/\\/g, '/');
-  return value
-    .replaceAll(rootNative, '<repo>')
-    .replaceAll(rootPosix, '<repo>')
-    .replace(/\\/g, '/');
+  const rootPosix = toPosixPath(rootNative);
+  return toPosixPath(
+    value
+      .replaceAll(rootNative, '<repo>')
+      .replaceAll(rootPosix, '<repo>'),
+  );
 }
 
 function stableSerialize(value: unknown, repoRoot: string, onStack = new Set<object>()): string {
@@ -89,8 +91,5 @@ export function computeExtractionConfigFingerprint(input: ExtractionConfigFinger
     iacPluginIds: [...input.iacPluginIds],
     extractContextByPlugin: input.extractContextByPlugin,
   };
-  return createHash('sha256')
-    .update(stableSerialize(payload, input.repoRoot))
-    .digest('hex')
-    .slice(0, 24);
+  return sha256Hex(stableSerialize(payload, input.repoRoot), HASH_WIDTH.config);
 }

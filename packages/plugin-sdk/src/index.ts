@@ -39,7 +39,11 @@ export type {
 } from './source-plugin/types.js';
 
 export { resolveDottedPathHandlerToModule } from './source-plugin/handler-resolver.js';
-export { mintModuleId } from './source-plugin/module-id.js';
+export { mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './source-plugin/module-id.js';
+
+/* ---- content hashing (the width a producer's contentHash must carry) ---- */
+export { HASH_WIDTH, sha256Hex } from './content-hash.js';
+export type { HashWidth } from './content-hash.js';
 
 /* ---- semanticHints schema (versioned producer↔consumer contract) ---- */
 export { SEMANTIC_HINTS_VERSION, zSemanticHints, validateSemanticHints } from './source-plugin/semantic-hints-schema.js';

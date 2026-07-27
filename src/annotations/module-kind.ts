@@ -43,8 +43,21 @@ const UI_PATH_TOKENS = ['/components/', '/component/', '/pages/', '/page/', '/vi
 const ADAPTER_PATH_TOKENS = ['/adapters/', '/adapter/', '/repositories/', '/repository/', '/repos/', '/clients/', '/client/', '/integrations/', '/integration/', '/dao/', '/gateways/', '/gateway/'];
 const SERVICE_MGR_PATH_TOKENS = ['/services/', '/service/', '/managers/', '/manager/', '/usecases/', '/use-cases/', '/processors/', '/processor/', '/workflows/', '/workflow/'];
 
-const UI_NAME_RE = /\.(tsx|jsx|vue|svelte)$/i;
-const SFC_NAME_RE = /\.(vue|svelte)$/i;
+/**
+ * Extensions whose files carry a UI component by the ecosystem's own convention: a single-file
+ * component, or a module written in the JSX dialects. Declared here because two layers ask the
+ * same question — module kind and the architecture heuristics — and each used to spell the set
+ * twice.
+ *
+ * Not derived from plugin capabilities: `uiSurfaces` says the PLUGIN produces frontend surfaces,
+ * which is true of every `.ts` file the TypeScript plugin owns. This is the narrower fact that a
+ * FILE carries a component because of what it is named.
+ */
+const SFC_EXTENSIONS_RE = /\.(vue|svelte)$/i;
+export const UI_COMPONENT_EXTENSIONS_RE = /\.(tsx|jsx|vue|svelte)$/i;
+
+const UI_NAME_RE = UI_COMPONENT_EXTENSIONS_RE;
+const SFC_NAME_RE = SFC_EXTENSIONS_RE;
 
 function pathHasToken(filePath: string, tokens: string[]): boolean {
   const lower = filePath.toLowerCase();

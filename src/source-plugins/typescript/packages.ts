@@ -3,9 +3,8 @@ import * as fs from 'node:fs';
 import type { PackageInfo } from '@repovine/plugin-sdk';
 import { readDirSorted } from '../../fs/read-dir-sorted.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
-
-const DISCOVER_SKIP =
-  /\/(node_modules|\.git|dist|dist-bundled|target|build|out|coverage|\.next|__tests__|__mocks__|__snapshots__|\.cache|test|tests|e2e|cypress|playwright)(\/|$)/;
+import { repoRelativePosix } from '../../platform/paths.js';
+import { shouldWalkDiscoveryDir } from '../../scan-filters.js';
 
 export function discoverPackages(repoRoot: string): PackageInfo[] {
   const tsconfigDirs = findAllTsconfigDirs(repoRoot);
@@ -15,8 +14,8 @@ export function discoverPackages(repoRoot: string): PackageInfo[] {
   for (const dir of tsconfigDirs) {
     // POSIX form: pkg.path is persisted identity and is minted into
     // module ids; path.normalize would keep win32 backslashes.
-    const relPath = path.relative(repoRoot, dir);
-    const normalized = (relPath || '.').split(path.sep).join('/');
+    // `'.'` names the repository root itself; the empty relative path is not a package path.
+    const normalized = repoRelativePosix(repoRoot, dir) || '.';
     if (seen.has(normalized)) continue;
     seen.add(normalized);
 
@@ -33,8 +32,8 @@ function findAllTsconfigDirs(repoRoot: string): string[] {
     // Match skip segments relative to the scanned root only. Absolute paths may
     // contain "/test/" in parent dirs (e.g. repovine/test/fixtures/*) while the
     // fixture itself is the repo root and must still be discovered.
-    const rel = path.relative(repoRoot, dir);
-    if (rel && DISCOVER_SKIP.test(`/${rel.split(path.sep).join('/')}/`)) return;
+    const rel = repoRelativePosix(repoRoot, dir);
+    if (rel && !shouldWalkDiscoveryDir(rel)) return;
     const tsconfigPath = path.join(dir, 'tsconfig.json');
     if (fs.existsSync(tsconfigPath)) {
       result.push(dir);
@@ -48,7 +47,6 @@ function findAllTsconfigDirs(repoRoot: string): string[] {
     }
     for (const e of entries) {
       if (!e.isDirectory()) continue;
-      if (e.name === 'node_modules' || e.name === '.git' || e.name === 'dist' || e.name === 'target' || e.name === 'build' || e.name === 'out' || e.name === 'coverage' || e.name === '.cache' || e.name === 'test') continue;
       walk(path.join(dir, e.name));
     }
   }

@@ -1,23 +1,11 @@
 import type { InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
 import { addEdge, hasEdge, nodesOfType } from '../graph/index.js';
-import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
+import { k8sNamespacePrefix, makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 import { normalizeLinkingConfig } from '../stage1/linking-config.js';
-
-function normalizeRelPath(value: string): string {
-  const out: string[] = [];
-  for (const segment of value.replace(/\\/g, '/').replace(/\/+/g, '/').split('/')) {
-    if (!segment || segment === '.') continue;
-    if (segment === '..') {
-      out.pop();
-      continue;
-    }
-    out.push(segment);
-  }
-  return out.join('/');
-}
+import { pathMatchKey, resolveRelPath, toPosixPath } from '../platform/paths.js';
 
 function dirnameRelPath(relPath: string): string {
-  const normalized = normalizeRelPath(relPath);
+  const normalized = resolveRelPath(relPath);
   const idx = normalized.lastIndexOf('/');
   return idx >= 0 ? normalized.slice(0, idx) : '';
 }
@@ -36,26 +24,26 @@ export function resolveArtifactRoot(
   if (codeUri) return codeUri;
   const filename = attributes.filename;
   if (!filename) return undefined;
-  const raw = filename.replace(/\\/g, '/');
+  const raw = toPosixPath(filename);
   if (/^[a-z]+:\/\//i.test(raw)) return undefined;
   const templateDir = infraRelPath ? dirnameRelPath(infraRelPath) : '';
   const joined = raw.startsWith('../') || raw.startsWith('./')
-    ? normalizeRelPath(templateDir ? `${templateDir}/${raw}` : raw)
-    : normalizeRelPath(raw);
+    ? resolveRelPath(templateDir ? `${templateDir}/${raw}` : raw)
+    : resolveRelPath(raw);
   const withoutArchive = joined.replace(/\.(zip|jar|war)$/i, '');
   return dirnameRelPath(withoutArchive) || withoutArchive;
 }
 
 function resolveCodeUriRoot(codeUri: string | undefined, infraRelPath: string | undefined): string | undefined {
   if (!codeUri) return undefined;
-  const raw = codeUri.replace(/\\/g, '/').replace(/\/+$|^\.\/$/g, '');
+  const raw = toPosixPath(codeUri).replace(/\/+$|^\.\/$/g, '');
   if (/^[a-z]+:\/\//i.test(raw)) return undefined;
   const templateDir = infraRelPath ? dirnameRelPath(infraRelPath) : '';
   if (!raw || raw === '.') return templateDir || undefined;
   if (raw.startsWith('./') || raw.startsWith('../')) {
-    return normalizeRelPath(templateDir ? `${templateDir}/${raw}` : raw);
+    return resolveRelPath(templateDir ? `${templateDir}/${raw}` : raw);
   }
-  return normalizeRelPath(raw);
+  return resolveRelPath(raw);
 }
 
 export function runtimeEntrySearchRoots(
@@ -70,10 +58,10 @@ export function runtimeEntrySearchRoots(
   roots.push(...linking.handlers.searchRoots);
   for (const pkg of snapshot.packages) {
     roots.push(pkg.path);
-    roots.push(normalizeRelPath(`${pkg.path}/src`));
+    roots.push(resolveRelPath(`${pkg.path}/src`));
   }
   roots.push('');
-  return uniqueStrings(roots.map(normalizeRelPath));
+  return uniqueStrings(roots.map(resolveRelPath));
 }
 
 function imagePathTokens(image: string): string[] {
@@ -94,7 +82,7 @@ function imagePathTokens(image: string): string[] {
 }
 
 function dockerfilePathTokens(relPath: string): string[] {
-  const normalized = relPath.replace(/\\/g, '/').toLowerCase();
+  const normalized = pathMatchKey(relPath);
   const tokens = new Set<string>();
   const dir = dirnameRelPath(normalized);
   if (dir) {
@@ -148,7 +136,7 @@ function resolveDockerfileModuleId(
       if (serviceLower && token.length >= 3 && serviceLower.includes(token)) score += 5;
     }
     for (const root of dockerfileRoots) {
-      const norm = root.replace(/\\/g, '/').toLowerCase();
+      const norm = pathMatchKey(root);
       if (norm && rel.startsWith(norm)) score += 3;
     }
     if (!best || score > best.score) best = { id: dockerfileId, score };
@@ -186,7 +174,7 @@ function findK8sIngressBackendServiceId(
 ): string | undefined {
   const serviceSet = nodesOfType(graph, 'runtime-resource');
   if (serviceSet.length === 0) return undefined;
-  const namespacePrefix = `resource:k8s:${namespace ?? '_'}/`;
+  const namespacePrefix = k8sNamespacePrefix(namespace);
   let untypedServiceId: string | undefined;
   for (const id of serviceSet) {
     const node = graph.nodes.get(id);

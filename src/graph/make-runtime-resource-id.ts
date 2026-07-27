@@ -12,9 +12,18 @@ export function makeRuntimeResourceId(res: InfraResource): string {
     if (res.kind === 'bucket') return `resource:aws-s3:${base}`;
   }
   if (res.provider === 'k8s') {
-    const namespace = res.attributes.namespace ?? '_';
     const originalKind = res.attributes.kind ?? res.kind;
-    return `resource:k8s:${namespace}/${originalKind}/${base}`;
+    return `${k8sNamespacePrefix(res.attributes.namespace)}${originalKind}/${base}`;
   }
   return `resource:${res.provider}:${base}`;
+}
+
+/**
+ * The id prefix every k8s runtime-resource in a namespace shares.
+ *
+ * Exported so a caller filtering by namespace builds the prefix from the minter rather than
+ * spelling it again — including the `_` stand-in for a resource whose manifest names no namespace.
+ */
+export function k8sNamespacePrefix(namespace: string | undefined): string {
+  return `resource:k8s:${namespace ?? '_'}/`;
 }

@@ -17,7 +17,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 import { spawnSync } from 'node:child_process';
 import { isPathInsideRepo } from '../fs/containment.js';
 
@@ -224,7 +224,7 @@ export function loadProjectRoleSource(
       scope,
       briefPath,
       brief: briefRead.content,
-      hash: createHash('sha256').update(briefRead.content, 'utf-8').digest('hex'),
+      hash: sha256Hex(briefRead.content, HASH_WIDTH.full),
       advisories,
     });
   }

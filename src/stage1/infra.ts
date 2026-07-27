@@ -1,8 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
 import yaml from 'js-yaml';
 import type { IaCDocFormat, InfraModuleInfo, PackageInfo } from '../types.js';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { toPosixPath } from '../platform/paths.js';
 import { CLOUDFORMATION_SAFE_SCHEMA } from './iac/yaml-schema.js';
 // Side-effect import: registers all built-in IaC parsers in the shared registry.
 import './iac/bootstrap.js';
@@ -13,8 +14,9 @@ import {
   pickDocFormatForFile,
 } from './iac/registry.js';
 import type { CompiledScanPatterns } from '../scan-filters.js';
-import { shouldScanInfraPath } from '../scan-filters.js';
+import { shouldScanInfraPath, shouldWalkDiscoveryDir } from '../scan-filters.js';
 import { readDirSorted } from '../fs/read-dir-sorted.js';
+import { infraNodeId } from '../graph/node-ids.js';
 
 export interface InfraScanOptions {
   repoRoot: string;
@@ -24,13 +26,6 @@ export interface InfraScanOptions {
   /** Compiled `scan.include` / `scan.exclude` from repovine.config.json. */
   scanPatterns?: CompiledScanPatterns;
 }
-
-/** Dir names to skip when scanning for infra files (build artifacts, deps, etc.). */
-const INFRA_SCAN_SKIP_DIRS = new Set([
-  'node_modules', '.git', '.repovine', '.aws-sam', 'dist', 'dist-bundled', '.next', '__tests__', '__mocks__',
-  'test', 'tests', 'e2e', 'cypress', 'playwright', '__e2e__', '__snapshots__',
-  'coverage', '.cache', 'build', '.turbo', '.nx',
-]);
 
 /**
  * Recursively discover candidate infra files under dir, relative to repoRoot.
@@ -48,7 +43,7 @@ function discoverInfraFiles(repoRoot: string, dir: string, out: { filePath: stri
     const full = path.join(dir, e.name);
     const rel = path.relative(repoRoot, full);
     if (e.isDirectory()) {
-      if (INFRA_SCAN_SKIP_DIRS.has(e.name)) continue;
+      if (!shouldWalkDiscoveryDir(toPosixPath(rel))) continue;
       discoverInfraFiles(repoRoot, full, out);
       continue;
     }
@@ -56,7 +51,7 @@ function discoverInfraFiles(repoRoot: string, dir: string, out: { filePath: stri
     const ext = path.extname(e.name).toLowerCase();
     const base = e.name;
     if (!isInfraCandidate(base, ext)) continue;
-    out.push({ filePath: full, relPath: path.normalize(rel).replace(/\\/g, '/') });
+    out.push({ filePath: full, relPath: toPosixPath(path.normalize(rel)) });
   }
 }
 
@@ -81,7 +76,7 @@ function mergeInfraModule(
  * Empty sentinel when unreadable so a later run re-reads. */
 function infraFileContentHash(filePath: string): string {
   try {
-    return createHash('sha256').update(fs.readFileSync(filePath, 'utf8')).digest('hex').slice(0, 16);
+    return sha256Hex(fs.readFileSync(filePath, 'utf8'), HASH_WIDTH.content);
   } catch {
     return '';
   }
@@ -145,7 +140,7 @@ export function collectInfraModules(options: InfraScanOptions): InfraModuleInfo[
         if (delta) {
           // Stamp all mechanical/agnostic fields here; the parser supplied only infra semantics.
           mergeInfraModule(infraModules, modulesById, {
-            id: `infra:${delta.kind}:${relPath}`,
+            id: infraNodeId(delta.kind, relPath),
             kind: delta.kind,
             filePath,
             relativeFilePath: relPath,

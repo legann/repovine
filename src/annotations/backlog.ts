@@ -31,7 +31,7 @@ import {
 } from './content-hash.js';
 import { getParentInfraModuleId } from './service-resource-hash.js';
 import { domainLabelFromId, domainNodeId } from '../graph/node-ids.js';
-import { domainLabel, domainMembers, importerCount, isPackageOnlyDomain, nodeLabel, nodesOfType, taggedDomains } from '../graph/index.js';
+import { domainLabel, domainMembers, importerCount, isPackageOnlyDomain, moduleLabelOf, nodeLabel, nodesOfType, taggedDomains } from '../graph/index.js';
 import { computeEntrypointBoundedDerived, getImportBaselineStaleUpstream } from './propagation.js';
 import { inferModuleKind, recommendedFieldsForKind, type ModuleKind } from './module-kind.js';
 import { computeAnnotationQuality } from './quality.js';
@@ -579,7 +579,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
 
         return {
           nodeId: mod.id,
-          label: graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath,
+          label: moduleLabelOf(graph, mod),
           status,
           ...(staleKind ? { staleKind } : {}),
           domains,
@@ -721,7 +721,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
       },
       hydrate: () => ({
         nodeId: infraMod.id,
-        label: graph.nodes.get(infraMod.id)?.label ?? infraMod.relativeFilePath,
+        label: moduleLabelOf(graph, infraMod),
         status,
         ...(infraStaleKind ? { staleKind: infraStaleKind } : {}),
         domains,

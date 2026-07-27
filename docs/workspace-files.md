@@ -166,7 +166,10 @@ Each `include` / `exclude` entry is either:
 | `source` | TypeScript/Python/SFC discovery only | Source plugins |
 | `infra` | IaC files only (SAM, K8s, Helm, Terraform, Compose, Dockerfile, …) | Infra scan |
 
-**Precedence:** `include` wins over `exclude` for the same path. Engine always skips `.repovine/` and common build/test trees (`node_modules`, `dist`, `test`, …) regardless of config.
+**Precedence:** `include` wins over `exclude` for the same path. Engine always skips `.repovine/`, dependency
+and build-output trees (`node_modules`, `dist`, `build`, `out`, `target`, `coverage`, `.venv`, `.aws-sam`, …)
+and test trees (`test`, `tests`, `__tests__`, `e2e`, `cypress`, …) regardless of config. Discovery prunes at the
+directory, so a package manifest inside one of those trees mints no package node either.
 
 **Example — exclude a folder but keep one file; infra-only skip:**
 

@@ -7,7 +7,7 @@ import { isNodeModulesPath, resolveSpecifierFromMap, type PathsContext } from '.
 import { collectExports } from './exports.js';
 import { collectSemanticHints } from './semantic-hints.js';
 import { extractTypeScriptFromSfc } from './sfc-extractor.js';
-import * as path from 'node:path';
+import { toPosixPath } from '../../platform/paths.js';
 
 export interface ExtractPackageInput {
   pkg: PackageInfo;
@@ -128,7 +128,7 @@ function extractModuleDelta(
     ...(reExports.length > 0 ? { reExports } : {}),
     ...(moduleCalls.names.length > 0 ? { calls: moduleCalls.names } : {}),
     ...(moduleCalls.total > moduleCalls.names.length ? { callsTotal: moduleCalls.total } : {}),
-    semanticHints: collectSemanticHints(sf, pending.relPath.split(path.sep).join('/')),
+    semanticHints: collectSemanticHints(sf, toPosixPath(pending.relPath)),
   };
 }
 

@@ -403,11 +403,9 @@ describe('core-laws graph traversal (one question, one implementation)', () => {
      * were found by this guard on the day it was added, and every one of them predates it.
      */
     const ALLOWED: Array<{ names: string[]; why: string }> = [
-      // Paths, labels and the hash recipe — the class the next stage removes.
-      { names: ['normalizeRelPath', 'normalizeRelPath'], why: 'four spellings of a repo-relative path with three behaviours' },
-      { names: ['kebabSlug', 'slug'], why: 'the kebab chain: one copy mints a domain label the other rejects as empty' },
-      { names: ['pathToSlug', 'slug'], why: 'the same chain across two source plugins' },
-      { names: ['contentHash', 'fingerprint'], why: 'sha256 -> hex -> slice written inline where no named recipe exists' },
+      // Path spellings, the kebab chain, and the hash recipe are gone: one `repoRelativePosix`,
+      // one `domainSlug`, one `sha256Hex`. The one pair left on this axis answers two questions.
+      { names: ['pathToSlug', 'slug'], why: 'package name of a manifest-less directory, per source plugin: the two ecosystems agree today and each owns its own naming rules' },
       // Asset rendering: one projection written twice, no stage owns it yet.
       { names: ['replaceMarkedAgentsMdSection', 'replaceMarkedSection'], why: 'managed-block replacement written once per renderer' },
       { names: ['looksLikeRepoContextAgentsMd', 'looksLikeRepoContextAgentsMd'], why: 'same predicate in two renderers' },

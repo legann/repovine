@@ -25,18 +25,31 @@ export function pathPrefixLength(pkgPath: string, relFromRoot: string): number {
   return 0;
 }
 
-const MODULE_PATH_EXT_PRIORITY = ['ts', 'tsx', 'd.ts', 'js', 'jsx', 'mjs', 'cjs'];
+/**
+ * Extension preference when several discovered files collapse to one module id, best first.
+ *
+ * The order is the fact; the pattern that reads a path is built from this list rather than written
+ * beside it. Written twice, the two drifted the moment an extension was added: the list learned
+ * `.mts`/`.cts` and the pattern did not, so every `.mts` path scored the no-match sentinel and lost
+ * a collision to the index form the doc promises it beats.
+ */
+const MODULE_PATH_EXT_PRIORITY = ['ts', 'tsx', 'mts', 'cts', 'd.ts', 'js', 'jsx', 'mjs', 'cjs'];
+
+const MODULE_PATH_EXT_RE = new RegExp(
+  `(/index)?\\.(${MODULE_PATH_EXT_PRIORITY.map(ext => ext.replace(/\./g, '\\.')).join('|')})$`,
+  'i',
+);
 
 /**
  * Lower score wins. Mirrors TypeScript's resolver priority:
  * - file form (`foo.ts`) beats index form (`foo/index.ts`)
- * - within a form, extension order is `.ts > .tsx > .d.ts > .js > .jsx > .mjs > .cjs`
+ * - within a form, extension order is {@link MODULE_PATH_EXT_PRIORITY}
  *
  * Used to deterministically pick a single owner when multiple discovered files would
  * collapse to the same moduleId (`./foo` could mean `foo.ts` or `foo/index.ts`).
  */
 export function modulePathResolverPriority(filePath: string): number {
-  const match = filePath.match(/(\/index)?\.(d\.ts|tsx?|jsx?|mjs|cjs)$/i);
+  const match = filePath.match(MODULE_PATH_EXT_RE);
   if (!match) return 9999;
   const isIndex = match[1] === '/index';
   const ext = match[2].toLowerCase();

@@ -7,14 +7,16 @@
  */
 
 import type { RepositoryGraph, ModuleInfo, StoredAnnotation, GraphEdge } from '../../types.js';
-import { domainLabelFromId, domainNodeId } from '../../graph/node-ids.js';
+import { domainLabelFromId, domainNodeId, packageNodeId } from '../../graph/node-ids.js';
 import { isNodeType } from '../../graph/index.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { serializeSideEffect } from '../../annotations/side-effect-vocab.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
 // registry which extensions to strip, so a responsibility key never carries one.
 import '../../stage1/source/bootstrap.js';
-import { getSourceIndexBasenames, stripSourceExtension } from '../../stage1/source/registry.js';
+import { getKnownExtensions, getSourceIndexBasenames, stripSourceExtension } from '../../stage1/source/registry.js';
+import { pathMatchKey, toPosixPath } from '../../platform/paths.js';
+import { UI_COMPONENT_EXTENSIONS_RE } from '../../annotations/module-kind.js';
 
 /**
  * JS-family module extensions written once: `.ts/.tsx/.js/.jsx` plus the `.mjs/.cjs/.mts/.cts`
@@ -22,15 +24,38 @@ import { getSourceIndexBasenames, stripSourceExtension } from '../../stage1/sour
  * (`users.repository.ts`), where the extension is the signal — the alternation must cover the
  * whole family or half of it classifies differently from the other half.
  */
-const JS_EXT = '(?:[mc]?[jt]sx?)';
-const CLIENT_SUFFIX_RE = new RegExp(`\\b\\w+-client\\.${JS_EXT}$`);
-const SERVICE_SUFFIX_RE = new RegExp(`\\b(api|service|client|repository|repo|storage)\\.${JS_EXT}$`);
-const APP_ROUTE_FILE_RE = new RegExp(`(^|/)app/.+/(page|route|layout)\\.${JS_EXT}$`);
-const FEATURE_ENTRY_FILE_RE = new RegExp(`(^|/)features/[^/]+/(index|page|route|screen|view)\\.${JS_EXT}$`);
-const GENERIC_CLIENT_FILE_RE = new RegExp(`(^|/)(api-client|http-client|env|environment)\\.${JS_EXT}$`);
-const BARREL_FILE_RE = new RegExp(`^(index|public-api)\\.${JS_EXT}$`);
-const STORAGE_SUFFIX_RE = new RegExp(`(repository|repo|storage|db)\\.${JS_EXT}$`);
-const STATE_SUFFIX_RE = new RegExp(`(store|state|slice|atom|signal)\\.${JS_EXT}$`);
+// The extension alternation is built from what the registered plugins declare, so a vocabulary
+// pattern here can never name a narrower family than discovery accepts: `users.service.py` reads
+// as a service for the same reason `users.service.ts` does. Module-level evaluation is safe — the
+// bootstrap side-effect import above registers every built-in plugin first.
+/**
+ * The registered source extensions as a regexp alternation, so a vocabulary pattern here can never
+ * name a narrower family than discovery accepts: `users.service.py` reads as a service for the same
+ * reason `users.service.ts` does. Read on first use rather than at module load, so a plugin
+ * registered after import widens it.
+ */
+export function sourceExtAlternation(): string {
+  return `(?:${getKnownExtensions().map(ext => ext.slice(1)).join('|')})`;
+}
+const SOURCE_EXT = sourceExtAlternation();
+const CLIENT_SUFFIX_RE = new RegExp(`\\b\\w+-client\\.${SOURCE_EXT}$`);
+const SERVICE_SUFFIX_RE = new RegExp(`\\b(api|service|client|repository|repo|storage)\\.${SOURCE_EXT}$`);
+const APP_ROUTE_FILE_RE = new RegExp(`(^|/)app/.+/(page|route|layout)\\.${SOURCE_EXT}$`);
+const FEATURE_ENTRY_FILE_RE = new RegExp(`(^|/)features/[^/]+/(index|page|route|screen|view)\\.${SOURCE_EXT}$`);
+const GENERIC_CLIENT_FILE_RE = new RegExp(`(^|/)(api-client|http-client|env|environment)\\.${SOURCE_EXT}$`);
+const BARREL_FILE_RE = new RegExp(`^(index|public-api)\\.${SOURCE_EXT}$`);
+const STORAGE_SUFFIX_RE = new RegExp(`(repository|repo|storage|db)\\.${SOURCE_EXT}$`);
+
+/**
+ * A file whose name says it is storage (`orders.repository.ts`, `users.db.py`).
+ *
+ * Exported because the security gate in `detectors.ts` asks the same question and used to ask it of
+ * a narrower extension list — `.cjs` read as storage-like here and not there.
+ */
+export function isStorageNamedSourceFile(relativeFilePath: string): boolean {
+  return STORAGE_SUFFIX_RE.test(relativeFilePath);
+}
+const STATE_SUFFIX_RE = new RegExp(`(store|state|slice|atom|signal)\\.${SOURCE_EXT}$`);
 
 /**
  * True for an `imports` edge that represents runtime coupling — i.e. not a build-erased
@@ -64,10 +89,6 @@ const BACKEND_PACKAGE_RE = /@backend\b|^backend$|(?:^|[-/])(?:backend|server|bff
 const FRONTEND_PACKAGE_RE = /@frontend\b|^frontend$|(?:^|[-/])(?:frontend|web|client-ui)(?:$|[-/])/;
 const BACKEND_PATH_RE = /(^|\/)(server|servers|backend|bff|api|lambda|lambdas|functions)(\/|$)/;
 
-function normalizeRelPath(mod: ModuleInfo): string {
-  return mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
-}
-
 function pathHasToken(filePath: string, tokens: readonly string[]): boolean {
   const lower = filePath.toLowerCase();
   return tokens.some(t => lower.includes(t));
@@ -84,7 +105,7 @@ export function isFrontendPackageName(packageName: string): boolean {
 /** True when the module lives in a server/BFF context (package, path, or use server). */
 export function isBackendContext(mod: ModuleInfo): boolean {
   if (mod.semanticHints?.ssr?.useServer) return true;
-  return isBackendPackageName(mod.packageName) || BACKEND_PATH_RE.test(normalizeRelPath(mod));
+  return isBackendPackageName(mod.packageName) || BACKEND_PATH_RE.test(pathMatchKey(mod.relativeFilePath));
 }
 
 /** HTTP/Lambda entry signals used by inferModuleKind and architecture boundary checks. */
@@ -108,7 +129,7 @@ export function isFrontendSurfaceModule(mod: ModuleInfo): boolean {
     return false;
   }
 
-  const rel = normalizeRelPath(mod);
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (mod.semanticHints?.ssr?.useClient) return true;
   if (/\b(client|api|sdk|graphql|http|rest|rpc)-client\b/.test(rel) || CLIENT_SUFFIX_RE.test(rel)) {
     return false;
@@ -118,12 +139,12 @@ export function isFrontendSurfaceModule(mod: ModuleInfo): boolean {
   }
   if (/(^|\/)(app|pages|routes|views|screens|components|features)(\/|$)/.test(rel)) return true;
   if (/(^|\/)(frontend|web|client-ui|ui)(\/|$)/.test(rel)) return true;
-  return /\.(tsx|jsx|vue|svelte)$/.test(rel) && !BACKEND_PATH_RE.test(rel);
+  return UI_COMPONENT_EXTENSIONS_RE.test(rel) && !BACKEND_PATH_RE.test(rel);
 }
 
 export function isUiCouplingSourceModule(mod: ModuleInfo): boolean {
   if (!isFrontendSurfaceModule(mod)) return false;
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (isBuildOrToolingModule(rel) || isPureTypesModule(mod)) return false;
   if (/(^|\/)features\/[^/]+\/(domain|domains|application|services?|api|data|repositories?|infrastructure|infra|stores?)(\/|$)/.test(rel)) return false;
   if (/(^|\/)(domain|domains|application|services?|api|server|backend|lambda|functions|repositories?|infrastructure|infra)(\/|$)/.test(rel)) return false;
@@ -131,12 +152,12 @@ export function isUiCouplingSourceModule(mod: ModuleInfo): boolean {
   if (SERVICE_SUFFIX_RE.test(rel)) return false;
   return /(^|\/)(app|pages|routes|views|screens|components|contexts?|providers?|hooks?|layouts?|platform)(\/|$)/.test(rel)
     || mod.exports.some(exp => exp.kind !== 'type' && exp.kind !== 'interface' && /^(use[A-Z]|[A-Z])/.test(exp.name))
-    || /\.(tsx|jsx|vue|svelte)$/.test(rel)
+    || UI_COMPONENT_EXTENSIONS_RE.test(rel)
     || mod.semanticHints?.ssr?.useClient === true;
 }
 
 export function isDesignSystemPrimitive(mod: ModuleInfo): boolean {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (/(^|\/)features\/[^/]+\//.test(rel)) return false;
   if (!/(^|\/)(components|ui|design-system|primitives)(\/|$)/.test(rel)) return false;
   // Count each export at most once: a name can match both the component predicate (starts uppercase)
@@ -151,17 +172,17 @@ export function isDesignSystemPrimitive(mod: ModuleInfo): boolean {
 }
 
 export function isRouteOrScreenEntryModule(mod: ModuleInfo): boolean {
-  if (isBuildOrToolingModule(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase())) return false;
+  if (isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) return false;
   if (!isFrontendSurfaceModule(mod)) return false;
   if (mod.semanticHints?.hasRoutes || mod.semanticHints?.routes?.length) return true;
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (/(^|\/)(pages|routes|views|screens)(\/|$)/.test(rel)) return true;
   if (APP_ROUTE_FILE_RE.test(rel)) return true;
   return FEATURE_ENTRY_FILE_RE.test(rel);
 }
 
 export function isComponentLikeFlowEntryModule(mod: ModuleInfo): boolean {
-  if (isBuildOrToolingModule(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase())) return false;
+  if (isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) return false;
   if (!isFrontendSurfaceModule(mod)) return false;
   if (isDesignSystemPrimitive(mod)) return false;
   return mod.exports.some(e => e.kind === 'component' || /^[A-Z]/.test(e.name));
@@ -172,41 +193,42 @@ export function isFrontendFlowEntryModule(mod: ModuleInfo, includeComponentEntry
 }
 
 export function isConvergenceTargetModule(mod: ModuleInfo, entryPackages: Set<string>): boolean {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (isBuildOrToolingModule(rel) || isDesignSystemPrimitive(mod)) return false;
-  const pkgId = `pkg:${mod.packageName}`;
+  const pkgId = packageNodeId(mod.packageName);
   if (!entryPackages.has(pkgId)) return true;
   return /(^|\/)(shared|domain|domains|model|models|validation|validators|rules|policy|policies|schema|schemas|store|stores|services|utils|lib)(\/|$)/.test(rel)
     || /(rules?|policy|validator|validation|mapper|mapping|normaliz|transform|schema|model|store|service|repository|repo|adapter)/.test(rel);
 }
 
 export function convergenceTargetGroupKey(mod: ModuleInfo): string {
-  const rel = stripSourceExtension(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase());
+  const rel = stripSourceExtension(pathMatchKey(mod.relativeFilePath));
   const sharedMatch = rel.match(/^(.*?\/)?(shared|lib)\/(store|stores|config|constants)\/(.+)$/);
   if (sharedMatch) {
     const tail = sharedMatch[4].split('/');
     const parent = tail.length > 1 ? tail[0] : '*';
-    return `pkg:${mod.packageName}:${sharedMatch[2]}/${sharedMatch[3]}/${parent}/*`;
+    // A grouping key, not a node id — but the package half of it is minted, not spelled.
+    return `${packageNodeId(mod.packageName)}:${sharedMatch[2]}/${sharedMatch[3]}/${parent}/*`;
   }
   return mod.id;
 }
 
 export function isGenericConvergenceTarget(mod: ModuleInfo): boolean {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   return /(^|\/)(shared|lib)\/(config|constants|store|stores)(\/|$)/.test(rel)
     || /(^|\/)(config|constants|store|stores)\/(index|types?|slices?)(\.[^.]+)?$/.test(rel)
     || GENERIC_CLIENT_FILE_RE.test(rel);
 }
 
 export function isStaticPageLikeModule(mod: ModuleInfo): boolean {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   const file = rel.split('/').pop() ?? rel;
   return /(^|\/)(pages|routes|views|screens)\//.test(rel)
     && /(landing|legal|privacy|pricing|terms|how-to|shell|stub|last-updated|public)/.test(file);
 }
 
 export function isPureTypesModule(mod: ModuleInfo): boolean {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (!/(^|\/)(types?|models?|interfaces?)(\.[^.]+)?$/.test(rel.split('/').pop() ?? rel)) return false;
   if (/(schema|validator|validation|rules?|policy|permission|authz|access)/.test(rel)) return false;
   return mod.exports.length > 0 && mod.exports.every(exp =>
@@ -216,7 +238,7 @@ export function isPureTypesModule(mod: ModuleInfo): boolean {
 }
 
 export function isBarrelLikeModule(mod: ModuleInfo): boolean {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   const file = rel.split('/').pop() ?? rel;
   if (!BARREL_FILE_RE.test(file)) return false;
   return mod.exports.length === 0 || mod.exports.every(exp => exp.lineRange.end - exp.lineRange.start <= 1);
@@ -225,7 +247,7 @@ export function isBarrelLikeModule(mod: ModuleInfo): boolean {
 export type CoupledTargetRole = 'domain' | 'api' | 'storage' | 'server' | 'state' | 'feature';
 
 export function coupledTargetRole(mod: ModuleInfo): CoupledTargetRole | undefined {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (/(^|\/)(server|servers|backend|lambda|lambdas|functions)(\/|$)/.test(rel)) return 'server';
   if (/(^|\/)(api|apis|graphql|trpc|rpc|rest)(\/|$)/.test(rel) || /(?:api|graphql|trpc|rpc|rest)[-.](client|service)\./.test(rel)) return 'api';
   if (/(^|\/)(storage|db|database|repositories?|repository|persistence)(\/|$)/.test(rel) || STORAGE_SUFFIX_RE.test(rel)) return 'storage';
@@ -243,7 +265,7 @@ export function uiCouplingTargetRole(mod: ModuleInfo): Exclude<CoupledTargetRole
 export function isFrontendServiceWrapperCandidate(mod: ModuleInfo): boolean {
   const hint = mod.semanticHints?.ui?.serviceWrapper;
   if (!hint?.candidate) return false;
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (isBuildOrToolingModule(rel) || isPureTypesModule(mod) || isBarrelLikeModule(mod)) return false;
   if (/(^|\/)(types?|interfaces?|models?)(\/|$)/.test(rel)) return false;
   const exportCount = mod.exports.filter(exp => exp.name !== 'default').length || mod.exports.length;
@@ -268,7 +290,7 @@ export function frontendDataAccessTargetKey(target: string | undefined): string 
 // ── Key/path normalization ──
 
 export function normalizeResponsibilityKey(labelOrPath: string): string {
-  const basename = labelOrPath.replace(/\\/g, '/').split('/').pop();
+  const basename = toPosixPath(labelOrPath).split('/').pop();
   // The key reaches the agent inside a finding id and title. Stripping through the source-plugin
   // registry keeps `__init__.py` and `index.ts` reducing the same way, so a duplicate-responsibility
   // finding is never named after a file extension or after a package marker.
@@ -315,7 +337,7 @@ export function rootDomainId(graph: RepositoryGraph, domainId: string): string {
 }
 
 export function frontendFeatureKey(mod: ModuleInfo): string | undefined {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   const featureMatch = rel.match(/(^|\/)features\/([^/]+)/);
   if (featureMatch) return `feature:${featureMatch[2]}`;
   const routeMatch = rel.match(/(^|\/)(pages|routes|views|screens)\/([^/.]+)/);
@@ -325,11 +347,11 @@ export function frontendFeatureKey(mod: ModuleInfo): string | undefined {
   const platformMatch = rel.match(/(^|\/)platform\/([^/]+)/);
   if (platformMatch) return `platform:${platformMatch[2]}`;
   if (/(^|\/)(shared|components|ui|lib)(\/|$)/.test(rel)) return undefined;
-  return `pkg:${mod.packageName}`;
+  return packageNodeId(mod.packageName);
 }
 
 export function stateModuleKind(mod: ModuleInfo): string | undefined {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   const exportNames = mod.exports.map(e => e.name).join(' ');
   if (/(^|\/)(contexts?|providers?)(\/|$)/.test(rel) || /Context|Provider/.test(exportNames)) return 'context';
   if (/(^|\/)(stores?|state)(\/|$)/.test(rel) || /store|Store|State/.test(exportNames)) return 'store';
@@ -367,7 +389,7 @@ export function annotationText(ann: StoredAnnotation | undefined): string {
 }
 
 export function policySubjectKey(mod: ModuleInfo): string {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   const exportText = exportedNamesText(mod);
   const feature = frontendFeatureKey(mod)?.replace(/^[^:]+:/, '') ?? '';
   const featureWords = feature
@@ -386,7 +408,7 @@ export function policySubjectKey(mod: ModuleInfo): string {
 }
 
 export function policyTokens(mod: ModuleInfo, ann?: StoredAnnotation): string[] {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if (isStaticPageLikeModule(mod) || isPureTypesModule(mod)) return [];
   const exportText = exportedNamesText(mod);
   const lowerExportText = exportText.toLowerCase();
@@ -467,7 +489,7 @@ export function findFlowPaths(
       if (!scopedModuleIds.has(edge.to)) continue;
       const targetMod = modulesById.get(edge.to);
       if (!targetMod) continue;
-      if (isBuildOrToolingModule(targetMod.relativeFilePath.replace(/\\/g, '/').toLowerCase()) || isDesignSystemPrimitive(targetMod)) continue;
+      if (isBuildOrToolingModule(pathMatchKey(targetMod.relativeFilePath)) || isDesignSystemPrimitive(targetMod)) continue;
       const nextPath = [...current.path, edge.to];
       out.push({ targetId: edge.to, path: nextPath });
       const previousDepth = seenAtDepth.get(edge.to);

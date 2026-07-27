@@ -201,7 +201,7 @@
     {
       "id": "mod:myapp/src/myapp/api/health",
       "type": "module",
-      "label": "…/api/health.py",
+      "label": "…/api/health",
       "description": "Module src/myapp/api/health.py in myapp",
       "data": {
         "filePath": "<FIXTURE>/src/myapp/api/health.py",
@@ -212,7 +212,7 @@
     {
       "id": "mod:myapp/src/myapp/web/urls",
       "type": "module",
-      "label": "…/web/urls.py",
+      "label": "…/web/urls",
       "description": "Module src/myapp/web/urls.py in myapp",
       "data": {
         "filePath": "<FIXTURE>/src/myapp/web/urls.py",

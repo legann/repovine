@@ -1,5 +1,8 @@
 import type { McpToolRuntime } from '../../types.js';
-import { modulePackageId, nodesOfType } from '../../../graph/index.js';
+import { modulePackageId, nodesOfType, packageModuleIds } from '../../../graph/index.js';
+import { isBarrelModule, isBarrelRelPath, moduleDirPath, moduleRelPath } from '../../../graph/module-files.js';
+import { stripModuleIdSuffix } from '../../../stage1/source/registry.js';
+import { compareCodeUnits } from '../../../platform/ordering.js';
 import { paginateList } from '../../response/pagination.js';
 import { narrowTruncation, truncationMap } from '../../../response/truncation.js';
 
@@ -64,22 +67,21 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
     });
   }
 
-  const isIndexModule = (label: string): boolean =>
-    label.endsWith('/index') || label.endsWith('…/index');
+  const isBarrel = (moduleId: string): boolean => isBarrelModule(graph, moduleId);
 
   // Resolved barrel imports can produce both importer→barrel and synthetic importer→leaf edges.
   // The latter has no direct import symbols and must not double-count the same package boundary.
   for (const entry of edgeAgg.values()) {
     const importersWithBarrelEntry = new Set(
       entry.moduleEdges
-        .filter(edge => edge.symbols.length > 0 && isIndexModule(edge.toModule))
+        .filter(edge => edge.symbols.length > 0 && isBarrel(edge.toModuleId))
         .map(edge => edge.fromModuleId),
     );
     const deduped = new Map<string, ModuleBoundaryEdge>();
     for (const edge of entry.moduleEdges) {
       if (
         edge.barrelRedirected
-        && !isIndexModule(edge.toModule)
+        && !isBarrel(edge.toModuleId)
         && importersWithBarrelEntry.has(edge.fromModuleId)
       ) continue;
       const edgeKey = `${edge.fromModuleId}\0${edge.toModuleId}`;
@@ -118,30 +120,41 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
   type ViolationDetail = { fromModule: string; symbols: string[] };
   type ViolationGroup = {
     targetModule: string;
+    targetModuleId: string;
     targetPackage: string;
     importedBy: ViolationDetail[];
     allSymbols: Set<string>;
   };
   const groups = new Map<string, ViolationGroup>();
-  const moduleLabels = new Set(
-    nodesOfType(graph, 'module')
-      .map(id => graph.nodes.get(id)?.label)
-      .filter((label): label is string => typeof label === 'string'),
-  );
+  // Directories that hold a barrel, keyed by package: the violation is "this leaf was imported
+  // across a package boundary while a barrel sits next to it". Both halves are read from the
+  // modules' own file paths, so the answer does not change with how a label was spelled.
+  const barrelDirsByPackage = new Map<string, Set<string>>();
+  for (const modId of nodesOfType(graph, 'module')) {
+    if (!isBarrelModule(graph, modId)) continue;
+    const pkgId = pkgOfModule(modId);
+    const dir = moduleDirPath(graph, modId);
+    if (!pkgId || dir === undefined) continue;
+    let dirs = barrelDirsByPackage.get(pkgId);
+    if (!dirs) { dirs = new Set(); barrelDirsByPackage.set(pkgId, dirs); }
+    dirs.add(dir);
+  }
 
   for (const entry of edgeAgg.values()) {
     for (const me of entry.moduleEdges) {
       if (me.symbols.length === 0) continue;
       const toModLabel = me.toModule;
-      if (isIndexModule(toModLabel)) continue;
-      const indexLabel = toModLabel.replace(/\/[^/]+$/, '/index');
-      if (!moduleLabels.has(indexLabel)) continue;
+      if (isBarrel(me.toModuleId)) continue;
+      const targetDir = moduleDirPath(graph, me.toModuleId);
+      if (targetDir === undefined) continue;
+      if (!barrelDirsByPackage.get(entry.to)?.has(targetDir)) continue;
 
       const groupKey = `${entry.to}|${toModLabel}`;
       let group = groups.get(groupKey);
       if (!group) {
         group = {
           targetModule: toModLabel,
+          targetModuleId: me.toModuleId,
           targetPackage: entry.to,
           importedBy: [],
           allSymbols: new Set(),
@@ -153,40 +166,62 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
     }
   }
 
-  const packageIndexPath = (pkgId: string): string | undefined => {
+  /**
+   * The package's public entry file: its shallowest barrel, package-relative path and all.
+   *
+   * Read from the modules' own file paths and the registry's index basenames, so a package whose
+   * entry is `src/index.mjs` or `pkg/__init__.py` answers as readily as one whose entry is
+   * `src/index.ts`. Returns both forms — the repo-relative one names the file to edit, the
+   * package-relative one is what the export specifier is measured from.
+   */
+  const packageEntryFile = (pkgId: string): { repoPath: string; pkgRelPath: string } | undefined => {
     const pkgNode = graph.nodes.get(pkgId);
-    if (!pkgNode || pkgNode.type !== 'package') return undefined;
-    const containedMods = (graph.outEdges.get(pkgId) ?? [])
-      .filter(e => e.kind === 'contains')
-      .map(e => e.to);
-    for (const modId of containedMods) {
-      const n = graph.nodes.get(modId);
-      if (n?.type === 'module') {
-        const relPath = n.data && 'relativeFilePath' in n.data ? (n.data as { relativeFilePath?: string }).relativeFilePath : undefined;
-        if (relPath && (relPath.endsWith('/index.ts') || relPath.endsWith('/index.tsx'))) {
-          if (relPath === 'src/index.ts' || relPath === 'src/index.tsx') {
-            const pkgPath = pkgNode.data && 'path' in pkgNode.data ? (pkgNode.data as { path?: string }).path : undefined;
-            return pkgPath ? `${pkgPath}/${relPath}` : relPath;
-          }
-        }
-      }
-    }
-    return undefined;
+    if (pkgNode?.type !== 'package') return undefined;
+    const barrels = packageModuleIds(graph, pkgId)
+      .map(modId => moduleRelPath(graph, modId))
+      .filter((rel): rel is string => rel !== undefined && isBarrelRelPath(rel))
+      .sort(compareCodeUnits);
+    if (barrels.length === 0) return undefined;
+    // The shallowest barrel is the package's public entry — but only when it is the ONLY one at
+    // that depth. `bin/index.ts` beside `src/index.ts` names two entries and no way to tell which
+    // is public, so the answer is a refusal and the violation carries no suggested fix. Guessing
+    // would put a ready-to-paste export into a file the package does not publish.
+    const depth = Math.min(...barrels.map(rel => rel.split('/').length));
+    const shallowest = barrels.filter(rel => rel.split('/').length === depth);
+    const pkgRelPath = shallowest.length === 1 ? shallowest[0] : undefined;
+    if (!pkgRelPath) return undefined;
+    const pkgPath = pkgNode.data?.path;
+    return { repoPath: pkgPath ? `${pkgPath}/${pkgRelPath}` : pkgRelPath, pkgRelPath };
   };
 
-  const relativeImportFromLabel = (label: string): string => {
-    const stripped = label.replace(/^…\//, '').replace(/^\.\.\.\//, '');
-    return './' + stripped;
+  /**
+   * The specifier the entry file would import the target by.
+   *
+   * Both ends are real package-relative paths. The previous form rebuilt this from the target's
+   * display label, which keeps at most two segments behind `…/`, so the suggestion named
+   * `./nested/thing` for a file at `src/deep/nested/thing.ts` — a module that is not there.
+   */
+  const relativeImportSpecifier = (fromPkgRelPath: string, targetModuleId: string): string | undefined => {
+    const targetRel = moduleRelPath(graph, targetModuleId);
+    if (targetRel === undefined) return undefined;
+    const fromDir = fromPkgRelPath.split('/').slice(0, -1);
+    const toParts = stripModuleIdSuffix(targetRel).split('/');
+    let shared = 0;
+    while (shared < fromDir.length && shared < toParts.length - 1 && fromDir[shared] === toParts[shared]) shared++;
+    const up = fromDir.length - shared;
+    const rest = toParts.slice(shared).join('/');
+    return up > 0 ? `${'../'.repeat(up)}${rest}` : `./${rest}`;
   };
 
   const boundaryViolations = [...groups.values()]
     .map(g => {
       const symbols = [...g.allSymbols].sort();
-      const exportPath = packageIndexPath(g.targetPackage);
-      const suggestedFix = exportPath && symbols.length > 0
+      const entryFile = packageEntryFile(g.targetPackage);
+      const specifier = entryFile && relativeImportSpecifier(entryFile.pkgRelPath, g.targetModuleId);
+      const suggestedFix = entryFile && specifier && symbols.length > 0
         ? {
-            exportLocation: exportPath,
-            exportStatement: `export { ${symbols.join(', ')} } from '${relativeImportFromLabel(g.targetModule)}';`,
+            exportLocation: entryFile.repoPath,
+            exportStatement: `export { ${symbols.join(', ')} } from '${specifier}';`,
             fixesViolations: g.importedBy.length,
           }
         : undefined;

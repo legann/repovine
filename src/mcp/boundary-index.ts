@@ -6,6 +6,7 @@ import { serializeKeyedRecordFile } from '../fs/keyed-json.js';
 import { normalizeRisks } from '../annotations/format.js';
 import { parentModuleId } from './scope/resolve.js';
 import type { RepovineState } from './types.js';
+import { repoRelativePosix } from '../platform/paths.js';
 
 /**
  * Build-emitted, path-keyed boundary index under `.repovine/`. The pre-edit boundary-notice hook
@@ -58,7 +59,7 @@ function boundaryRiskTexts(risks: Parameters<typeof normalizeRisks>[0]): string[
  * dir that owns `.repovine` and the root the hook resolves against.
  */
 function toRepoRel(repoRoot: string, absFilePath: string): string {
-  return path.relative(repoRoot, absFilePath).split(path.sep).join('/');
+  return repoRelativePosix(repoRoot, absFilePath);
 }
 
 /**

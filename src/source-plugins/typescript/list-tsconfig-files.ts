@@ -2,6 +2,9 @@ import ts from 'typescript';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { readDirSorted } from '../../fs/read-dir-sorted.js';
+import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
+import { shouldSkipRepoRelativePath } from './discover.js';
+import { repoRelativePosix } from '../../platform/paths.js';
 
 export interface ParsedPackageTsConfig {
   fileNames: string[];
@@ -16,11 +19,8 @@ const ENTRYPOINT_BASENAME_RE = /^(?:main|index|polyfills|server|app)\.(?:[cm]?[j
 
 const ENTRY_ONLY_FILE_THRESHOLD = 3;
 
-const SOURCE_WALK_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+const SOURCE_WALK_EXTENSIONS = new Set(TYPESCRIPT_SOURCE_EXTENSIONS);
 
-const SKIP_WALK_DIRS = new Set([
-  'node_modules', '.git', '.repovine', 'dist', 'dist-bundled', 'target', 'build', 'out', 'coverage', '.next',
-]);
 
 function parseConfigAt(absConfigPath: string, configDir: string): ParsedPackageTsConfig {
   const configFile = ts.readConfigFile(absConfigPath, ts.sys.readFile);
@@ -125,7 +125,7 @@ function walkSourceTree(srcDir: string): string[] {
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (SKIP_WALK_DIRS.has(entry.name)) continue;
+        if (shouldSkipRepoRelativePath(repoRelativePosix(srcDir, full))) continue;
         walk(full);
         continue;
       }

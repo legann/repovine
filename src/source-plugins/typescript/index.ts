@@ -8,6 +8,7 @@ import type {
 import { defineSourcePlugin, resolveDottedPathHandlerToModule } from '@repovine/plugin-sdk';
 import type { PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import { discoverTypeScript } from './discover.js';
+import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
 import { SFC_EXTENSIONS } from './sfc-extractor.js';
 import { loadExtractModule } from './lazy-extract.js';
 
@@ -20,7 +21,7 @@ import { loadExtractModule } from './lazy-extract.js';
  */
 
 /** Source extensions this plugin owns. */
-export const TYPESCRIPT_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
+export { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
 
 /** Opaque extractContext for this plugin: pre-parsed tsconfig compilerOptions per package name. */
 export type TypeScriptExtractContext = Map<string, ts.CompilerOptions>;

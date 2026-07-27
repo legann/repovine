@@ -50,6 +50,8 @@ function findEnginePackageRoot(startDir: string): string | undefined {
   return undefined;
 }
 
+// Streamed over a directory walk, so there is no string to hand `sha256Hex`; and one branch
+// answers with `dev:no-dist`, which is not a digest at all.
 function fingerprintDist(root: string): string {
   const distDir = path.join(root, 'dist');
   const h = crypto.createHash('sha256');

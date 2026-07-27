@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 import { ARTIFACTS_DIR_NAME } from '../paths.js';
 import { writeFileAtomicSync } from '../fs/atomic.js';
 import { serializeKeyedRecordFile } from '../fs/keyed-json.js';
@@ -37,7 +37,7 @@ export function carrierTargetRiskHash(content: AnnotationContent | undefined): s
     .filter((risk) => risk.scope === 'consumer')
     .map((risk) => risk.text)
     .sort();
-  return createHash('sha256').update(texts.join('\n')).digest('hex').slice(0, 16);
+  return sha256Hex(texts.join('\n'), HASH_WIDTH.content);
 }
 
 const EMPTY_CARRIER_REVIEW: CarrierReviewFile = { version: 1, reviewedTargets: {} };

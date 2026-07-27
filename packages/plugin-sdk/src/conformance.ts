@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import { PLUGIN_API_VERSION } from './runtime.js';
+import { HASH_WIDTH, sha256Hex } from './content-hash.js';
 import { validateSemanticModuleDelta, validateSemanticInfraDelta } from './fact-schemas.js';
 import type { SourcePlugin, SourceExtractInput } from './source-plugin/types.js';
 import { mintModuleId } from './source-plugin/module-id.js';
@@ -37,10 +37,6 @@ const MECHANICAL_KEYS = ['id', 'filePath', 'relativeFilePath', 'contentHash', 'p
 
 function check(name: string, ok: boolean, detail?: string): ConformanceCheck {
   return detail === undefined ? { name, ok } : { name, ok, detail };
-}
-
-function fingerprint(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 16);
 }
 
 function reportOf(checks: ConformanceCheck[]): ConformanceReport {
@@ -103,7 +99,7 @@ export async function checkSourcePluginConformance(
   for (const pm of pendingModules) {
     try {
       const content = fs.readFileSync(pm.filePath, 'utf-8');
-      sourceByModuleId.set(pm.moduleId, { content, contentHash: fingerprint(content) });
+      sourceByModuleId.set(pm.moduleId, { content, contentHash: sha256Hex(content, HASH_WIDTH.content) });
     } catch { /* unreadable file — plugin simply gets no source for it */ }
   }
   const input: SourceExtractInput = {

@@ -1,10 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
 import type { TemplateFileInfo } from '../types.js';
-import { shouldScanSourcePath, type CompiledScanPatterns } from '../scan-filters.js';
+import { shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../scan-filters.js';
 import { readDirSorted } from '../fs/read-dir-sorted.js';
 import { compareCodeUnits } from '../platform/ordering.js';
+import { repoRelativePosix } from '../platform/paths.js';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { templateNodeId } from '../graph/node-ids.js';
 
 /**
  * Stage 1 template artifact discovery for the built-in server-templates producer (no AST).
@@ -18,11 +20,6 @@ import { compareCodeUnits } from '../platform/ordering.js';
 /** Template file extensions recognized by the current built-in server-template producer. */
 const TEMPLATE_EXTENSIONS = new Set(['.html', '.htm', '.jinja', '.jinja2', '.j2']);
 
-const SKIP_DIRS = new Set([
-  '__pycache__', '.venv', 'venv', 'env', '.env', '.git', 'node_modules', 'dist', 'build',
-  '.tox', '.mypy_cache', '.pytest_cache', '.ruff_cache', '.eggs', 'site-packages',
-  '.repovine', '.cache', '.nox', 'coverage', 'htmlcov',
-]);
 
 /** Engine/dialect inferable from the extension alone. `.html`/`.htm` is ambiguous across engines;
  * explicit Jinja-family extensions are unambiguous. */
@@ -95,10 +92,6 @@ function pushUnique(values: string[], value: string): void {
   if (!values.includes(value)) values.push(value);
 }
 
-function contentHash(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 16);
-}
-
 function readTemplateContent(filePath: string): string {
   try {
     return fs.readFileSync(filePath, 'utf8');
@@ -123,9 +116,9 @@ export function collectTemplates(opts: {
     }
     for (const e of entries) {
       const full = path.join(dir, e.name);
-      const relPath = path.normalize(path.relative(repoRoot, full)).split(path.sep).join('/');
+      const relPath = repoRelativePosix(repoRoot, full);
       if (e.isDirectory()) {
-        if (SKIP_DIRS.has(e.name)) continue;
+        if (!shouldWalkDiscoveryDir(relPath)) continue;
         walk(full);
         continue;
       }
@@ -140,9 +133,9 @@ export function collectTemplates(opts: {
       const content = readTemplateContent(full);
       const bodyHints = parseTemplateBodyHints(content);
       out.set(relPath, {
-        id: `template:${relPath}`,
+        id: templateNodeId(relPath),
         relPath,
-        contentHash: contentHash(content),
+        contentHash: sha256Hex(content, HASH_WIDTH.content),
         ...(engine ? { engine } : {}),
         ...bodyHints,
       });

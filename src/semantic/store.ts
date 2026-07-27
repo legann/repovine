@@ -8,13 +8,13 @@
  * changed cards and prunes nodes that left the graph.
  */
 
-import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as fsPromises from 'node:fs/promises';
 import { writeJsonObjectStreamed } from '../fs/atomic.js';
 import type { Embedder } from './embedder.js';
 import { compareCodeUnits } from '../platform/ordering.js';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 
 export const SEMANTIC_INDEX_FILENAME = 'semantic-index.json';
 
@@ -69,7 +69,9 @@ function decodeVector(encoded: string): Float32Array {
 }
 
 export function cardHash(embedderId: string, cardText: string): string {
-  return crypto.createHash('sha256').update(embedderId).update('\0').update(cardText).digest('hex');
+  // The `\0` is a domain boundary, not a separator for looks: without it ('ab','c') and ('a','bc')
+  // would be one card.
+  return sha256Hex(`${embedderId}\0${cardText}`, HASH_WIDTH.full);
 }
 
 export class SemanticIndex {

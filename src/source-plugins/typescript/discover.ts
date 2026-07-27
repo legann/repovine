@@ -3,14 +3,15 @@ import * as path from 'node:path';
 import type ts from 'typescript';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
-import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
-import { hostPathKey } from '../../platform/paths.js';
+import { compileScanPatterns, shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../../scan-filters.js';
+import { hostPathKey, repoRelativePosix, toPosixPath } from '../../platform/paths.js';
 import { logPipelineWarn } from '../../cli/ui.js';
 import { pathPrefixLength } from '../../stage1/utils.js';
 import { discoverPackages } from './packages.js';
 import { parsePackageTsConfig } from './list-tsconfig-files.js';
 import { extractTypeScriptFromSfc, SFC_EXTENSIONS } from './sfc-extractor.js';
 import { readDirSorted } from '../../fs/read-dir-sorted.js';
+import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
 
 /**
  * TypeScript/JavaScript discovery (Pass 1 of the source-plugin contract).
@@ -20,17 +21,9 @@ import { readDirSorted } from '../../fs/read-dir-sorted.js';
  * extraction. The orchestrator only sees the resulting `SourceDiscoveryResult`.
  */
 
-/** Normalized path (forward slashes): skip these directory subtrees. */
-const SKIP_PATH_SUBTREE_RE =
-  /\/(?:dist|dist-bundled|target|build|out|coverage|node_modules|\.next|\.repovine|__tests__|__mocks__|__snapshots__|\.cache|test|tests|e2e|cypress|playwright|__e2e__)(?:\/|$)/;
-
-const SKIP_WALK_DIRS = new Set([
-  'node_modules', '.git', '.repovine', 'dist', 'dist-bundled', 'target', 'build', 'out', 'coverage', '.next',
-]);
-
+/** Whether any segment of a repo-relative path names a tree discovery leaves out. */
 export function shouldSkipRepoRelativePath(relFromRoot: string): boolean {
-  const normalized = relFromRoot.split(path.sep).join('/');
-  return SKIP_PATH_SUBTREE_RE.test(`/${normalized}/`);
+  return !shouldWalkDiscoveryDir(toPosixPath(relFromRoot));
 }
 
 /** Basename: conventional test files anywhere in the tree (e.g. foo.test.ts, bar.spec.tsx). */
@@ -39,7 +32,7 @@ const SKIP_TEST_FILENAME_RE = /\.(?:test|spec)\.(?:[cm]?[jt]sx?|jsx?|cjs|mjs)$/i
 /** Source maps are never repovine modules. */
 const SKIP_MAP_FILE_RE = /\.(?:js|mjs|cjs|css|ts|tsx|jsx)\.map$/i;
 
-const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+const SUPPORTED_EXTENSIONS = new Set(TYPESCRIPT_SOURCE_EXTENSIONS);
 
 interface DiscoveryContext {
   repoRoot: string;
@@ -72,7 +65,7 @@ function pickPackageForPath(packages: PackageInfo[], relFromRoot: string): Packa
   let best: PackageInfo | undefined;
   let bestLen = -1;
   for (const pkg of packages) {
-    const prefix = pkg.path.replace(/\\/g, '/');
+    const prefix = toPosixPath(pkg.path);
     if (relFromRoot === prefix || relFromRoot.startsWith(`${prefix}/`)) {
       if (prefix.length > bestLen) {
         best = pkg;
@@ -86,15 +79,15 @@ function pickPackageForPath(packages: PackageInfo[], relFromRoot: string): Packa
 function moduleRelPathFor(pkg: PackageInfo, filePath: string, repoRoot: string): string {
   const pkgAbsPath = path.resolve(repoRoot, pkg.path);
   const relFromPkg = path.relative(pkgAbsPath, filePath);
-  if (!relFromPkg.startsWith('..')) return relFromPkg.split(path.sep).join('/');
+  if (!relFromPkg.startsWith('..')) return toPosixPath(relFromPkg);
 
-  const relFromRoot = path.normalize(path.relative(repoRoot, filePath)).split(path.sep).join('/');
-  const pkgPrefix = pkg.path.replace(/\\/g, '/');
+  const relFromRoot = repoRelativePosix(repoRoot, filePath);
+  const pkgPrefix = toPosixPath(pkg.path);
   if (relFromRoot === pkgPrefix || relFromRoot.startsWith(`${pkgPrefix}/`)) {
     return relFromRoot.slice(pkgPrefix.length + (relFromRoot === pkgPrefix ? 0 : 1));
   }
 
-  const parentPrefix = path.dirname(pkgPrefix).replace(/\\/g, '/');
+  const parentPrefix = toPosixPath(path.dirname(pkgPrefix));
   if (parentPrefix !== '.' && (relFromRoot === parentPrefix || relFromRoot.startsWith(`${parentPrefix}/`))) {
     return relFromRoot.slice(parentPrefix.length + (relFromRoot === parentPrefix ? 0 : 1));
   }
@@ -107,7 +100,7 @@ function shouldSkipFilePath(
   repoRoot: string,
   ctx: DiscoveryContext,
 ): { skip: true } | { skip: false; relFromRoot: string } {
-  const relFromRoot = path.normalize(path.relative(repoRoot, filePath)).split(path.sep).join('/');
+  const relFromRoot = repoRelativePosix(repoRoot, filePath);
   if (shouldSkipRepoRelativePath(relFromRoot)) return { skip: true };
   if (SKIP_TEST_FILENAME_RE.test(path.basename(filePath))) return { skip: true };
   if (SKIP_MAP_FILE_RE.test(path.basename(filePath))) return { skip: true };
@@ -161,7 +154,7 @@ function discoverSfcFiles(
     }
     for (const e of entries) {
       const full = path.join(dir, e.name);
-      const relFromRoot = path.normalize(path.relative(repoRoot, full)).split(path.sep).join('/');
+      const relFromRoot = repoRelativePosix(repoRoot, full);
       if (shouldSkipRepoRelativePath(relFromRoot)) continue;
       if (e.isDirectory()) {
         walk(full);
@@ -179,7 +172,7 @@ function discoverSfcFiles(
       const extracted = extractTypeScriptFromSfc(full, content);
       if (!extracted || extracted.ts.trim().length === 0) continue;
 
-      const relPath = path.relative(pkgAbsPath, full).split(path.sep).join('/');
+      const relPath = repoRelativePosix(pkgAbsPath, full);
       const before = pendingByPath.size;
       registerPendingModule(pendingByPath, full, {
         filePath: full,
@@ -218,7 +211,7 @@ function discoverExplicitIncludeFiles(
     const pkgAbsPath = path.resolve(repoRoot, pkg.path);
     if (!absPath.startsWith(pkgAbsPath + path.sep)) return;
 
-    const relPath = path.relative(pkgAbsPath, absPath).split(path.sep).join('/');
+    const relPath = repoRelativePosix(pkgAbsPath, absPath);
     const before = pendingByPath.size;
     registerPendingModule(pendingByPath, absPath, {
       filePath: absPath,
@@ -237,9 +230,9 @@ function discoverExplicitIncludeFiles(
     }
     for (const e of entries) {
       const full = path.join(dir, e.name);
-      const relFromRoot = path.normalize(path.relative(repoRoot, full)).split(path.sep).join('/');
+      const relFromRoot = repoRelativePosix(repoRoot, full);
       if (e.isDirectory()) {
-        if (SKIP_WALK_DIRS.has(e.name) || shouldSkipRepoRelativePath(relFromRoot)) continue;
+        if (shouldSkipRepoRelativePath(relFromRoot)) continue;
         walk(full);
         continue;
       }

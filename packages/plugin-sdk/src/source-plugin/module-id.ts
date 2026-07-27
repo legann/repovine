@@ -1,6 +1,18 @@
 import type { ModuleIdNormalize } from './types.js';
 
 /**
+ * Separator normalization, and nothing else: every `\\` becomes `/`.
+ *
+ * Repo-relative identity is POSIX by contract — ids, annotation keys, and every hashed path are
+ * compared as bytes, and a win32 producer hands out `src\\a.ts` where a POSIX one hands out
+ * `src/a.ts`. Ships here because the id mint is the first thing that needs it and a plugin
+ * reporting a path needs the same answer the engine will compare against.
+ */
+export function toPosixPath(value: string): string {
+  return value.replace(/\\/g, '/');
+}
+
+/**
  * Mint a graph module id from a package name and a repo-relative path.
  *
  * The HOST calls this, never a producer: `discover()` returns `PendingModuleDraft`, which has no id
@@ -15,7 +27,7 @@ export function mintModuleId(
   relPath: string,
   normalize?: ModuleIdNormalize,
 ): string {
-  let normalized = relPath.replace(/\\/g, '/');
+  let normalized = toPosixPath(relPath);
   // Longest-first, so an ecosystem declaring both `.d.ts` and `.ts` strips the compound suffix whole
   // rather than leaving a `.d` tail behind.
   const suffixes = [...(normalize?.stripSuffixes ?? [])].sort((a, b) => b.length - a.length);
@@ -30,4 +42,21 @@ export function mintModuleId(
     if (normalized.endsWith(`/${basename}`)) { normalized = normalized.slice(0, -(basename.length + 1)); break; }
   }
   return `mod:${packageName}/${normalized}`;
+}
+
+/**
+ * The graph node id of a package, from its declared name.
+ *
+ * Ships beside {@link mintModuleId} for the same reason: a specifier that resolves to a package
+ * rather than a file inside it (an external dependency, a workspace bare import) is reported by a
+ * producer as `pkg:<name>`, so the spelling has to be one function rather than a template literal
+ * copied into each ecosystem's resolver.
+ */
+export function packageNodeId(packageName: string): string {
+  return `pkg:${packageName}`;
+}
+
+/** The package name a `pkg:` id carries. Returns the input unchanged when it carries no prefix. */
+export function packageNameFromId(idOrName: string): string {
+  return idOrName.startsWith('pkg:') ? idOrName.slice('pkg:'.length) : idOrName;
 }

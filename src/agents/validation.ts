@@ -41,6 +41,12 @@ import {
 } from './protocol.js';
 import { getManifest } from './manifests.js';
 import type { ContextQualityReport, ContextSessionPolicy, ContextQualityConfig } from '../context-quality/types.js';
+import '../stage1/source/bootstrap.js';
+import { stripIndexBasename, stripModuleIdSuffix } from '../stage1/source/registry.js';
+import { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
+export { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
+import { moduleNodeId } from '../graph/node-ids.js';
+import { resolveRelPath, toPosixPath } from '../platform/paths.js';
 
 // The weighted context-quality score was measured against outcome-labelled sessions and did not
 // beat a trivial baseline, so it may not reject a handoff. The report is still emitted in full;
@@ -96,16 +102,6 @@ function formatIssues(error: { issues: Array<{ path: PropertyKey[]; message: str
   return error.issues.map(i => `${i.path.join('.') || '(root)'}: ${i.message}`);
 }
 
-/**
- * Resolve a declared node id against the graph. Mirrors handler resolution:
- * exact match, else strip a `.ts/.tsx/.js/.jsx/.mjs/.cjs` extension and trailing
- * `/index`. Returns the canonical id or undefined.
- */
-export function resolveGraphNodeId(graph: RepositoryGraph, rawId: string): string | undefined {
-  if (graph.nodes.has(rawId)) return rawId;
-  const normalized = rawId.replace(/\.(tsx?|jsx?|mjs|cjs)$/, '').replace(/\/index$/, '');
-  return graph.nodes.has(normalized) ? normalized : undefined;
-}
 
 /**
  * Map a changed file path (repo- or package-relative, any extension) to the graph module id(s)
@@ -114,12 +110,13 @@ export function resolveGraphNodeId(graph: RepositoryGraph, rawId: string): strin
  * against the snapshot's module records.
  */
 function modulesForFile(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot, file: string): string[] {
-  const norm = (p: string): string => p.replace(/\\/g, '/').replace(/^\.?\//, '');
-  const stripExt = (p: string): string => p.replace(/\.(tsx?|jsx?|mjs|cjs)$/, '').replace(/\/index$/, '');
+  const norm = resolveRelPath;
+  const stripExt = (p: string): string => stripIndexBasename(stripModuleIdSuffix(p));
   const target = stripExt(norm(file));
   if (!target) return [];
   const out = new Set<string>();
-  if (graph.nodes.has(`mod:${target}`)) out.add(`mod:${target}`);
+  const targetId = moduleNodeId(target);
+  if (graph.nodes.has(targetId)) out.add(targetId);
   for (const mod of snapshot.modules ?? []) {
     const rel = stripExt(norm(mod.relativeFilePath ?? ''));
     const abs = stripExt(norm(mod.filePath ?? ''));
@@ -202,7 +199,7 @@ export function validateSubagentHandoff(input: unknown): SchemaValidation<Subage
  * rejection reason.
  */
 function normalizeReviewPath(raw: string): { path?: string; error?: string } {
-  const collapsed = raw.trim().replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+  const collapsed = toPosixPath(raw.trim()).replace(/\/{2,}/g, '/');
   if (collapsed.startsWith('/') || /^[A-Za-z]:\//.test(collapsed)) {
     return { error: `absolute path not allowed: "${raw}"` };
   }

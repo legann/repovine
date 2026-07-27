@@ -1,6 +1,6 @@
 import { resolveScope, nodeInScope } from '../scope/resolve.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
-import { nodeLabel, nodesOfType } from '../../graph/index.js';
+import { moduleLabelOf, nodeLabel, nodesOfType } from '../../graph/index.js';
 import { limitFrom, offsetFrom, DEFAULT_LIST_LIMIT } from '../response/pagination.js';
 import type { McpToolRuntime } from '../types.js';
 import { isUnsafeRegexPattern } from './node-body.js';
@@ -74,7 +74,7 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
         kind: envKinds.get(envName) ?? 'env',
         name: envName,
         moduleId: mod.id,
-        moduleLabel: graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath,
+        moduleLabel: moduleLabelOf(graph, mod),
         packageName: mod.packageName,
       }, mod.id);
     }
@@ -94,7 +94,7 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
           resourceId: edge.to,
           relation: edge.kind,
           moduleId: mod.id,
-          moduleLabel: graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath,
+          moduleLabel: moduleLabelOf(graph, mod),
         }, mod.id);
       }
     }

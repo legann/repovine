@@ -23,10 +23,10 @@ describe('shouldSkipRepoRelativePath — build-output / dependency subtrees are 
     }
   });
 
-  // One isolating path per SKIP_PATH_SUBTREE_RE alternative: each path matches
-  // ONLY via its named alternative, so deleting that alternative turns exactly
-  // this case red.
-  it('skips a path under every SKIP_PATH_SUBTREE_RE alternative', () => {
+  // One isolating path per skipped directory name: each path is skipped ONLY because of the name
+  // it is keyed by, so removing that name from the engine ignore list or from TEST_LAYOUT_DIRS
+  // turns exactly this case red.
+  it('skips a path under every skipped directory name', () => {
     const perAlternative: Record<string, string> = {
       dist: 'dist/main.js',
       'dist-bundled': 'dist-bundled/x.js',

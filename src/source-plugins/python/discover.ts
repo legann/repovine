@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process';
 import * as os from 'node:os';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
-import { compileScanPatterns, shouldScanSourcePath, type CompiledScanPatterns } from '../../scan-filters.js';
-import { hostPathKey } from '../../platform/paths.js';
+import { compileScanPatterns, shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../../scan-filters.js';
+import { hostPathKey, repoRelativePosix, toPosixPath } from '../../platform/paths.js';
 import { readDirSorted } from '../../fs/read-dir-sorted.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
 
@@ -22,11 +22,6 @@ export interface PythonExtractContext {
   pythonBin: string | null;
 }
 
-const SKIP_DIRS = new Set([
-  '__pycache__', '.venv', 'venv', 'env', '.env', '.git', 'node_modules', 'dist', 'build',
-  '.tox', '.mypy_cache', '.pytest_cache', '.ruff_cache', '.eggs', 'site-packages',
-  'tests', 'test', '.repovine', '.cache', '.nox',
-]);
 const SKIP_FILE_RE = /^(test_.*\.py|.*_test\.py|conftest\.py)$/i;
 
 let cachedPythonBin: string | null | undefined;
@@ -143,7 +138,8 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
     if (PYTHON_PACKAGE_MARKERS.some(m => fs.existsSync(path.join(dir, m)))) {
       // POSIX form: pkg.path is persisted identity; path.resolve
       // consumes forward slashes on every OS.
-      const normalized = (path.relative(repoRoot, dir) || '.').split(path.sep).join('/');
+      // `'.'` names the repository root itself; the empty relative path is not a package path.
+      const normalized = repoRelativePosix(repoRoot, dir) || '.';
       if (!seen.has(normalized)) {
         seen.add(normalized);
         packages.push({
@@ -155,7 +151,7 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
     }
     for (const e of entries) {
       if (!e.isDirectory()) continue;
-      if (SKIP_DIRS.has(e.name)) continue;
+      if (!shouldWalkDiscoveryDir(repoRelativePosix(repoRoot, path.join(dir, e.name)))) continue;
       walk(path.join(dir, e.name));
     }
   };
@@ -179,9 +175,9 @@ function discoverPyFiles(
     }
     for (const e of entries) {
       const full = path.join(dir, e.name);
-      const relFromRoot = path.normalize(path.relative(repoRoot, full)).split(path.sep).join('/');
+      const relFromRoot = repoRelativePosix(repoRoot, full);
       if (e.isDirectory()) {
-        if (SKIP_DIRS.has(e.name)) continue;
+        if (!shouldWalkDiscoveryDir(relFromRoot)) continue;
         walk(full);
         continue;
       }
@@ -194,7 +190,7 @@ function discoverPyFiles(
       if (relPathNative.startsWith('..')) continue;
       // Persisted repo-relative identity is POSIX-normalized: relPath
       // feeds module labels and detector evidence, which must match cross-OS.
-      const relPath = relPathNative.split(path.sep).join('/');
+      const relPath = toPosixPath(relPathNative);
       // Canonical key — uniform with the TS plugin so the stage-1
       // cross-plugin merge dedupes on one key form.
       if (pendingByPath.has(hostPathKey(full))) continue;

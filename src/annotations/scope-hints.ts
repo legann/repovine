@@ -9,15 +9,21 @@
  * `pkg:client-ui` never prefixes. Expanding the hint also lets `pkg:client-ui` match the package
  * node itself.
  */
+import { packageNameFromId } from '../graph/node-ids.js';
 export function nodeInScopeHints(nodeId: string, scopeHints?: string[]): boolean {
   if (!scopeHints?.length || scopeHints.includes('.')) return true;
-  const expanded = scopeHints.flatMap(hint => hint.startsWith('pkg:') ? [hint, hint.slice(4)] : [hint]);
-  return expanded.some(hint => {
-    if (nodeId.startsWith(`${hint}:`)) return true;
+  // A hint written as a path is a prefix guess, so `backend` is allowed to reach `backend-api/…`.
+  // A hint written as `pkg:` is a name the graph holds exactly, and the same relaxation would put
+  // every module of `pkg:repovine-agent-harness-demo` inside the scope `pkg:repovine`.
+  const expanded = scopeHints.flatMap(hint => hint.startsWith('pkg:')
+    ? [{ text: hint, exactName: true }, { text: packageNameFromId(hint), exactName: true }]
+    : [{ text: hint, exactName: false }]);
+  return expanded.some(({ text, exactName }) => {
+    if (nodeId.startsWith(`${text}:`)) return true;
     const tail = nodeId.includes(':') ? nodeId.slice(nodeId.indexOf(':') + 1) : nodeId;
-    return tail === hint
-      || tail.startsWith(`${hint}/`)
-      || hint.startsWith(`${tail}/`)
-      || tail.startsWith(`${hint}-`);
+    return tail === text
+      || tail.startsWith(`${text}/`)
+      || text.startsWith(`${tail}/`)
+      || (!exactName && tail.startsWith(`${text}-`));
   });
 }

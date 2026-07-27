@@ -1,6 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { isPathInsideRepo } from '../fs/containment.js';
+// Side-effect import: the built-in source plugins must be registered before this module asks the
+// registry which extensions it owns, so every ecosystem reduces by its own declaration.
+import '../stage1/source/bootstrap.js';
+import { stripSourceExtension } from '../stage1/source/registry.js';
+import { toPosixPath } from '../platform/paths.js';
 
 /**
  * Conventional paths where build scripts that map source → bundle-output usually live.
@@ -65,12 +70,9 @@ export function parseBundleOutputScript(source: string): Record<string, string> 
 }
 
 function addBundleMapping(map: Record<string, string>, entryPoint: string, outputFile: string): void {
-  const entryBase = stripExt(entryPoint.trim(), /\.(tsx?|jsx?|mts|cts)$/i)
-    .replace(/^[/\\]+/, '')
-    .replace(/\\/g, '/');
-  const outBase = stripExt(outputFile.trim(), /\.(m?js|cjs)$/i)
-    .replace(/^[/\\]+/, '')
-    .replace(/\\/g, '/');
+  const entryBase = toPosixPath(stripSourceExtension(entryPoint.trim())).replace(/^\/+/, '');
+  // Bundler output is always JS, whatever the entry was written in.
+  const outBase = toPosixPath(stripExt(outputFile.trim(), /\.(m?js|cjs)$/i)).replace(/^\/+/, '');
   if (!entryBase || !outBase) return;
   if (entryBase === outBase) return;
   map[outBase] = entryBase;

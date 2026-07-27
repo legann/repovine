@@ -14,10 +14,46 @@ import { annotationSecretFieldPaths } from './annotation-secret.js';
 import { workflowSignalKinds } from './component-signals.js';
 import { DEFAULT_THRESHOLDS, type RefactoringThresholds } from './config.js';
 import { clampConfidence, findingSeverity } from './finding.js';
-import { domainMembers, infraTargetIds, modulePackageId, nodeLabel, taggedDomains } from '../../graph/index.js';
+import { domainMembers, infraTargetIds, moduleLabelOf, modulePackageId, nodeLabel, taggedDomains } from '../../graph/index.js';
 import { buildAnnotationContext } from './annotation-context.js';
 import type { RefactoringFinding, RefactoringScope } from './types.js';
-import { annotationText, convergenceTargetGroupKey, coupledTargetRole, exportedNamesText, findFlowPaths, flowPrepKeys, frontendDataAccessTargetKey, frontendFeatureKey, hasHttpHandlerSignals, isBackendContext, isBuildOrToolingModule, isConvergenceTargetModule, isDesignSystemPrimitive, isFrontendFlowEntryModule, isFrontendServiceWrapperCandidate, isFrontendSurfaceModule, isGenericConvergenceTarget, isPureTypesModule, isRouteOrScreenEntryModule, isRuntimeImportEdge, isUiCouplingSourceModule, maxModuleLine, normalizeResponsibilityKey, policySubjectKey, policyTokens, rootDomainId, runtimeFanIn, runtimeFanOut, stateModuleKind, uiCouplingTargetRole } from './heuristics.js';
+import {
+  sourceExtAlternation,
+  annotationText,
+  convergenceTargetGroupKey,
+  coupledTargetRole,
+  exportedNamesText,
+  findFlowPaths,
+  flowPrepKeys,
+  frontendDataAccessTargetKey,
+  frontendFeatureKey,
+  hasHttpHandlerSignals,
+  isBackendContext,
+  isBuildOrToolingModule,
+  isConvergenceTargetModule,
+  isDesignSystemPrimitive,
+  isFrontendFlowEntryModule,
+  isFrontendServiceWrapperCandidate,
+  isFrontendSurfaceModule,
+  isGenericConvergenceTarget,
+  isPureTypesModule,
+  isRouteOrScreenEntryModule,
+  isRuntimeImportEdge,
+  isStorageNamedSourceFile,
+  isUiCouplingSourceModule,
+  maxModuleLine,
+  normalizeResponsibilityKey,
+  policySubjectKey,
+  policyTokens,
+  rootDomainId,
+  runtimeFanIn,
+  runtimeFanOut,
+  stateModuleKind,
+  uiCouplingTargetRole,
+} from './heuristics.js';
+import { pathMatchKey } from '../../platform/paths.js';
+import { packageNodeId } from '../../graph/node-ids.js';
+import { isBarrelModule } from '../../graph/module-files.js';
 
 export type DetectorOptions = {
   includeComponentEntrypoints?: boolean;
@@ -108,11 +144,9 @@ export function detectBoundary(
     const toPkg = modulePackageId(graph, edge.to);
     if (!fromPkg || !toPkg || fromPkg === toPkg) continue;
     const target = graph.nodes.get(edge.to);
-    if (target?.type !== 'module' || target.label.endsWith('/index') || target.label.endsWith('…/index')) continue;
-    const hasIndex = [...graph.outEdges.get(toPkg) ?? []].some(e => {
-      const n = graph.nodes.get(e.to);
-      return e.kind === 'contains' && n?.type === 'module' && n.label.endsWith('/index');
-    });
+    if (target?.type !== 'module' || isBarrelModule(graph, edge.to)) continue;
+    const hasIndex = [...graph.outEdges.get(toPkg) ?? []].some(e =>
+      e.kind === 'contains' && isBarrelModule(graph, e.to));
     if (!hasIndex) continue;
     let group = targetGroups.get(edge.to);
     if (!group) {
@@ -208,7 +242,7 @@ export function detectServerHandlerOrchestration(
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
     if (!mod) continue;
-    const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+    const rel = pathMatchKey(mod.relativeFilePath);
     if (isBuildOrToolingModule(rel) || isPureTypesModule(mod)) continue;
     if (!isBackendContext(mod) && !hasHttpHandlerSignals(mod)) continue;
 
@@ -363,7 +397,7 @@ export function detectClientBusinessLogic(
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
     if (!mod) continue;
-    const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+    const rel = pathMatchKey(mod.relativeFilePath);
     if (isBuildOrToolingModule(rel)) continue;
     if (!isFrontendSurfaceModule(mod)) continue;
     // An author-declared `pure` side-effect set is an explicit assertion of zero
@@ -805,7 +839,7 @@ export function detectServiceWrapperExplosion(
     const lineCount = maxModuleLine(mod) || hint.lineCount;
     if (lineCount > t.maxLineCount) continue;
     const feature = frontendFeatureKey(mod);
-    const groupKey = feature && !feature.startsWith('pkg:') ? feature : `pkg:${mod.packageName}`;
+    const groupKey = feature && !feature.startsWith('pkg:') ? feature : packageNodeId(mod.packageName);
     const wrapper: Wrapper = {
       id: modId,
       groupKey,
@@ -903,7 +937,7 @@ export function detectRouteConvergence(
         const target = modulesById.get(imp.resolvedModuleId);
         if (!target) continue;
         const role = coupledTargetRole(target);
-        const targetRel = target.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+        const targetRel = pathMatchKey(target.relativeFilePath);
         if (role === 'api' || role === 'server' || /(mutation|action|client|service|api)/.test(targetRel)) {
           addTarget(`module:${target.id}`, modId, entryRoutes, role ?? 'module', target.id);
         }
@@ -955,7 +989,7 @@ export function detectStateFragmentation(
   const groups = new Map<string, StateGroup>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase())) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
     const feature = frontendFeatureKey(mod);
     const kind = stateModuleKind(mod);
     if (!feature || !kind) continue;
@@ -1014,7 +1048,7 @@ export function detectDuplicatedClientPolicy(
   const groups = new Map<string, PolicyGroup>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase())) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
     if (isDesignSystemPrimitive(mod)) continue;
     const tokens = policyTokens(mod, annotations.get(modId));
     const feature = frontendFeatureKey(mod);
@@ -1166,7 +1200,7 @@ export function detectAuthorizationPolicyDrift(
   const groups = new Map<string, PolicyModule[]>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || isBuildOrToolingModule(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase()) || isPureTypesModule(mod)) continue;
+    if (!mod || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath)) || isPureTypesModule(mod)) continue;
     const ann = annotations.get(modId);
     const tokens = new Set(policyTokens(mod, ann).filter(token => token === 'permissions' || token === 'policy-rules'));
     const hasAuthzSignal = securitySignals(mod, 'authz').length > 0;
@@ -1275,7 +1309,7 @@ export function detectPrivilegedClientSideEffect(
   const findings: RefactoringFinding[] = [];
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase())) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
     const coupledTargets = privilegedClientTargets(mod, modulesById, t.allowGenericStorageName);
     const runtimeActions = mod.semanticHints?.runtimeActions ?? [];
     const secretSignals = securitySignals(mod, 'secret-env');
@@ -1384,7 +1418,7 @@ export function detectServerClientBoundary(
   const findings: RefactoringFinding[] = [];
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(mod.relativeFilePath.replace(/\\/g, '/').toLowerCase())) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
     const leakedTargets = mod.imports
       .filter(imp => !imp.isTypeOnly && imp.resolvedModuleId)
       .map(imp => ({ imp, target: modulesById.get(imp.resolvedModuleId!) }))
@@ -1402,11 +1436,11 @@ export function detectServerClientBoundary(
       // secret/ssr-server/.server-file leak (which coupledTargetRole does not classify as server) is
       // rated high, not medium. Medium is reserved for a leak admitted only via a generic storage name.
       impact: leakedTargets.some(item => {
-        const targetRel = item.target.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+        const targetRel = pathMatchKey(item.target.relativeFilePath);
         return securityTargetRole(item.target, t.allowGenericStorageName) === 'server'
           || item.target.semanticHints?.ssr?.useServer === true
           || /(^|\/)secrets?(\/|$)/.test(targetRel)
-          || /\.(server|backend)\.(tsx?|jsx?)$/.test(targetRel)
+          || SERVER_MARKED_FILE_RE.test(targetRel)
           || isStrongStorageTarget(item.target);
       }) ? 'high' : 'medium',
       confidence,
@@ -1490,7 +1524,7 @@ export function detectAnnotationSecretHygiene(
       confidence: 0.86,
       nodes: [modId],
       evidence: [
-        `Node: ${graph.nodes.get(modId)?.label ?? mod?.relativeFilePath ?? modId}`,
+        `Node: ${mod ? moduleLabelOf(graph, mod) : nodeLabel(graph, modId)}`,
         `${fieldPaths.length} annotation field(s) contain secret-like material`,
         `Field paths: ${fieldPaths.slice(0, 8).join(', ')}`,
         'Evidence intentionally omits the suspected value',
@@ -1533,10 +1567,10 @@ function rootDomainOf(graph: RepositoryGraph, modId: string): string | undefined
 }
 
 function isTrustBoundaryModule(mod: ModuleInfo): boolean {
-  const rel = mod.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(mod.relativeFilePath);
   if ((mod.semanticHints?.routes ?? []).some(route => route.kind === 'api')) return true;
   if (/(^|\/)(api|apis|routes|controllers?|handlers?|webhooks?|lambda|functions|server)(\/|$)/.test(rel)) return true;
-  if (/(^|\/)(route|\+server)\.(tsx?|jsx?)$/.test(rel)) return true;
+  if (SERVER_ROUTE_FILE_RE.test(rel)) return true;
   const exported = exportedNamesText(mod);
   return /\b(handler|GET|POST|PUT|PATCH|DELETE|loader|action|webhook)\b/.test(exported);
 }
@@ -1548,7 +1582,7 @@ function hasValidationCoverage(mod: ModuleInfo, modulesById: Map<string, ModuleI
     const spec = imp.moduleSpecifier.toLowerCase();
     if (/(zod|yup|joi|valibot|superstruct|schema|schemas|validator|validators|validation|guards?)/.test(spec)) return true;
     const target = imp.resolvedModuleId ? modulesById.get(imp.resolvedModuleId) : undefined;
-    if (target && /(^|\/)(schemas?|validators?|validation|guards?)(\/|\.|$)/.test(target.relativeFilePath.replace(/\\/g, '/').toLowerCase())) return true;
+    if (target && /(^|\/)(schemas?|validators?|validation|guards?)(\/|\.|$)/.test(pathMatchKey(target.relativeFilePath))) return true;
   }
   return false;
 }
@@ -1577,11 +1611,16 @@ function securityTargetRole(target: ModuleInfo, allowGenericStorageName: boolean
 }
 
 function isStrongStorageTarget(target: ModuleInfo): boolean {
-  const rel = target.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(target.relativeFilePath);
   if (isFrontendSurfaceModule(target)) return false;
   return /(^|\/)(server|servers|backend|lambda|lambdas|functions|db|database|repositories?|repository|persistence)(\/|$)/.test(rel)
-    || /(repository|repo|db|database)\.(tsx?|jsx?)$/.test(rel);
+    || isStorageNamedSourceFile(rel);
 }
+
+// Role vocabularies read the source family the plugins declare, so none of them names a narrower
+// set than discovery accepts.
+const SERVER_MARKED_FILE_RE = new RegExp(`\\.(server|backend)\\.${sourceExtAlternation()}$`);
+const SERVER_ROUTE_FILE_RE = new RegExp(`(^|/)(route|\\+server)\\.${sourceExtAlternation()}$`);
 
 // Logging writes are not privileged; everything else under io-write is.
 const NON_PRIVILEGED_IO_WRITE_SUBTYPES = new Set(['stdout', 'stderr']);
@@ -1620,7 +1659,7 @@ function isSensitiveStorageKey(key: string): boolean {
 }
 
 function isServerOnlyOrPrivilegedTarget(target: ModuleInfo, allowGenericStorageName: boolean): boolean {
-  const rel = target.relativeFilePath.replace(/\\/g, '/').toLowerCase();
+  const rel = pathMatchKey(target.relativeFilePath);
   const role = securityTargetRole(target, allowGenericStorageName);
   // Storage-family dirs (db/database/repository/persistence) are intentionally NOT matched here:
   // they resolve to role 'storage', which securityTargetRole already gates on allowGenericStorageName
@@ -1630,7 +1669,7 @@ function isServerOnlyOrPrivilegedTarget(target: ModuleInfo, allowGenericStorageN
     || role === 'storage'
     || target.semanticHints?.ssr?.useServer === true
     || /(^|\/)(server|server-only|backend|lambda|functions|secrets?)(\/|$)/.test(rel)
-    || /\.(server|backend)\.(tsx?|jsx?)$/.test(rel);
+    || SERVER_MARKED_FILE_RE.test(rel);
 }
 
 // ── annotation-risk ──

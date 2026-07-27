@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { IaCParser, InfraEnvRef, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
 import { hashResourcePayload, isRecord } from '../../../stage1/iac/utils.js';
+import { pathMatchKey } from '../../../platform/paths.js';
 
 export interface HelmImageRef {
   key: string;
@@ -70,7 +71,7 @@ function isHelmValuesFileName(filePath: string): boolean {
 }
 
 function isUnderHelmChart(filePath: string): boolean {
-  const norm = filePath.replace(/\\/g, '/').toLowerCase();
+  const norm = pathMatchKey(filePath);
   if (
     norm.includes('/helm/')
     || norm.startsWith('helm/')

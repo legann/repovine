@@ -28,6 +28,8 @@ import type { SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk'
 // Side-effect: register built-in source plugins (typescript, …) before discovery runs.
 import './source/bootstrap.js';
 import { compareCodeUnits } from '../platform/ordering.js';
+import { repoRelativePosix } from '../platform/paths.js';
+import { packageNodeId } from '../graph/node-ids.js';
 
 /** Schema version of the Stage 1 facts snapshot; a mismatch invalidates the on-disk cache.
  *  2: `ExportInfo.defaultLocalName` — a cached module extracted before it would still project no
@@ -369,7 +371,7 @@ function resolveRemainingImports(allModules: ModuleInfo[], packages: PackageInfo
       if (!imp.moduleSpecifier.startsWith('.')) {
         const pkgName = extractPackageName(imp.moduleSpecifier);
         if (packages.some(p => p.name === pkgName)) {
-          imp.resolvedModuleId = `pkg:${pkgName}`;
+          imp.resolvedModuleId = packageNodeId(pkgName);
         } else {
           imp.isExternal = true;
         }
@@ -465,11 +467,6 @@ interface PreparedRun {
   /** Repo-relative candidates refused by containment; sorted, so the report is deterministic. */
   outsideRepoPaths: string[];
   profiler: MemoryProfiler;
-}
-
-/** Repo-relative, forward-slashed: the form the snapshot uses for every path but `filePath`. */
-function repoRelativePosix(repoRoot: string, absPath: string): string {
-  return path.normalize(path.relative(repoRoot, absPath)).split(path.sep).join('/');
 }
 
 async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined): Promise<PreparedRun> {

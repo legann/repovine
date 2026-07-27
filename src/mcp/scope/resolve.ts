@@ -2,13 +2,18 @@ import * as path from 'node:path';
 import type { PackageNodeData, RepositoryGraph, TemplateNodeData } from '../../types.js';
 import { resolveDomainToCanonical } from '../../stage2/domains.js';
 import { countNodesOfType, isNodeType, isTaggedInto, modulePackageId, nodesOfType } from '../../graph/index.js';
-import { domainLabelFromId, domainNodeId, isDomainNodeId } from '../../graph/node-ids.js';
+import { domainLabelFromId, domainNodeId, isDomainNodeId, moduleTailFromId, packageNameFromId, packageNodeId } from '../../graph/node-ids.js';
 import type { ResolvedScope } from '../../scope/resolved.js';
 import type { McpToolRuntime } from '../types.js';
 // Side-effect import ensures built-in source plugins are registered so the loose-name-separator
 // relaxation can ask the owning plugin's capability instead of comparing against 'python'.
+
+// Side-effect import: the built-in source plugins must be registered before this module asks the
+// registry which extensions it owns, so every ecosystem reduces by its own declaration.
 import '../../stage1/source/bootstrap.js';
-import { pluginUsesLooseNameSeparators } from '../../stage1/source/registry.js';
+import { getKnownExtensions, pluginUsesLooseNameSeparators, stripIndexBasename, stripModuleIdSuffix } from '../../stage1/source/registry.js';
+import { resolveNodeIdByShape } from '../../graph/module-files.js';
+import { toPosixPath } from '../../platform/paths.js';
 
 /**
  * Exact-id lookup with the two mechanical spellings of a module id forgiven: a file extension and a
@@ -18,25 +23,26 @@ import { pluginUsesLooseNameSeparators } from '../../stage1/source/registry.js';
  * it directly got a different answer for the same argument than the tool's own envelope reported.
  */
 function resolveNodeId(graph: RepositoryGraph, rawId: string): string | undefined {
-  if (graph.nodes.has(rawId)) return rawId;
-  const normalized = rawId
-    .replace(/\.(tsx?|jsx?)$/, '')
-    .replace(/\/index$/, '');
-  return graph.nodes.has(normalized) ? normalized : undefined;
+  return resolveNodeIdByShape(graph, rawId);
 }
 
 export function normalizeLookupPath(value: string): string {
-  return value
-    .replace(/\\/g, '/')
-    .replace(/^\.\//, '')
-    .replace(/\.(tsx?|jsx?|ya?ml|json)$/, '')
-    .replace(/\/index$/, '')
+  // Only the suffixes the ID drops, never the wider "what is this file called" list: `.svelte`
+  // stays in the id, so dropping it here would give `+page.svelte` and `+page.ts` one lookup key
+  // and hand a caller whichever of the two the map happened to hold. `.yaml`/`.json` are the infra
+  // and template spellings, which no source plugin owns and which only this lookup forgives.
+  const withoutExtension = stripModuleIdSuffix(
+    toPosixPath(value).replace(/^\.\//, ''),
+  ).replace(/\.(ya?ml|json)$/i, '');
+  return stripIndexBasename(withoutExtension)
     .replace(/\/$/, '')
     .toLowerCase();
 }
 
 export function isPathLikeScope(raw: string): boolean {
-  return raw.includes('/') || raw.includes('\\') || /\.[cm]?[tj]sx?$/.test(raw);
+  if (raw.includes('/') || raw.includes('\\')) return true;
+  const lower = raw.toLowerCase();
+  return getKnownExtensions().some(ext => lower.endsWith(ext));
 }
 
 /**
@@ -65,9 +71,9 @@ function nodeUsesLooseNameSeparators(node: { data?: unknown }): boolean {
 
 export function resolvePackageId(graph: RepositoryGraph, rawPackage: string): string | undefined {
   if (graph.nodes.has(rawPackage)) return rawPackage;
-  const value = rawPackage.startsWith('pkg:') ? rawPackage.slice('pkg:'.length) : rawPackage;
+  const value = packageNameFromId(rawPackage);
   const normalized = normalizeLookupPath(value.replace(/^packages\//, ''));
-  const exactPkgId = `pkg:${value}`;
+  const exactPkgId = packageNodeId(value);
   if (graph.nodes.has(exactPkgId)) return exactPkgId;
 
   const packages = nodesOfType(graph, 'package')
@@ -143,7 +149,7 @@ export function resolveResourceInfraAlias(graph: RepositoryGraph, raw: string): 
 
 export function resolveModulePathAlias(ctx: McpToolRuntime, raw: string): string | undefined {
   const { modulesById } = ctx.getState();
-  const value = raw.startsWith('mod:') ? raw.slice('mod:'.length) : raw;
+  const value = moduleTailFromId(raw);
   if (!isPathLikeScope(value)) return undefined;
 
   const normalized = normalizeLookupPath(value);

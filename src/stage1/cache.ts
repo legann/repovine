@@ -5,6 +5,7 @@ import * as crypto from 'node:crypto';
 import type { RepositoryFactsSnapshot } from '../types.js';
 import { MemoryProfiler } from '../perf/memory-profiler.js';
 import { writeFileAtomicSync, writeJsonObjectStreamed } from '../fs/atomic.js';
+import { repoRelativePosix } from '../platform/paths.js';
 
 export interface SnapshotCache {
   load(): RepositoryFactsSnapshot | null;
@@ -24,6 +25,10 @@ export interface SnapshotCache {
  * content produces the same fingerprint even under a different repo root. A match means the on-disk
  * snapshot is already current and the write can be skipped.
  */
+// Streamed rather than routed through `sha256Hex`: the input is O(repository) — id plus content
+// hash of every module, template and infra file — and materializing it as one string would allocate
+// megabytes on each `refresh_context`. The framing (`|label:n|`, `\0`) is part of the fact, not
+// formatting: it is what keeps a member count distinguishable from a member.
 export function snapshotContentFingerprint(snapshot: RepositoryFactsSnapshot): string {
   const h = crypto.createHash('sha256');
   h.update(`av:${snapshot.analysisVersion ?? 0}`);
@@ -144,6 +149,9 @@ function infraFacts(m: InfraMember): unknown {
  * an extract change shipped without a STAGE1_ANALYSIS_VERSION bump. Position (`lineRange`) and
  * absolute paths are excluded, so formatting/line moves do not perturb it.
  */
+// Streamed for the same reason as `snapshotContentFingerprint`, and deliberately NOT the same
+// fact: members are sorted by id here, so reordering the snapshot does not move this fingerprint
+// and does move that one.
 export function extractOutputFingerprint(snapshot: RepositoryFactsSnapshot): string {
   const h = crypto.createHash('sha256');
   const addMembers = <T extends { id: string; contentHash: string }>(
@@ -173,8 +181,7 @@ const SNAPSHOT_FILENAME = 'repository-facts-snapshot.json';
 /** Module `filePath` is the only absolute field. Store it repo-root-relative (posix) so the
  * on-disk cache transfers between worktrees, CI checkouts, and container mounts at the same
  * content. The absolute path is reconstructed against the current runtime root on load. */
-const toPortable = (root: string, abs: string): string =>
-  path.relative(root, abs).split(path.sep).join('/');
+const toPortable = (root: string, abs: string): string => repoRelativePosix(root, abs);
 const toAbsolute = (root: string, stored: string): string =>
   path.isAbsolute(stored) ? stored : path.resolve(root, stored);
 

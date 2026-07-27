@@ -14,6 +14,7 @@ import { workflowSignalKinds } from './component-signals.js';
 import { isNodeType, modulePackageId, nodeLabel, packageModuleIds, taggedDomains } from '../../graph/index.js';
 import type { RefactoringFinding } from './types.js';
 import { coupledTargetRole, frontendDataAccessTargetKey, frontendFeatureKey, isFrontendFlowEntryModule, isRuntimeImportEdge, maxModuleLine, policyTokens, runtimeFanIn, runtimeFanOut, stateModuleKind, uiCouplingTargetRole } from './heuristics.js';
+import { isBarrelModule } from '../../graph/module-files.js';
 
 function nodeDomains(graph: RepositoryGraph, nodeId: string): string[] {
   return taggedDomains(graph, nodeId).ids;
@@ -130,7 +131,7 @@ export function refactoringCategoryDetail(
       }
       const targetPackageId = modulePackageId(graph, targetId);
       const packageIndexModules = targetPackageId
-        ? packageModuleIds(graph, targetPackageId).filter(id => nodeLabel(graph, id).endsWith('/index'))
+        ? packageModuleIds(graph, targetPackageId).filter(id => isBarrelModule(graph, id))
         : [];
       return { targetId, targetPackageId, importers, importedSymbols: [...symbols].slice(0, 30), packageIndexModules };
     }

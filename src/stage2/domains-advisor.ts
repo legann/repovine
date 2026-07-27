@@ -7,6 +7,11 @@ import { domainsConfigFilePath } from '../paths.js';
 import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 import { matchesInfraResourceExclude } from './domains.js';
 import { DomainsConfigSchema, type DomainsConfigFile } from './domains-schema.js';
+import { domainSlug } from './domain-slug.js';
+// Side-effect import: the built-in source plugins must be registered before this module asks the
+// registry which extensions it owns, so every ecosystem reduces by its own declaration.
+import '../stage1/source/bootstrap.js';
+import { hasKnownSourceExtension, stripSourceExtension } from '../stage1/source/registry.js';
 
 const INFRA_NOISE_SUFFIXES = [
   'Alarm',
@@ -311,10 +316,10 @@ function computeBasenameSuggestion(
   onDisk: DomainsConfigFile,
 ): DomainsSuggestionAddition | undefined {
   if (onDisk.basename?.pascalCase !== undefined) return undefined;
-  const codeModules = snapshot.modules.filter(mod => /\.(tsx?|jsx?|mts|cts|vue|svelte)$/i.test(mod.relativeFilePath));
+  const codeModules = snapshot.modules.filter(mod => hasKnownSourceExtension(mod.relativeFilePath));
   if (codeModules.length === 0) return undefined;
   const pascalCase = codeModules.filter(mod => {
-    const basename = path.basename(mod.relativeFilePath).replace(/\.(tsx?|jsx?|mts|cts|vue|svelte)$/i, '');
+    const basename = stripSourceExtension(path.basename(mod.relativeFilePath));
     return /^[A-Z]/.test(basename);
   }).length;
   const ratio = pascalCase / codeModules.length;
@@ -339,8 +344,9 @@ function computeInfraDomainPathSuggestions(
   for (const infraMod of snapshot.infraModules ?? []) {
     const parts = infraMod.relativeFilePath.split('/').filter(Boolean);
     if (parts[0] !== 'infrastructure' || !parts[1]) continue;
-    const domain = `infra-${slug(parts[1])}`;
-    counts.set(domain, (counts.get(domain) ?? 0) + 1);
+    const folder = domainSlug(parts[1]);
+    if (!folder) continue;
+    counts.set(`infra-${folder}`, (counts.get(`infra-${folder}`) ?? 0) + 1);
   }
   return [...counts.entries()]
     .filter(([domain, count]) => {
@@ -363,12 +369,4 @@ function computeInfraDomainPathSuggestions(
 
 function unionStrings(existing: string[] | undefined, additions: string[]): string[] {
   return [...new Set([...(existing ?? []), ...additions])];
-}
-
-function slug(input: string): string {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }

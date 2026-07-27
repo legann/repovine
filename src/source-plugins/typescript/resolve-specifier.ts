@@ -1,8 +1,9 @@
 import * as path from 'node:path';
 import ts from 'typescript';
-import type { PackageInfo } from '@repovine/plugin-sdk';
+import { packageNodeId, type PackageInfo } from '@repovine/plugin-sdk';
 import { extractPackageName } from '../../stage1/utils.js';
 import { hostKeyedView, hostPathKey } from '../../platform/paths.js';
+import { SOURCE_EXT_SUFFIX_RE, TYPESCRIPT_JS_EXTENSIONS, TYPESCRIPT_TS_EXTENSIONS } from './extensions.js';
 
 /**
  * String-based shortcut for module specifier resolution. Avoids ts-morph's
@@ -50,27 +51,15 @@ function indexPackages(packages: PackageInfo[]): PackageIndex {
   return idx;
 }
 
-/** Suffix candidates ordered the way the TypeScript module resolver tries them.
- * Empty string is intentional: handles specifiers that already include the extension. */
-const FILE_SUFFIX_CANDIDATES = [
-  '.ts',
-  '.tsx',
-  '.d.ts',
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '',
-];
+/** Suffix candidates in the order the TypeScript module resolver tries them: an implementation in
+ * TypeScript, then a declaration, then an implementation in JavaScript, then the empty string for a
+ * specifier that already carries its extension. The order is the contract — a `.d.ts` that outran
+ * its own `.ts` would resolve every import to the declaration file. */
+const RESOLVE_SUFFIX_LADDER = [...TYPESCRIPT_TS_EXTENSIONS, '.d.ts', ...TYPESCRIPT_JS_EXTENSIONS];
+const FILE_SUFFIX_CANDIDATES = [...RESOLVE_SUFFIX_LADDER, ''];
 
-/** Index resolution candidates appended after FILE candidates. */
-const INDEX_SUFFIX_CANDIDATES = [
-  '/index.ts',
-  '/index.tsx',
-  '/index.d.ts',
-  '/index.js',
-  '/index.jsx',
-];
+/** Index resolution candidates appended after FILE candidates — the same ladder under `/index`. */
+const INDEX_SUFFIX_CANDIDATES = RESOLVE_SUFFIX_LADDER.map(suffix => `/index${suffix}`);
 
 function lookupCandidates(basePath: string, absPathToId: Map<string, string>): string | undefined {
   // absPathToId is the hostKeyedView; candidates mint the same canonical form.
@@ -103,7 +92,7 @@ function moduleIdForResolvedFile(
   const direct = absPathToId.get(hostPathKey(abs));
   if (direct) return direct;
 
-  const withoutExt = abs.replace(/\.(tsx?|jsx?|mjs|cjs)$/i, '');
+  const withoutExt = abs.replace(SOURCE_EXT_SUFFIX_RE, '');
   const fromLookup = lookupCandidates(withoutExt, absPathToId);
   if (fromLookup) return fromLookup;
 
@@ -140,7 +129,7 @@ function resolveViaTsconfigPaths(
 function pathExistsInMap(fileName: string, absPathToId: Map<string, string>): boolean {
   const abs = path.resolve(fileName);
   if (absPathToId.has(hostPathKey(abs))) return true;
-  const withoutExt = abs.replace(/\.d\.ts$/i, '').replace(/\.(tsx?|jsx?|mjs|cjs)$/i, '');
+  const withoutExt = abs.replace(/\.d\.ts$/i, '').replace(SOURCE_EXT_SUFFIX_RE, '');
   return lookupCandidates(withoutExt, absPathToId) !== undefined;
 }
 
@@ -228,7 +217,7 @@ export function resolveSpecifierFromMap(
       const entryId = lookupCandidates(path.resolve(pkgAbsPath, entryDir), absPathToId);
       if (entryId !== undefined) return { resolvedModuleId: entryId, isExternal: false };
     }
-    return { resolvedModuleId: `pkg:${pkgName}`, isExternal: false };
+    return { resolvedModuleId: packageNodeId(pkgName), isExternal: false };
   }
 
   // Workspace sub-path: resolve against the package directory.
@@ -241,5 +230,5 @@ export function resolveSpecifierFromMap(
   // Workspace pkg known but specific module not in map — TS resolver may find it via
   // package.json `exports` / conditional exports. Match the legacy behavior of falling
   // back to `pkg:<name>` (existing ts-morph code path does the same on its own miss).
-  return { resolvedModuleId: `pkg:${pkgName}`, isExternal: false };
+  return { resolvedModuleId: packageNodeId(pkgName), isExternal: false };
 }

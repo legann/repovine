@@ -8,7 +8,7 @@
  * resolveNodeContentHash} is the one dispatcher over those kinds; {@link hashedNodeKind} is the
  * enumerable list it dispatches on.
  */
-import { createHash } from 'node:crypto';
+import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 import type {
   GraphEdge,
   ModuleInfo,
@@ -187,7 +187,7 @@ function hashDomainMembers(
 
   members.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const payload = members.map(([id, h]) => `${id}:${h}`).join('\n');
-  return createHash('sha256').update(payload).digest('hex').slice(0, 16);
+  return sha256Hex(payload, HASH_WIDTH.content);
 }
 
 /**

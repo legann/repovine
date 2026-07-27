@@ -22,6 +22,8 @@ import { rememberInterpreterEntrypoints } from './interpreter/entrypoint-store.j
 import type { EntrypointFragment } from '../interpreter/types.js';
 import { pruneInertRuntimeResources } from './prune-inert-resources.js';
 import { validateComposedGraph, summarizeGraphValidationProblems } from './graph-validate.js';
+import { domainSlug } from './domain-slug.js';
+import { getSourceIndexBasenames, stripSourceExtension } from '../stage1/source/registry.js';
 
 const STRUCTURAL_DIRS_REF = STRUCTURAL_DIRS;
 
@@ -378,17 +380,22 @@ function clusterByPathPrefix(
     const mod = modulesById.get(modId);
     if (!mod) continue;
 
-    const rel = mod.relativeFilePath.replace(/\.(tsx?|jsx?)$/, '');
+    const rel = stripSourceExtension(mod.relativeFilePath);
     const parts = rel.split('/');
 
-    const domainIdx = parts.findIndex(p => p.toLowerCase() === domainLabel);
+    const domainIdx = parts.findIndex(p => domainSlug(p) === domainLabel);
     const afterDomain = domainIdx >= 0 ? parts.slice(domainIdx + 1) : parts;
 
-    const meaningful = afterDomain.filter(
-      p => !STRUCTURAL_DIRS_REF.has(p.toLowerCase()) && p !== 'index',
-    );
+    // A sub-label is half of `domain:<parent>/<sub>`, so it is spelled in the label alphabet like
+    // the parent half; a segment that spells nothing contributes no subdomain.
+    const indexSegments = new Set(getSourceIndexBasenames().map(domainSlug));
+    const meaningful = afterDomain
+      .map(domainSlug)
+      // The entry basename is a slot in the ecosystem's layout, not a sub-label. Spelled `index`
+      // only, a Python barrel `__init__.py` slugged to `init` and became a subdomain of its own.
+      .filter(seg => seg && !STRUCTURAL_DIRS_REF.has(seg) && !indexSegments.has(seg));
 
-    const subKey = meaningful.length > 0 ? meaningful[0].toLowerCase() : domainLabel;
+    const subKey = meaningful.length > 0 ? meaningful[0] : domainLabel;
     let list = segmentCounts.get(subKey);
     if (!list) { list = []; segmentCounts.set(subKey, list); }
     list.push(modId);

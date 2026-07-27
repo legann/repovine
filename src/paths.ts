@@ -135,6 +135,7 @@ export const REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS = [
   'target',
   'build',
   'out',
+  '.aws-sam',
   'coverage',
   'htmlcov',
   'site-packages',

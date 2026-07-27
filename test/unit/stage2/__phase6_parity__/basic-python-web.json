@@ -780,7 +780,7 @@
     {
       "id": "mod:django-app/drf_advanced",
       "type": "module",
-      "label": "drf_advanced.py",
+      "label": "drf_advanced",
       "description": "Module drf_advanced.py in django-app",
       "data": {
         "filePath": "<FIXTURE>/packages/django-app/drf_advanced.py",
@@ -792,7 +792,7 @@
     {
       "id": "mod:django-app/drf_fbv",
       "type": "module",
-      "label": "drf_fbv.py",
+      "label": "drf_fbv",
       "description": "Module drf_fbv.py in django-app",
       "data": {
         "filePath": "<FIXTURE>/packages/django-app/drf_fbv.py",
@@ -804,7 +804,7 @@
     {
       "id": "mod:django-app/drf_urls",
       "type": "module",
-      "label": "drf_urls.py",
+      "label": "drf_urls",
       "description": "Module drf_urls.py in django-app",
       "data": {
         "filePath": "<FIXTURE>/packages/django-app/drf_urls.py",
@@ -816,7 +816,7 @@
     {
       "id": "mod:django-app/firstpass_urls",
       "type": "module",
-      "label": "firstpass_urls.py",
+      "label": "firstpass_urls",
       "description": "Module firstpass_urls.py in django-app",
       "data": {
         "filePath": "<FIXTURE>/packages/django-app/firstpass_urls.py",
@@ -828,7 +828,7 @@
     {
       "id": "mod:django-app/nested_urls",
       "type": "module",
-      "label": "nested_urls.py",
+      "label": "nested_urls",
       "description": "Module nested_urls.py in django-app",
       "data": {
         "filePath": "<FIXTURE>/packages/django-app/nested_urls.py",
@@ -840,7 +840,7 @@
     {
       "id": "mod:django-app/urls",
       "type": "module",
-      "label": "urls.py",
+      "label": "urls",
       "description": "Module urls.py in django-app",
       "data": {
         "filePath": "<FIXTURE>/packages/django-app/urls.py",
@@ -852,7 +852,7 @@
     {
       "id": "mod:fastapi-app/firstpass",
       "type": "module",
-      "label": "firstpass.py",
+      "label": "firstpass",
       "description": "Module firstpass.py in fastapi-app",
       "data": {
         "filePath": "<FIXTURE>/packages/fastapi-app/firstpass.py",
@@ -864,7 +864,7 @@
     {
       "id": "mod:fastapi-app/main",
       "type": "module",
-      "label": "main.py",
+      "label": "main",
       "description": "Module main.py in fastapi-app",
       "data": {
         "filePath": "<FIXTURE>/packages/fastapi-app/main.py",

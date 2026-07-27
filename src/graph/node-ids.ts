@@ -55,6 +55,55 @@ export function isDomainNodeId(value: string): boolean {
 }
 
 /**
+ * The `pkg:` mint and its inverse live in the SDK beside the module-id mint, because a source
+ * plugin reports an import that resolves to a package as `pkg:<name>` and cannot reach into the
+ * engine for the spelling. Re-exported here so engine callers read the whole id vocabulary from
+ * one module.
+ */
+export { packageNameFromId, packageNodeId } from '@repovine/plugin-sdk';
+
+/**
+ * The node id of an export symbol, from its owning module id and the exported name.
+ *
+ * The inverse is {@link owningModuleId}, and the pair is why the recipe is written once: the id is
+ * `export:` + the module id's tail + `/` + the name, so un-minting can only be a last-slash cut.
+ * A name carrying `/` would break that, and no ecosystem's exported name does.
+ */
+export function exportSymbolId(moduleId: string, exportName: string): string {
+  return `export:${moduleTailFromId(moduleId)}/${exportName}`;
+}
+
+/**
+ * Attach the `mod:` prefix to a tail that already carries `<package>/<path>`.
+ *
+ * Distinct from the SDK's `mintModuleId`, which builds the tail from a package name and a file
+ * path: this is for a caller that already holds the whole tail — an agent-supplied path resolved
+ * against the graph, or an id being rebuilt after its tail was read.
+ */
+export function moduleNodeId(tail: string): string {
+  return `mod:${tail}`;
+}
+
+/** The `<package>/<path>` tail a `mod:` id carries. Returns the input unchanged with no prefix. */
+export function moduleTailFromId(idOrTail: string): string {
+  return idOrTail.startsWith('mod:') ? idOrTail.slice('mod:'.length) : idOrTail;
+}
+
+/**
+ * The node id of an IaC document. `kind` is the parser's own word for the artifact (`dockerfile`,
+ * `terraform`, …) and sits inside the id, so two documents of different kinds at one path stay
+ * apart. The node itself carries graph type `module`; only the prefix marks what it is.
+ */
+export function infraNodeId(kind: string, relPath: string): string {
+  return `infra:${kind}:${relPath}`;
+}
+
+/** The node id of a server-side template, from its repo-relative path. */
+export function templateNodeId(relPath: string): string {
+  return `template:${relPath}`;
+}
+
+/**
  * Map an export-symbol node id to its owning module id (pure string transform).
  *
  * Export-symbol ids are built in stage2 as `export:${moduleId.slice(4)}/${exportName}`, so the owning

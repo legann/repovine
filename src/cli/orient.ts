@@ -10,6 +10,8 @@ import { firstResultId, topSearchResultIds } from '../mcp/scope/resolve.js';
 import type { McpToolRuntime } from '../mcp/types.js';
 import { setPipelineLogSink } from './ui.js';
 import type { AgentsCliEnv } from './agents.js';
+import { moduleTailFromId, packageNameFromId } from '../graph/node-ids.js';
+import { extractPackageName } from '../stage1/utils.js';
 
 export type OrientReport = {
   query: string;
@@ -46,23 +48,28 @@ function buildToolCtx(ctx: RepovineRuntime, cfg: ReturnType<typeof loadConfig>, 
   };
 }
 
+/**
+ * The package a hit belongs to, as a trace scope.
+ *
+ * `mod:<pkg>/<path>` is minted by joining the package name and the path with `/`, and a scoped npm
+ * name carries a `/` of its own — so reading the package back is `extractPackageName`, the inverse
+ * of the mint, not a cut at the first slash. Cutting there turns
+ * `mod:@repovine/plugin-sdk/src/x` into `@repovine`, which the resolver's `@`-forgiving lookup then
+ * resolves to a different, real package. A `pkg:` id already holds the whole name and is not cut.
+ */
+export function packageScopeOf(id: string): string | undefined {
+  if (id.startsWith('pkg:')) return packageNameFromId(id);
+  if (id.startsWith('mod:')) return extractPackageName(moduleTailFromId(id));
+  return undefined;
+}
+
 function pickTraceScope(searchMatches: Record<string, unknown>, graphNodes: string[]): string {
   for (const id of graphNodes) {
-    if (id.startsWith('mod:') || id.startsWith('pkg:')) {
-      const tail = id.slice(id.indexOf(':') + 1);
-      const slash = tail.indexOf('/');
-      if (slash > 0) return tail.slice(0, slash);
-      return tail;
-    }
+    const scope = packageScopeOf(id);
+    if (scope) return scope;
   }
   const first = firstResultId(searchMatches);
-  if (first?.startsWith('mod:')) {
-    const tail = first.slice(4);
-    const slash = tail.indexOf('/');
-    if (slash > 0) return tail.slice(0, slash);
-  }
-  if (first?.startsWith('pkg:')) return first.slice(4);
-  return 'all';
+  return (first && packageScopeOf(first)) ?? 'all';
 }
 
 function serviceIds(services: unknown): string[] {

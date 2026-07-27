@@ -5,6 +5,13 @@ about an artifact (a source file's imports/exports/`semanticHints`, or an IaC do
 the engine owns everything else — node ids, paths, content hashes, provenance, and the graph
 ontology (`NodeType`/`EdgeKind`). You never name an edge or node type.
 
+Two of those the SDK hands back, because a producer does have to write them. An import that resolves
+to a package rather than a file is reported as `packageNodeId(name)` — the engine's own spelling of
+the id, exported so a plugin matches it instead of reproducing it from a sample. And a per-resource
+`contentHash` is `sha256Hex(text, HASH_WIDTH.content)`: the SDK owns the digest and the width, the
+plugin owns what `text` is. Which bytes represent a resource — key order included — is the plugin's
+fact about its own format, and the engine compares the result without knowing how it was built.
+
 The complete taxonomy of public producers and core-only interpreters, detectors, and delivery
 mechanics is defined in [DESIGN.md](../DESIGN.md#extension-families-and-boundaries).
 

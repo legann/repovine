@@ -36,6 +36,12 @@ import {
 import { applyEol, detectEol, isUniformEol, normalizeEol } from './eol.js';
 import { CLIENT_CAPABILITIES, type ClientId } from './client-capabilities.js';
 import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from './dispatcher/index.js';
+import { shouldWalkDiscoveryDir } from '../scan-filters.js';
+// Side-effect import: the built-in source plugins must be registered before the preflight asks
+// the registry which extensions signal a project.
+import '../stage1/source/bootstrap.js';
+import { getKnownExtensions } from '../stage1/source/registry.js';
+import { normalizeRelPath } from '../platform/paths.js';
 import {
   isManagedClaudeHook,
   isManagedCursorHookCommand,
@@ -209,11 +215,6 @@ const INIT_CAPABILITY_MATRIX = {
   },
 } as const;
 
-const PREFLIGHT_SKIP_DIRS = new Set([
-  'node_modules', '.git', '.repovine', 'dist', 'dist-bundled', '.next', '.cache',
-  'test', 'tests', '__tests__', '__mocks__', '__snapshots__', 'e2e', 'cypress', 'playwright',
-  'coverage', 'build', '.turbo', '.nx',
-]);
 
 // Python (pyproject.toml / setup.py) is a SUPPORTED source plugin now and is handled
 // separately via pythonPackageCount — it is intentionally absent from this list.
@@ -236,9 +237,14 @@ const PROJECT_SIGNAL_FILES = new Set([
   'package.json', 'vite.config.js', 'vite.config.ts', 'next.config.js', 'next.config.ts',
 ]);
 
-const PROJECT_SIGNAL_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte',
-]);
+/**
+ * A file the preflight counts as "there is a project here". Read from the registry, so the answer
+ * matches what discovery will actually index: spelled by hand it listed the TypeScript family only,
+ * and a repository written entirely in Python reported no project signals at all.
+ */
+function isProjectSignalExtension(ext: string): boolean {
+  return getKnownExtensions().includes(ext.toLowerCase());
+}
 
 export interface WorkspaceSupportInspection {
   tsconfigCount: number;
@@ -285,7 +291,8 @@ export function inspectWorkspaceSupport(cwd: string): WorkspaceSupportInspection
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        if (PREFLIGHT_SKIP_DIRS.has(entry.name)) continue;
+        // The preflight count predicts what the graph will hold, so it prunes where discovery does.
+        if (!shouldWalkDiscoveryDir(entry.name)) continue;
         walk(path.join(dir, entry.name));
         continue;
       }
@@ -299,7 +306,7 @@ export function inspectWorkspaceSupport(cwd: string): WorkspaceSupportInspection
       if (UNSUPPORTED_PROJECT_FILES.has(name) || UNSUPPORTED_SOURCE_EXTENSIONS.has(ext)) {
         result.hasUnsupportedSignals = true;
       }
-      if (PROJECT_SIGNAL_FILES.has(name) || PROJECT_SIGNAL_EXTENSIONS.has(ext)) {
+      if (PROJECT_SIGNAL_FILES.has(name) || isProjectSignalExtension(ext)) {
         result.hasProjectSignals = true;
       }
     }
@@ -1046,7 +1053,7 @@ export function resolveMcpLauncher(
   const entry = path.resolve(engineEntry);
   const rel = path.relative(path.resolve(repoRoot), entry);
   const insideRepo = rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
-  const viaNodeModules = rel.split(path.sep).includes('node_modules');
+  const viaNodeModules = normalizeRelPath(rel).split('/').includes('node_modules');
   if (!insideRepo || viaNodeModules) return NPX_LAUNCHER;
   return { command: options.nodePath ?? process.execPath, args: [entry] };
 }

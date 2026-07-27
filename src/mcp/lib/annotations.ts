@@ -1,6 +1,6 @@
 import type { AnnotationContent, ModuleInfo, StoredAnnotation } from '../../types.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
-import { importerCount } from '../../graph/index.js';
+import { importerCount, moduleLabelOf } from '../../graph/index.js';
 import { CURRENT_ANNOTATION_SCHEMA_VERSION } from '../../types.js';
 import { AnnotationContentSchema } from '../../annotations/store.js';
 import {
@@ -491,7 +491,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
     for (const mod of snapshot.modules) {
       if (annotationsData[mod.id]) continue;
       const downstreamCount = importerCount(graph, mod.id);
-      const label = graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath;
+      const label = moduleLabelOf(graph, mod);
       scored.push({ nodeId: mod.id, label, downstreamCount });
     }
     scored.sort((a, b) => b.downstreamCount - a.downstreamCount);

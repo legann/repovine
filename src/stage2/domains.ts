@@ -7,6 +7,8 @@ import { importerCount } from '../graph/index.js';
 // registry which extensions to strip, so a Python path reduces the same way a TypeScript one does.
 import '../stage1/source/bootstrap.js';
 import { stripSourceExtension } from '../stage1/source/registry.js';
+import { domainLabelSlug, domainSlug } from './domain-slug.js';
+import { toPosixPath } from '../platform/paths.js';
 
 export { DOMAINS_CONFIG_MERGE_STRATEGY, DomainsConfigSchema, compileGlob, loadDomainsConfig, type DomainsConfig, type GlobMatcher } from './domains-schema.js';
 
@@ -26,8 +28,9 @@ export const STRUCTURAL_DIRS = new Set([
   // Horizontal layers (types, config, state)
   'types', 'config', 'configs', 'constants', 'store', 'stores',
   'contexts', 'providers', 'middleware', 'models',
-  // Testing
-  'tests', '__tests__', 'testing', 'mocks', 'fixtures', 'setup',
+  // Testing. Spelled in the label alphabet, which every reader slugs into before asking:
+  // `__tests__` would fold onto `tests` and never be looked up under its own name.
+  'tests', 'testing', 'mocks', 'fixtures', 'setup',
   // Clean Architecture / DDD layers
   'adapters', 'interfaces', 'entities', 'repositories', 'use-cases',
   'slices', 'queries', 'columns',
@@ -146,13 +149,15 @@ export function getPathBasedDomains(relativeFilePath: string, extraStructural?: 
   const dirSegments = allSegments.slice(0, -1);
   const domains: string[] = [];
   for (const seg of dirSegments) {
-    const lower = seg.toLowerCase();
-    if (STRUCTURAL_DIRS.has(lower)) continue;
-    if (extraStructural?.has(lower)) continue;
     // Skip PascalCase / camelCase segments — component/class names, not domain folders.
     if (/[A-Z]/.test(seg)) continue;
-    const slug = lower.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || seg;
-    if (slug && !domains.includes(slug)) domains.push(slug);
+    // The structural test reads the slug, not the raw segment: `src ` and `src` name one directory
+    // convention, and testing the raw form lets the padded spelling through as a domain.
+    const slug = domainSlug(seg);
+    if (!slug) continue;
+    if (STRUCTURAL_DIRS.has(slug)) continue;
+    if (extraStructural?.has(slug)) continue;
+    if (!domains.includes(slug)) domains.push(slug);
   }
   return domains;
 }
@@ -219,7 +224,10 @@ export function evaluateBasenameCandidate(
     if (/[A-Z]/.test(stem) || RESERVED_BASENAMES.has(stem.toLowerCase())) {
       return { rejected: true, highConfidence: true };
     }
-    return { domain: kebabSlug(stem), rejected: false, highConfidence: true };
+    const stemSlug = domainSlug(stem);
+    return stemSlug
+      ? { domain: stemSlug, rejected: false, highConfidence: true }
+      : { rejected: true, highConfidence: true };
   }
   // Runtime markers (`.server.ts`, `.client.ts`) are not handler suffixes — they describe where
   // the file runs, not what it does. Strip them and let the stem go through normal evaluation
@@ -230,10 +238,10 @@ export function evaluateBasenameCandidate(
       return { rejected: true, highConfidence: true };
     }
     if (/[A-Z]/.test(stem)) {
-      const slug = kebabSlug(stem);
+      const slug = domainSlug(stem);
       return slug ? { domain: slug, rejected: false, highConfidence: false } : { rejected: true, highConfidence: false };
     }
-    const slug = kebabSlug(stem);
+    const slug = domainSlug(stem);
     if (slug && !/^\d+$/.test(slug)) {
       return { domain: slug, rejected: false, highConfidence: false };
     }
@@ -248,13 +256,13 @@ export function evaluateBasenameCandidate(
     if (options?.pascalCaseBasename === 'reject') {
       return { rejected: true, highConfidence: false };
     }
-    const slug = kebabSlug(basename);
+    const slug = domainSlug(basename);
     if (!slug) return { rejected: true, highConfidence: false };
     return { domain: slug, rejected: false, highConfidence: false };
   }
 
   // Pure numeric or empty after slugging — not a domain.
-  const slug = kebabSlug(basename);
+  const slug = domainSlug(basename);
   if (!slug || /^\d+$/.test(slug)) return { rejected: true, highConfidence: false };
 
   // Graph-based promotion signals — handler files and well-connected modules.
@@ -282,9 +290,8 @@ export function evaluateBasenameCandidate(
   const dirSegments = segments.slice(0, -1);
   const pkgVariants = collectPackageNameVariants(packageName);
   const nonStructural = dirSegments.filter(seg => {
-    const lower = seg.toLowerCase();
-    if (STRUCTURAL_DIRS.has(lower)) return false;
-    if (pkgVariants.has(lower)) return false;
+    if (STRUCTURAL_DIRS.has(domainSlug(seg))) return false;
+    if (pkgVariants.has(seg.toLowerCase())) return false;
     return true;
   });
   if (nonStructural.length === 0) {
@@ -304,12 +311,8 @@ export function evaluateBasenameCandidate(
  *   "@scope/foo"              -> "foo"
  */
 export function packageShortName(packageName: string): string {
-  if (!packageName) return '';
-  const lower = packageName.toLowerCase();
-  const slashIdx = lower.lastIndexOf('/');
-  const short = slashIdx >= 0 ? lower.slice(slashIdx + 1) : lower;
-  // Slug-safe: any odd char in package names becomes a dash (rare but defensive).
-  return short.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const slashIdx = packageName.lastIndexOf('/');
+  return domainSlug(slashIdx >= 0 ? packageName.slice(slashIdx + 1) : packageName);
 }
 
 /**
@@ -331,14 +334,6 @@ function collectPackageNameVariants(packageName?: string): Set<string> {
     }
   }
   return out;
-}
-
-function kebabSlug(input: string): string {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 /**
@@ -463,7 +458,7 @@ export function getClusterDomains(
 /** Test relative file path against config's file-as-domain include/exclude lists. */
 export function matchFileAsDomain(relativeFilePath: string, config: DomainsConfig | null): 'include' | 'exclude' | undefined {
   if (!config) return undefined;
-  const path = relativeFilePath.replace(/\\/g, '/');
+  const path = toPosixPath(relativeFilePath);
   if (config._fileAsDomainExclude?.some(re => re.test(path))) return 'exclude';
   if (config._fileAsDomainInclude?.some(re => re.test(path))) return 'include';
   return undefined;
@@ -478,11 +473,11 @@ export function matchFileAsDomain(relativeFilePath: string, config: DomainsConfi
  * prefixed on a miss made every caller re-test the prefix.
  */
 export function resolveDomainToCanonical(input: string, config: DomainsConfig | null): string {
-  const normalized = domainLabelFromId(input);
+  // The alphabet applies whether or not a config file exists: the same scope argument must name
+  // the same domain in a repository that has `repovine.domains.json` and one that does not.
+  const normalized = domainLabelSlug(domainLabelFromId(input));
   if (!input || !config) return normalized;
-  const canonical = config._aliasToCanonical?.[normalized.toLowerCase()];
-  if (canonical !== undefined) return canonical;
-  return normalized;
+  return config._aliasToCanonical?.[normalized] ?? normalized;
 }
 
 /**
@@ -495,11 +490,13 @@ export function getConfigPatternDomains(
   const domains: string[] = [];
   const text = relativeFilePath.toLowerCase();
   for (const [domain, entry] of Object.entries(config.domains ?? {})) {
+    const label = domainLabelSlug(domain);
+    if (!label) continue;
     for (const pattern of entry.paths ?? []) {
       try {
         const re = new RegExp(pattern, 'i');
-        if (re.test(text) && !domains.includes(domain)) {
-          domains.push(domain);
+        if (re.test(text) && !domains.includes(label)) {
+          domains.push(label);
         }
       } catch {
         // invalid regex, skip
@@ -604,7 +601,7 @@ export function collectAllDomainTags(
       const basename = withoutExt.split(/[/\\]/).filter(Boolean).pop() ?? '';
       const { stem, suffix } = splitBasename(basename);
       const label = suffix && DOMAIN_SUFFIXES.has(suffix) ? stem : basename;
-      const slug = label.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      const slug = domainSlug(label);
       if (slug) {
         add(mod.id, slug, 'path');
         protectedDomains.add(slug);
@@ -625,8 +622,10 @@ export function collectAllDomainTags(
   const configDomains = new Set<string>();
   if (config?.domains && Object.keys(config.domains).length > 0) {
     for (const domain of Object.keys(config.domains)) {
-      configDomains.add(domain);
-      protectedDomains.add(domain);
+      const label = domainLabelSlug(domain);
+      if (!label) continue;
+      configDomains.add(label);
+      protectedDomains.add(label);
     }
     for (const mod of snapshot.modules) {
       for (const d of getConfigPatternDomains(mod.relativeFilePath, config)) {
@@ -641,16 +640,18 @@ export function collectAllDomainTags(
   const pkgCfg = config?.packages;
   const packagesEnabled = pkgCfg?.enabled !== false;
   if (packagesEnabled) {
-    const excludeSet = new Set((pkgCfg?.exclude ?? []).map(s => s.toLowerCase()));
+    // Config names are matched and minted in the label alphabet, so `exclude: ["Skip Me"]`
+    // reaches the same spelling `packageShortName` produces for the package it names.
+    const excludeSet = new Set((pkgCfg?.exclude ?? []).map(domainSlug));
     const renameMap = new Map<string, string>();
     for (const [from, to] of Object.entries(pkgCfg?.rename ?? {})) {
-      renameMap.set(from.toLowerCase(), String(to).toLowerCase());
+      renameMap.set(domainSlug(from), domainSlug(String(to)));
     }
     // merge: each member package gets mapped to the merged label.
     const mergeMap = new Map<string, string>();
     for (const [mergedLabel, members] of Object.entries(pkgCfg?.merge ?? {})) {
       if (!Array.isArray(members)) continue;
-      for (const m of members) mergeMap.set(String(m).toLowerCase(), mergedLabel.toLowerCase());
+      for (const m of members) mergeMap.set(domainSlug(String(m)), domainSlug(mergedLabel));
     }
     // Pre-resolve each package name -> final domain label (or undefined if excluded).
     const pkgToLabel = new Map<string, string>();

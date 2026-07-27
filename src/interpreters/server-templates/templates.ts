@@ -1,6 +1,8 @@
 import type { GraphDelta, RepositoryGraph, TemplateFileInfo } from '../../types.js';
 import { addNode, addEdge, emptyGraphDelta, hasEdge } from '../../graph/index.js';
 import type { InterpreterGraphContext } from '../../interpreter/types.js';
+import { exportSymbolId } from '../../graph/node-ids.js';
+import { toPosixPath } from '../../platform/paths.js';
 
 export const SERVER_TEMPLATES_INTERPRETER_ID = 'server-templates';
 
@@ -101,7 +103,7 @@ export function makeTemplateResolver(
   }
 
   return (rawName: string): string | undefined => {
-    const name = rawName.replace(/\\/g, '/').replace(/^\.?\//, '').trim();
+    const name = toPosixPath(rawName).replace(/^\.?\//, '').trim();
     if (!name) return undefined;
 
     const anchored = byAnchored.get(name);
@@ -124,10 +126,9 @@ export function makeTemplateResolver(
  * unresolved view falls back to the module node (the same-file module is always present).
  */
 function resolveViewNodeId(graph: RepositoryGraph, modId: string, component: string): string {
-  const base = modId.slice(4); // strip 'mod:'
   for (const candidate of [component, component.split('.')[0]]) {
     if (!candidate) continue;
-    const exportId = `export:${base}/${candidate}`;
+    const exportId = exportSymbolId(modId, candidate);
     if (graph.nodes.has(exportId)) return exportId;
   }
   return modId;

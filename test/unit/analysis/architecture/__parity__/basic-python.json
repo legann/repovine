@@ -1,10 +1,10 @@
 {
   "scope": "all",
-  "totalFindings": 0,
-  "returnedFindings": 0,
+  "totalFindings": 1,
+  "returnedFindings": 1,
   "summary": {
     "duplicate-like": 0,
-    "boundary": 0,
+    "boundary": 1,
     "god-module": 0,
     "god-domain": 0,
     "low-cohesion": 0,
@@ -30,5 +30,24 @@
     "annotation-risk": 0,
     "unclear-architecture": 0
   },
-  "findings": []
+  "findings": [
+    {
+      "id": "boundary:mod:sharedlib/sharedlib/helpers",
+      "category": "boundary",
+      "confidence": 0.66,
+      "severity": "medium",
+      "impact": "medium",
+      "title": "Cross-package imports bypass a public package boundary",
+      "nodes": [
+        "mod:sharedlib/sharedlib/helpers",
+        "mod:basic-python/app"
+      ],
+      "evidence": [
+        "1 importer(s) reach sharedlib/helpers directly",
+        "Target package has an index module, so a public re-export boundary likely exists",
+        "Imported symbols: format_label"
+      ],
+      "suggestion": "Prefer a package-level public export or intentionally document this as an internal dependency if the bypass is part of the design."
+    }
+  ]
 }
