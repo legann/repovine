@@ -2,7 +2,7 @@ import type { ToolHandler } from '../types.js';
 import { resolveScope } from '../scope/resolve.js';
 import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, nav } from '../response/envelope.js';
-import { entrypointsEmptyDiagnostic } from '../response/empty-diagnostics.js';
+import { emptyOutcome, entrypointsEmptyDiagnostic } from '../response/empty-diagnostics.js';
 import { collectEntrypoints } from '../lib/entrypoints.js';
 
 export const handleGetEntrypoints: ToolHandler = (ctx, args) => {
@@ -15,17 +15,16 @@ export const handleGetEntrypoints: ToolHandler = (ctx, args) => {
     if (moduleId) navigation.deeper.push(nav('inspect_node', { nodeId: moduleId }, 'Inspect the module that owns this entrypoint.'));
     if (serviceId) navigation.crossLayer.push(nav('trace_flow', { scope: serviceId }, 'Trace runtime flow from this entrypoint service.'));
   }
-  const gaps = result.total > 0 ? [] : ['No entrypoints matched this scope/kind/layer filter.'];
-  if (result.total === 0 && scope.kind === 'domain') {
-    gaps.push('Domain scopes are semantic/path tags, not always runtime boundaries. Try a package/service scope or search_context with the feature plus "handler", "route", or "lambda".');
-  }
-  const responseResult: Record<string, unknown> = {
+  // One reading of "empty", and the gap is the diagnostic's own sentence: the prose that used to sit
+  // beside it said "kind/layer filter" whether or not one was passed.
+  const emptyDiagnostic = result.total === 0 ? entrypointsEmptyDiagnostic(ctx, scope, args) : undefined;
+  const outcome = emptyOutcome(emptyDiagnostic);
+  return envelope(scope, `Found ${result.total} entrypoint(s).`, {
     ...result,
-    ...(result.total === 0 ? { emptyDiagnostic: entrypointsEmptyDiagnostic(ctx, scope, args) } : {}),
-  };
-  return envelope(scope, `Found ${result.total} entrypoint(s).`, responseResult, {
-    confidence: result.total > 0 ? 'high' : 'low',
-    gaps,
+    ...(emptyDiagnostic ? { emptyDiagnostic } : {}),
+  }, {
+    confidence: outcome.confidence,
+    gaps: outcome.gaps,
     navigation,
   });
 };

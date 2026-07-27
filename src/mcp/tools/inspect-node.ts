@@ -13,7 +13,7 @@ import {
 } from '../response/empty-diagnostics.js';
 import { DEFAULT_BODY_LIMIT } from '../response/pagination.js';
 import { priorityWeight } from '../lib/investigate-refs.js';
-import { deliveryMechanic } from '../../mechanics/registry.js';
+import { deliveryMechanic, mechanicsForChannel } from '../../mechanics/registry.js';
 import { buildInspectNodeDetail, graphEdgeCount } from '../lib/inspect-node-core.js';
 import { computeRuntimeHandoff } from '../lib/runtime-handoff.js';
 
@@ -114,6 +114,35 @@ export function selfWiringAttention(
   };
 }
 
+/**
+ * The inspected node's own obligations, in registry priority order.
+ *
+ * Driven by the declaration: one builder per mechanic that names `pull-self`, and the channel
+ * decides which builders run. A mechanic that stops declaring the channel stops reaching the block,
+ * and one that starts declaring it without a builder here is a gap the totality law names.
+ */
+const SELF_ATTENTION: Partial<Record<InvestigateTag, (
+  nodeId: string,
+  annotation: AnnotationContent | undefined,
+  graph: RepositoryGraph,
+) => AttentionItem | undefined>> = {
+  boundary: (nodeId, annotation) => selfBoundaryAttention(nodeId, annotation),
+  wiring: (nodeId, _annotation, graph) => selfWiringAttention(nodeId, graph),
+};
+
+export function selfAttention(
+  nodeId: string,
+  annotation: AnnotationContent | undefined,
+  graph: RepositoryGraph,
+): AttentionItem[] {
+  const out: AttentionItem[] = [];
+  for (const mechanic of mechanicsForChannel('pull-self')) {
+    const item = SELF_ATTENTION[mechanic.id]?.(nodeId, annotation, graph);
+    if (item) out.push(item);
+  }
+  return out;
+}
+
 export const handleInspectNode: ToolHandler = async (ctx, args) => {
   const explicitNode = typeof args.nodeId === 'string' ? args.nodeId : undefined;
   const scope = resolveScope(ctx, explicitNode ?? args.scope);
@@ -200,9 +229,7 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
   // Lead with the inspected node's own boundary risk and runtime wiring, so a frozen edit-site or a
   // deployed handler is salient even when the agent lands on it directly rather than reaching it
   // through an investigate-tagged ref.
-  const selfBoundary = selfBoundaryAttention(nodeId, result.annotation as AnnotationContent | undefined);
-  const selfWiring = selfWiringAttention(nodeId, graph);
-  const selfItems = [selfBoundary, selfWiring].filter((item): item is AttentionItem => item !== undefined);
+  const selfItems = selfAttention(nodeId, result.annotation as AnnotationContent | undefined, graph);
   const attention = selfItems.length > 0
     ? [...selfItems, ...refAttention.filter((item) => item.nodeId !== nodeId)]
     : refAttention;

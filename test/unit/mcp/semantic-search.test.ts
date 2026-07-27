@@ -851,7 +851,7 @@ describe('search_context handler with semantic backend', () => {
     expect(Object.keys(result.matches.strategy.truncation)).toEqual(['alpha', 'beta']);
   });
 
-  it('returns type_filter_excluded when node hits are removed by the requested type filter', async () => {
+  it('reports the types narrowing when node hits are removed by the requested type filter', async () => {
     const ctx = makeCtx();
     const response = await toolHandlers['search_context'](ctx, {
       query: 'authentication',
@@ -861,8 +861,11 @@ describe('search_context handler with semantic backend', () => {
 
     expect(response.confidence).toBe('low');
     expect(result.emptyDiagnostic).toEqual(expect.objectContaining({
-      reason: 'type_filter_excluded',
-      details: expect.objectContaining({ types: ['runtime-resource'] }),
+      reason: 'filtered_out',
+      details: expect.objectContaining({
+        types: ['runtime-resource'],
+        narrowings: [{ by: 'types', value: ['runtime-resource'], after: 0, restoreWith: { arg: 'types', value: [] } }],
+      }),
     }));
   });
 

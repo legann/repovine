@@ -6,7 +6,7 @@ import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, resultError, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom, pathFromRootPaginated, DEFAULT_MAP_LIMIT } from '../response/pagination.js';
 import { pageTruncation } from '../../response/truncation.js';
-import { mapContextEmptyDiagnostic } from '../response/empty-diagnostics.js';
+import { emptyOutcome, mapContextEmptyDiagnostic } from '../response/empty-diagnostics.js';
 import { searchGraph } from '../lib/search-graph.js';
 import { buildDomainContext, buildDomainModulesSlice } from '../lib/domain-map.js';
 
@@ -88,11 +88,12 @@ export const handleMapContext: ToolHandler = (ctx, args) => {
   }
   if ((result as { error?: string }).error) gaps.push((result as { error: string }).error);
   const emptyDiagnostic = mapContextEmptyDiagnostic(ctx, scope, args, r);
+  const outcome = emptyOutcome(emptyDiagnostic);
   const payload = emptyDiagnostic ? { ...r, emptyDiagnostic } : result;
 
   return envelope(scope, summary, payload, {
-    confidence: gaps.length || emptyDiagnostic ? 'low' : 'high',
-    gaps,
+    confidence: gaps.length ? 'low' : outcome.confidence,
+    gaps: [...gaps, ...outcome.gaps],
     navigation,
   });
 };

@@ -1,7 +1,7 @@
 import { parseIntegrationPointTargets } from '../../annotations/carrier-links.js';
 import { edgeCount } from '../../graph/index.js';
-import { HUB_IMPORTER_FLOOR, DELIVERY_MECHANICS, DELIVERY_MECHANIC_PRIORITY } from '../../mechanics/registry.js';
-import type { DeliveryMechanicContext } from '../../mechanics/types.js';
+import { HUB_IMPORTER_FLOOR, DELIVERY_MECHANIC_PRIORITY, mechanicsForChannel } from '../../mechanics/registry.js';
+import type { Channel, DeliveryMechanicContext } from '../../mechanics/types.js';
 import type { AnnotationContent, EdgeKind, InvestigateTag, NodeViewDetail, RepositoryGraph } from '../../types.js';
 import { unavailableTruncation } from '../../response/truncation.js';
 
@@ -89,11 +89,15 @@ export function priorityWeight(tag: InvestigateTag): number {
 }
 
 /**
- * Investigate tags carried by a 1-hop target: one registry pass, each mechanic reading its own
- * primitive from ctx (see `DELIVERY_MECHANICS` for the tag vocabulary and per-tag triggers). `unannotated`
- * stays reserved — its `detect` is always false. Caller re-orders and caps via {@link capTags}.
+ * Investigate tags a target carries on one channel: one pass over the mechanics that declare it,
+ * each reading its own primitive from ctx (see the mechanics registry for the tag vocabulary and
+ * per-tag triggers). Walking the whole registry instead would tag by whatever happens to detect,
+ * which is how the carrier channel came to deliver five mechanics that never declared it.
+ * `unannotated` stays reserved — it declares no channel and its `detect` is always false. Caller
+ * re-orders and caps via {@link capTags}.
  */
 function tagsForTarget(
+  channel: Channel,
   annotations: AnnotationLookup,
   nodeId: string,
   importerCount?: (id: string) => number,
@@ -102,7 +106,7 @@ function tagsForTarget(
 ): InvestigateTag[] {
   const ctx: DeliveryMechanicContext = { nodeId, annotation: annotations.get(nodeId)?.annotation, importerCount, hubThreshold, edgeCount };
   const tags: InvestigateTag[] = [];
-  for (const m of DELIVERY_MECHANICS) if (m.detect(ctx)) tags.push(m.id);
+  for (const m of mechanicsForChannel(channel)) if (m.detect(ctx)) tags.push(m.id);
   return tags;
 }
 
@@ -135,18 +139,18 @@ export function applyInvestigateTags(
   const importerCount = options?.importerCount;
   const hubThreshold = options?.hubThreshold;
   const edgeCount = options?.edgeCount;
-  const collect = (targetId: string, assign: (tags: InvestigateTag[]) => void): void => {
-    const tags = capTags(tagsForTarget(annotations, targetId, importerCount, hubThreshold, edgeCount));
+  const collect = (channel: Channel, targetId: string, assign: (tags: InvestigateTag[]) => void): void => {
+    const tags = capTags(tagsForTarget(channel, annotations, targetId, importerCount, hubThreshold, edgeCount));
     if (tags.length === 0) return;
     const rank = Math.max(...tags.map(priorityWeight));
     carriers.push({ targetId, assign, tags, rank, order: order++ });
   };
 
   if (view.links) {
-    for (const link of view.links) collect(link.targetId, (tags) => { link.investigate = tags; });
+    for (const link of view.links) collect('pull-neighbor', link.targetId, (tags) => { link.investigate = tags; });
   }
   for (const child of view.drillDown) {
-    collect(child.id, (tags) => { child.investigate = tags; });
+    collect('pull-neighbor', child.id, (tags) => { child.investigate = tags; });
   }
 
   // integrationPoints carriers: only when a direction guard is supplied. Same trigger, same cap.
@@ -161,7 +165,7 @@ export function applyInvestigateTags(
     for (const id of parseIntegrationPointTargets(options.selfAnnotation.integrationPoints, { nodeExists })) {
       if (structuralIds.has(id)) continue; // structural channel owns it
       if (!dependsOn(id)) continue; // direction guard: inherit only from what we depend on
-      collect(id, (tags) => { pointers.push({ id, investigate: tags, via: 'integrationPoints' }); });
+      collect('pull-carrier', id, (tags) => { pointers.push({ id, investigate: tags, via: 'integrationPoints' }); });
     }
   }
 

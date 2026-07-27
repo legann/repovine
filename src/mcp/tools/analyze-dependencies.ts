@@ -5,9 +5,9 @@ import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, resultError, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom } from '../response/pagination.js';
 import {
-  boundedTotal,
   dependenciesEmptyDiagnostic,
   dependencyModeScopeMismatchDiagnostic,
+  emptyOutcome,
 } from '../response/empty-diagnostics.js';
 import { analyzeImpact } from '../lib/dependencies/impact.js';
 import { analyzeCallgraph } from '../lib/dependencies/callgraph.js';
@@ -136,17 +136,13 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
   }
 
   const error = (result as { error?: string }).error;
-  const gaps = error ? [error] : [];
-  if (!error && (mode === 'package-boundaries' || mode === 'import-map')) {
-    const edgeTotal = boundedTotal(result as Record<string, unknown>, 'edges');
-    if (edgeTotal === 0) {
-      gaps.push('No cross-package import edges matched this scope/direction. Intra-package imports are intentionally omitted; try scope "all" or a different direction if you expected package-level edges.');
-    }
-  }
   const emptyDiagnostic = error
     ? undefined
     : dependenciesEmptyDiagnostic(ctx, scope, args, mode, result as Record<string, unknown>);
-  if (emptyDiagnostic && !gaps.length) gaps.push(emptyDiagnostic.message);
+  // The gap is the diagnostic's own sentence. A second one used to sit beside it for
+  // package-boundaries mode, wording the same absence differently in the same response.
+  const outcome = emptyOutcome(emptyDiagnostic);
+  const gaps = error ? [error] : [...outcome.gaps];
   navigation.validate.push(nav('inspect_node', { scope: scope.resolvedScope }, 'Inspect the primary node before editing dependency-sensitive code.'));
   if (!error && mode === 'impact') {
     const followup = impactNameMatchedCallerFollowup(result);
@@ -174,7 +170,7 @@ export const handleAnalyzeDependencies: ToolHandler = (ctx, args) => {
     analysis: result,
     ...(emptyDiagnostic ? { emptyDiagnostic } : {}),
   }, {
-    confidence: error || emptyDiagnostic ? 'low' : 'high',
+    confidence: error ? 'low' : outcome.confidence,
     gaps,
     navigation,
   });

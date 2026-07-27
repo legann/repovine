@@ -94,11 +94,14 @@ function extractMetrics(input: BuildContextEventInput): ContextEventMetrics {
     ? emptyDiagnostic.reason
     : undefined;
   const hasError = hasStringError(result) || hasStringError(resultBody);
+  // `filtered_out` is the opposite of a scope miss: the scope anchored, it held rows, and the
+  // caller's own filter removed them. Its predecessor `type_filter_excluded` was counted here and
+  // named only search's type filter; merging the six narrowing names into one would have widened
+  // that to every tool that filters, scoring a successful narrowing as a navigation failure.
   const unresolvedScope =
     NAVIGATION_TOOLS.has(input.tool)
     && (resolvedScopeKind === 'unknown'
       || emptyDiagnosticReason === 'scope_unresolved'
-      || emptyDiagnosticReason === 'type_filter_excluded'
       || hasError);
 
   const search = input.tool === 'search_context' ? extractSearchMetrics(resultBody, input.testPackageRegex) : undefined;

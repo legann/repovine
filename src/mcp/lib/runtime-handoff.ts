@@ -1,4 +1,4 @@
-import { hasBoundaryScopedRisk, hasConsumerScopedRisk } from '../../annotations/format.js';
+import { deliveryMechanic } from '../../mechanics/registry.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
 import type { RepositoryGraph } from '../../types.js';
 import { handlerModuleIds, isNodeType, nodesOfType } from '../../graph/index.js';
@@ -55,7 +55,10 @@ export function resolveHandlerModuleId(graph: RepositoryGraph, resourceId: strin
 
 function hasScopedAnnotationRisk(ctx: McpToolRuntime, nodeId: string): boolean {
   const annotation = ctx.getState().annotations.get(nodeId)?.annotation;
-  return hasConsumerScopedRisk(annotation) || hasBoundaryScopedRisk(annotation);
+  // Through the registry, not the rule predicates: the handoff item is `risk`/`boundary` delivered
+  // on a third node, and reading the predicates directly let the two drift apart.
+  return deliveryMechanic('risk').detect({ nodeId, annotation })
+    || deliveryMechanic('boundary').detect({ nodeId, annotation });
 }
 
 function pointsToSecret(graph: RepositoryGraph, sourceId: string): boolean {

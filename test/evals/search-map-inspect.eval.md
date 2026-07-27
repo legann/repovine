@@ -17,11 +17,11 @@ checks:
     na_if:   local embeddings/semantic index not enabled in this repo
     severity: warn
   - id: absent-package-clean
-    assert:  a deliberately-absent query (gibberish or all-unknown strong tokens, e.g. "qxqzwx qyqywy") returns totalResults:0 with emptyDiagnostic (no_token_hits or weak_token_only_suppressed)
+    assert:  a deliberately-absent query (gibberish or all-unknown strong tokens, e.g. "qxqzwx qyqywy") returns totalResults:0 with emptyDiagnostic (no_token_hits or filtered_out)
     fail_if: the absent query crashes, errors, or returns confidently false hits as canonical
     severity: fail
   - id: absent-weak-token-or
-    assert:  an absent anchor plus a weak token (e.g. "missinganchor route") under match:auto may OR-relax with hits but no emptyDiagnostic — expect strategy.relaxedFrom and low confidence or weak_token_only_suppressed when suppressed
+    assert:  an absent anchor plus a weak token (e.g. "missinganchor route") under match:auto may OR-relax with hits but no emptyDiagnostic — expect strategy.relaxedFrom and low confidence, or filtered_out when suppressed
     fail_if: treated as a strong canonical anchor without checking strategy/gaps
     severity: warn
   - id: map-summary-then-modules
@@ -58,7 +58,7 @@ Honor the shared preamble in `_PREAMBLE.md`. Session id e.g. `search-map-YYYY-MM
 
 2. **Absent query** → `absent-package-clean`, `absent-weak-token-or`.
    Use gibberish or all-unknown strong tokens (e.g. `"qxqzwx qyqywy"`) — expect `totalResults: 0`
-   with `emptyDiagnostic` (`no_token_hits` or `weak_token_only_suppressed`). Separately try
+   with `emptyDiagnostic` (`no_token_hits` or `filtered_out`). Separately try
    `"missinganchor route"` under default `match: auto`: OR-relax may return weak hits without
    `emptyDiagnostic` — PASS/WARN (not FAIL) when `strategy.relaxedFrom: "and"` and you do not
    treat them as canonical anchors.

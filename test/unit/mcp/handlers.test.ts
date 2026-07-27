@@ -1510,8 +1510,10 @@ describe('public v1 context tools', () => {
     expect(matches.totalResults).toBe(0);
     expect(payload.suggestedScopes).toEqual([]);
     expect(payload.emptyDiagnostic).toEqual(expect.objectContaining({
-      reason: 'weak_token_only_suppressed',
-      confidence: 'high',
+      reason: 'filtered_out',
+      details: expect.objectContaining({
+        narrowings: [{ by: 'match', value: 'auto', after: 0, restoreWith: { arg: 'match', value: 'or' } }],
+      }),
       nextActions: expect.arrayContaining([
         expect.objectContaining({ tool: 'search_context', args: expect.objectContaining({ match: 'or' }) }),
       ]),
@@ -2142,8 +2144,9 @@ describe('public v1 context tools', () => {
     });
 
     const entrypoints = await toolHandlers['get_entrypoints'](ctx, { scope: 'domain:auth' });
+    // The gap is the diagnostic's own sentence now; the same fact used to be worded twice per response.
     expect(entrypoints.gaps).toEqual(expect.arrayContaining([
-      expect.stringContaining('semantic/path tags'),
+      expect.stringContaining('semantic/path tag'),
     ]));
     expect(entrypoints.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({
@@ -2160,7 +2163,7 @@ describe('public v1 context tools', () => {
 
     const flow = await toolHandlers['trace_flow'](ctx, { scope: 'domain:auth' });
     expect(flow.gaps).toEqual(expect.arrayContaining([
-      expect.stringContaining('semantic/path tags'),
+      expect.stringContaining('semantic/path tag'),
     ]));
     expect(flow.result).toEqual(expect.objectContaining({
       emptyDiagnostic: expect.objectContaining({
@@ -2212,6 +2215,11 @@ describe('public v1 context tools', () => {
         },
       }),
     }));
+    // A page past the end is not an empty scope. Deciding emptiness off the paged slice reported
+    // "no runtime topology matched" for a scope whose own truncation block says it holds one
+    // service, and graded `confidence` off the unpaged list in the same response.
+    expect(result.result).not.toHaveProperty('emptyDiagnostic');
+    expect(result.confidence).not.toBe('low');
   });
 
   it('returns runtimeHandoff and prioritizes handler module navigation for runtime resources', async () => {
@@ -2354,7 +2362,7 @@ describe('public v1 context tools', () => {
     }));
   });
 
-  it('returns name_pattern_empty emptyDiagnostic when config filters remove existing items', async () => {
+  it('reports the namePattern narrowing, with the count it removed, when config filters empty a non-empty scope', async () => {
     const { graph, modulesById } = buildFixtureGraph();
     modulesById.get('mod:test/alpha')!.semanticHints = { envVars: ['API_TOKEN'] };
     const ctx = makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -2368,9 +2376,11 @@ describe('public v1 context tools', () => {
     expect(result.result).toEqual(expect.objectContaining({
       total: 0,
       emptyDiagnostic: expect.objectContaining({
-        reason: 'name_pattern_empty',
+        reason: 'filtered_out',
         confidence: 'high',
-        details: expect.objectContaining({ namePattern: 'DOES_NOT_MATCH' }),
+        details: expect.objectContaining({
+          narrowings: [expect.objectContaining({ by: 'namePattern', value: 'DOES_NOT_MATCH', before: expect.any(Number), after: 0 })],
+        }),
       }),
     }));
   });

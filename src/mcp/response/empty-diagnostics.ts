@@ -30,11 +30,7 @@ export type EmptyDiagnosticReason =
   | 'no_producer_resource_consumer_edges'
   | 'no_token_hits'
   | 'strict_and_no_single_node'
-  | 'type_filter_excluded'
-  | 'weak_token_only_suppressed'
   | 'scope_has_no_config_surface'
-  | 'kind_filter_empty'
-  | 'name_pattern_empty'
   | 'scope_has_no_map_context'
   | 'package_has_no_modules'
   | 'offset_out_of_range'
@@ -111,6 +107,81 @@ export function emptyAction(reason: string, tool: string, args: Record<string, u
   return nextCall(tool, args, reason);
 }
 
+/**
+ * One narrowing that removed rows on the way to an empty answer.
+ *
+ * "There were rows and a filter took them all" is a different answer from "there were none", and it
+ * had six names — `filtered_out`, `kind_filter_empty`, `name_pattern_empty`, `type_filter_excluded`,
+ * `weak_token_only_suppressed`, and an unnamed clause inside `no_architecture_findings` — over two
+ * implementations. The fact is one triple: what narrowed, how many it saw, how many survived.
+ */
+export type Narrowing = {
+  /** Argument or threshold that removed rows, named as the caller passes it. */
+  by: string;
+  /** What the caller set it to. Echoed back so the response names the filter, not just its slot. */
+  value?: unknown;
+  /** How many rows the narrowing saw. Absent when the site keeps no count — said, not invented. */
+  before?: number;
+  /** How many survived it. */
+  after: number;
+  /** The number the narrowing compared against, when it is numeric. */
+  threshold?: number;
+  /** The argument value that widens it back. */
+  restoreWith?: { arg: string; value: unknown };
+};
+
+/**
+ * The answer when a narrowing emptied a non-empty set. One reason and one place the counts live;
+ * the sentence stays the asking tool's, because what was narrowed reads differently per tool.
+ * `confidence` follows the evidence: `high` when a count proves rows existed, `medium` when the
+ * narrowing kept none and existence is known only from the tool's own branch.
+ */
+export function filteredOutDiagnostic(
+  message: string,
+  narrowings: Narrowing[],
+  nextActions: EmptyDiagnosticAction[],
+  details: Record<string, unknown> = {},
+): EmptyDiagnostic {
+  return {
+    reason: 'filtered_out',
+    message,
+    confidence: narrowings.some(n => typeof n.before === 'number') ? 'high' : 'medium',
+    nextActions,
+    details: { ...details, narrowings },
+  };
+}
+
+/** The generic sentence: how many there were, what narrowed, and that nothing survived. */
+export function narrowedAwayMessage(scope: ResolvedScope, noun: string, narrowings: Narrowing[]): string {
+  const named = narrowings.map(n => n.by).join(', ');
+  const counted = narrowings.find(n => typeof n.before === 'number');
+  const existed = counted
+    ? `${counted.before} ${noun}(s) exist in ${scopeLabel(scope)}`
+    : `${noun}s exist in ${scopeLabel(scope)}`;
+  return `${existed}, but the requested ${named} removed all of them.`;
+}
+
+/**
+ * The empty fact, turned into envelope fields once.
+ *
+ * A handler used to answer "is this answer empty" up to three times — once to build the diagnostic,
+ * once to grade `confidence`, once to word a gap — and the three did not always agree: `trace_flow`
+ * read a paged slice for the diagnostic and the unpaged list for `confidence`, and four tools wrote
+ * a gap sentence beside a diagnostic message that said the same thing in different words.
+ *
+ * `whenPresent` is the confidence a non-empty answer carries; it differs by tool because some answer
+ * from heuristics. Empty is always `low` — the request did not resolve to anything, which is what
+ * that field grades.
+ */
+export function emptyOutcome(
+  diagnostic: EmptyDiagnostic | undefined,
+  whenPresent: Confidence = 'high',
+): { confidence: Confidence; gaps: string[] } {
+  return diagnostic
+    ? { confidence: 'low', gaps: [diagnostic.message] }
+    : { confidence: whenPresent, gaps: [] };
+}
+
 /** Nothing was indexed at all, so no narrower answer exists to look for. Checked before every other branch. */
 export function graphEmptyIf(ctx: McpToolRuntime): EmptyDiagnostic | undefined {
   return graphIsEffectivelyEmpty(ctx) ? graphEmptyDiagnostic() : undefined;
@@ -177,20 +248,21 @@ export function entrypointsEmptyDiagnostic(
     (typeof args.kind === 'string' && args.kind !== 'all')
     || (Array.isArray(args.kinds) && !args.kinds.includes('all'));
   const hasLayerFilter = typeof args.layer === 'string' && args.layer !== 'all';
-  if ((hasKindFilter || hasLayerFilter) && collectEntrypoints(ctx, { scope: scope.resolvedScope, limit: 1 }).total > 0) {
-    return {
-      reason: 'filtered_out',
-      message: `Entrypoints exist in ${scopeLabel(scope)}, but the requested kind/layer filter removed all of them.`,
-      confidence: 'high',
-      nextActions: [
+  if (hasKindFilter || hasLayerFilter) {
+    const before = collectEntrypoints(ctx, { scope: scope.resolvedScope, limit: 1 }).total;
+    if (before > 0) {
+      const narrowings: Narrowing[] = [];
+      if (hasKindFilter) {
+        const arg = Array.isArray(args.kinds) ? 'kinds' : 'kind';
+        narrowings.push({ by: arg, value: args[arg], before, after: 0, restoreWith: { arg, value: 'all' } });
+      }
+      if (hasLayerFilter) {
+        narrowings.push({ by: 'layer', value: args.layer, before, after: 0, restoreWith: { arg: 'layer', value: 'all' } });
+      }
+      return filteredOutDiagnostic(narrowedAwayMessage(scope, 'entrypoint', narrowings), narrowings, [
         emptyAction('to inspect unfiltered execution starts', 'get_entrypoints', { scope: scope.resolvedScope }),
-      ],
-      details: {
-        kind: args.kind,
-        kinds: args.kinds,
-        layer: args.layer,
-      },
-    };
+      ]);
+    }
   }
 
   if (scope.kind === 'domain') {
@@ -336,16 +408,15 @@ export function searchEmptyDiagnostic(
   const { searchIndex } = ctx.getState();
   const hitTokens = tokens.filter(t => (searchIndex.tokens.get(t)?.size ?? 0) > 0);
   if (strategy?.weakTokenOnlySuppressed) {
-    return {
-      reason: 'weak_token_only_suppressed',
-      message: 'Only weak/common tokens had matches after auto-relaxation, so search_context suppressed them instead of surfacing noisy results.',
-      confidence: 'high',
-      nextActions: [
+    return filteredOutDiagnostic(
+      'Only weak/common tokens had matches after auto-relaxation, so search_context suppressed them instead of surfacing noisy results.',
+      [{ by: 'match', value: 'auto', after: 0, restoreWith: { arg: 'match', value: 'or' } }],
+      [
         emptyAction('if you want weak-token matches anyway', 'search_context', { query, match: 'or' }),
         emptyAction('if you know a stronger symbol/path', 'search_context', { query: '<symbol-or-path>' }),
       ],
-      details: { tokens, hitTokens },
-    };
+      { tokens, hitTokens },
+    );
   }
   if (hitTokens.length === 0) {
     return {
@@ -360,15 +431,12 @@ export function searchEmptyDiagnostic(
     };
   }
   if (rawTypes?.length) {
-    return {
-      reason: 'type_filter_excluded',
-      message: 'Some query tokens matched the index, but no results survived the requested type filter.',
-      confidence: 'medium',
-      nextActions: [
-        emptyAction('to retry without type filtering', 'search_context', { query }),
-      ],
-      details: { tokens, hitTokens, types: rawTypes },
-    };
+    return filteredOutDiagnostic(
+      'Some query tokens matched the index, but no results survived the requested type filter.',
+      [{ by: 'types', value: rawTypes, after: 0, restoreWith: { arg: 'types', value: [] } }],
+      [emptyAction('to retry without type filtering', 'search_context', { query })],
+      { tokens, hitTokens, types: rawTypes },
+    );
   }
   return {
     reason: 'strict_and_no_single_node',
@@ -397,20 +465,21 @@ export function configSurfaceEmptyDiagnostic(
     (typeof args.kind === 'string' && args.kind !== 'all')
     || (Array.isArray(args.kinds) && !args.kinds.includes('all'));
   const hasNamePattern = typeof args.namePattern === 'string' && args.namePattern.trim().length > 0;
-  if ((hasKindFilter || hasNamePattern) && collectConfigSurface(ctx, { scope: scope.resolvedScope, limit: 1 }).total > 0) {
-    return {
-      reason: hasNamePattern ? 'name_pattern_empty' : 'kind_filter_empty',
-      message: `Config/resource surface items exist in ${scopeLabel(scope)}, but the requested filter removed all of them.`,
-      confidence: 'high',
-      nextActions: [
+  if (hasKindFilter || hasNamePattern) {
+    const before = collectConfigSurface(ctx, { scope: scope.resolvedScope, limit: 1 }).total;
+    if (before > 0) {
+      const narrowings: Narrowing[] = [];
+      if (hasKindFilter) {
+        const arg = Array.isArray(args.kinds) ? 'kinds' : 'kind';
+        narrowings.push({ by: arg, value: args[arg], before, after: 0, restoreWith: { arg, value: 'all' } });
+      }
+      if (hasNamePattern) {
+        narrowings.push({ by: 'namePattern', value: args.namePattern, before, after: 0, restoreWith: { arg: 'namePattern', value: '' } });
+      }
+      return filteredOutDiagnostic(narrowedAwayMessage(scope, 'config/resource surface item', narrowings), narrowings, [
         emptyAction('to inspect unfiltered config/resource surface', 'get_config_surface', { scope: scope.resolvedScope }),
-      ],
-      details: {
-        kind: args.kind,
-        kinds: args.kinds,
-        namePattern: args.namePattern,
-      },
-    };
+      ]);
+    }
   }
 
   return {
@@ -712,30 +781,55 @@ export function architectureEmptyDiagnostic(
   }
 
   if (mode === 'report' && result.totalFindings === 0) {
-    const hasFilters = Array.isArray(args.categories) || typeof args.minConfidence === 'number';
+    // `minConfidence` defaults to 0.5 and applies whether or not the caller passed it, so a report
+    // the default threshold emptied used to read as "the detectors found nothing". The count the
+    // detectors produced decides which of the two answers this is.
+    const detected = typeof result.detectedFindings === 'number' ? result.detectedFindings : undefined;
+    const narrowings: Narrowing[] = [];
+    if (Array.isArray(args.categories)) {
+      narrowings.push({ by: 'categories', value: args.categories, before: detected, after: 0, restoreWith: { arg: 'categories', value: [] } });
+    }
+    if (typeof result.minConfidence === 'number') {
+      narrowings.push({
+        by: 'minConfidence',
+        value: result.minConfidence,
+        before: detected,
+        after: 0,
+        threshold: result.minConfidence,
+        restoreWith: { arg: 'minConfidence', value: 0 },
+      });
+    }
     const nextActions: EmptyDiagnosticAction[] = [
       emptyAction('to inspect the scoped structure first', 'map_context', { scope: scope.resolvedScope, view: scope.kind === 'domain' ? 'modules' : 'summary' }),
     ];
-    if (hasFilters) {
-      nextActions.push(emptyAction('to retry without category/confidence filters', 'analyze_architecture', { scope: refactoringScopeArg(scope), limit: args.limit ?? DEFAULT_ARCHITECTURE_LIMIT }));
+    if (narrowings.length > 0) {
+      nextActions.push(emptyAction('to retry without category/confidence filters', 'analyze_architecture', { scope: refactoringScopeArg(scope), minConfidence: 0, limit: args.limit ?? DEFAULT_ARCHITECTURE_LIMIT }));
     }
     nextActions.push(
       emptyAction('if the question is dependency/package risk', 'analyze_dependencies', { scope: scope.resolvedScope, mode: scope.kind === 'module' || scope.kind === 'export-symbol' ? 'impact' : 'package-boundaries' }),
       emptyAction('if annotation freshness may hide useful context', 'get_annotation_status', { scope: scope.resolvedScope, view: 'coverage' }),
     );
+    const detail = {
+      categories: args.categories,
+      minConfidence: result.minConfidence,
+      detectedFindings: detected,
+      totalFindings: result.totalFindings,
+      returnedFindings: result.returnedFindings,
+    };
+    if (detected !== undefined && detected > 0) {
+      return filteredOutDiagnostic(
+        narrowedAwayMessage(scope, 'architecture finding', narrowings),
+        narrowings,
+        nextActions,
+        detail,
+      );
+    }
     return {
       reason: 'no_architecture_findings',
-      message: hasFilters
-        ? `No architecture findings survived the requested scope/category/confidence filters for ${scopeLabel(scope)}.`
-        : `No architecture findings matched ${scopeLabel(scope)} with the current detectors and thresholds.`,
+      message: `No architecture findings matched ${scopeLabel(scope)} with the current detectors and thresholds.`,
       confidence: 'medium',
       nextActions,
-      details: {
-        categories: args.categories,
-        minConfidence: args.minConfidence,
-        totalFindings: result.totalFindings,
-        returnedFindings: result.returnedFindings,
-      },
+      details: detail,
     };
   }
 

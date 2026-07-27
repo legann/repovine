@@ -327,11 +327,11 @@ export const SEARCH_CONTEXT_ANNOTATION_ESCALATION_GUIDANCE =
 export const SEARCH_CONTEXT_INTERPRETATION_POLICY = `For \`search_context\`, also interpret non-empty results before \`inspect_node\`:
 
 - \`emptyDiagnostic\` is omitted when OR-relax or aux config/entrypoint matches produced hits — absence does not mean a strong match.
-- Read \`result.matches.strategy\`: \`relaxedFrom: "and"\` means auto fell back from AND to bounded OR; \`weakTokenOnlySuppressed\` means weak-token noise was intentionally suppressed (often with \`emptyDiagnostic.reason: weak_token_only_suppressed\`).
+- Read \`result.matches.strategy\`: \`relaxedFrom: "and"\` means auto fell back from AND to bounded OR; \`weakTokenOnlySuppressed\` means weak-token noise was intentionally suppressed (often with \`emptyDiagnostic.reason: filtered_out\`).
 - Check \`gaps\`, \`summary\`, \`confidence\`, and \`topResults[].matchedTokenCount\` / \`score\`. After OR-relax, \`matchedTokenCount: 1\` on a multi-token query or \`confidence: "low"\` is a weak signal — narrow the query or retry with \`match: "and"\`.
 - ${SEARCH_CONTEXT_ANNOTATION_ESCALATION_GUIDANCE}
 - Weak/common tokens (\`package\`, \`route\`, \`handler\`, \`module\`, …) match at reduced weight and can dominate \`match: "or"\` results.
-- \`emptyDiagnostic\` reasons for true empties include \`no_token_hits\`, \`strict_and_no_single_node\`, \`weak_token_only_suppressed\`, and \`type_filter_excluded\`.`;
+- \`emptyDiagnostic\` reasons for true empties include \`no_token_hits\` and \`strict_and_no_single_node\`; \`filtered_out\` means rows existed and a narrowing removed them, and \`details.narrowings\` names which argument did it and what widens it back.`;
 
 export const SEARCH_CONTEXT_ORIENT_STEP =
   '1. **Orient**: `search_context({ "query": "...", "match": "auto", "limit": 15 })` — default `match` is `auto` (AND then bounded OR). Use `match: "and"` when you need every token on one node; use `match: "or"` only when you intentionally want per-token union (may surface weak tokens like `package`/`route`). Filter with `types` and tune breadth with `perTokenLimit`. Before `inspect_node`, read `result.matches.strategy` (`used`, `relaxedFrom`, `strongTokens`, `weakTokenOnlySuppressed`), `gaps`, `summary`, `confidence`, and `topResults[].matchedTokenCount` — OR-relax hits omit `emptyDiagnostic` and are not strong anchors when `relaxedFrom: "and"` with low `matchedTokenCount` or `confidence: "low"`.';

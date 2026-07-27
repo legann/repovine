@@ -130,7 +130,7 @@ const baseToolDefs: ToolDef[] = [
       'Weak/common tokens (package, route, handler, module, …) match at reduced weight; auto may suppress OR noise via weakTokenOnlySuppressed. ' +
       'A semantic-only nearest neighbour has low confidence, no matched tokens, and an advisory suggestedScope reason; it is not evidence that the requested functionality exists. ' +
       'When perTokenLimit truncates an OR posting list before global ranking, strategy.truncation names each affected token with shown/total counts, gaps repeat them, and confidence is low. ' +
-      'Responses include matchedTokens, strategy.semantic.used/attempted, semanticRank/semanticScore on fused hits, suggestedScopes, navigation, and emptyDiagnostic reasons such as no_token_hits, strict_and_no_single_node, weak_token_only_suppressed, type_filter_excluded.',
+      'Responses include matchedTokens, strategy.semantic.used/attempted, semanticRank/semanticScore on fused hits, suggestedScopes, navigation, and emptyDiagnostic reasons such as no_token_hits, strict_and_no_single_node, and filtered_out (with details.narrowings naming what removed the rows).',
     schema: z.object({
       query: z.string().describe('Task keyword, feature name, symbol, route, package, config name, or other search text.'),
       types: z.array(NodeTypeSchema).optional().describe('Optional result type filter.'),

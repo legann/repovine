@@ -112,6 +112,12 @@ interface CollectedFindings {
   annotationReasoning: boolean;
   /** Full sorted+deduped finding set, before any limit/balance cap. */
   sortedFindings: RefactoringFinding[];
+  /**
+   * Findings the detectors emitted, before the category and confidence filters. `minConfidence`
+   * defaults to 0.5 and applies whether or not the caller passed it, so without this number an
+   * emptied report reads as "the detectors found nothing".
+   */
+  detectedFindings: number;
 }
 
 /**
@@ -144,7 +150,7 @@ function collectSortedFindings(state: RefactoringState, args: RefactoringReportA
   // A scope kind no detector reads has no node set to run over. Returning here keeps the refusal
   // apart from a real report that found nothing.
   if (scope.kind === 'unsupported') {
-    return { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings: [] };
+    return { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings: [], detectedFindings: 0 };
   }
 
   // Precompute the derived-stale set once per report so all in-scope modules
@@ -194,7 +200,7 @@ function collectSortedFindings(state: RefactoringState, args: RefactoringReportA
   );
 
   const sortedFindings = dedupeByCategoryAndPrimaryNode(sortFindings(findings));
-  return { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings };
+  return { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings, detectedFindings: raw.length };
 }
 
 /**
@@ -216,7 +222,7 @@ export function runRefactoringReport(
   state: RefactoringState,
   args: RefactoringReportArgs,
 ): Record<string, unknown> {
-  const { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings } =
+  const { scope, requestedCategories, minConfidence, annotationReasoning, sortedFindings, detectedFindings } =
     collectSortedFindings(state, args);
   if (scope.kind === 'unsupported') return unsupportedScopeResult(scope);
   const limit = Math.min(typeof args.limit === 'number' ? args.limit : 50, 200);
@@ -238,6 +244,7 @@ export function runRefactoringReport(
     categories: [...requestedCategories],
     minConfidence,
     annotationReasoning: annotationReasoning ? 'on' : 'off',
+    detectedFindings,
     totalFindings: sortedFindings.length,
     returnedFindings: returned.length,
     summary,

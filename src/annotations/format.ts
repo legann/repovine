@@ -21,8 +21,20 @@ export function normalizeRisks(risks: RiskEntry[] | undefined): NormalizedRisk[]
   });
 }
 
+/**
+ * Risks carried at one scope, in stored order. The single reading of "this risk is boundary-scoped":
+ * the boundary index used to spell the comparison out again to collect the texts, so a change to
+ * what counts as boundary-scoped would have moved the tag without moving the index.
+ */
+export function risksScoped(
+  risks: RiskEntry[] | undefined,
+  scope: NormalizedRisk['scope'],
+): NormalizedRisk[] {
+  return normalizeRisks(risks).filter((risk) => risk.scope === scope);
+}
+
 export function hasConsumerScopedRisk(content: AnnotationContent | undefined): boolean {
-  return normalizeRisks(content?.risks).some((risk) => risk.scope === 'consumer');
+  return risksScoped(content?.risks, 'consumer').length > 0;
 }
 
 /**
@@ -31,7 +43,7 @@ export function hasConsumerScopedRisk(content: AnnotationContent | undefined): b
  * tag, mirroring {@link hasConsumerScopedRisk}.
  */
 export function hasBoundaryScopedRisk(content: AnnotationContent | undefined): boolean {
-  return normalizeRisks(content?.risks).some((risk) => risk.scope === 'boundary');
+  return risksScoped(content?.risks, 'boundary').length > 0;
 }
 
 export function riskEntryTexts(risks: RiskEntry[] | undefined): string[] {

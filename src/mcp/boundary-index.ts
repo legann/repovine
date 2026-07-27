@@ -3,7 +3,7 @@ import { compareCodeUnits } from '../platform/ordering.js';
 import * as path from 'node:path';
 import { ARTIFACTS_DIR_NAME } from '../paths.js';
 import { serializeKeyedRecordFile } from '../fs/keyed-json.js';
-import { normalizeRisks } from '../annotations/format.js';
+import { risksScoped } from '../annotations/format.js';
 import { parentModuleId } from './scope/resolve.js';
 import type { RepovineState } from './types.js';
 import { repoRelativePosix } from '../platform/paths.js';
@@ -46,10 +46,8 @@ export function boundaryIndexFilePath(repoRoot: string): string {
 }
 
 /** Boundary-scoped risk texts on one annotation, in stored order (empty when none). */
-function boundaryRiskTexts(risks: Parameters<typeof normalizeRisks>[0]): string[] {
-  return normalizeRisks(risks)
-    .filter((risk) => risk.scope === 'boundary')
-    .map((risk) => risk.text);
+function boundaryRiskTexts(risks: Parameters<typeof risksScoped>[0]): string[] {
+  return risksScoped(risks, 'boundary').map((risk) => risk.text);
 }
 
 /**

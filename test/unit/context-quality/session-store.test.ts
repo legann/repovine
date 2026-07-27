@@ -181,6 +181,25 @@ describe('ContextSessionStore', () => {
     expect(store.getReport(sessionId)?.aggregates.unresolvedScopeCount).toBe(1);
   });
 
+  it('does not count a filter that emptied a resolved scope as an unresolved scope', () => {
+    // The scope anchored and held rows; the caller's own narrowing removed them. Scoring that as a
+    // navigation miss reads a working filter as a failure to find the scope.
+    const store = new ContextSessionStore({ repoRoot });
+    const sessionId = 'sess-nav-filtered';
+    const filtered = envelope({
+      total: 0,
+      emptyDiagnostic: {
+        reason: 'filtered_out',
+        message: '4 entrypoint(s) exist in pkg:prod, but the requested kind removed all of them.',
+        confidence: 'high',
+        nextActions: [],
+        details: { narrowings: [{ by: 'kind', value: 'queue-consumer', before: 4, after: 0 }] },
+      },
+    }, 'low', 'package', 'pkg:prod');
+    store.recordToolCall({ sessionId, tool: 'get_entrypoints', args: { scope: 'pkg:prod', kind: 'queue-consumer', contextSessionId: sessionId }, result: filtered, responseText: JSON.stringify(filtered) });
+    expect(store.getReport(sessionId)?.aggregates.unresolvedScopeCount).toBe(0);
+  });
+
   it('discounts recovered OR searches and persists sessions to disk', () => {
     const store = new ContextSessionStore({ repoRoot });
     const sessionId = 'sess-clean';

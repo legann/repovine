@@ -4,7 +4,7 @@ import { scopeNavigation } from '../scope/navigation.js';
 import { envelope, nav } from '../response/envelope.js';
 import { limitFrom, offsetFrom, DEFAULT_LIST_LIMIT } from '../response/pagination.js';
 import { pageTruncation, truncationMap } from '../../response/truncation.js';
-import { traceFlowEmptyDiagnostic } from '../response/empty-diagnostics.js';
+import { emptyOutcome, traceFlowEmptyDiagnostic } from '../response/empty-diagnostics.js';
 import { projectRuntimeTopology } from '../lib/topology.js';
 import { collectEntrypoints } from '../lib/entrypoints.js';
 import { computeRuntimeHandoff } from '../lib/runtime-handoff.js';
@@ -131,29 +131,36 @@ export const handleTraceFlow: ToolHandler = (ctx, args) => {
     if (id && handoffResourceIds.has(id)) continue;
     if (id) navigation.deeper.push(nav('inspect_node', { nodeId: id }, 'Inspect a runtime service/resource participating in this flow.'));
   }
-  const gaps = dataFlowsRaw.length > 0 ? [] : ['No concrete producer-resource-consumer data flow was found in this scope.'];
+  // Emptiness is a fact about the scope, not about the page. Reading it off the paged slices made an
+  // offset past the end report "no runtime topology matched" while `confidence` — read off the
+  // unpaged lists two lines below — still said the scope had some. The page window is `truncation`'s
+  // fact and it already carries a restart hint.
+  const emptyTraceResult =
+    (include.includes('services') ? servicesRaw.length === 0 : true)
+    && (include.includes('resources') ? resourcesRaw.length === 0 : true)
+    && (include.includes('flows') ? dataFlowsRaw.length === 0 : true)
+    && (include.includes('entrypoints') ? (entrypointPage?.total ?? 0) === 0 : true);
+  const emptyDiagnostic = emptyTraceResult
+    ? traceFlowEmptyDiagnostic(ctx, scope, args, {
+      services: servicesRaw.length,
+      resources: resourcesRaw.length,
+      dataFlows: dataFlowsRaw.length,
+      entrypoints: entrypointPage?.total ?? 0,
+    })
+    : undefined;
+  const outcome = emptyOutcome(emptyDiagnostic, 'medium');
+  const gaps = [...outcome.gaps];
+  // Not an emptiness statement: services and resources can be present while no producer-resource-
+  // consumer path is proven between them, and that is a completeness fact about a non-empty answer.
+  if (!emptyDiagnostic && dataFlowsRaw.length === 0) {
+    gaps.push('No concrete producer-resource-consumer data flow was found in this scope.');
+  }
   if (handoff.truncation) gaps.push(RUNTIME_HANDOFF_TRUNCATED_GAP);
   gaps.push(...unresolvedRefGaps(services));
   gaps.push(...dataFlowProductGaps(dataFlowsRaw));
-  if (servicesRaw.length === 0 && dataFlowsRaw.length === 0 && scope.kind === 'domain') {
-    gaps.push('Domain scopes are semantic/path tags, not always runtime boundaries. Try a package/service scope or search_context with the feature plus "handler", "route", or "lambda".');
-  }
-  const emptyTraceResult =
-    (include.includes('services') ? services.length === 0 : true)
-    && (include.includes('resources') ? resources.length === 0 : true)
-    && (include.includes('flows') ? dataFlows.length === 0 : true)
-    && (include.includes('entrypoints') ? entrypoints.length === 0 : true);
-  const emptyDiagnostic = emptyTraceResult
-    ? traceFlowEmptyDiagnostic(ctx, scope, args, {
-      services: services.length,
-      resources: resources.length,
-      dataFlows: dataFlows.length,
-      entrypoints: entrypoints.length,
-    })
-    : undefined;
   const payload = emptyDiagnostic ? { ...result, emptyDiagnostic } : result;
   return envelope(scope, `Traced runtime/system topology for ${scope.resolvedScope}.`, payload, {
-    confidence: servicesRaw.length > 0 || dataFlowsRaw.length > 0 ? 'medium' : 'low',
+    confidence: outcome.confidence,
     gaps,
     navigation,
   });

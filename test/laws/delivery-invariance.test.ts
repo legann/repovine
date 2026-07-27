@@ -216,12 +216,12 @@ describe('core-laws delivery-invariance (L1)', () => {
     );
     expect(declared).toEqual({
       risk: ['pull-neighbor', 'pull-carrier', 'advisory'],
-      boundary: ['pull-self', 'pull-neighbor', 'push'],
-      effect: ['pull-neighbor'],
+      boundary: ['pull-self', 'pull-neighbor', 'pull-carrier', 'push', 'advisory'],
+      effect: ['pull-neighbor', 'pull-carrier'],
       unannotated: [],
-      wiring: ['pull-self', 'pull-neighbor'],
-      'co-change': ['pull-neighbor'],
-      hub: ['pull-neighbor'],
+      wiring: ['pull-self', 'pull-neighbor', 'pull-carrier'],
+      'co-change': ['pull-neighbor', 'pull-carrier'],
+      hub: ['pull-neighbor', 'pull-carrier'],
     });
     const spelled: string[] = [...new Set(Object.values(declared).flat())].sort();
     expect(spelled).toEqual(['advisory', 'pull-carrier', 'pull-neighbor', 'pull-self', 'push']);
