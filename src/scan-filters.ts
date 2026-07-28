@@ -2,8 +2,15 @@
 // source plugin is registered, and routing through the barrel would pull the plugin bootstrap
 // into the scanner's own import cycle.
 import { compileGlob, type GlobMatcher } from './stage2/domains-schema.js';
-import { REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS } from './paths.js';
-import { normalizeRelPath, toPosixPath } from './platform/paths.js';
+import { matchesEngineIgnorePath, shouldWalkDiscoveryDir } from '@repovine/plugin-sdk';
+import { normalizeRelPath } from './platform/paths.js';
+
+/**
+ * The discovery prune predicate lives in the SDK beside the walk that applies it, so a plugin and
+ * the engine leave out the same directories. Re-exported here because engine callers read the whole
+ * scan vocabulary — user patterns and engine ignores — from this module.
+ */
+export { shouldWalkDiscoveryDir };
 
 /** Repo-root-relative glob or scoped pattern entry from `repovine.config.json` → `build.scan`. */
 export type ScanScope = 'all' | 'source' | 'infra';
@@ -65,64 +72,6 @@ function matchesAny(
   return false;
 }
 
-function matchesEngineIgnore(relPath: string): boolean {
-  const norm = normalizeRelPath(relPath);
-  for (const fragment of REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS) {
-    const q = toPosixPath(fragment).replace(/^\//, '').replace(/\/$/, '');
-    if (!q) continue;
-    if (norm === q) return true;
-    if (norm.startsWith(`${q}/`)) return true;
-    if (norm.includes(`/${q}/`) || norm.endsWith(`/${q}`)) return true;
-  }
-  return false;
-}
-
-/**
- * Whether a walker should descend into this repo-relative directory.
- *
- * The engine ignore list is the same one that rejects files, asked one level up: a directory the
- * list names holds nothing the graph wants, so pruning there and rejecting per file give the same
- * answer at a fraction of the readdir calls. Walkers that look for PACKAGE MARKERS rather than
- * source files need this specifically — a `tsconfig.json` under `.venv/` or a `pyproject.toml`
- * under `coverage/` mints a package node whose every module the file filter then rejects, so the
- * repository grows a package with no modules in it.
- *
- * User `scan.exclude` is deliberately not consulted: an exclude pattern narrows what is indexed,
- * and a walker that stopped descending on it could not honour a more specific `scan.include`
- * underneath.
- */
-function shouldWalkScanDir(relDirPath: string): boolean {
-  return !matchesEngineIgnore(relDirPath);
-}
-
-/**
- * Directory names that hold tests by convention, in any ecosystem the engine discovers.
- *
- * Separate from the engine ignore list because it answers a separate question: those directories
- * are not build output or dependency trees, they are first-class repository content that the graph
- * deliberately leaves out. Keeping the two apart also keeps `scan.include` meaningful — a user who
- * points it at `tests/` is asking for something the engine ignore list would never have allowed.
- */
-const TEST_LAYOUT_DIRS: ReadonlySet<string> = new Set([
-  'test', 'tests', '__tests__', '__mocks__', '__snapshots__',
-  'e2e', '__e2e__', 'cypress', 'playwright',
-]);
-
-/** True when any segment of the repo-relative path is a test-layout directory. */
-function hasTestLayoutSegment(relPath: string): boolean {
-  return normalizeRelPath(relPath).split('/').some(segment => TEST_LAYOUT_DIRS.has(segment));
-}
-
-/**
- * Whether a discovery walker should descend into this repo-relative directory at all: neither an
- * engine-ignored tree nor a test-layout one. Every walker that mints repository content — packages,
- * modules, templates, infra files — asks this, so a directory is present in the graph or absent
- * from it, not present through one producer and absent through another.
- */
-export function shouldWalkDiscoveryDir(relDirPath: string): boolean {
-  return shouldWalkScanDir(relDirPath) && !hasTestLayoutSegment(relDirPath);
-}
-
 /** User `scan.include` match — wins over exclude. */
 export function isScanIncluded(
   relPath: string,
@@ -145,7 +94,7 @@ export function isScanExcluded(
 /** Stage 1 infra file collection. */
 export function shouldScanInfraPath(relPath: string, patterns: CompiledScanPatterns): boolean {
   const norm = normalizeRelPath(relPath);
-  if (matchesEngineIgnore(norm)) return false;
+  if (matchesEngineIgnorePath(norm)) return false;
   if (isScanIncluded(norm, patterns, 'infra')) return true;
   if (isScanExcluded(norm, patterns, 'infra')) return false;
   return true;
@@ -157,7 +106,7 @@ export function shouldScanInfraPath(relPath: string, patterns: CompiledScanPatte
  */
 export function shouldScanSourcePath(relPath: string, patterns: CompiledScanPatterns): boolean {
   const norm = normalizeRelPath(relPath);
-  if (matchesEngineIgnore(norm)) return false;
+  if (matchesEngineIgnorePath(norm)) return false;
   if (isScanIncluded(norm, patterns, 'source')) return true;
   if (isScanExcluded(norm, patterns, 'source')) return false;
   if (norm.endsWith('.d.ts')) return false;

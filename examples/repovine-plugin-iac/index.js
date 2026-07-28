@@ -10,14 +10,12 @@
 //   - triggerTypeMeta teaches the core how to project custom trigger types into entrypoints/edges
 //     without a new interpreter.
 //
-// Authored as a plain object on purpose: the loader validates a plugin's SHAPE structurally, so
-// examples can run without importing the SDK at runtime. Real packages should use the SDK factory:
-//   import { defineIaCPlugin, defineIaCParser } from '@repovine/plugin-sdk';
-//   export default defineIaCPlugin({ ...the descriptor below... });
-// which additionally stamps `apiVersion` and gives you types + the conformance kit.
+// Authored through the SDK factories, which is what a real package does: `defineIaCPlugin` stamps
+// the contract major, so the descriptor never carries a version number that quietly goes stale, and
+// `defineIaCParser` types the parser against the same contract the conformance kit checks.
 
-import { createHash } from 'node:crypto';
 import * as path from 'node:path';
+import { defineIaCParser, defineIaCPlugin, hashResourcePayload, lastPathSegment } from '@repovine/plugin-sdk';
 
 const STACK_KIND = 'edge-stack';
 const STACK_FILE = 'edge-stack.json';
@@ -34,20 +32,12 @@ function asString(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
 
-function stableJson(value) {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  if (isRecord(value)) {
-    return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${stableJson(value[k])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function hashResourcePayload(value) {
-  return createHash('sha256').update(stableJson(value)).digest('hex').slice(0, 16);
-}
-
 function stackName(root, relPath) {
-  return asString(root.name) ?? path.basename(path.dirname(relPath)) ?? 'edge-stack';
+  // `relPath` is repo-relative POSIX by contract, so the directory holding the stack is a POSIX
+  // question and `path.basename` is not it — on win32 that also splits on `\`, which in a
+  // repo-relative path is a character in a filename.
+  const stackDir = relPath.split('/').slice(0, -1).join('/');
+  return asString(root.name) || lastPathSegment(stackDir) || 'edge-stack';
 }
 
 function collectQueues(root, name) {
@@ -150,7 +140,7 @@ function collectFunctions(root, name) {
   return resources;
 }
 
-const edgeStackParser = {
+const edgeStackParser = defineIaCParser({
   kind: STACK_KIND,
   fileMatch: { fileNames: [STACK_FILE] },
   docFormat: 'json',
@@ -173,11 +163,10 @@ const edgeStackParser = {
     if (resources.length === 0) return null;
     return { kind: STACK_KIND, resources };
   },
-};
+});
 
-export default {
+export default defineIaCPlugin({
   id: 'edge-stack',
-  apiVersion: 1,
   parsers: [edgeStackParser],
   kindDomains: [
     {
@@ -193,4 +182,4 @@ export default {
     { type: 'edge-http', meta: { entrypointKind: 'api' } },
     { type: 'edge-queue', meta: { isStreamLike: true, entrypointKind: 'queue-consumer' } },
   ],
-};
+});

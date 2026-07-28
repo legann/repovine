@@ -11,14 +11,27 @@ export { PLUGIN_API_VERSION } from '../runtime.js';
 export type { PluginApiVersion, PluginRequirements, PluginAvailability } from '../runtime.js';
 
 export { resolveDottedPathHandlerToModule } from './handler-resolver.js';
+export { mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './module-id.js';
+export { HASH_WIDTH, sha256Hex } from '../content-hash.js';
+export type { HashWidth } from '../content-hash.js';
+
+/* ---- the mechanics a producer does not write: discovery walk, prune rule, path vocabulary ---- */
+export {
+  REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
+  matchesEngineIgnorePath,
+  readDirSorted,
+  shouldWalkDiscoveryDir,
+  walkRepository,
+} from './discovery-walk.js';
+export type { WalkedFile, WalkRepositoryOptions } from './discovery-walk.js';
+export { moduleCandidateSuffixes, resolveByCandidates } from './resolve-candidates.js';
+export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, repoRelativePosix } from '../paths.js';
+export { compareCodeUnits } from '../ordering.js';
 
 export { SEMANTIC_HINTS_VERSION, zSemanticHints, validateSemanticHints } from './semantic-hints-schema.js';
 export type { SemanticHintsVersion, SemanticHintsValidationResult, ZSemanticHints } from './semantic-hints-schema.js';
 
-export {
-  zSemanticModuleDelta,
-  validateSemanticModuleDelta,
-} from '../fact-schemas.js';
+export { validateSemanticModuleDelta } from '../fact-schemas.js';
 export type { FactValidationResult } from '../fact-schemas.js';
 
 export { checkSourcePluginConformance } from '../conformance.js';

@@ -2,7 +2,7 @@
   "version": 1,
   "fingerprints": {
     "basic-typescript": "c32cd496e0d6336c2acd6de8c61420d9c1f592b24085cf727fc933f1d6351385",
-    "sam-lambda-app": "47ae3ca883bfd923b6beeefa65b09e637361f3b072f2b6f7df553bc54eaa0d8d"
+    "sam-lambda-app": "2e40ce0dac58bc3e32a0119687ddb6713d35bc30c8f780e89772d06cd2552184"
   },
   "summaries": {
     "basic-typescript": {

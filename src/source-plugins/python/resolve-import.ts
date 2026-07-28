@@ -1,7 +1,8 @@
 import * as path from 'node:path';
 import type { PackageInfo } from '@repovine/plugin-sdk';
-import { hostKeyedView, hostPathKey } from '../../platform/paths.js';
+import { moduleCandidateSuffixes, resolveByCandidates } from '@repovine/plugin-sdk';
 import { compareCodeUnits } from '../../platform/ordering.js';
+import { PYTHON_EXTENSIONS, PYTHON_INDEX_BASENAMES } from './extensions.js';
 
 /**
  * Python import resolution (structural graph). Mirror of `typescript/resolve-specifier.ts`:
@@ -30,20 +31,15 @@ export interface ResolvePythonImportInput {
   importingPackage: PackageInfo;
 }
 
-const PY_FILE_CANDIDATES = (basePath: string): string[] => [
-  `${basePath}.py`,
-  path.join(basePath, '__init__.py'),
-];
+/** The module file, then the package directory it stands for. Both halves come from the facts the
+ *  descriptor declares, so the resolver spells neither the extension nor the index basename again. */
+const CANDIDATE_SUFFIXES = moduleCandidateSuffixes({
+  fileSuffixes: PYTHON_EXTENSIONS,
+  indexBasenames: PYTHON_INDEX_BASENAMES,
+});
 
 function lookupModule(basePath: string, absPathToId: Map<string, string>): string | undefined {
-  // Canonical view + key: candidates come from native path.join while
-  // map keys may be POSIX-shaped; the WeakMap-memoized view costs O(n) once.
-  const view = hostKeyedView(absPathToId);
-  for (const candidate of PY_FILE_CANDIDATES(basePath)) {
-    const id = view.get(hostPathKey(candidate));
-    if (id) return id;
-  }
-  return undefined;
+  return resolveByCandidates(basePath, CANDIDATE_SUFFIXES, absPathToId);
 }
 
 function normalizePyName(name: string): string {

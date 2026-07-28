@@ -63,7 +63,6 @@ function fingerprintDist(root: string): string {
     } catch {
       return;
     }
-    entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     for (const e of entries) {
       const full = path.join(dir, e.name);
       if (e.isDirectory()) {

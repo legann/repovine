@@ -16,7 +16,7 @@ let snapshot: RepositoryFactsSnapshot;
 
 /**
  * A repo whose tsconfig `include` covers three escapes and two legitimate files: `src/leak.ts`
- * links to an out-of-repo file, `src/vendor` links to an out-of-repo directory, and `src/alias.ts`
+ * links to an out-of-repo file, `src/linked` links to an out-of-repo directory, and `src/alias.ts`
  * links to a sibling that stays inside.
  */
 function buildFixture(): void {
@@ -42,7 +42,7 @@ function buildFixture(): void {
   fs.writeFileSync(path.join(src, 'real.ts'), 'export const real = 1;\n');
 
   fs.symlinkSync(path.join(outside, 'secret.ts'), path.join(src, 'leak.ts'));
-  fs.symlinkSync(path.join(outside, 'vendored'), path.join(src, 'vendor'));
+  fs.symlinkSync(path.join(outside, 'vendored'), path.join(src, 'linked'));
   fs.symlinkSync(path.join(src, 'real.ts'), path.join(src, 'alias.ts'));
 }
 
@@ -62,7 +62,7 @@ describeSymlink('stage 1 — containment of discovered candidates', () => {
     const enumerated = listTsConfigSourceFiles(repoRoot).map(f => path.resolve(f));
 
     expect(enumerated).toContain(path.resolve(repoRoot, 'src', 'leak.ts'));
-    expect(enumerated).toContain(path.resolve(repoRoot, 'src', 'vendor', 'leaked.ts'));
+    expect(enumerated).toContain(path.resolve(repoRoot, 'src', 'linked', 'leaked.ts'));
   });
 
   it('keeps real files and a symlink that resolves inside the repo', () => {
@@ -75,8 +75,8 @@ describeSymlink('stage 1 — containment of discovered candidates', () => {
     const containment = (snapshot.buildRefusals ?? []).find(r => r.kind === 'outside-workspace');
 
     expect(containment?.reason).toBe('rejected-by-policy');
-    expect(containment?.details).toEqual({ count: 2, sample: ['src/leak.ts', 'src/vendor/leaked.ts'] });
-    expect(containment?.message).toContain('src/leak.ts, src/vendor/leaked.ts');
+    expect(containment?.details).toEqual({ count: 2, sample: ['src/leak.ts', 'src/linked/leaked.ts'] });
+    expect(containment?.message).toContain('src/leak.ts, src/linked/leaked.ts');
   });
 
   it('publishes no identifier extracted from an out-of-repo file', () => {

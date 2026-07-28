@@ -1,11 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { TemplateFileInfo } from '../types.js';
-import { shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../scan-filters.js';
-import { readDirSorted } from '../fs/read-dir-sorted.js';
+import { shouldScanSourcePath, type CompiledScanPatterns } from '../scan-filters.js';
 import { compareCodeUnits } from '../platform/ordering.js';
-import { repoRelativePosix } from '../platform/paths.js';
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH, sha256Hex, walkRepository } from '@repovine/plugin-sdk';
 import { templateNodeId } from '../graph/node-ids.js';
 
 /**
@@ -107,30 +105,16 @@ export function collectTemplates(opts: {
   const { repoRoot, scanPatterns } = opts;
   const out = new Map<string, TemplateFileInfo>();
 
-  const walk = (dir: string): void => {
-    let entries: fs.Dirent[];
-    try {
-      entries = readDirSorted(dir);
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      const full = path.join(dir, e.name);
-      const relPath = repoRelativePosix(repoRoot, full);
-      if (e.isDirectory()) {
-        if (!shouldWalkDiscoveryDir(relPath)) continue;
-        walk(full);
-        continue;
-      }
-      if (!e.isFile()) continue;
-      const ext = path.extname(e.name).toLowerCase();
-      if (!TEMPLATE_EXTENSIONS.has(ext)) continue;
-      if (!underTemplatesDir(relPath)) continue;
-      if (!shouldScanSourcePath(relPath, scanPatterns)) continue;
-      if (out.has(relPath)) continue;
+  walkRepository(repoRoot, {
+    onFile: ({ absPath, relFromRoot: relPath, name }) => {
+      const ext = path.extname(name).toLowerCase();
+      if (!TEMPLATE_EXTENSIONS.has(ext)) return;
+      if (!underTemplatesDir(relPath)) return;
+      if (!shouldScanSourcePath(relPath, scanPatterns)) return;
+      if (out.has(relPath)) return;
 
       const engine = engineFromExtension(ext);
-      const content = readTemplateContent(full);
+      const content = readTemplateContent(absPath);
       const bodyHints = parseTemplateBodyHints(content);
       out.set(relPath, {
         id: templateNodeId(relPath),
@@ -139,9 +123,8 @@ export function collectTemplates(opts: {
         ...(engine ? { engine } : {}),
         ...bodyHints,
       });
-    }
-  };
-  walk(repoRoot);
+    },
+  });
 
   return [...out.values()].sort((a, b) => compareCodeUnits(a.relPath, b.relPath));
 }

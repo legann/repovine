@@ -17,6 +17,20 @@ export const TYPESCRIPT_JS_EXTENSIONS = ['.js', '.jsx', '.mjs', '.cjs'];
 
 export const TYPESCRIPT_SOURCE_EXTENSIONS = [...TYPESCRIPT_TS_EXTENSIONS, ...TYPESCRIPT_JS_EXTENSIONS];
 
+/** The declaration form. Its own constant because two readers need the same spelling: the id mint
+ *  strips it (longest-first, so `global.d.ts` does not become `global.d`) and the resolver tries it
+ *  after the implementations, never before. */
+export const TYPESCRIPT_DECLARATION_EXTENSION = '.d.ts';
+
+/** Basenames that stand for their own directory, for the id mint and the resolve ladder alike. */
+export const TYPESCRIPT_INDEX_BASENAMES = ['index'];
+
+/** {@link TYPESCRIPT_DECLARATION_EXTENSION} as a trailing-suffix pattern. */
+export const DECLARATION_EXT_SUFFIX_RE = new RegExp(
+  `${TYPESCRIPT_DECLARATION_EXTENSION.replace(/\./g, '\\.')}$`,
+  'i',
+);
+
 /** The plugin's own extensions as a trailing-suffix pattern, for the places that strip one. */
 export const SOURCE_EXT_SUFFIX_RE = new RegExp(
   `\\.(?:${TYPESCRIPT_SOURCE_EXTENSIONS.map(ext => ext.slice(1)).join('|')})$`,

@@ -1,10 +1,8 @@
 import ts from 'typescript';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { readDirSorted } from '../../fs/read-dir-sorted.js';
+import { walkRepository } from '@repovine/plugin-sdk';
 import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
-import { shouldSkipRepoRelativePath } from './discover.js';
-import { repoRelativePosix } from '../../platform/paths.js';
 
 export interface ParsedPackageTsConfig {
   fileNames: string[];
@@ -113,32 +111,16 @@ function isEntryOnlyFileList(fileNames: readonly string[]): boolean {
 
 function walkSourceTree(srcDir: string): string[] {
   const results: string[] = [];
-
-  const walk = (dir: string): void => {
-    let entries: fs.Dirent[];
-    try {
-      entries = readDirSorted(dir);
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (shouldSkipRepoRelativePath(repoRelativePosix(srcDir, full))) continue;
-        walk(full);
-        continue;
-      }
-      if (!entry.isFile()) continue;
-
-      const ext = path.extname(entry.name).toLowerCase();
-      if (!SOURCE_WALK_EXTENSIONS.has(ext)) continue;
-      if (/\.(?:test|spec)\./i.test(entry.name)) continue;
-      results.push(full);
-    }
-  };
-
-  walk(srcDir);
+  // Prunes against the source directory it starts at: everything above it already passed the same
+  // rule when `findAllTsconfigDirs` accepted the package.
+  walkRepository(srcDir, {
+    onFile: ({ absPath, name }) => {
+      const ext = path.extname(name).toLowerCase();
+      if (!SOURCE_WALK_EXTENSIONS.has(ext)) return;
+      if (/\.(?:test|spec)\./i.test(name)) return;
+      results.push(absPath);
+    },
+  });
   return results;
 }
 

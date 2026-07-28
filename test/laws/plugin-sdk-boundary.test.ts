@@ -1,6 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { PLUGIN_API_VERSION } from '@repovine/plugin-sdk';
 import typescriptPlugin from '../../src/source-plugins/typescript/index.js';
 import pythonPlugin from '../../src/source-plugins/python/index.js';
@@ -167,5 +169,81 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
       wildcardLeaks.push(spec);
     }
     expect(wildcardLeaks).toEqual([]);
+  });
+
+  // The three checks above bind the FIRST party: they read this repository's own sources. An
+  // installed plugin runs none of them, so for a third party the boundary holds only as far as
+  // packaging enforces it. Without an `exports` map Node resolves any path inside the package
+  // directory, and `repovine/dist/graph/index.js` hands out the projection layer the facade
+  // deliberately withholds. The map makes Node itself refuse — detection is not needed when the
+  // resolver never completes.
+  it('an installed engine exposes no importable module path (the SDK package is the only way in)', () => {
+    const repoRoot = path.resolve(findSrcRoot(), '..');
+    const srcRoot = findSrcRoot();
+
+    // Probe list is DERIVED from the tree, so a new core directory is covered the day it appears
+    // and an empty list cannot pass this law by vacuity.
+    const internals: string[] = [];
+    for (const entry of fs.readdirSync(srcRoot, { withFileTypes: true })) {
+      if (entry.isDirectory()) internals.push(`repovine/dist/${entry.name}/index.js`);
+      else if (entry.name.endsWith('.ts')) internals.push(`repovine/dist/${entry.name.replace(/\.ts$/, '.js')}`);
+    }
+    expect(internals.length).toBeGreaterThan(20);
+
+    // A minimal installed-package fixture: the published manifest, nothing else. `exports` is
+    // consulted before the file is looked for, so the verdict does not depend on a built `dist/`.
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-exports-'));
+    try {
+      const installed = path.join(tmpRoot, 'node_modules', 'repovine');
+      fs.mkdirSync(installed, { recursive: true });
+      fs.copyFileSync(path.join(repoRoot, 'package.json'), path.join(installed, 'package.json'));
+      fs.writeFileSync(path.join(tmpRoot, 'package.json'), '{"name":"boundary-probe","type":"module"}\n');
+
+      // Control package: same layout, no `exports` map. It proves the probe below can REACH an
+      // internal path when nothing refuses it — a control taken from the package under test would
+      // only prove that package agrees with itself.
+      const control = path.join(tmpRoot, 'node_modules', 'no-exports-control');
+      fs.mkdirSync(path.join(control, 'dist'), { recursive: true });
+      fs.writeFileSync(path.join(control, 'package.json'), '{"name":"no-exports-control","version":"0.0.0","type":"module"}\n');
+      fs.writeFileSync(path.join(control, 'dist', 'internal.js'), 'export const reached = true;\n');
+
+      // Resolution has to be Node's own, in Node's own process: the jest resolver answers from this
+      // repository's layout and would never consult the installed manifest.
+      const specs = [...internals, 'repovine/package.json', 'no-exports-control/dist/internal.js'];
+      const probe = spawnSync(
+        process.execPath,
+        ['--input-type=module', '-e', [
+          'const out = {};',
+          'for (const spec of JSON.parse(process.env.PROBE_SPECS)) {',
+          '  try { await import(spec); out[spec] = "RESOLVED"; }',
+          '  catch (e) { out[spec] = e.code ?? "UNKNOWN"; }',
+          '}',
+          'process.stdout.write(JSON.stringify(out));',
+        ].join('\n')],
+        { cwd: tmpRoot, encoding: 'utf8', env: { ...process.env, PROBE_SPECS: JSON.stringify(specs) } },
+      );
+      expect(probe.status).toBe(0);
+      const verdicts = JSON.parse(probe.stdout) as Record<string, string>;
+
+      // Positive control, taken from a package that is NOT the one under test: an internal path of a
+      // package without an `exports` map resolves. Without this the assertion below would also pass
+      // in a fixture where nothing resolves at all, and it would prove nothing about the map.
+      expect({ control: 'no-exports package', verdict: verdicts['no-exports-control/dist/internal.js'] })
+        .toEqual({ control: 'no-exports package', verdict: 'RESOLVED' });
+
+      // The manifest stays readable: closed to code, open to introspection. Asserted separately from
+      // the control above, so a change to either is legible on its own.
+      const manifest = verdicts['repovine/package.json'];
+      expect({ subpath: 'package.json', blockedByExports: manifest === 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
+        .toEqual({ subpath: 'package.json', blockedByExports: false });
+
+      // `ERR_PACKAGE_PATH_NOT_EXPORTED` is the map refusing. `ERR_MODULE_NOT_FOUND` would mean the
+      // map is gone and the path merely happens to be absent from this fixture — a green that says
+      // nothing about an installed tree, where the file is present.
+      const reachable = internals.filter(spec => verdicts[spec] !== 'ERR_PACKAGE_PATH_NOT_EXPORTED');
+      expect(reachable).toEqual([]);
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });

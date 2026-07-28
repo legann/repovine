@@ -58,6 +58,18 @@ jobs:
           node dist/mcp/index.js --help | grep -q 'repovine'
           echo "✓ bin entry OK"
 
+      # The two plugin examples are what a third-party author copies. Each wires its plugin the way
+      # an install does (resolved from the analyzed repo's node_modules), runs the conformance kit,
+      # and drives the real Stage-1 loader and core interpreters, exiting non-zero on a failed
+      # check. Running them here keeps the reference honest: a contract change that breaks an
+      # author breaks this job.
+      - name: Plugin examples (conformance + end-to-end)
+        run: |
+          set -o pipefail
+          node examples/repovine-plugin-go/run.mjs
+          node examples/repovine-plugin-iac/run.mjs
+          echo "✓ plugin examples OK"
+
       # Pack, install into a clean repo, and drive the MCP over stdio — the path
       # `npx -y repovine@<version>` takes. Catches runtime imports that resolve in the
       # engine checkout only because devDependencies are installed there.

@@ -5,6 +5,8 @@ describe('shouldSkipRepoRelativePath — build-output / dependency subtrees are 
   it('skips dependency and build-output dirs (incl. target/build/out/coverage)', () => {
     for (const p of [
       'node_modules/lodash/index.ts',
+      'vendor/github.com/pkg/errors/errors.go',
+      'services/api/vendor/dep/dep.ts',
       'dist/main.js',
       'dist-bundled/x.js',
       'target/types/case.d.ts',

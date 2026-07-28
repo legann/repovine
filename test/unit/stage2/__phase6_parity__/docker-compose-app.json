@@ -154,7 +154,7 @@
             "targetLogicalId": "secret:.env.production"
           }
         ],
-        "contentHash": "500238ddf62d5d18",
+        "contentHash": "50021d300afb4f25",
         "kind": "other",
         "provider": "generic",
         "declaredIn": [
@@ -168,7 +168,7 @@
       "label": "api_token",
       "description": "secret declared in docker-compose.yml",
       "data": {
-        "contentHash": "36e0d722bdff1e1c",
+        "contentHash": "d8d1a32bcb949b8b",
         "kind": "secret",
         "provider": "generic",
         "declaredIn": [
@@ -182,7 +182,7 @@
       "label": "db_password",
       "description": "secret declared in docker-compose.yml",
       "data": {
-        "contentHash": "62f1b6d6d54282c3",
+        "contentHash": "89dee0f8f103bb56",
         "kind": "secret",
         "provider": "generic",
         "declaredIn": [
@@ -203,7 +203,7 @@
             "targetLogicalId": "db_password"
           }
         ],
-        "contentHash": "881980cf526891d2",
+        "contentHash": "f5e3ca00212c12a3",
         "kind": "other",
         "provider": "generic",
         "declaredIn": [
@@ -217,7 +217,7 @@
       "label": "secret:.env.production",
       "description": "secret declared in docker-compose.yml",
       "data": {
-        "contentHash": "48b69003a5625dc4",
+        "contentHash": "6e858eaabc33e941",
         "kind": "secret",
         "provider": "generic",
         "declaredIn": [
@@ -231,7 +231,7 @@
       "label": "services/api/Dockerfile",
       "description": "other declared in services/api/Dockerfile",
       "data": {
-        "contentHash": "312ce1336a190314",
+        "contentHash": "ccdaa49e23f21945",
         "kind": "other",
         "provider": "generic",
         "declaredIn": [

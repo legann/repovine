@@ -164,7 +164,7 @@
             "targetLogicalId": "secret:app-db-credentials"
           }
         ],
-        "contentHash": "d7589dce6277fa7b",
+        "contentHash": "838b62f76d805b51",
         "kind": "other",
         "provider": "generic",
         "declaredIn": [
@@ -178,7 +178,7 @@
       "label": "demo-chart",
       "description": "helm-release declared in helm/demo-chart/Chart.yaml",
       "data": {
-        "contentHash": "2ee90219437b686a",
+        "contentHash": "af97c39ffa3bfd55",
         "kind": "helm-release",
         "provider": "generic",
         "declaredIn": [
@@ -192,7 +192,7 @@
       "label": "helm/demo-chart/Dockerfile",
       "description": "other declared in helm/demo-chart/Dockerfile",
       "data": {
-        "contentHash": "717f3948ae501ee7",
+        "contentHash": "ac6a433d1a7a3688",
         "kind": "other",
         "provider": "generic",
         "declaredIn": [

@@ -146,7 +146,7 @@
       "label": "Dockerfile",
       "description": "other declared in Dockerfile",
       "data": {
-        "contentHash": "edcb105218c15649",
+        "contentHash": "be48edae7f514cd2",
         "kind": "other",
         "provider": "generic",
         "declaredIn": [
@@ -160,7 +160,7 @@
       "label": "demo-scheduler",
       "description": "k8s-deployment declared in manifests/cronjob.yaml",
       "data": {
-        "contentHash": "9d1a9b4dde4e4a7f",
+        "contentHash": "75ece3e1008139b4",
         "kind": "k8s-deployment",
         "k8sKind": "CronJob",
         "provider": "k8s",

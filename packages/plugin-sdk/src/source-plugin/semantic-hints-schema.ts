@@ -93,10 +93,11 @@ const zSsrMarkers = z
 const zEffectImport = z.object({ kind: z.string(), source: z.string() }).passthrough();
 
 /**
- * `ui` is the JS-specific detail slot (component trees, lifecycle effects, …). It is validated
- * loosely on purpose: only that it is an object. The framework-general public slots above carry the
- * cross-language contract; over-constraining the rich UI shape here would add brittleness
- * without protecting any interpreter consumer.
+ * `ui` is the JavaScript detail slot (component trees, lifecycle effects, …). It is validated
+ * loosely on purpose: only that it is an object. The `Ui*` types describe what a producer may emit,
+ * not what this schema checks — over-constraining the rich UI shape would add brittleness without
+ * protecting any interpreter consumer. The slots that carry values across ecosystems are `envVars`,
+ * `effectImports` and `webFramework`; `docs/plugin-authoring.md` holds the per-slot reach.
  */
 const zUiHints = z.object({}).passthrough();
 

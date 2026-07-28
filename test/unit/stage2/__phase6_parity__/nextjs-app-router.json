@@ -614,7 +614,7 @@
       "description": "vercel-function declared in vercel.json",
       "data": {
         "handler": "app/api/users/route.ts",
-        "contentHash": "30c089da4a38e1cc",
+        "contentHash": "83b968ddc0c46bbb",
         "kind": "vercel-function",
         "provider": "vercel",
         "declaredIn": [
@@ -638,7 +638,7 @@
             "targetLogicalId": "secret:database-url"
           }
         ],
-        "contentHash": "acae0d42cf8ec443",
+        "contentHash": "12aa12411081a427",
         "kind": "other",
         "provider": "vercel",
         "declaredIn": [
@@ -652,7 +652,7 @@
       "label": "rewrite:/legacy-users",
       "description": "vercel-route declared in vercel.json",
       "data": {
-        "contentHash": "63d700200d6b3068",
+        "contentHash": "5903462fc19ade79",
         "kind": "vercel-route",
         "provider": "vercel",
         "declaredIn": [

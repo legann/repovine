@@ -1,9 +1,12 @@
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
-
-/** Stable 16-char hash for a single IaC resource payload (not the whole template). */
-export function hashResourcePayload(payload: unknown): string {
-  return sha256Hex(JSON.stringify(payload), HASH_WIDTH.content);
-}
+/**
+ * Content hash for a single IaC resource payload (not the whole template).
+ *
+ * Declared in the SDK, because this is the one hash a PRODUCER mints: a third-party parser that
+ * composed its own digest would give the same resource a different identity than a built-in one,
+ * and the value drives runtime-resource freshness. The canonicalization — sorted keys, preserved
+ * array order, `undefined`-valued keys dropped — is part of that published contract.
+ */
+export { hashResourcePayload } from '@repovine/plugin-sdk';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

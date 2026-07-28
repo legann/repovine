@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type ts from 'typescript';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
+import { walkRepository } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../../scan-filters.js';
 import { hostPathKey, repoRelativePosix, toPosixPath } from '../../platform/paths.js';
 import { logPipelineWarn } from '../../cli/ui.js';
@@ -10,7 +11,6 @@ import { pathPrefixLength } from '../../stage1/utils.js';
 import { discoverPackages } from './packages.js';
 import { parsePackageTsConfig } from './list-tsconfig-files.js';
 import { extractTypeScriptFromSfc, SFC_EXTENSIONS } from './sfc-extractor.js';
-import { readDirSorted } from '../../fs/read-dir-sorted.js';
 import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
 
 /**
@@ -145,32 +145,25 @@ function discoverSfcFiles(
   pendingByPath: Map<string, PendingModuleDraft>,
 ): number {
   let added = 0;
-  const walk = (dir: string): void => {
-    let entries: fs.Dirent[];
-    try {
-      entries = readDirSorted(dir);
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      const full = path.join(dir, e.name);
-      const relFromRoot = repoRelativePosix(repoRoot, full);
-      if (shouldSkipRepoRelativePath(relFromRoot)) continue;
-      if (e.isDirectory()) {
-        walk(full);
-        continue;
-      }
-      if (!e.isFile()) continue;
-      const ext = path.extname(e.name).toLowerCase();
-      if (!SFC_EXTENSIONS.has(ext)) continue;
-      if (!shouldScanSourcePath(relFromRoot, ctx.scanPatterns)) continue;
+  // Starts inside the package, prunes by the path the graph knows — see the same split in the
+  // Python file walk.
+  walkRepository(pkgAbsPath, {
+    repoRoot,
+    onFile: ({ absPath: full, relFromRoot, name }) => {
+      // Asked of the file as well as the directory: the walk starts inside the package, so a
+      // package that itself sits under an ignored or test-layout tree would otherwise contribute
+      // files no other producer would have reported.
+      if (shouldSkipRepoRelativePath(relFromRoot)) return;
+      const ext = path.extname(name).toLowerCase();
+      if (!SFC_EXTENSIONS.has(ext)) return;
+      if (!shouldScanSourcePath(relFromRoot, ctx.scanPatterns)) return;
 
       let content: string;
       try {
         content = fs.readFileSync(full, 'utf-8');
-      } catch { continue; }
+      } catch { return; }
       const extracted = extractTypeScriptFromSfc(full, content);
-      if (!extracted || extracted.ts.trim().length === 0) continue;
+      if (!extracted || extracted.ts.trim().length === 0) return;
 
       const relPath = repoRelativePosix(pkgAbsPath, full);
       const before = pendingByPath.size;
@@ -179,11 +172,10 @@ function discoverSfcFiles(
         virtualPath: full + '.ts',
         pkg,
         relPath,
-        }, relFromRoot);
+      }, relFromRoot);
       if (pendingByPath.size > before) added++;
-    }
-  };
-  walk(pkgAbsPath);
+    },
+  });
   return added;
 }
 
@@ -197,7 +189,11 @@ function discoverExplicitIncludeFiles(
 
   let added = 0;
   const visitFile = (absPath: string, relFromRoot: string): void => {
-    if (pendingByPath.has(absPath)) return;
+    // Canonical key, like every other probe of this map. A raw-path probe answered differently per
+    // platform — it matched on POSIX and missed on win32, where the key is case-folded — so an
+    // explicit include re-opened an already-registered file there and `registerPendingModule` could
+    // hand it to a package with a longer prefix, changing its relPath and its minted id.
+    if (pendingByPath.has(hostPathKey(absPath))) return;
     if (shouldSkipRepoRelativePath(relFromRoot)) return;
     if (SKIP_TEST_FILENAME_RE.test(path.basename(absPath))) return;
     if (SKIP_MAP_FILE_RE.test(path.basename(absPath))) return;
@@ -221,27 +217,9 @@ function discoverExplicitIncludeFiles(
     if (pendingByPath.size > before) added++;
   };
 
-  const walk = (dir: string): void => {
-    let entries: fs.Dirent[];
-    try {
-      entries = readDirSorted(dir);
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      const full = path.join(dir, e.name);
-      const relFromRoot = repoRelativePosix(repoRoot, full);
-      if (e.isDirectory()) {
-        if (shouldSkipRepoRelativePath(relFromRoot)) continue;
-        walk(full);
-        continue;
-      }
-      if (!e.isFile()) continue;
-      visitFile(full, relFromRoot);
-    }
-  };
-
-  walk(repoRoot);
+  walkRepository(repoRoot, {
+    onFile: ({ absPath, relFromRoot }) => visitFile(absPath, relFromRoot),
+  });
   return added;
 }
 

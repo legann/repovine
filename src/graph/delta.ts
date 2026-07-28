@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { EDGE_KINDS, NODE_DATA_KEYS, NODE_TYPES } from '../types.js';
 import type { EdgeKind, GraphDelta, GraphEdge, GraphNode, NodeType, RepositoryGraph } from '../types.js';
 import { compareCodeUnits } from '../platform/ordering.js';
+import { canonicalJson } from '@repovine/plugin-sdk';
 import { addEdge as addDeltaEdge, addNode as addDeltaNode } from './mutate.js';
 
 export type GraphDeltaLogLevel = 'debug' | 'warn' | 'error';
@@ -142,15 +143,7 @@ export function applyValidated(
 }
 
 function edgeKey(edge: GraphEdge): string {
-  return `${edge.from}\0${edge.to}\0${edge.kind}\0${stableJson(edge.metadata ?? {})}`;
-}
-
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
+  return `${edge.from}\0${edge.to}\0${edge.kind}\0${canonicalJson(edge.metadata ?? {})}`;
 }
 
 function formatZodError(prefix: string, error: z.ZodError): string {

@@ -8,9 +8,10 @@ ontology (`NodeType`/`EdgeKind`). You never name an edge or node type.
 Two of those the SDK hands back, because a producer does have to write them. An import that resolves
 to a package rather than a file is reported as `packageNodeId(name)` — the engine's own spelling of
 the id, exported so a plugin matches it instead of reproducing it from a sample. And a per-resource
-`contentHash` is `sha256Hex(text, HASH_WIDTH.content)`: the SDK owns the digest and the width, the
-plugin owns what `text` is. Which bytes represent a resource — key order included — is the plugin's
-fact about its own format, and the engine compares the result without knowing how it was built.
+`contentHash` is `hashResourcePayload(payload)`: the SDK owns the digest, the width, and the
+canonicalization, because this is the one hash a producer mints and it drives runtime-resource
+freshness. Two parsers reading the same resource have to agree, so key order carries no meaning,
+array order does, and a key set to `undefined` is the same fact as an absent key.
 
 The complete taxonomy of public producers and core-only interpreters, detectors, and delivery
 mechanics is defined in [DESIGN.md](../DESIGN.md#extension-families-and-boundaries).
@@ -104,14 +105,16 @@ default-exports a plugin object built with an SDK factory.
 Arbitrary npm is never auto-installed: the user installs your package and lists it in
 `config.plugins.add`, which is their trust decision.
 
-The examples ship as plain ESM objects (`index.js`) so they run without compiling the SDK at
-runtime. Production packages should use the factories for types, `apiVersion` stamping, and the
-conformance kit — the loader validates shape either way.
+Both examples are authored through the SDK, which is what a production package does: the factories
+stamp `apiVersion` so no descriptor carries a version number that goes stale, `walkRepository` is the
+discovery traversal, and `hashResourcePayload` is the one content hash a producer mints. CI runs both
+end to end, so a contract change that would break an author breaks them first. The loader validates
+shape either way — the factories are what keep the mechanics from being written a second time.
 
 ### Source plugin
 
 ```ts
-import { defineSourcePlugin } from '@repovine/plugin-sdk';
+import { defineSourcePlugin, hostPathKey, walkRepository } from '@repovine/plugin-sdk';
 import type { SourceExtractInput, SourceExtractResult } from '@repovine/plugin-sdk';
 
 export default defineSourcePlugin({
@@ -133,8 +136,19 @@ export default defineSourcePlugin({
   // Pass 1 — discovery (NO AST). Return packages + candidate files keyed by absolute path.
   // Each entry is a PendingModuleDraft: filePath, pkg, relPath — and NO moduleId. The engine mints
   // `mod:<pkg>/<path>` from pkg + relPath, so a plugin never spells that format itself.
+  // `walkRepository` is the traversal: it prunes what the graph never indexes (dependency trees,
+  // build output, test layouts) and enumerates in an order that does not depend on the filesystem,
+  // so a plugin keeps no skip list of its own.
   discover(repoRoot, options) {
-    /* ...enumerate packages and .go files... */
+    const pendingByPath = new Map();
+    walkRepository(repoRoot, {
+      onFile: ({ absPath, relFromRoot, name }) => {
+        if (!name.endsWith('.go')) return;
+        // Canonical key: the engine merges producers' drafts on one key form, and on win32 the same
+        // file spelled two ways would register twice.
+        pendingByPath.set(hostPathKey(absPath), { filePath: absPath, pkg, relPath: relFromRoot, sourcePluginId: 'go' });
+      },
+    });
     return { packages, pendingByPath };
   },
 
@@ -154,9 +168,38 @@ export default defineSourcePlugin({
 ```
 
 The cross-language contract is **`semanticHints`** — a versioned, `passthrough` bag (see
-`SEMANTIC_HINTS_VERSION`, `zSemanticHints`). Fill the framework-general slots (`routes`, `envVars`,
-`ssr`, `security`, `webFramework`, …) and the core's interpreters project them for free — a new
-backend language often needs **no** interpreter, only correct hints.
+`SEMANTIC_HINTS_VERSION`, `zSemanticHints`). It has ten slots, and they differ in reach: three carry
+values any ecosystem can produce, two assume a framework that serves requests, and five encode web,
+JavaScript or AWS shapes in their own field types. Fill the ones your ecosystem has; the core's
+interpreters project them with no new interpreter.
+
+| Slot | Reach | Filled by | Read by |
+|---|---|---|---|
+| `envVars` | any ecosystem | TypeScript, Python | config surface, annotation quality, dump |
+| `effectImports` | any ecosystem | Python | side-effect vocabulary |
+| `webFramework` | any ecosystem — open string | TypeScript, Python | server and UI entrypoints |
+| `routes` | serves requests | TypeScript, Python | server and UI entrypoints, edges |
+| `hasRoutes` | serves requests | TypeScript, Python | entrypoint listing |
+| `conditionalRenders` | renders a UI | TypeScript | UI entrypoints |
+| `security` | web — `kind` is a closed set of eight, three of them browser storage and cookies | TypeScript | config surface, architecture detail |
+| `ssr` | JavaScript — eight of its ten fields name JS directives and exports | TypeScript | module kind, architecture heuristics |
+| `ui` | JavaScript — component trees, lifecycle effects | TypeScript | UI entrypoints |
+| `runtimeActions` | AWS — `action` is a closed set of four AWS calls | TypeScript | side-effect vocabulary, module kind |
+
+Four qualifications the table cannot hold:
+
+- `runtimeActions.action` is a closed union in the type **and** the schema. A non-AWS producer that
+  fills the slot fails fact validation.
+- `ssr.runsOn` and `ssr.dataLoader` read as ecosystem-neutral and are derived from the eight
+  JavaScript markers beside them. Nothing in the engine branches on either; only `useServer` and
+  `useClient` are read.
+- `ui` validates as any object. The `Ui*` types describe what a producer may emit, not what the
+  schema checks.
+- `routes` projects into an API entrypoint only when `source` is `decorator` or `ast` and `kind` is
+  `api`. A route with any other provenance is carried but not projected.
+
+`imports` and `exports` are not slots — they are required fields of `SemanticModuleDelta`, beside
+`semanticHints` rather than inside it.
 
 ### IaC plugin
 

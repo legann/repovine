@@ -144,7 +144,7 @@ describe('core-laws bounded answers', () => {
       /split\(\s*\/\[\/\\\\\]\/[a-z]*\s*\)[^;]{0,60}\.pop\(\)/,
       /lastIndexOf\(\s*['"`]\/['"`]\s*\)\s*\+\s*1/,
     ];
-    const offenders = codeFiles(['platform/paths.ts'])
+    const offenders = codeFiles(['plugin-sdk/src/paths.ts'])
       .filter(file => handWritten.some(re => re.test(file.text)))
       .map(file => file.where);
     expect(offenders).toEqual([]);

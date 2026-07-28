@@ -9,29 +9,18 @@
 //   • routes go into `semanticHints.routes`, which the CORE projects into API entrypoints with no
 //     new interpreter (a new language gets backend interpretation for free).
 //
-// Authored as a plain object on purpose: the loader validates a plugin's SHAPE structurally, so
-// examples can run without importing the SDK at runtime. Real packages should use the SDK factory:
-//   import { defineSourcePlugin } from '@repovine/plugin-sdk';
-//   export default defineSourcePlugin({ ...the object below... });
-// which additionally stamps `apiVersion` and gives you types + the conformance kit.
+// Authored through the SDK, which is what a real package does: `defineSourcePlugin` stamps the
+// contract major, and `walkRepository` is the discovery traversal — it prunes the directories the
+// graph never indexes (`vendor/`, `node_modules/`, build output, test layouts) and enumerates in an
+// order that does not depend on the host filesystem. A plugin that walked the tree itself would
+// carry a second copy of both rules and drift from the engine on the first one that changed.
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { defineSourcePlugin, hostPathKey, walkRepository } from '@repovine/plugin-sdk';
 
 const GO_RE = /\.go$/;
 
-function walkGoFiles(dir, acc) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === 'vendor' || entry.name.startsWith('.')) continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walkGoFiles(full, acc);
-    else if (GO_RE.test(entry.name)) acc.push(full);
-  }
-}
-
-export default {
+export default defineSourcePlugin({
   id: 'go',
-  apiVersion: 1,
   fileMatch: { extensions: ['.go'] },
   // `moduleIdNormalize` states this ecosystem's facts; the ENGINE applies them when it mints ids.
   capabilities: {
@@ -42,18 +31,20 @@ export default {
   // Pass 1 — discovery (no parsing). Return packages + candidate files keyed by absolute path.
   discover(repoRoot) {
     const pkg = { name: 'go-app', path: '.', sourcePluginId: 'go' };
-    const files = [];
-    walkGoFiles(repoRoot, files);
     const pendingByPath = new Map();
-    for (const filePath of files) {
-      const rel = path.relative(repoRoot, filePath);
-      pendingByPath.set(filePath, {
-        filePath,
-        pkg,
-        relPath: rel,
-        sourcePluginId: 'go',
-      });
-    }
+    walkRepository(repoRoot, {
+      onFile: ({ absPath, relFromRoot, name }) => {
+        if (!GO_RE.test(name)) return;
+        // Canonical key, not the raw path: the engine merges every producer's drafts on one key
+        // form, and on win32 the same file spelled two ways would register twice.
+        pendingByPath.set(hostPathKey(absPath), {
+          filePath: absPath,
+          pkg,
+          relPath: relFromRoot,
+          sourcePluginId: 'go',
+        });
+      },
+    });
     return { packages: [pkg], pendingByPath };
   },
 
@@ -106,4 +97,4 @@ export default {
     });
     return { deltas, reused: 0, rescanned: deltas.length };
   },
-};
+});

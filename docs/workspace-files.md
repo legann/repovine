@@ -40,7 +40,7 @@ Every path the engine reads is resolved through symlinks and re-tested against t
 |---|---|---|
 | naming a parent | `"../shared/**"` in `build.scan.include` | Refused |
 | a file symlink | `src/leak.ts -> /etc/passwd` | Refused |
-| a directory symlink | `src/vendor -> ../../other-repo` | Everything beneath it refused |
+| a directory symlink | `src/linked -> ../../other-repo` | Everything beneath it refused |
 | a tsconfig reference | `"include": ["../lib"]` | Refused |
 
 Refused files are absent from the graph, including from import resolution. The build log counts them, `repovine status` reports them, and `refresh_context` / `get_build_status` return them under `outsideRepo`. To index a sibling tree, root repovine at the directory containing both.

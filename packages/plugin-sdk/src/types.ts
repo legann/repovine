@@ -368,9 +368,14 @@ export type WebFramework = KnownWebFramework | (string & {});
  * Framework-general module hints written by source plugins and read by core/layer consumers.
  *
  * This is a public, versioned contract (semanticHints v1 — see `SEMANTIC_HINTS_VERSION` and the Zod
- * schema in `source-plugin/semantic-hints-schema.ts`). The framework-general slots (`routes`,
- * `envVars`, `ssr`, `security`, `webFramework`, …) are normalized so a single layer consumer can
- * serve many languages/frameworks; keep additions neutral rather than framework-specific.
+ * schema in `source-plugin/semantic-hints-schema.ts`).
+ *
+ * The slots differ in reach. `envVars`, `effectImports` and `webFramework` carry values any
+ * ecosystem produces. `routes` and `hasRoutes` assume a framework that serves requests.
+ * `conditionalRenders`, `security`, `ssr` and `ui` describe web and JavaScript shapes in their own
+ * field types, and `runtimeActions.action` is a closed set of four AWS calls — a producer outside
+ * that ecosystem filling it fails fact validation. `docs/plugin-authoring.md` holds the per-slot
+ * table. Keep additions neutral rather than framework-specific, and say which reach a new slot has.
  */
 export interface SemanticHints {
   hasRoutes?: boolean;

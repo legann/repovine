@@ -1,45 +1,20 @@
-import * as path from 'node:path';
-import { toPosixPath } from '@repovine/plugin-sdk';
+import { toPosixPath, hostPathKey, repoRelativePosix, normalizeRelPath, lastPathSegment } from '@repovine/plugin-sdk';
 
 /**
- * Host-path key contract.
+ * The path vocabulary, read from one module.
  *
- * Persisted repo-relative identity is POSIX-normalized at its producers. In-memory
- * maps keyed by ABSOLUTE host paths canonicalize through `hostPathKey`: producers
- * legitimately disagree on form — tsconfig enumeration (`ts.parseJsonConfigFileContent`),
- * ts-morph `sf.fileName`, and `ts.resolveModuleName` emit forward-slash absolutes while
- * filesystem walkers emit native ones — and on win32 NTFS lookups are case-insensitive.
- * `path.resolve` unifies separators and drive-qualifies; win32 additionally case-folds.
+ * Five of these are declared in the SDK: a producer reports paths the engine compares as bytes and
+ * reads maps the engine keyed, so both sides need the same spelling, and only the SDK is reachable
+ * from an installed plugin. They are re-exported here so engine callers still read the whole
+ * vocabulary from one place. Callers holding a value that is already POSIX still route through
+ * `toPosixPath`: the call is what says "this string is about to become identity".
  *
- * Scope: resolver/map identity only. Security-sensitive containment (harness attach
- * path-overlap) keeps its own strict case-sensitive comparison and must not adopt this
- * relaxed form.
+ * `hostPathKey` is resolver/map identity only. Security-sensitive containment (harness attach
+ * path-overlap) keeps its own strict case-sensitive comparison and must not adopt that relaxed
+ * form. A path outside the root answers `repoRelativePosix` with the `..` segments `path.relative`
+ * produces; containment is the caller's question, and `src/fs/containment.ts` is where it is asked.
  */
-export function hostPathKey(p: string): string {
-  const resolved = path.resolve(p);
-  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-}
-
-/**
- * Separator normalization, and nothing else. Declared in the SDK beside the module-id mint, which
- * is the first thing that needs it, and re-exported here so engine callers read the whole path
- * vocabulary from one module. Callers holding a value that is already POSIX still route through it:
- * the call is what says "this string is about to become identity".
- */
-export { toPosixPath } from '@repovine/plugin-sdk';
-
-/**
- * Repo-relative POSIX path of an absolute path.
- *
- * `absPath === root` answers `''` — the empty relative path. `path.relative` already returns
- * normalized output, so no second normalization pass is needed; `path.normalize('')` would turn
- * that empty answer into `'.'`, which is why the pass is absent rather than merely unnecessary.
- * A path outside the root answers with the `..` segments `path.relative` produces; containment is
- * the caller's question, and `src/fs/containment.ts` is where it is asked.
- */
-export function repoRelativePosix(root: string, absPath: string): string {
-  return toPosixPath(path.relative(root, absPath));
-}
+export { toPosixPath, hostPathKey, repoRelativePosix, normalizeRelPath, lastPathSegment };
 
 /**
  * Case-folded POSIX form, for matching a path against a vocabulary of names.
@@ -53,14 +28,6 @@ export function repoRelativePosix(root: string, absPath: string): string {
  */
 export function pathMatchKey(value: string): string {
   return toPosixPath(value).toLowerCase();
-}
-
-/**
- * A repo-relative path reduced to the form glob matching and map keys compare: POSIX separators,
- * runs of `/` collapsed, no leading `/`. Dot segments are left alone — see {@link resolveRelPath}.
- */
-export function normalizeRelPath(value: string): string {
-  return toPosixPath(value).replace(/\/+/g, '/').replace(/^\//, '');
 }
 
 /**
@@ -85,53 +52,9 @@ export function resolveRelPath(value: string): string {
 }
 
 /**
- * The last segment of a repo-relative POSIX path.
- *
- * A POSIX question, so `path.basename` is not it: on win32 that function also treats `\` as a
- * separator, and a repo-relative path is already POSIX-normalized at its producers — a backslash
- * surviving into one is a character in a filename, not a boundary. `path.basename` stays where the
- * argument is an absolute host path, which is the form the filesystem hands out.
- *
- * A path ending in `/` answers `''`, and so does the empty path: the segment after the last
- * separator is what was asked for, and there it is empty. Callers wanting the directory instead
- * take `moduleDirPath` in `src/graph/module-files.ts`.
+ * Canonical-keyed view of an absolute-path→id map. Declared in the SDK beside the resolve ladder
+ * that reads through it: the map reaches a producer keyed however its own producer spelled paths,
+ * so the fold has to be the same function on both sides — and one memo, not two, or a resolver and
+ * the engine would each pay the O(n) pass.
  */
-export function lastPathSegment(relPath: string): string {
-  return relPath.slice(relPath.lastIndexOf('/') + 1);
-}
-
-const hostKeyedViews = new WeakMap<Map<string, string>, Map<string, string>>();
-const hostKeyedViewSizes = new WeakMap<Map<string, string>, number>();
-
-/**
- * Canonical-keyed view of an absolute-path→id map. Built once per source Map
- * instance (WeakMap memo, invalidated when the source size changes): one O(n)
- * pass per stage-1 worker, not per import. The source map is expected to be
- * construction-frozen; the size guard catches append-after-build drift.
- *
- * A fold collision between DIFFERENT module ids (two committed paths differing
- * only by case/separators) keeps the first entry and warns: that repo builds
- * different graphs on case-sensitive vs case-insensitive filesystems, and the
- * scanner-level case-collision diagnostic is the durable answer.
- */
-export function hostKeyedView(m: Map<string, string>): Map<string, string> {
-  let view = hostKeyedViews.get(m);
-  if (!view || hostKeyedViewSizes.get(m) !== m.size) {
-    view = new Map<string, string>();
-    for (const [k, v] of m) {
-      const key = hostPathKey(k);
-      const existing = view.get(key);
-      if (existing === undefined) {
-        view.set(key, v);
-      } else if (existing !== v) {
-        console.warn(
-          `repovine: path identity collision after case/separator folding: "${k}" maps to ${v} but an earlier entry claimed ${existing}; keeping the first. ` +
-            'Two committed paths differing only by case build different graphs on case-sensitive vs case-insensitive filesystems.',
-        );
-      }
-    }
-    hostKeyedViews.set(m, view);
-    hostKeyedViewSizes.set(m, m.size);
-  }
-  return view;
-}
+export { hostKeyedView } from '@repovine/plugin-sdk';

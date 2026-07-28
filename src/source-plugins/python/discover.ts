@@ -4,18 +4,17 @@ import { execFileSync } from 'node:child_process';
 import * as os from 'node:os';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
+import { walkRepository } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../../scan-filters.js';
 import { hostPathKey, repoRelativePosix, toPosixPath } from '../../platform/paths.js';
 import { readDirSorted } from '../../fs/read-dir-sorted.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
+import { PYTHON_PACKAGE_MARKERS } from './extensions.js';
 
 /**
  * Python discovery (Pass 1). Finds Python packages (`pyproject.toml` / `setup.py`) and their
  * `.py` files. No AST here — extraction happens in extract.ts via a `python -c` subprocess.
  */
-
-export const PYTHON_EXTENSIONS = ['.py'];
-export const PYTHON_PACKAGE_MARKERS = ['pyproject.toml', 'setup.py'];
 
 /** Opaque extractContext for this plugin: the resolved interpreter (or null when unavailable). */
 export interface PythonExtractContext {
@@ -166,43 +165,32 @@ function discoverPyFiles(
   scanPatterns: CompiledScanPatterns,
   pendingByPath: Map<string, PendingModuleDraft>,
 ): void {
-  const walk = (dir: string): void => {
-    let entries: fs.Dirent[];
-    try {
-      entries = readDirSorted(dir);
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      const full = path.join(dir, e.name);
-      const relFromRoot = repoRelativePosix(repoRoot, full);
-      if (e.isDirectory()) {
-        if (!shouldWalkDiscoveryDir(relFromRoot)) continue;
-        walk(full);
-        continue;
-      }
-      if (!e.isFile()) continue;
-      if (path.extname(e.name).toLowerCase() !== '.py') continue;
-      if (SKIP_FILE_RE.test(e.name)) continue;
-      if (!shouldScanSourcePath(relFromRoot, scanPatterns)) continue;
+  // Starts inside the package, prunes by the path the graph knows: a package under a directory the
+  // engine ignore list names is still walked when discovery reached it deliberately, while a
+  // `node_modules` inside that package is not.
+  walkRepository(pkgAbs, {
+    repoRoot,
+    onFile: ({ absPath, relFromRoot, name }) => {
+      if (path.extname(name).toLowerCase() !== '.py') return;
+      if (SKIP_FILE_RE.test(name)) return;
+      if (!shouldScanSourcePath(relFromRoot, scanPatterns)) return;
 
-      const relPathNative = path.relative(pkgAbs, full);
-      if (relPathNative.startsWith('..')) continue;
+      const relPathNative = path.relative(pkgAbs, absPath);
+      if (relPathNative.startsWith('..')) return;
       // Persisted repo-relative identity is POSIX-normalized: relPath
       // feeds module labels and detector evidence, which must match cross-OS.
       const relPath = toPosixPath(relPathNative);
       // Canonical key — uniform with the TS plugin so the stage-1
       // cross-plugin merge dedupes on one key form.
-      if (pendingByPath.has(hostPathKey(full))) continue;
-      pendingByPath.set(hostPathKey(full), {
-        filePath: full,
+      if (pendingByPath.has(hostPathKey(absPath))) return;
+      pendingByPath.set(hostPathKey(absPath), {
+        filePath: absPath,
         pkg,
         relPath,
         sourcePluginId: 'python',
       });
-    }
-  };
-  walk(pkgAbs);
+    },
+  });
 }
 
 export function discoverPython(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {

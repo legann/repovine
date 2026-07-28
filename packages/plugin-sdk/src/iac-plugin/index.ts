@@ -11,11 +11,15 @@ export type { IaCPluginDescriptor } from '../factory.js';
 export { PLUGIN_API_VERSION } from '../runtime.js';
 export type { PluginApiVersion, PluginRequirements, PluginAvailability } from '../runtime.js';
 
-export {
-  zSemanticInfraDelta,
-  validateSemanticInfraDelta,
-} from '../fact-schemas.js';
+export { validateSemanticInfraDelta } from '../fact-schemas.js';
 export type { FactValidationResult } from '../fact-schemas.js';
+
+/* ---- the one content hash a producer mints, and the canonicalization behind it ---- */
+export { hashResourcePayload } from '../resource-hash.js';
+export { HASH_WIDTH, sha256Hex } from '../content-hash.js';
+export type { HashWidth } from '../content-hash.js';
+export { lastPathSegment, normalizeRelPath, repoRelativePosix } from '../paths.js';
+export { toPosixPath } from '../source-plugin/module-id.js';
 
 export { checkIaCPluginConformance } from '../conformance.js';
 export type { ConformanceCheck, ConformanceReport } from '../conformance.js';

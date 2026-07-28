@@ -2,8 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import yaml from 'js-yaml';
 import type { IaCDocFormat, InfraModuleInfo, PackageInfo } from '../types.js';
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
-import { toPosixPath } from '../platform/paths.js';
+import { HASH_WIDTH, sha256Hex, walkRepository } from '@repovine/plugin-sdk';
 import { CLOUDFORMATION_SAFE_SCHEMA } from './iac/yaml-schema.js';
 // Side-effect import: registers all built-in IaC parsers in the shared registry.
 import './iac/bootstrap.js';
@@ -14,8 +13,7 @@ import {
   pickDocFormatForFile,
 } from './iac/registry.js';
 import type { CompiledScanPatterns } from '../scan-filters.js';
-import { shouldScanInfraPath, shouldWalkDiscoveryDir } from '../scan-filters.js';
-import { readDirSorted } from '../fs/read-dir-sorted.js';
+import { shouldScanInfraPath } from '../scan-filters.js';
 import { infraNodeId } from '../graph/node-ids.js';
 
 export interface InfraScanOptions {
@@ -33,26 +31,14 @@ export interface InfraScanOptions {
  * declared no fileMatch, in which case it sees everything).
  */
 function discoverInfraFiles(repoRoot: string, dir: string, out: { filePath: string; relPath: string }[]): void {
-  let entries: fs.Dirent[];
-  try {
-    entries = readDirSorted(dir);
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    const rel = path.relative(repoRoot, full);
-    if (e.isDirectory()) {
-      if (!shouldWalkDiscoveryDir(toPosixPath(rel))) continue;
-      discoverInfraFiles(repoRoot, full, out);
-      continue;
-    }
-    if (!e.isFile()) continue;
-    const ext = path.extname(e.name).toLowerCase();
-    const base = e.name;
-    if (!isInfraCandidate(base, ext)) continue;
-    out.push({ filePath: full, relPath: toPosixPath(path.normalize(rel)) });
-  }
+  walkRepository(dir, {
+    repoRoot,
+    onFile: ({ absPath, relFromRoot, name }) => {
+      const ext = path.extname(name).toLowerCase();
+      if (!isInfraCandidate(name, ext)) return;
+      out.push({ filePath: absPath, relPath: relFromRoot });
+    },
+  });
 }
 
 function mergeInfraModule(

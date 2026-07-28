@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS } from '@repovine/plugin-sdk';
 
 function readPackageName(packageJsonPath: string): string | undefined {
   try {
@@ -108,45 +109,11 @@ export const DOMAINS_CONFIG_FILENAME = 'repovine.domains.json';
 export const ANNOTATIONS_FILENAME = 'repovine.annots.json';
 
 /**
- * Engine-owned scan ignores (always applied; not configurable).
- * Segment match on repo-relative paths: engine cache, dependency, build-output,
- * and local tooling artifact directories.
+ * Engine-owned scan ignores. Declared in the SDK beside the discovery walk that applies them: a
+ * producer prunes with the same list the engine does, and re-exported here so engine callers read
+ * the scan vocabulary from one module.
  */
-export const REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS = [
-  '.repovine',
-  '.repovine/',
-  '.git',
-  '.cache',
-  '.next',
-  '.nuxt',
-  '.svelte-kit',
-  '.turbo',
-  '.nx',
-  '.venv',
-  'venv',
-  'env',
-  '.env',
-  'node_modules',
-  'bower_components',
-  '.yarn',
-  '.pnpm-store',
-  'dist',
-  'dist-bundled',
-  'target',
-  'build',
-  'out',
-  '.aws-sam',
-  'coverage',
-  'htmlcov',
-  'site-packages',
-  '__pycache__',
-  '.tox',
-  '.nox',
-  '.pytest_cache',
-  '.mypy_cache',
-  '.ruff_cache',
-  '.eggs',
-] as const;
+export { REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS };
 
 /** Merge non-removable engine ignores with optional user patterns from repovine.config.json. */
 export function mergeScanIgnorePatterns(userPatterns?: readonly string[]): string[] {

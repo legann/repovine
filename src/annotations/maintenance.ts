@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { canonicalJson } from '@repovine/plugin-sdk';
 import type { RepositoryGraph, AnnotationContent, StoredAnnotation, RepositoryFactsSnapshot } from '../types.js';
 import { nextCall, type NextCall } from '../response/next-call.js';
 import type { AnnotationStore, AnnotationHealthScan, AnnotationFileStatusSnapshot } from './store.js';
@@ -470,18 +471,11 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function stableObject(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(stableObject);
-  if (!isPlainRecord(value)) return value;
-  const out: Record<string, unknown> = {};
-  for (const key of Object.keys(value).sort()) {
-    out[key] = stableObject(value[key]);
-  }
-  return out;
-}
-
+/** Two values are the same annotation fact when their canonical bytes match. The canonicalization is
+ *  the published one: a second recursive key-sort here would drift from the form the graph compares
+ *  edges by, and from the one a producer hashes a resource with. */
 function stableEquals(a: unknown, b: unknown): boolean {
-  return JSON.stringify(stableObject(a)) === JSON.stringify(stableObject(b));
+  return canonicalJson(a) === canonicalJson(b);
 }
 
 function preview(value: unknown): string | undefined {
@@ -505,7 +499,7 @@ function mergeArrayValues(ours: unknown[], theirs: unknown[]): unknown[] {
   const out: unknown[] = [];
   const seen = new Set<string>();
   for (const value of [...ours, ...theirs]) {
-    const key = JSON.stringify(stableObject(value));
+    const key = canonicalJson(value);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(value);

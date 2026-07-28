@@ -23,9 +23,10 @@ export type HashWidth = (typeof HASH_WIDTH)[keyof typeof HASH_WIDTH];
  * sha256 over one already-canonicalized UTF-8 string, kept to `width` hex characters.
  *
  * Canonicalizing the input — `JSON.stringify`, sorting, joining, framing — stays at the call site,
- * because that is what separates one hash fact from another: two resources that differ only in key
- * order are the same fact to one caller and different facts to the next. Callers that answer "no
- * content" with a sentinel (`''`, `'empty'`, `'dev:no-dist'`) keep the sentinel at the call site
+ * because that is what separates one hash fact from another. The exception is the one hash a
+ * producer mints rather than the engine: `hashResourcePayload` in `resource-hash.ts` owns the IaC
+ * resource form, because two parsers reading the same resource have to agree. Callers that answer
+ * "no content" with a sentinel (`''`, `'empty'`, `'dev:no-dist'`) keep the sentinel at the call site
  * too; this returns a digest and nothing else.
  *
  * It ships in the SDK so a plugin minting `InfraResource.contentHash` produces the bytes the engine

@@ -8,7 +8,11 @@ import type {
 import { defineSourcePlugin, resolveDottedPathHandlerToModule } from '@repovine/plugin-sdk';
 import type { PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import { discoverTypeScript } from './discover.js';
-import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
+import {
+  TYPESCRIPT_DECLARATION_EXTENSION,
+  TYPESCRIPT_INDEX_BASENAMES,
+  TYPESCRIPT_SOURCE_EXTENSIONS,
+} from './extensions.js';
 import { SFC_EXTENSIONS } from './sfc-extractor.js';
 import { loadExtractModule } from './lazy-extract.js';
 
@@ -86,8 +90,8 @@ const typescriptSourcePlugin = defineSourcePlugin({
     // `.d.ts` is listed alongside the source extensions because the engine strips longest-first:
     // declaring it keeps `global.d.ts` from minting as `global.d`.
     moduleIdNormalize: {
-      stripSuffixes: ['.d.ts', ...TYPESCRIPT_SOURCE_EXTENSIONS],
-      indexBasenames: ['index'],
+      stripSuffixes: [TYPESCRIPT_DECLARATION_EXTENSION, ...TYPESCRIPT_SOURCE_EXTENSIONS],
+      indexBasenames: TYPESCRIPT_INDEX_BASENAMES,
     },
   },
 

@@ -6,7 +6,8 @@ import type {
   PluginAvailability,
 } from '@repovine/plugin-sdk';
 import { defineSourcePlugin, resolveDottedPathHandlerToModule } from '@repovine/plugin-sdk';
-import { detectPython, discoverPython, PYTHON_EXTENSIONS, PYTHON_PACKAGE_MARKERS } from './discover.js';
+import { detectPython, discoverPython } from './discover.js';
+import { PYTHON_EXTENSIONS, PYTHON_INDEX_BASENAMES, PYTHON_PACKAGE_MARKERS } from './extensions.js';
 import { extractPython, terminateLivePythonChildren } from './extract.js';
 
 /**
@@ -41,7 +42,7 @@ const pythonSourcePlugin = defineSourcePlugin({
     // `__init__` stands for its own package directory, the way `index` does for TypeScript.
     moduleIdNormalize: {
       stripSuffixes: PYTHON_EXTENSIONS,
-      indexBasenames: ['__init__'],
+      indexBasenames: PYTHON_INDEX_BASENAMES,
     },
   },
 

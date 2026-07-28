@@ -158,7 +158,7 @@
             "targetLogicalId": "secret:/demo/token"
           }
         ],
-        "contentHash": "1bbd383988ba338f",
+        "contentHash": "4fdbf20a1c8f29ec",
         "kind": "lambda",
         "provider": "aws",
         "declaredIn": [
@@ -172,7 +172,7 @@
       "label": "DbSecret",
       "description": "secret declared in template.yaml",
       "data": {
-        "contentHash": "57850879901aa6dd",
+        "contentHash": "0a0ffab6969cc682",
         "kind": "secret",
         "provider": "aws",
         "declaredIn": [
@@ -186,7 +186,7 @@
       "label": "secret:/demo/token",
       "description": "secret declared in template.yaml",
       "data": {
-        "contentHash": "41f8626fe28802a2",
+        "contentHash": "69b635fbebb36578",
         "kind": "secret",
         "provider": "aws",
         "declaredIn": [
@@ -200,7 +200,7 @@
       "label": "secret:GoogleSecretsArn",
       "description": "secret declared in template.yaml",
       "data": {
-        "contentHash": "e894bdea319ebfc5",
+        "contentHash": "172e60d6b034ed59",
         "kind": "secret",
         "provider": "aws",
         "declaredIn": [

@@ -224,6 +224,17 @@ export function checkIaCPluginConformance(
         keys.length === 2 && SEMANTIC_KEYS.every(k => keys.includes(k)),
         keys.join(','),
       ));
+
+      // This family mints its own `InfraResource.contentHash`, and that value drives runtime-resource
+      // freshness. A parser that folded a Map, a Set or an object it built by iteration can emit a
+      // different hash for the same document on a second read, and the resource then looks changed
+      // every build. The source kit asks the same question of `extract`; here it is the only place
+      // a producer-owned hash can be caught being unstable.
+      const again = parser.parse(sample.filePath, sample.relPath, sample.doc);
+      checks.push(check(
+        `parse(${sample.relPath}) is deterministic for identical input`,
+        JSON.stringify(again) === JSON.stringify(out),
+      ));
       break; // first-match precedence — mirror the engine's break
     }
   }

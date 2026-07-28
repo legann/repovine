@@ -1,9 +1,21 @@
 import * as path from 'node:path';
 import ts from 'typescript';
-import { packageNodeId, type PackageInfo } from '@repovine/plugin-sdk';
+import {
+  moduleCandidateSuffixes,
+  packageNodeId,
+  resolveByCandidates,
+  type PackageInfo,
+} from '@repovine/plugin-sdk';
 import { extractPackageName } from '../../stage1/utils.js';
 import { hostKeyedView, hostPathKey } from '../../platform/paths.js';
-import { SOURCE_EXT_SUFFIX_RE, TYPESCRIPT_JS_EXTENSIONS, TYPESCRIPT_TS_EXTENSIONS } from './extensions.js';
+import {
+  DECLARATION_EXT_SUFFIX_RE,
+  SOURCE_EXT_SUFFIX_RE,
+  TYPESCRIPT_DECLARATION_EXTENSION,
+  TYPESCRIPT_INDEX_BASENAMES,
+  TYPESCRIPT_JS_EXTENSIONS,
+  TYPESCRIPT_TS_EXTENSIONS,
+} from './extensions.js';
 
 /**
  * String-based shortcut for module specifier resolution. Avoids ts-morph's
@@ -52,35 +64,35 @@ function indexPackages(packages: PackageInfo[]): PackageIndex {
 }
 
 /** Suffix candidates in the order the TypeScript module resolver tries them: an implementation in
- * TypeScript, then a declaration, then an implementation in JavaScript, then the empty string for a
- * specifier that already carries its extension. The order is the contract — a `.d.ts` that outran
- * its own `.ts` would resolve every import to the declaration file. */
-const RESOLVE_SUFFIX_LADDER = [...TYPESCRIPT_TS_EXTENSIONS, '.d.ts', ...TYPESCRIPT_JS_EXTENSIONS];
-const FILE_SUFFIX_CANDIDATES = [...RESOLVE_SUFFIX_LADDER, ''];
+ * TypeScript, then a declaration, then an implementation in JavaScript. The order is the contract —
+ * a `.d.ts` that outran its own `.ts` would resolve every import to the declaration file — and it is
+ * the one fact the declared `moduleIdNormalize` cannot carry, because the id mint reads that as an
+ * unordered set. Which suffixes are on it, and the index basenames underneath, come from the same
+ * constants the descriptor declares. */
+const RESOLVE_SUFFIX_LADDER = [
+  ...TYPESCRIPT_TS_EXTENSIONS,
+  TYPESCRIPT_DECLARATION_EXTENSION,
+  ...TYPESCRIPT_JS_EXTENSIONS,
+];
 
-/** Index resolution candidates appended after FILE candidates — the same ladder under `/index`. */
-const INDEX_SUFFIX_CANDIDATES = RESOLVE_SUFFIX_LADDER.map(suffix => `/index${suffix}`);
+const CANDIDATE_SUFFIXES = moduleCandidateSuffixes({
+  fileSuffixes: RESOLVE_SUFFIX_LADDER,
+  indexBasenames: TYPESCRIPT_INDEX_BASENAMES,
+  // A specifier that already carries its extension resolves against the base path itself.
+  includeBareBase: true,
+});
 
 function lookupCandidates(basePath: string, absPathToId: Map<string, string>): string | undefined {
-  // absPathToId is the hostKeyedView; candidates mint the same canonical form.
-  for (const suffix of FILE_SUFFIX_CANDIDATES) {
-    const id = absPathToId.get(hostPathKey(basePath + suffix));
-    if (id) return id;
-  }
-  for (const suffix of INDEX_SUFFIX_CANDIDATES) {
-    const id = absPathToId.get(hostPathKey(basePath + suffix));
-    if (id) return id;
-  }
-  return undefined;
+  return resolveByCandidates(basePath, CANDIDATE_SUFFIXES, absPathToId);
 }
 
 /** NodeNext-style imports use the `.js` extension to refer to a sibling `.ts`/`.tsx` source.
- * Strip the JS-family extension so the candidate suffix loop can match the TS source. */
+ * Strip the JS-family extension so the candidate suffix loop can match the TS source. The family is
+ * the one the descriptor declares, so adding a form to the ecosystem adds it here too. */
 function stripJsLikeExtension(specifier: string): string {
-  if (specifier.endsWith('.js')) return specifier.slice(0, -3);
-  if (specifier.endsWith('.jsx')) return specifier.slice(0, -4);
-  if (specifier.endsWith('.mjs')) return specifier.slice(0, -4);
-  if (specifier.endsWith('.cjs')) return specifier.slice(0, -4);
+  for (const ext of TYPESCRIPT_JS_EXTENSIONS) {
+    if (specifier.endsWith(ext)) return specifier.slice(0, -ext.length);
+  }
   return specifier;
 }
 
@@ -96,9 +108,10 @@ function moduleIdForResolvedFile(
   const fromLookup = lookupCandidates(withoutExt, absPathToId);
   if (fromLookup) return fromLookup;
 
-  if (abs.endsWith('.d.ts')) {
-    const impl = abs.slice(0, -5);
-    return lookupCandidates(impl, absPathToId) ?? absPathToId.get(hostPathKey(`${impl}.ts`));
+  // A declaration names an implementation beside it; the ladder finds whichever form that is.
+  // Case-insensitive like every other suffix test here and like the id mint, which folds both sides.
+  if (DECLARATION_EXT_SUFFIX_RE.test(abs)) {
+    return lookupCandidates(abs.replace(DECLARATION_EXT_SUFFIX_RE, ''), absPathToId);
   }
 
   return undefined;
@@ -129,7 +142,7 @@ function resolveViaTsconfigPaths(
 function pathExistsInMap(fileName: string, absPathToId: Map<string, string>): boolean {
   const abs = path.resolve(fileName);
   if (absPathToId.has(hostPathKey(abs))) return true;
-  const withoutExt = abs.replace(/\.d\.ts$/i, '').replace(SOURCE_EXT_SUFFIX_RE, '');
+  const withoutExt = abs.replace(DECLARATION_EXT_SUFFIX_RE, '').replace(SOURCE_EXT_SUFFIX_RE, '');
   return lookupCandidates(withoutExt, absPathToId) !== undefined;
 }
 

@@ -41,24 +41,42 @@ export type {
 export { resolveDottedPathHandlerToModule } from './source-plugin/handler-resolver.js';
 export { mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './source-plugin/module-id.js';
 
+/* ---- the path vocabulary a producer shares with the engine ---- */
+export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, repoRelativePosix } from './paths.js';
+export { compareCodeUnits } from './ordering.js';
+
+/* ---- import resolution: the map key convention, and the ladder built from declared facts ---- */
+export { moduleCandidateSuffixes, resolveByCandidates } from './source-plugin/resolve-candidates.js';
+
+/* ---- discovery walk: the traversal every producer runs, and where it stops ---- */
+export {
+  REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
+  matchesEngineIgnorePath,
+  readDirSorted,
+  shouldWalkDiscoveryDir,
+  walkRepository,
+} from './source-plugin/discovery-walk.js';
+export type { WalkedFile, WalkRepositoryOptions } from './source-plugin/discovery-walk.js';
+
 /* ---- content hashing (the width a producer's contentHash must carry) ---- */
 export { HASH_WIDTH, sha256Hex } from './content-hash.js';
 
 // Shortening a shown value, and the one marker that says it continues.
 export { SHORTENED_MARKER, shortenText } from './text.js';
+
+/* ---- the one content hash a producer mints: IaC resource payload ---- */
+export { hashResourcePayload } from './resource-hash.js';
+export { canonicalJson } from './canonical-json.js';
 export type { HashWidth } from './content-hash.js';
 
 /* ---- semanticHints schema (versioned producer↔consumer contract) ---- */
 export { SEMANTIC_HINTS_VERSION, zSemanticHints, validateSemanticHints } from './source-plugin/semantic-hints-schema.js';
 export type { SemanticHintsVersion, ZSemanticHints, SemanticHintsValidationResult } from './source-plugin/semantic-hints-schema.js';
 
-/* ---- producer-output fact schemas (untrusted-plugin boundary + conformance gate) ---- */
-export {
-  zSemanticModuleDelta,
-  zSemanticInfraDelta,
-  validateSemanticModuleDelta,
-  validateSemanticInfraDelta,
-} from './fact-schemas.js';
+/* ---- producer-output fact validation (untrusted-plugin boundary + conformance gate) ----
+ * The validators, not the schemas behind them: a caller gets a verdict it can branch on, and the
+ * schema stays free to change shape. */
+export { validateSemanticModuleDelta, validateSemanticInfraDelta } from './fact-schemas.js';
 export type { FactValidationResult } from './fact-schemas.js';
 
 /* ---- conformance kit (a plugin runs this to claim SDK compatibility) ---- */

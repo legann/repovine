@@ -144,6 +144,8 @@ describe('mergeScanIgnorePatterns', () => {
     expect(REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS).not.toContain('repovine');
     expect(REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS).toEqual(expect.arrayContaining([
       'node_modules',
+      // The third ecosystem's dependency tree, beside npm's and Python's.
+      'vendor',
       'dist',
       'target',
       'build',

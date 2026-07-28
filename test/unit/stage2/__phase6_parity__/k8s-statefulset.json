@@ -171,7 +171,7 @@
       "label": "Dockerfile",
       "description": "other declared in Dockerfile",
       "data": {
-        "contentHash": "edcb105218c15649",
+        "contentHash": "be48edae7f514cd2",
         "kind": "other",
         "provider": "generic",
         "declaredIn": [
@@ -185,7 +185,7 @@
       "label": "demo-worker-ingress",
       "description": "k8s-service declared in manifests/ingress.yaml",
       "data": {
-        "contentHash": "9144c73ccf1a2592",
+        "contentHash": "b81aeaa654fecbac",
         "kind": "k8s-service",
         "k8sKind": "Ingress",
         "provider": "k8s",
@@ -200,7 +200,7 @@
       "label": "demo-worker",
       "description": "k8s-service declared in manifests/service.yaml",
       "data": {
-        "contentHash": "7113a35c3b900705",
+        "contentHash": "d996ae1666e53fc0",
         "kind": "k8s-service",
         "k8sKind": "Service",
         "provider": "k8s",
@@ -215,7 +215,7 @@
       "label": "demo-worker",
       "description": "k8s-deployment declared in manifests/statefulset.yaml",
       "data": {
-        "contentHash": "a8c26a3a405ffc17",
+        "contentHash": "222f912a4fdc2e55",
         "kind": "k8s-deployment",
         "k8sKind": "StatefulSet",
         "provider": "k8s",

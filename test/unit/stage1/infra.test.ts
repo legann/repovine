@@ -275,7 +275,7 @@ Resources:
   });
 
   it('honors repo-root path fragment excludes for infra files', () => {
-    const ignoredDir = path.join(tmpDir, 'vendor', 'fixture-app', 'infra');
+    const ignoredDir = path.join(tmpDir, 'generated', 'fixture-app', 'infra');
     const keptDir = path.join(tmpDir, 'apps', 'api', 'infra');
     fs.mkdirSync(ignoredDir, { recursive: true });
     fs.mkdirSync(keptDir, { recursive: true });
@@ -293,7 +293,7 @@ Resources:
     const modules = collectInfraModules({
       repoRoot: tmpDir,
       packages: [],
-      scanPatterns: compileScanPatterns([], ['vendor/fixture-app/**']),
+      scanPatterns: compileScanPatterns([], ['generated/fixture-app/**']),
     });
     const resourceIds = modules.flatMap(m => m.resources.map(r => r.id));
     expect(resourceIds).toContain('KeptFunction');
