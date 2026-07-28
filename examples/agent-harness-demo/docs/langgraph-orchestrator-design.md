@@ -112,7 +112,7 @@ Reuse [`lib/repovine.mjs`](../lib/repovine.mjs) — file-in / JSON-out, `REPOVIN
 | `validate_assignment` | `agents validate-assignment <file>` |
 | `run_sub_agent` | `runAgent(…)` → **provider adapter** (`claude` \| `local`) |
 | `validate_result` | `agents validate-result <file>` |
-| `compliance` | `agents compliance <file> --assignment …` |
+| `compliance` | `agents compliance <file> --assignment … [--greenfield-run]` (the flag marks a run that started with no annotated context) |
 | multi-agent barriers | `refreshGraph` → `repovine build` (`--cleanup-orphans` on join) |
 | worker prompts | `harnessBrief` / `runBrief` → `agents run-brief` |
 | `format_reply` | Map `AgentComplianceReport` → Telegram markdown (reuse `verdictText` from bot) |
@@ -418,7 +418,7 @@ flowchart LR
   S --> C
 ```
 
-`refresh_context` runs as a barrier after every stage and before sync. Verify reads claims plus graph-memory obligations from the run-start lore snapshot.
+`refresh_context` runs as a barrier between stages and before sync. After the last stage it runs only when review is requested, so a plain run reaches verify on the graph the stage left behind. Verify reads claims plus graph-memory obligations from the run-start lore snapshot.
 
 ### Plan gates
 
@@ -431,7 +431,7 @@ The planner's output passes a repair-and-observe chain before execution. Repairs
 | stage recompute | repair | ordering/batching rebuilt from scopes + dependsOn; greenfield collapses implement roles into one batch |
 | planner self-check | prompt | every role must own a claim; ownerless roles are dropped at authoring time |
 | over-plan advisory | observer | continuation role with zero orient evidence in scope → `overPlanAdvisories` in `plan_finished` |
-| plan review (`HARNESS_PLAN_REVIEW=1`) | observer | one bounded LLM call; ≤3 revisions, each must cite a claim or graph node — uncited findings are discarded |
+| plan review (`HARNESS_PLAN_REVIEW=1`) | observer | one bounded LLM call; the prompt asks each revision to cite a claim or graph node, the parser keeps the first 3 carrying a non-empty `evidence` string — what the string cites goes unchecked |
 
 Observer findings are timestamped predictions. The episode reconciles them at the end (`signals.planReviewOutcomes`): a flagged role that ended idle confirms the finding, delivered surviving work refutes it, everything else stays ungradable. Veto power over the plan is earned through this precision record, never granted up front.
 
@@ -558,7 +558,9 @@ transport + optional bearer auth only. `POST /goal` is one full graph invoke and
 accepts `roles[]` / detailed `subAgents[]` / `review` — richer than Telegram
 `@mentions`. `/ask`, `/status`, and confirm-gated `/reset` mirror the Telegram
 fast paths. One episode and one ask at a time (`409` on a concurrent POST to the same endpoint);
-`HARNESS_HTTP_TOKEN` gates every endpoint with `Authorization: Bearer`. The
+`HARNESS_HTTP_TOKEN` gates every POST with `Authorization: Bearer` (`401` without it);
+`GET /status` stays open so healthchecks pass, and withholds `workspace` and `currentRun`
+until authorized. An unset token authorizes everything. The
 synchronous model has no out-of-band `/stop` — closing the request aborts the run.
 
 **CLI** ([`scripts/langgraph-cli.mjs`](../scripts/langgraph-cli.mjs)) — one graph

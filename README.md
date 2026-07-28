@@ -32,7 +32,7 @@ repovine models a repository as a set of cross-unit contract boundaries connecte
 
 This cut keeps the graph at the level of repository-wide architectural reasoning. It supports deterministic incremental extraction, durable identities for annotations, and bounded queries for navigation, impact, configuration, and runtime topology. The ontology is query-driven: a primitive belongs in core when it has a deterministic producer and changes the result of a supported query.
 
-Language- and format-specific variability stays at the producer boundary. Source and IaC plugins emit validated facts; core assigns identity and owns ontology, linking, and query semantics. New producers expand extraction coverage while every tool continues to operate on one graph vocabulary. Extraction depth may vary, and unsupported facts remain absent.
+Language- and format-specific extraction stays at the producer boundary. Source and IaC plugins emit validated facts; core assigns identity and owns ontology, linking, and query semantics. Core analysis heuristics also match file-naming conventions that no plugin capability declares. New producers expand extraction coverage while every tool continues to operate on one graph vocabulary. Extraction depth may vary, and unsupported facts remain absent.
 
 Derived facts and authored knowledge follow different trust models. The graph is rebuilt from repository state independently of annotations. Intent, invariants, risks, and operational constraints live in a separate versioned layer. repovine checks freshness and structural consistency from repository state and validates provenance at the write or run boundary; semantic correctness remains an agent and developer verification responsibility.
 
@@ -146,7 +146,7 @@ STDIO is the only supported MCP transport in v1. For remote, devcontainer, WSL, 
 | MCP server | the repovine MCP tools |
 | Skills | `repovine-workflow`, `repovine-annotations`, `repovine-refresh`, `repovine-review`, `repovine-status` |
 | Subagents | `repovine-repo-explorer`, `repovine-annotation-writer`, `repovine-architecture-auditor`, `repovine-code-reviewer` |
-| Hooks | SessionStart nudges: MCP first, refresh after edits |
+| Hooks | pre-edit boundary notice, post-edit stale-graph notice, session-start "MCP first" reminder |
 | Instructions | `AGENTS.md` (Cursor uses `.cursor/rules`) |
 
 Projects can add specialists from the generated client templates; `setup` preserves them.
@@ -170,7 +170,7 @@ Requires Node.js 22+ and one indexable root: `tsconfig.json`, `pyproject.toml`/`
 | `repovine.config.json` | commit | main config: graph build and MCP output |
 | `repovine.domains.json` | commit | domain config: naming, grouping, infra noise filters |
 | `repovine.annots.json` | commit | semantic annotation memory; one entry per line, merge-friendly |
-| `.repovine/` | ignore | local cache: snapshot, calibration, semantic index, state |
+| `.repovine/` | ignore | engine cache under `.cache` (snapshot, calibration, semantic index); `onboarding-state.json` and `carrier-review.json` hold advisory declines a rebuild does not restore |
 
 Defaults work for most TypeScript repos. Config reference: [docs/workspace-files.md](docs/workspace-files.md).
 

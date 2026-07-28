@@ -113,9 +113,10 @@ export class IndexBuildController {
   /**
    * Cooperatively cancel the in-flight startup build. No-op (returns the current snapshot) when
    * the controller is already ready/failed/cancelled or no build is running. Otherwise aborts the
-   * build — Stage 1 worker threads terminate at the next package boundary, Stage 3 stops at the
-   * next embed batch — and resolves to the post-cancel snapshot (Option A: prior ready graph kept,
-   * else terminal `cancelled`).
+   * build — Stage 1 stops where it stands (every worker thread is asked to shut down and
+   * force-terminated after a few seconds' grace, so packages still extracting are dropped and the
+   * work already done on them is discarded), Stage 3 stops at the next embed batch — and resolves
+   * to the post-cancel snapshot (Option A: prior ready graph kept, else terminal `cancelled`).
    */
   async cancel(): Promise<IndexBuildStatus> {
     if (

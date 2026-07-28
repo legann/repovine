@@ -455,8 +455,13 @@ export function refactoringNextCalls(graph: RepositoryGraph, finding: Refactorin
   const primaryNode = finding.nodes[0];
   const calls: NextCall[] = [
     nextCall('inspect_node', { nodeId: primaryNode }, 'Read the primary node before recommending code movement.'),
-    nextCall('analyze_dependencies', { scope: primaryNode, mode: 'impact', depth: 3 }, 'Size the blast radius of moving it.'),
   ];
+  // `mode: impact` answers for a module or export-symbol scope. Domain-shape findings (god-domain,
+  // low-cohesion) lead with a domain id, which that mode refuses, so the call is offered only where
+  // it resolves.
+  if (isNodeType(graph, primaryNode, 'module') || isNodeType(graph, primaryNode, 'export-symbol')) {
+    calls.push(nextCall('analyze_dependencies', { scope: primaryNode, mode: 'impact', depth: 3 }, 'Size the blast radius of moving it.'));
+  }
   if (finding.category === 'boundary') {
     const pkgId = modulePackageId(graph, primaryNode);
     calls.push(nextCall(
@@ -468,7 +473,9 @@ export function refactoringNextCalls(graph: RepositoryGraph, finding: Refactorin
   if (finding.category === 'event-driven-boundary') {
     calls.push(nextCall(
       'trace_flow',
-      { include: ['entrypoints', 'services', 'resources', 'flows'] },
+      // Without a scope the call resolves to `all` and traces the whole repository, which is not the
+      // path this finding sits on.
+      { scope: primaryNode, include: ['entrypoints', 'services', 'resources', 'flows'] },
       'Follow the runtime path the event boundary sits on.',
     ));
   }

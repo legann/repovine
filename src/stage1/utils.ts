@@ -2,7 +2,8 @@ import * as path from 'node:path';
 import type { PackageInfo } from '../types.js';
 
 /**
- * Language-agnostic identity + path helpers shared by the orchestrator and source plugins.
+ * Identity + path helpers shared by the orchestrator and source plugins. Extension ranking uses the
+ * engine's fixed module-collision order; package-name extraction follows the npm scoped spelling.
  * Intentionally free of any AST dependency (no ts-morph / typescript) so the Stage 1
  * orchestrator can import it without pulling in a language toolchain.
  */
@@ -47,6 +48,12 @@ const MODULE_PATH_EXT_RE = new RegExp(
  *
  * Used to deterministically pick a single owner when multiple discovered files would
  * collapse to the same moduleId (`./foo` could mean `foo.ts` or `foo/index.ts`).
+ *
+ * The index-form penalty is keyed to the `/` spelling. Extension rank is separator-independent, so
+ * a backslash-spelled path still ranks by extension while its `index` segment scores as a file form.
+ * Absolute-path spelling depends on the producer: TypeScript's tsconfig parser normalizes to `/`
+ * even on win32, while paths assembled by filesystem walkers may retain `\`. Only the latter take
+ * this backslash branch and can tie with, or outrank, a file-form collision by extension alone.
  */
 export function modulePathResolverPriority(filePath: string): number {
   const match = filePath.match(MODULE_PATH_EXT_RE);

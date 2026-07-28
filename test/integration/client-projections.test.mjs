@@ -337,13 +337,14 @@ function declareHookBehaviorCases(name, ctx, opts) {
       expectSilent(result, `${name} session compact`);
     });
 
-    it('never crashes on malformed stdin', async () => {
+    // Unparsable stdin is the payload class the dispatcher's parse guard covers: the edit-scoped
+    // actions go silent, the session hint degrades to an empty payload.
+    it('never crashes on unparsable stdin', async () => {
       const c = ctx();
       const boundary = await runDeclaredHook(hookFor(c, 'boundary-notice'), 'not-json', c.exec);
-      expectSilent(boundary, `${name} boundary malformed stdin`);
-      // The session hint degrades to an empty payload instead of going silent.
+      expectSilent(boundary, `${name} boundary unparsable stdin`);
       const session = await runDeclaredHook(hookFor(c, 'session-mcp-hint'), 'not-json', c.exec);
-      expectAdvisory(c, session, eventNames(c.client).session, ['repovine MCP is available'], `${name} session malformed stdin`);
+      expectAdvisory(c, session, eventNames(c.client).session, ['repovine MCP is available'], `${name} session unparsable stdin`);
     });
   });
 }

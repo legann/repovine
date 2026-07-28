@@ -394,7 +394,7 @@ function writeProjectConfigIfMissing(
 }
 
 interface ManagedWriteOptions {
-  /** When false, update in place without `<file>.bak` (generated assets from onboarding-assets). */
+  /** When false, the asset updates in place; `backupGeneratedAssets` still writes `<file>.bak`. */
   backup?: boolean;
 }
 
@@ -1132,7 +1132,7 @@ export function printSetupNextSteps(target: ClientTarget, options: { noBuild?: b
     if (showDomainsAdvisor) {
       console.log(styleNextStepLine(`    ${step++}. Review domains suggestions:  ${domainsAdvisorPendingCount} ready; ask Claude to review and apply them.`));
     }
-    console.log(cli.dim('    Agents available: repovine-annotation-writer (batch), repovine-repo-explorer (navigation).'));
+    console.log(cli.dim('    Agents available: repovine-annotation-writer (batch), repovine-repo-explorer (navigation), repovine-architecture-auditor (audit), repovine-code-reviewer (review).'));
     console.log(styleNextStepLine(`    Default subagent implementer: @${DEFAULT_PROJECT_SUBAGENT_NAME} (sample.project-subagent.md).`));
     console.log(cli.dim('    Add subagent specialists: copy .claude/agents/_TEMPLATE.project-subagent.md → <role>.md'));
   }
@@ -1154,7 +1154,7 @@ export function printSetupNextSteps(target: ClientTarget, options: { noBuild?: b
     if (showDomainsAdvisor) {
       console.log(styleNextStepLine(`    ${step++}. Review domains suggestions:  ${domainsAdvisorPendingCount} ready; ask Cursor to review and apply them.`));
     }
-    console.log(cli.dim('    Agents available: repovine-annotation-writer (batch), repovine-repo-explorer (navigation).'));
+    console.log(cli.dim('    Agents available: repovine-annotation-writer (batch), repovine-repo-explorer (navigation), repovine-architecture-auditor (audit), repovine-code-reviewer (review).'));
     console.log(styleNextStepLine(`    Default subagent implementer: @${DEFAULT_PROJECT_SUBAGENT_NAME} (sample.project-subagent.md).`));
     console.log(cli.dim('    Add subagent specialists: copy .cursor/agents/_TEMPLATE.project-subagent.md → <role>.md'));
   }
@@ -1173,7 +1173,7 @@ export function printSetupNextSteps(target: ClientTarget, options: { noBuild?: b
     if (showDomainsAdvisor) {
       console.log(styleNextStepLine(`         "Review and apply the ${domainsAdvisorPendingCount} domains suggestion(s) for this repo."`));
     }
-    console.log(cli.dim('    Agents available: repovine-annotation-writer (batch), repovine-repo-explorer (navigation).'));
+    console.log(cli.dim('    Agents available: repovine-annotation-writer (batch), repovine-repo-explorer (navigation), repovine-architecture-auditor (audit), repovine-code-reviewer (review).'));
     console.log(styleNextStepLine(`    Default subagent implementer: ${DEFAULT_PROJECT_SUBAGENT_NAME} (sample.project-subagent.toml).`));
     console.log(cli.dim('    Add subagent specialists: copy .codex/agents/_TEMPLATE.project-subagent.toml → <role>.toml'));
   }

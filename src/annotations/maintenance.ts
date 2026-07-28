@@ -30,6 +30,7 @@ import {
   type CarrierLinkGaps,
 } from './carrier-links.js';
 import { readValidSuppressedTargets } from './carrier-review.js';
+import { computeInconsistentModuleAnnotations } from './quality.js';
 import { nodeInScopeHints } from './scope-hints.js';
 import {
   computeRiskScopeCandidates,
@@ -141,6 +142,17 @@ export interface AnnotationValidationReport {
     stalePropagation: number;
     unannotated: number;
     mergeReview: number;
+    /**
+     * Stored notes whose filled fields contradict a graph fact — the only correctness axis the engine
+     * has. Reported here because a tool named `validate` omitted it entirely; the contradicting names
+     * live in `get_annotation_status({ view: "coverage" })`, and `nextActions` points at them.
+     *
+     * Advisory, like the axis it comes from: it does not move `status`. A contradiction is a claim
+     * about content the author wrote, and the drain queue is about content the graph moved — folding
+     * one into the other would make `repovine status` exit non-zero on a repository whose annotations
+     * are all current.
+     */
+    inconsistent: number;
   };
   consumerScopeDensity: ConsumerScopeDensity;
   carrierLinkGaps: CarrierLinkGaps;
@@ -1116,8 +1128,14 @@ export function validateAnnotationHealth(input: {
   // reflects the bytes we last wrote — finalizeWrite even re-stamps it parseOk:true.
   const mergeStatus = getAnnotationMergeStatus(repoRoot);
   let mergeReview = 0;
-  for (const ann of Object.values(annotations.getAll())) {
-    if (listMergeReviewFields(ann.annotation).length > 0) mergeReview++;
+  // The offered call carries a concrete node: `write_annotation` requires `nodeId`, so an offer
+  // without one is a call the caller cannot make.
+  let mergeReviewNodeId: string | undefined;
+  for (const [nodeId, ann] of Object.entries(annotations.getAll())) {
+    if (listMergeReviewFields(ann.annotation).length > 0) {
+      mergeReview++;
+      mergeReviewNodeId ??= nodeId;
+    }
   }
   const nextActions: NextCall[] = [];
   const lastSaveError = typeof annotations.lastSaveError === 'string' ? annotations.lastSaveError : null;
@@ -1132,8 +1150,8 @@ export function validateAnnotationHealth(input: {
   if (mergeStatus.file.hasConflictMarkers) {
     nextActions.push(nextCall('merge_annotations', {}, 'Resolve the conflict before continuing annotation work.'));
   }
-  if (mergeReview > 0) {
-    nextActions.push(nextCall('write_annotation', {}, `${mergeReview} annotation(s) have merge-review markers (patterns merge-review:*); inspect assumptions and rewrite them.`));
+  if (mergeReview > 0 && mergeReviewNodeId) {
+    nextActions.push(nextCall('write_annotation', { nodeId: mergeReviewNodeId }, `${mergeReview} annotation(s) have merge-review markers (patterns merge-review:*); inspect assumptions and rewrite them, starting with this node.`));
   }
   if (mergeStatus.file.exists && !mergeStatus.file.parseOk && !mergeStatus.file.hasConflictMarkers) {
     nextActions.push({ reason: 'Fix repovine.annots.json parse error or restore it before annotation work.' });
@@ -1144,8 +1162,13 @@ export function validateAnnotationHealth(input: {
   if (counts.staleContent > 0 || counts.stalePropagation > 0) {
     nextActions.push(nextCall('get_annotation_status', { view: 'queue' }, 'Process the queue before trusting affected summaries.'));
   }
-  if (counts.stalePropagation > 0) {
-    nextActions.push(nextCall('write_annotation', { refreshImportBaseline: true }, 'Clear propagation-stale items, or rewrite integrationPoints/dataFlow when the upstream contract changed.'));
+  const propagationStaleNodeId = scan.rows.find(row => row.staleKind === 'propagation')?.nodeId;
+  if (counts.stalePropagation > 0 && propagationStaleNodeId) {
+    nextActions.push(nextCall(
+      'write_annotation',
+      { nodeId: propagationStaleNodeId, refreshImportBaseline: true },
+      'Clear propagation-stale items one node at a time, or rewrite integrationPoints/dataFlow when the upstream contract changed.',
+    ));
   }
   if (counts.unannotated > 0) {
     nextActions.push(nextCall('get_annotation_status', { view: 'queue' }, 'New/unannotated nodes exist; continue annotation onboarding if coverage matters for this handoff.'));
@@ -1188,6 +1211,24 @@ export function validateAnnotationHealth(input: {
     nextActions.push(nextCall('get_annotation_status', { view: 'risk-scope-candidates' }, `Advisory: ${riskScopeCandidates.boundary} plain/local risk(s) look like scope:"boundary" candidates; review before relying on boundary delivery.`));
   }
 
+  // The consistency axis, recomputed from `annotations × current graph`. It is the one axis that asks
+  // whether a filled field contradicts a fact, so a verdict that ignored it called a note clean while
+  // the write path was already refusing the same contradiction under harness.
+  const inconsistent = computeInconsistentModuleAnnotations(
+    annotations,
+    new Map((input.snapshot?.modules ?? []).map(mod => [mod.id, mod])),
+  );
+  const inconsistentInScope = scopeHints
+    ? inconsistent.filter(row => nodeInScopeHints(row.nodeId, scopeHints))
+    : inconsistent;
+  if (inconsistentInScope.length > 0) {
+    nextActions.push(nextCall(
+      'get_annotation_status',
+      { view: 'coverage' },
+      `${inconsistentInScope.length} note(s) name something the graph does not have; the contradicting names are in anomalies.inconsistent.`,
+    ));
+  }
+
   const clean = !mergeStatus.file.hasConflictMarkers
     && (!mergeStatus.file.exists || mergeStatus.file.parseOk)
     && !lastSaveError
@@ -1214,6 +1255,7 @@ export function validateAnnotationHealth(input: {
       stalePropagation: counts.stalePropagation,
       unannotated: counts.unannotated,
       mergeReview,
+      inconsistent: inconsistent.length,
     },
     consumerScopeDensity,
     carrierLinkGaps,

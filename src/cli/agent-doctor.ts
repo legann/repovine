@@ -8,7 +8,9 @@
  * Scope is client-aware (cursor / claude / codex). Project-owned agent files are
  * scanned for stale MCP tool names only — they are not compared to templates.
  *
- * Read-only — regenerate managed assets with `repovine setup` (or `repovine setup --force`).
+ * Read-only — regenerate managed assets with `repovine setup <client>` (or
+ * `repovine setup <client> --force`). Without a client, `setup` writes workspace bootstrap state
+ * but no client assets.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,13 +22,25 @@ import {
   type ResolvedDoctorClients,
   resolveDoctorClients,
 } from './client-scope.js';
+import { REQUIRED_CLIENT_TOPICS } from './client-topics.js';
 import { AGENTS_MD_BEGIN_MARKER, AGENTS_MD_END_MARKER } from './templates.js';
 import {
   listCanonicalManagedAssets,
   readManagedFile,
 } from './managed-setup-assets.js';
 
-const CURSOR_MIXED_SURFACES_LABEL = 'Cursor instruction surfaces';
+/**
+ * Name for a finding about a client's instruction surfaces as a set rather than one file.
+ *
+ * `AgentAssetFinding.file` reaches CI as `doctor --json` and a reader as an `area:` row, so a second
+ * writer spelling the same surface set differently publishes it as two surfaces. Minted here so both
+ * writers say it the same way.
+ */
+function clientSurfacesLabel(client: DoctorClient): string {
+  return `${client.charAt(0).toUpperCase()}${client.slice(1)} instruction surfaces`;
+}
+
+const CURSOR_MIXED_SURFACES_LABEL = clientSurfacesLabel('cursor');
 
 export interface AgentAssetFinding {
   file: string;
@@ -65,22 +79,25 @@ export interface AgentAssetDoctorInput {
   resolved?: ResolvedDoctorClients;
 }
 
-const TOOL_NAME_PREFIXES = [
-  'analyze_',
-  'check_',
-  'cleanup_',
-  'doctor_',
-  'get_',
-  'inspect_',
-  'map_',
-  'merge_',
-  'refresh_',
-  'render_',
-  'search_',
-  'trace_',
-  'validate_',
-  'write_',
-] as const;
+/**
+ * Tool-shaped verb families: current registry prefixes plus the scan's established legacy heuristics.
+ *
+ * The original literal list was never an exact copy of the registry namespace. Its mismatch was
+ * present in the initial e49381b revision: it omitted `suggest_` and `decline_` even though both
+ * families were already public, while also retaining broader legacy families. Deriving current
+ * prefixes makes every live family visible without changing those legacy scan boundaries.
+ */
+function toolNamePrefixes(validToolNames: Iterable<string>): Set<string> {
+  // Preserve the historical loose recognition boundary. Only cleanup_ corresponds to a removed
+  // repovine tool family; check_, doctor_, and render_ are legacy heuristics, not removed registry
+  // families. Narrowing them is a separate compatibility decision from covering the live registry.
+  const prefixes = new Set(['check_', 'cleanup_', 'doctor_', 'render_']);
+  for (const name of validToolNames) {
+    const cut = name.indexOf('_');
+    if (cut > 0) prefixes.add(name.slice(0, cut + 1));
+  }
+  return prefixes;
+}
 
 function listAgentFiles(
   dir: string,
@@ -128,8 +145,11 @@ function collectMentionedToolLikeNames(content: string): Set<string> {
   return names;
 }
 
-function looksLikeToolName(name: string): boolean {
-  return TOOL_NAME_PREFIXES.some(prefix => name.startsWith(prefix));
+function looksLikeToolName(name: string, prefixes: Set<string>): boolean {
+  for (const prefix of prefixes) {
+    if (name.startsWith(prefix)) return true;
+  }
+  return false;
 }
 
 function hasGeneratedRepovineAgentsMd(repoRoot: string): boolean {
@@ -143,11 +163,16 @@ function hasGeneratedRepovineAgentsMd(repoRoot: string): boolean {
   }
 }
 
-function checkToolMentions(rel: string, content: string, validToolNames: Set<string>): AgentAssetFinding[] {
+function checkToolMentions(
+  rel: string,
+  content: string,
+  validToolNames: Set<string>,
+  prefixes: Set<string>,
+): AgentAssetFinding[] {
   const findings: AgentAssetFinding[] = [];
   for (const name of collectMentionedToolLikeNames(content)) {
     if (validToolNames.has(name)) continue;
-    if (!looksLikeToolName(name)) continue;
+    if (!looksLikeToolName(name, prefixes)) continue;
     findings.push({
       file: rel,
       severity: 'warning',
@@ -164,7 +189,7 @@ function checkStaleManagedContent(rel: string, actual: string, expected: string)
     file: rel,
     severity: 'error',
     code: 'stale-managed-content',
-    message: 'On-disk content does not match the canonical setup template. Run repovine setup (or repovine setup --force).',
+    message: 'On-disk content does not match the canonical setup template. Run repovine setup <client> (or repovine setup <client> --force).',
   };
 }
 
@@ -175,6 +200,7 @@ function checkStaleManagedContent(rel: string, actual: string, expected: string)
  */
 export function doctorAgentAssets(input: AgentAssetDoctorInput): DoctorAgentAssetsReport {
   const validToolNames = new Set(input.validToolNames);
+  const toolPrefixes = toolNamePrefixes(validToolNames);
   const resolved = input.resolved ?? resolveDoctorClients(input.repoRoot, input.client);
   const { clients } = resolved;
 
@@ -194,14 +220,55 @@ export function doctorAgentAssets(input: AgentAssetDoctorInput): DoctorAgentAsse
 
   for (const asset of listCanonicalManagedAssets(input.repoRoot, clients)) {
     const actual = readManagedFile(input.repoRoot, asset.rel);
-    if (actual === null) continue;
+    // An asset setup would write for an active client and that is not on disk is drift, not absence of
+    // a question. Missing assets were never added to scanned/governed; the defect was silence, which
+    // let a deleted asset read as a smaller clean sweep.
+    if (actual === null) {
+      // Reported, not escalated: a partially set-up repository is a normal state mid-upgrade.
+      // The client set may be the auto-detect fallback rather than a configured client, so the message
+      // says which scope it is speaking about instead of asserting the client is set up. `setup` does
+      // not accept "auto": a single detected client stays narrow, while multi-client/fallback auto
+      // uses setup all so one accepted command writes every asset the scan may have reported.
+      const setupTarget: DoctorClientScope = resolved.scope === 'auto'
+        ? resolved.clients.length === 1 ? resolved.clients[0] : 'all'
+        : resolved.scope;
+      findings.push({
+        file: asset.rel,
+        severity: 'warning',
+        code: 'missing-managed-asset',
+        message: `Managed asset is absent for client scope "${resolved.scope}". Run repovine setup ${setupTarget} to write it.`,
+      });
+      continue;
+    }
 
     scannedFiles.push(asset.rel);
     governedFiles.push(asset.rel);
-    findings.push(...checkToolMentions(asset.rel, actual, validToolNames));
+    findings.push(...checkToolMentions(asset.rel, actual, validToolNames, toolPrefixes));
 
     const stale = checkStaleManagedContent(asset.rel, actual, asset.expected);
     if (stale) findings.push(stale);
+  }
+
+  // Per-client topic totality. Every rendered file can match its template byte for byte while a topic
+  // reaches one client and misses another, because the three read different file sets — a comparison
+  // against templates cannot see that, and only an explicit list can.
+  for (const client of clients) {
+    const surfaces = listCanonicalManagedAssets(input.repoRoot, [client])
+      .map(asset => readManagedFile(input.repoRoot, asset.rel))
+      .filter((text): text is string => text !== null)
+      .join('\n')
+      .toLowerCase();
+    // Nothing on disk for this client is already reported per asset; do not restate it per topic.
+    if (!surfaces) continue;
+    for (const topic of REQUIRED_CLIENT_TOPICS) {
+      if (topic.markers.some(marker => surfaces.includes(marker.toLowerCase()))) continue;
+      findings.push({
+        file: clientSurfacesLabel(client),
+        severity: 'warning',
+        code: 'topic-not-covered',
+        message: `Required topic "${topic.id}" is absent from this client's surfaces. ${topic.why}`,
+      });
+    }
   }
 
   const governedSet = new Set(governedFiles);
@@ -216,7 +283,7 @@ export function doctorAgentAssets(input: AgentAssetDoctorInput): DoctorAgentAsse
     }
 
     scannedFiles.push(candidate.rel);
-    findings.push(...checkToolMentions(candidate.rel, content, validToolNames));
+    findings.push(...checkToolMentions(candidate.rel, content, validToolNames, toolPrefixes));
   }
 
   const errors = findings.filter(f => f.severity === 'error').length;
@@ -238,7 +305,7 @@ export function doctorAgentAssets(input: AgentAssetDoctorInput): DoctorAgentAsse
 
 const DOCTOR_CLIENT_SCOPE_VALUES = ['cursor', 'claude', 'codex', 'all'] as const;
 
-/** Parse `--client` for agent-asset doctor commands. */
+/** Validate a doctor client scope value: `cursor`, `claude`, `codex`, or `all`. */
 export function parseDoctorClientScopeArg(
   clientArg: string | undefined,
 ): { client?: DoctorClientScope; error?: string } {
@@ -266,9 +333,9 @@ function agentAssetDoctorCliAction(finding: AgentAssetFinding): string | undefin
     return 'Expected in mixed repos (setup all). Cursor scorecards exclude AGENTS.md; remove AGENTS.md only if you want a Cursor-only instruction surface.';
   }
   if (finding.severity === 'error') {
-    return 'Rerun repovine setup (or repovine setup --force) after reviewing repovine doctor findings.';
+    return 'Rerun repovine setup <client> (or repovine setup <client> --force) after reviewing repovine doctor findings.';
   }
-  return 'Rerun repovine setup when regeneration is intended.';
+  return 'Rerun repovine setup <client> when regeneration is intended.';
 }
 
 /** Map an agent-asset doctor report to human CLI rows for `repovine doctor`. */

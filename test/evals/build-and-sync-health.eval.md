@@ -9,7 +9,7 @@ rollup: worst-of
 checks:
   - id: build-status-callable
     assert:  get_build_status returns a status (ready or building) with the documented fields; waitSec long-poll returns when the build settles
-    fail_if: the call errors, hangs past waitSec without returning, or omits status/stage/pct fields while building
+    fail_if: the call errors, hangs past waitSec without returning, or omits status/stage while building
     severity: fail
   - id: building-state-shape
     assert:  while building, responses are a SUCCESSFUL envelope whose result carries status:"building" plus stage/remainingStages, stageEtaSec when the current stage has measurable progress, retryAfterSec, and pct when available (not an error)

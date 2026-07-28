@@ -1,6 +1,6 @@
 # repovine workspace files
 
-repovine keeps **committed tuning and memory** at the repository root and **local engine cache** under `.repovine/`. Together they let agents share structure, domain layout, and annotations across sessions without checking machine-specific build artifacts into Git.
+repovine keeps **committed tuning and memory** at the repository root, and **local engine cache plus advisory decline state** under `.repovine/`. Together they let agents share structure, domain layout, and annotations across sessions without checking machine-specific build artifacts into Git.
 
 | Path | Git | Role |
 |---|---|---|
@@ -8,7 +8,7 @@ repovine keeps **committed tuning and memory** at the repository root and **loca
 | `repovine.domains.json` | Commit | Domain inference, aliases, package grouping, infra noise filters |
 | `repovine.annots.json` | Commit | Shared semantic memory (default path; override via `workspace.annotationsFile`) |
 | `annotations.backup.*.json` | Ignore | Safety backups created before large annotation-file shrink writes; rotated locally |
-| `.repovine/` | Ignore | Local graph/search caches, session state, generated boundary index, onboarding state, optional graph dumps |
+| `.repovine/` | Ignore | Engine cache under `.cache` (graph/search caches, build calibration, session roll-ups, optional dumps), generated boundary index; `onboarding-state.json` and `carrier-review.json` hold advisory declines a rebuild does not restore |
 
 `npx repovine setup` and the first MCP server startup both bootstrap missing workspace files: all three project-owned JSON files (`repovine.config.json`, `repovine.domains.json`, and an empty `repovine.annots.json`), `.repovine/`, and the managed `.gitignore` cache entry. Later `setup` and `clear` **preserve** all three project-owned JSON files. Both config files are optional: omit a field to keep the engine default.
 
@@ -34,16 +34,20 @@ repovine analyzes **one workspace root**. Everything it indexes lives under that
 
 The root is `REPOVINE_ROOT` when set, otherwise the nearest ancestor holding `.git`. A resolved root carrying no `repovine.config.json` re-roots to a configured ancestor inside the same repository, reported on stderr.
 
-Every path the engine reads is resolved through symlinks and re-tested against the root. Config-supplied paths follow the same rule: `build.scan` globs, `build.linking` script and Dockerfile paths, `workspace.annotationsFile`, and paths reached through `tsconfig.json`.
+Every path that reaches the graph is resolved through symlinks and re-tested against the root. Config-supplied paths follow the same rule: `build.scan` globs, `build.linking` script and Dockerfile paths, and paths reached through `tsconfig.json`.
+
+`workspace.annotationsFile` is checked lexically: absolute paths and `..` escapes are refused, symlinks stay unresolved. A directory symlink on that path places the annotations file outside the root.
 
 | Path leaves the root by | Example | Result |
 |---|---|---|
-| naming a parent | `"../shared/**"` in `build.scan.include` | Refused |
+| naming a parent | `"../shared/**"` in `build.scan.include` | No match |
 | a file symlink | `src/leak.ts -> /etc/passwd` | Refused |
 | a directory symlink | `src/linked -> ../../other-repo` | Everything beneath it refused |
 | a tsconfig reference | `"include": ["../lib"]` | Refused |
 
-Refused files are absent from the graph, including from import resolution. The build log counts them, `repovine status` reports them, and `refresh_context` / `get_build_status` return them under `outsideRepo`. To index a sibling tree, root repovine at the directory containing both.
+Refused files are absent from the graph, including from import resolution. A refused candidate is counted in the build log, in `repovine status`, and under `outsideRepo` in `refresh_context` / `get_build_status`. Discovery by directory walk skips symlink entries before they become candidates, so those stay out of the count.
+
+`build.scan` patterns are tested against repo-relative paths from walks rooted at the workspace root. A pattern naming a parent matches nothing, so it produces neither a candidate nor a refusal. To index a sibling tree, root repovine at the directory containing both.
 
 ---
 
@@ -108,15 +112,25 @@ Omit any block to keep engine defaults. When this file is missing,
   "annotations": {
     "propagation": {}
   },
+  "semantic_search_embeddings": true,
   "analyze_architecture": {
     "strictness": "normal",
     "thresholds": {}
   },
   "contextQuality": {
     "enforcement": { "mode": "client" }
+  },
+  "agents": {
+    "roles": {
+      "api-owner": { "brief": "docs/roles/api-owner.md", "scope": ["services/api"] }
+    }
   }
 }
 ```
+
+`agents.roles` is read by the Agent Protocol role loader, outside the config schema: each entry names
+a repository-relative brief and an optional scope. Field reference:
+[agent-protocol.md](agent-protocol.md).
 
 ### Field reference
 
@@ -163,7 +177,7 @@ Each `include` / `exclude` entry is either:
 | `scope` | Applies to | Stage 1 pass |
 |---|---|---|
 | `all` (default) | Source modules **and** infra files | Both |
-| `source` | TypeScript/Python/SFC discovery only | Source plugins |
+| `source` | Source modules only, from every source plugin | Source plugins |
 | `infra` | IaC files only (SAM, K8s, Helm, Terraform, Compose, Dockerfile, …) | Infra scan |
 
 **Precedence:** `include` wins over `exclude` for the same path. Engine always skips `.repovine/`, dependency
@@ -398,8 +412,9 @@ Deterministic reporting of repovine MCP context sessions (Context Session Qualit
 
 Controls how repovine **names and groups** code into domains for `map_context`, scoped queues, and architecture review. Without this file the engine uses built-in path/basename heuristics only.
 
-The schema is strict. Invalid JSON or unknown fields are reported on stderr and
-the file is ignored for that build rather than partially interpreted.
+The top level of the schema is strict. Invalid JSON and unknown top-level keys are
+reported on stderr, and the file is ignored for that build. An unknown key inside a
+block is dropped, and the rest of the file applies.
 
 ### Example (typical monorepo with infra)
 
@@ -663,9 +678,9 @@ Annotation trust and lifecycle: [DESIGN.md — Annotations](../DESIGN.md#annotat
 
 ---
 
-## `.repovine/` (local cache)
+## `.repovine/` (local cache and decline state)
 
-Gitignored engine artifacts under `{workspaceRoot}/.repovine/`. Safe to delete when the cache is corrupt or after upgrading repovine — the next `refresh_context` or `repovine build` rebuilds it.
+Gitignored engine artifacts under `{workspaceRoot}/.repovine/`. The cache under `.cache` is safe to delete when it is corrupt or after upgrading repovine — the next `refresh_context` or `repovine build` rebuilds it. `onboarding-state.json` and `carrier-review.json` hold advisory declines a rebuild does not restore.
 
 `setup` adds a managed block to `.gitignore` for this directory.
 
@@ -688,7 +703,7 @@ Gitignored engine artifacts under `{workspaceRoot}/.repovine/`. Safe to delete w
 
 | File | Purpose |
 |---|---|
-| `onboarding-state.json` | Gitignored, best-effort SessionStart payload cache written after a successful build/refresh. Mirrors graph-ready counters, annotation/domain onboarding counters, and locally declined domains suggestion ids; safe to delete, but declined suggestions may reappear. |
+| `onboarding-state.json` | Gitignored, best-effort SessionStart payload cache written after a successful build/refresh. Mirrors graph-ready counters, annotation/domain onboarding counters, and locally declined domains suggestion ids. Safe to delete; declined suggestions reappear. |
 | `carrier-review.json` | Reviewed-not-a-gap decisions from `decline_advisory({ "kind": "carrier-link-gaps" })`, keyed by consumer-risk SSOT target. Each entry stores a `riskHash` (sha256[:16] of the target's sorted consumer-risk texts); a changed risk set re-surfaces the target. Workspace-local — triage does not travel with clones. Safe to delete; reviewed targets re-flag. |
 | `boundary-index.json` | Generated path-indexed boundary-risk surface consumed by client pre-edit hooks. Rebuilt from graph and annotations. |
 | `repository-facts-snapshot.json` | Cached Stage 1 output. Invalidated when `STAGE1_ANALYSIS_VERSION` changes. Used by `refresh_context` for fast rebuilds. |

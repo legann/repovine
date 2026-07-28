@@ -20,20 +20,13 @@ import { UI_COMPONENT_EXTENSIONS_RE } from '../../annotations/module-kind.js';
 import { splitCamelCase } from '../../platform/text.js';
 
 /**
- * JS-family module extensions written once: `.ts/.tsx/.js/.jsx` plus the `.mjs/.cjs/.mts/.cts`
- * variants the TypeScript plugin owns. Classifiers below read a name-plus-extension shape
- * (`users.repository.ts`), where the extension is the signal — the alternation must cover the
- * whole family or half of it classifies differently from the other half.
- */
-// The extension alternation is built from what the registered plugins declare, so a vocabulary
-// pattern here can never name a narrower family than discovery accepts: `users.service.py` reads
-// as a service for the same reason `users.service.ts` does. Module-level evaluation is safe — the
-// bootstrap side-effect import above registers every built-in plugin first.
-/**
- * The registered source extensions as a regexp alternation, so a vocabulary pattern here can never
- * name a narrower family than discovery accepts: `users.service.py` reads as a service for the same
- * reason `users.service.ts` does. Read on first use rather than at module load, so a plugin
- * registered after import widens it.
+ * The registered source extensions as a regexp alternation. Classifiers below read a
+ * name-plus-extension shape (`users.repository.ts`), where the extension is the signal, so the
+ * alternation must cover the whole family or half of it classifies differently from the other
+ * half. Built from what the registered plugins declare, it can never name a narrower family than
+ * discovery accepts: `users.service.py` reads as a service for the same reason `users.service.ts`
+ * does. Every caller evaluates it at module load, after the bootstrap import above registers the
+ * built-in plugins.
  */
 export function sourceExtAlternation(): string {
   return `(?:${getKnownExtensions().map(ext => ext.slice(1)).join('|')})`;

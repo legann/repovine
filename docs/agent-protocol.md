@@ -134,7 +134,7 @@ repovine agents roles [--at <tree-ish>]
 repovine agents validate-assignment assignment.json
 repovine agents validate-result result.json
 repovine agents validate-review-input review-input.json
-repovine agents compliance result.json [--assignment a.json] [--manifest <name>]
+repovine agents compliance result.json [--assignment a.json] [--manifest <name>] [--greenfield-run]
 repovine agents session-quality <sessionId> [--phase explore|implement|annotate] [--mode harness|client] [--threshold n] [--warning-threshold n] [--min-anchors n] [--byte-budget n] [--max-recovery-attempts n] [--events] [--consume] [--retain]
 ```
 
@@ -142,6 +142,10 @@ repovine agents session-quality <sessionId> [--phase explore|implement|annotate]
 `name`, and `brief` (the manifest-derived autonomous protocol prompt text; pair
 with `compliance` as the post-run gate). Inter-sub-agent handoff policy is a
 harness concern and is not part of the protocol surface.
+
+`compliance` takes `--greenfield-run` to mark a run that started with no
+annotated context. Under that flag context-session enforcement downgrades to a
+warning, so a sibling sub-agent's annotations do not read as prior context.
 
 `roles` returns the repository role source — the `agents.roles` section of
 `repovine.config.json` plus each referenced brief, served byte-for-byte with a
@@ -152,12 +156,17 @@ briefs from a committed tree via the workspace git — a pinned-revision read fo
 harnesses that must not consume working-tree edits.
 
 The protocol commands above print JSON on stdout and exit **0** on pass / **1**
-on failure so CI and non-MCP harnesses can gate on the exit code. General CLI
-and non-protocol `repovine agents` utilities are listed in [scripts.md](scripts.md).
+on failure so CI and non-MCP harnesses can gate on the exit code.
+`session-quality` is the exception: it exits **0** whenever it produced a report,
+and reserves **1** for an unknown session id or an invalid `--phase` / `--mode`.
+A rejected session is visible in its JSON — `acceptHandoff: false` with
+`rejectReasons` — while the score stays advisory. General CLI and non-protocol
+`repovine agents` utilities are listed in [scripts.md](scripts.md).
 
 **Client projections and drift** live outside `repovine agents`:
 
-- **Write / refresh:** `repovine setup [cursor|claude|codex|all]`.
+- **Write / refresh:** `repovine setup <client>` — `cursor`, `claude`, `codex`,
+  or `all`; without a client, `setup` writes workspace config only.
 - **Check drift:** `repovine doctor` (interactive) or `repovine doctor --json` (CI).
 
 
@@ -184,9 +193,12 @@ state?
 - result `scope` stays within the assignment scope;
 - `compliance.annotationsClean` is not claimed while annotation hard checks are
   dirty. Parse/conflict markers, orphaned notes, content/schema-stale work, and
-  propagation-stale (`staleKind: propagation`) are hard — all are part of
-  `needsWork` and block `annotationsClean` until cleared via `write_annotation`
-  (often `refreshImportBaseline: true` when upstream contract is unchanged).
+  propagation-stale (`staleKind: propagation`) each block `annotationsClean`.
+  `needsWork` counts the backlog rows — unannotated plus stale; conflict markers
+  and orphans are counted beside it. Stale work clears via `write_annotation`
+  (often `refreshImportBaseline: true` when upstream contract is unchanged),
+  conflict markers via `merge_annotations`, orphans via
+  `refresh_context({ "cleanupOrphans": true })`.
 - declared `annotationsWritten` for code modules are **grounded**: each was
   `inspect_node`-ed or edited (in `filesChanged` / `graphNodesTouched`) in the
   same `contextSessionId` before it was written. A `export:` anchor of the module
@@ -363,9 +375,10 @@ A clean run returns an `AgentComplianceReport` with `valid: true` and an empty
 ## Projections
 
 In **client mode**, the same protocol is projected into IDE-facing assets instead
-of a harness round trip. **First time and refresh:** `repovine setup` (MCP config,
-hooks, rules, skills, managed agents, `AGENTS.md` block). Re-run after repovine
-upgrades or when `repovine doctor` reports projection drift.
+of a harness round trip. **First time and refresh:** `repovine setup <client>` —
+`cursor`, `claude`, `codex`, or `all` (MCP config, hooks, rules, skills, managed
+agents, `AGENTS.md` block). Without a client, `setup` writes workspace config only.
+Re-run after repovine upgrades or when `repovine doctor` reports projection drift.
 
 Generated client assets (`AGENTS.md`, repovine-managed Cursor / Codex / Claude
 utility agents, `sample.project-subagent.*`, and `_TEMPLATE.project-subagent.*`)
@@ -374,17 +387,27 @@ also project the explicit-use rule: an `AgentRunResult` is emitted only when a
 harness/CI assignment, validation command, or direct user request activates
 Agent Protocol.
 
-- Regenerate projections: `repovine setup --force` (or `repovine setup all --force`).
+- Regenerate projections: `repovine setup <client> --force` (or `repovine setup all --force`).
 - Check drift: `repovine doctor` or `repovine doctor --json` (includes `agentAssets` in JSON).
 
 `setup` overwrites only repovine-managed generated agent files. Local specialist
-agents copied from the template are repo-owned and are not rewritten. For
-`AGENTS.md`, setup replaces an existing repovine marked section or appends one,
-preserving project-owned instructions outside that section.
+agents copied from the template are repo-owned and are not rewritten.
+
+`setup` writes `AGENTS.md` on one of three branches:
+
+| On-disk file | Result |
+|---|---|
+| Carries the repovine markers | Marked section replaced, everything outside it kept |
+| No markers, opens with the repovine heading | Replaced whole |
+| No markers, any other content | Content kept, managed block appended |
+
+`repovine setup <client> --force` bypasses the last branch and overwrites the file.
 
 `repovine doctor` checks governed generated assets for projection drift and scans
 local agents for stale or unknown tool names without treating those local files
-as governed projections.
+as governed projections. The scan collects names written in backticks or directly
+before an opening parenthesis. A collected name carrying a live or retired
+repovine verb family and no registry entry raises a warning.
 
 Markdown prose may surround the structured block, but the block is the contract.
 

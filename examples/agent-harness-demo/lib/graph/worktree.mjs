@@ -108,8 +108,9 @@ export function removeWorktree(repoRoot, dir, branch) {
 
 /**
  * Copy a worktree's `.harness` ledger into the durable sandbox before the worktree
- * is removed. `.harness` is gitignored, so it is neither committed nor merged back —
- * without this the per-sub-agent cost/audit artifacts vanish on parallel runs.
+ * is removed. `commitWorktree` stages everything and excludes nothing: `.harness` stays out
+ * of the branch while the `.gitignore` written at fresh init lists it. This copy carries the
+ * per-sub-agent cost/audit artifacts across parallel runs.
  */
 export function preserveWorktreeArtifacts(wtDir, repoRoot) {
   if (!wtDir || wtDir === repoRoot) return;

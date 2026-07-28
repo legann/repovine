@@ -395,8 +395,9 @@ and there is no independent reindex lifecycle. The index contract is described i
 
 ### Build publication and degradation
 
-A refresh constructs the next snapshot, graph, annotation state, indexes, and
-derived views before publishing them as one runtime generation. Concurrent
+A refresh constructs the next snapshot, graph, indexes, and derived views before
+publishing them as one runtime generation. Annotation state lives in one store
+across generations; a refresh re-reads the annotations file into it. Concurrent
 refresh requests join the same build. A failed or cancelled refresh leaves the
 previous ready generation in service; startup without a prior generation remains
 in `building` state and never exposes a partial graph.
@@ -704,7 +705,7 @@ hub demotion, the boundary push index — stays with each register.
 | Delivery mechanic (`id`) | Reads | Direction | Delivers to |
 |---|---|---|---|
 | `risk` | `scope:"consumer"` risk | propagating | pointer, advisory |
-| `boundary` | `scope:"boundary"` risk | self | pointer, salience, push |
+| `boundary` | `scope:"boundary"` risk | self | pointer, salience, push, advisory |
 | `effect` | persistent `sideEffect` | self | pointer |
 | `wiring` | runtime `infra`/`binds_to` edges (topology) | self | pointer, salience |
 | `co-change` | `implements` edges (topology) | propagating | pointer |

@@ -22,7 +22,9 @@ export function scopeNavigation(scope: ResolvedScope): Navigation {
     const label = domainLabelFromId(scope.domainId ?? scope.raw);
     n.deeper.push(nav('map_context', { scope: scope.resolvedScope, view: 'modules', limit: DEFAULT_MAP_LIMIT }, 'List modules tagged with this semantic/path domain.'));
     n.sideways.push(nav('search_context', { query: `${label} handler route lambda`, limit: DEFAULT_SEARCH_LIMIT }, 'Look for runtime anchors related to this domain instead of tracing the domain tag directly.'));
-    n.sideways.push(nav('analyze_dependencies', { scope: scope.resolvedScope, mode: 'import-map' }, 'Check imports for modules tagged with this domain.'));
+    // No dependency call belongs here: `import-map`/`package-boundaries` filter by package scope and
+    // return the same repository-wide edge list for every domain, and `impact` refuses a domain
+    // scope. Narrow to a module from the `map_context` call above first.
     n.validate.push(nav('get_annotation_status', { scope: scope.resolvedScope, view: 'coverage' }, 'Check whether annotations are fresh enough to trust.'));
   }
   if (scope.nodeId && (scope.kind === 'module' || scope.kind === 'export-symbol')) {

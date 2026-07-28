@@ -412,9 +412,9 @@ function samPolicyTemplateAccess(policy: unknown): InfraAccessMode | undefined {
 }
 
 /**
- * Grants a Lambda's `Policies` list hands to DynamoDB tables, as target → access. A target with an
- * `undefined` value was granted by a shape whose verb the engine could not read; the key is still
- * present, so the binding is reported with the access left unread.
+ * Grants a Lambda's `Policies` list hands to `GRANT_TARGET_RESOURCE_TYPES` resources, as
+ * target → access. A target with an `undefined` value was granted by a shape whose verb the engine
+ * could not read; the key is still present, so the binding is reported with the access left unread.
  */
 function collectPolicyGrants(
   policies: unknown,

@@ -26,8 +26,9 @@ repository**. Honor all of the following on every card; cards do not repeat thes
   `gaps`, `summary`, `confidence`, and `topResults[].matchedTokenCount` before treating hits
   as anchors. Weak tokens (`package`, `route`, …) may produce expected OR noise under
   `match: auto`.
-- **Evidence gate.** For any count-based claim, record the numeric `result.total` and 2–5
-  representative `result.items`. Never summarize a PASS from memory or from annotations alone.
+- **Evidence gate.** For any count-based claim, record the tool's own count field (`total`,
+  `totalResults`, `totalFindings`, a coverage bucket) and 2–5 representative entries from the list
+  it counts. Never summarize a PASS from memory or from annotations alone.
 - **Concise first.** Prefer `responseFormat: "concise"`; use `"debug"` only when concise omits a
   field needed for a PASS/FAIL decision. Reuse `$ref` navigation tokens within the session.
 

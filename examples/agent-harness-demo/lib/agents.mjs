@@ -16,9 +16,11 @@ const BUNDLED_DIR = path.join(HERE, 'agents');
 // `manifest` is a built-in repovine manifest NAME (repovine agents manifests). It
 // drives two things: the required AgentRunResult fields `agents compliance` checks,
 // and the engine-authored brief the worker prepends (`agents run-brief --name`).
-// A null or unknown name means neither — the role's result goes unchecked and its
-// prompt loses the honesty rules. Review carries the read-only code-reviewer
-// manifest: it requires `review`, so a verdict-free review is rejected.
+// A null or unknown name drops both: compliance falls back to the `summary`-only
+// required-field floor, and the prompt loses the honesty rules. The rest of
+// compliance (graph nodes, annotations, scope, review consistency) still runs.
+// Review carries the read-only code-reviewer manifest: it requires `review`, so a
+// verdict-free review is rejected.
 const ROLES = {
   frontend: { scope: ['.'], manifest: 'project-subagent-sample', files: ['frontend.md'], requiresTests: true, frame: true },
   backend: { scope: ['.'], manifest: 'project-subagent-sample', files: ['backend.md'], requiresTests: true, frame: true },

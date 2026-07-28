@@ -8,7 +8,7 @@ budget: { tool_calls: 9, mode: full }   # quick subset: coverage-callable, read-
 rollup: worst-of
 checks:
   - id: coverage-callable
-    assert:  get_annotation_status({ view:"coverage" }) returns coveragePct and counts
+    assert:  get_annotation_status({ view:"coverage" }) returns coverage.allNodeTypes (total/fresh/needsWork) and the per-bucket counts
     fail_if: the call errors or omits coverage figures
     severity: fail
   - id: queue-unified
@@ -65,7 +65,7 @@ Steps 1 (coverage) and 3 (`coverage-callable`, `validate-runs`, `read-only-guard
 
 - **Overall**: PASS / WARN / FAIL (`rollup: worst-of`).
 - **Tested repo**: root, branch, short commit, `contextSessionId`.
-- **Annotation summary**: coveragePct, needsWork/totalRemaining (+ bucket breakdown),
+- **Annotation summary**: allNodeTypes total/fresh/needsWork, queue needsWork/totalRemaining (+ bucket breakdown),
   staleContent/stalePropagation counts, orphan count, merge state, validate issues.
 - **Check matrix** (one row per `checks[]` id) with evidence.
 - **Read-only statement**: explicit confirmation no write/merge/cleanup call was made.

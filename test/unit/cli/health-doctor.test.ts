@@ -1,10 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
 import { darwinTransformersFloorWarning, detectFsCase, parseLongPathsRegOutput, runDoctorCli } from '../../../src/cli/health.js';
 import { CURSOR_RULES } from '../../../src/cli/onboarding-assets.js';
 import { renderAgentAssets } from '../../../src/cli/agent-render.js';
+
+const CLI = path.join(process.cwd(), 'dist', 'mcp', 'index.js');
 
 describe('runDoctorCli client scope', () => {
   let repoRoot: string;
@@ -99,6 +102,11 @@ describe('runDoctorCli client scope', () => {
     expect(result.findings.some(f => f.area === 'Codex MCP')).toBe(false);
     expect(result.findings.some(f => f.area === 'AGENTS.md' && f.message.includes('Not in scope'))).toBe(true);
     expect(result.findings.some(f => f.area.startsWith('agent assets: AGENTS.md'))).toBe(false);
+    const missingAssetMessages = result.findings
+      .filter(f => f.message.includes('missing-managed-asset'))
+      .map(f => f.message);
+    expect(missingAssetMessages.length).toBeGreaterThan(0);
+    expect(missingAssetMessages.every(message => message.includes('Run repovine setup cursor '))).toBe(true);
   });
 
   it('reports all three clients when all MCP configs are present', async () => {
@@ -121,6 +129,70 @@ describe('runDoctorCli client scope', () => {
     expect(result.findings.some(f => f.area === 'Claude MCP')).toBe(true);
     expect(result.findings.some(f => f.area === 'Codex MCP')).toBe(true);
   });
+
+  it('accepts an explicit doctor client scope', async () => {
+    // The empty fixture still fails the substantive MCP check; reaching JSON output proves the flag
+    // was accepted instead of rejected as an option.
+    expect(await runDoctorCli(['--client', 'codex', '--json'], env)).toBe(1);
+    const result = lastJson();
+    expect(result.clientScope.clients).toEqual(['codex']);
+    expect(result.clientScope.description).toContain('explicit');
+  });
+
+  it('rejects an invalid or missing doctor client scope', async () => {
+    expect(await runDoctorCli(['--client', 'emacs', '--json'], env)).toBe(1);
+    expect(await runDoctorCli(['--client', '--json'], env)).toBe(1);
+  });
+
+  it.each([
+    ['auto', [], 'all'],
+    ['explicit', ['--client', 'cursor'], 'cursor'],
+  ] as const)(
+    'emits a setup target the argv router accepts for %s scope',
+    (_label, doctorArgs, expectedTarget) => {
+      const doctor = spawnSync(
+        process.execPath,
+        [CLI, 'doctor', ...doctorArgs, '--json'],
+        {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          maxBuffer: 32 * 1024 * 1024,
+        },
+      );
+      expect(doctor.signal).toBeNull();
+      const result = JSON.parse(doctor.stdout) as {
+        findings: Array<{ message: string }>;
+      };
+      const emittedTargets = result.findings
+        .filter(finding => finding.message.includes('missing-managed-asset'))
+        .map(finding => finding.message.match(/Run repovine setup ([a-z]+) to write it\./)?.[1])
+        .filter((target): target is string => target !== undefined);
+      expect(emittedTargets.length).toBeGreaterThan(0);
+      const uniqueTargets = [...new Set(emittedTargets)];
+      expect(uniqueTargets).toEqual([expectedTarget]);
+
+      const setup = spawnSync(
+        process.execPath,
+        [CLI, 'setup', uniqueTargets[0]!, '--no-build'],
+        {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          maxBuffer: 32 * 1024 * 1024,
+        },
+      );
+      expect({
+        status: setup.status,
+        signal: setup.signal,
+        stderr: setup.stderr,
+      }).toEqual({
+        status: 0,
+        signal: null,
+        stderr: '',
+      });
+    },
+  );
 
   it('includes agentAssets in --json output', async () => {
     writeCursorMcp();

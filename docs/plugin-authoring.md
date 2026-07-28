@@ -170,8 +170,10 @@ export default defineSourcePlugin({
 The cross-language contract is **`semanticHints`** — a versioned, `passthrough` bag (see
 `SEMANTIC_HINTS_VERSION`, `zSemanticHints`). It has ten slots, and they differ in reach: three carry
 values any ecosystem can produce, two assume a framework that serves requests, and five encode web,
-JavaScript or AWS shapes in their own field types. Fill the ones your ecosystem has; the core's
-interpreters project them with no new interpreter.
+JavaScript or AWS shapes in their own field types. Fill the ones your ecosystem has. The
+interpreters that read them are gated by source plugin id: `server-entrypoints` runs for
+`typescript` and `python`, `ui-entrypoints` for `typescript`, `server-templates` for `python`. The
+`code-structure` and `infra-runtime-links` interpreters run for every source plugin.
 
 | Slot | Reach | Filled by | Read by |
 |---|---|---|---|
@@ -186,7 +188,7 @@ interpreters project them with no new interpreter.
 | `ui` | JavaScript — component trees, lifecycle effects | TypeScript | UI entrypoints |
 | `runtimeActions` | AWS — `action` is a closed set of four AWS calls | TypeScript | side-effect vocabulary, module kind |
 
-Four qualifications the table cannot hold:
+Five qualifications the table cannot hold:
 
 - `runtimeActions.action` is a closed union in the type **and** the schema. A non-AWS producer that
   fills the slot fails fact validation.
@@ -197,6 +199,9 @@ Four qualifications the table cannot hold:
   schema checks.
 - `routes` projects into an API entrypoint only when `source` is `decorator` or `ast` and `kind` is
   `api`. A route with any other provenance is carried but not projected.
+- A `routes` entry with `kind` `frontend` and `source` `ast` projects only when `framework` is
+  `tanstack-router` or `angular`. Ecosystem-neutral frontend provenance is `jsx`, `config`, or
+  `file` — the last also needs `framework` and `fileType`.
 
 `imports` and `exports` are not slots — they are required fields of `SemanticModuleDelta`, beside
 `semanticHints` rather than inside it.

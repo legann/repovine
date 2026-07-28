@@ -8,7 +8,7 @@ budget: { tool_calls: 8, mode: full }   # quick subset: config-callable, no-secr
 rollup: worst-of
 checks:
   - id: config-callable
-    assert:  get_config_surface({ kind:"all" }) returns config items grouped by kind (env / secret / resource / public-config)
+    assert:  get_config_surface({ kind:"all" }) returns config items grouped by kind (env / secret / public-config / resource-binding)
     fail_if: the call errors or returns a schema error
     severity: fail
   - id: no-secret-values
@@ -25,7 +25,7 @@ checks:
     na_if:   repo declares no public-config or no secrets
     severity: warn
   - id: resource-binding
-    assert:  resource and resource-binding entries appear where infra/runtime resources exist
+    assert:  resource-binding entries appear where infra/runtime resources exist
     fail_if: never FAIL — note a coverage gap if bindings are clearly present in IaC but absent from output
     na_if:   repo has no IaC/runtime resources
     severity: warn
@@ -59,7 +59,7 @@ Step 1 only (`config-callable`, `no-secret-values`).
 
 - **Overall**: PASS / WARN / FAIL (`rollup: worst-of`).
 - **Tested repo**: root, branch, short commit, `contextSessionId`.
-- **Config summary**: counts by kind (env/secret/resource/resource-binding/public-config).
+- **Config summary**: counts by kind (env/secret/public-config/resource-binding).
 - **Secret-safety statement**: explicit confirmation that no literal secret values were returned
   (or a FAIL finding naming the leaking field — without reproducing the value).
 - **Check matrix** (one row per `checks[]` id) with evidence.

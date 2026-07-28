@@ -119,9 +119,10 @@ Roles: `infra`, `backend`, `frontend`, `review` (and `default` for single sub-ag
 - Keep scopes **disjoint** for parallel stages; use `dependsOn` for ordering.
 - **Annotation-sync sub-agents run one at a time — never in parallel**, even though their
   scopes are disjoint. Every `write_annotation` goes through one shared
-  `repovine.annots.json` store, so concurrent annotation writers gain no throughput
-  (the MCP server serializes them) and risk racing the store's save/merge. Schedule
-  post-review annotation-sync sequentially, one sub-agent at a time.
+  `repovine.annots.json` store, and a cross-process file lock guards each save, so
+  concurrent annotation writers gain no throughput and fail with
+  `ANNOTATION_FILE_LOCK_TIMEOUT` after 5s of contention. Schedule post-review
+  annotation-sync sequentially, one sub-agent at a time.
 - Scopes are short paths relative to the sandbox root (`backend`, `frontend`, `.`) —
   never mirror outer monorepo paths.
 

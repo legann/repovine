@@ -153,7 +153,9 @@ export type DomainTier = 'business' | 'feature' | 'layer' | 'technical';
  * Weight classifies how "real" the domain is for surfacing in lists/search.
  * - 'heavy': normal domain (multiple modules, real business surface).
  * - 'lightweight': 1-2 modules, hidden from search/anomalies by default but kept in the graph
- *   so annotations survive. Surfaced only by direct name or explicit includeLightweight flag.
+ *   so annotations survive. `includeLightweight` is a `searchGraph` argument; the `search_context`
+ *   and `map_context` schemas strip it, so through those tools an exact name is what surfaces a
+ *   lightweight tag.
  */
 export type DomainWeight = 'heavy' | 'lightweight';
 

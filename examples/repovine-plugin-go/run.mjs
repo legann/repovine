@@ -3,8 +3,11 @@
 //   cd repovine && npm run build && node examples/repovine-plugin-go/run.mjs
 //
 // Analyzes fixtures/sample/ with the plugin wired in exactly as a user would (the plugin resolved
-// from the analyzed repo's node_modules, INV-5), runs the real Stage-1 loader + extraction, and
-// prints emitted facts plus core-projected API entrypoints from semanticHints.routes.
+// from the analyzed repo's node_modules), runs the real Stage-1 loader + extraction, and prints
+// emitted facts plus the API entrypoints the core route collector projects from semanticHints.routes.
+//
+// This check calls that collector directly. In a graph build the built-in `server-entrypoints`
+// interpreter reads `semanticHints.routes` for the `typescript` and `python` source plugins.
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -65,7 +68,8 @@ for (const m of go) {
 }
 
 const entrypoints = collectFrameworkApiEntrypoints({ snapshot });
-console.log(`\n=== ${entrypoints.length} API entrypoints the CORE projected from the plugin's route facts (no new interpreter) ===`);
+console.log(`\n=== ${entrypoints.length} API entrypoints the core route collector projected from the plugin's route facts ===`);
+console.log("    (collector called directly; in a graph build 'server-entrypoints' reads these routes for the typescript and python plugins)");
 for (const e of entrypoints) {
   console.log(`  ${e.kind.toUpperCase()} ${e.method} ${e.path}  source=${e.source}  ->  ${e.moduleId}`);
 }

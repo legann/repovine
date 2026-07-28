@@ -14,7 +14,7 @@ telemetry, and the orchestrator internals.
 One-time setup: **create your own bot** with [@BotFather](https://t.me/BotFather)
 for `TELEGRAM_BOT_TOKEN`, and put your numeric id (from
 [@userinfobot](https://t.me/userinfobot)) in `TELEGRAM_ALLOWED_IDS` — the allowlist
-is fail-closed, so an empty one ignores every message.
+is fail-closed, and the bot exits at startup when it is empty.
 
 Sends are pinned to a recipient allow-list. Set `TELEGRAM_RECIPIENT_IDS` to the
 numeric chat ids the bot may send to. The `egress-gw` proxy validates
@@ -312,18 +312,22 @@ confirm-gated baseline restore (see the walkthrough). Attach still refuses:
 
 In-container validation ([`lib/target-repo.mjs`](../lib/target-repo.mjs))
 re-proves what it can: the byte-exact read-only pointer (`gitdir: /state/git`),
-a writable disposable repo with a resolvable HEAD at `/state/git`, present and
-parseable repovine files, writable runtime mounts. Worktree provenance is the
-launcher's job — that evidence stays host-side. The local adapter's
-`apply_patch` runs `git apply` in the workspace repo (both modes).
+a writable disposable repo with a resolvable HEAD at `/state/git`, a present and
+writable `repovine.config.json`, a `repovine.annots.json` that parses, writable
+runtime mounts. Worktree provenance is the launcher's job — that evidence stays
+host-side. The local adapter's `apply_patch` runs `git apply` in the workspace
+repo (both modes).
 
-The CSQ gate is graded by harness-owned calibration in both modes: every
-sub-agent assignment carries `contextSession.qualityThreshold` /
-`warningThreshold` / `byteBudget` (`CSQ_CALIBRATION` in
-[`lib/target-repo.mjs`](../lib/target-repo.mjs)), and the engine gives
-assignment fields precedence over the workspace config. The target repo's
-committed `repovine.config.json` keeps the rest of `contextQuality`
-(enforcement mode, `recoveryWindow` — config-only knobs).
+The explore and implement CSQ gates are graded by harness-owned calibration in
+both modes: those sub-agent assignments carry
+`contextSession.qualityThreshold` / `warningThreshold` / `byteBudget`
+(`CSQ_CALIBRATION` in [`lib/target-repo.mjs`](../lib/target-repo.mjs)), and the
+engine gives assignment fields precedence over the workspace config.
+Annotate-phase assignments carry `byteBudget` alone and set `required: false` —
+CSQ is advisory there, and its thresholds come from the workspace config or the
+engine defaults. The target repo's committed `repovine.config.json` keeps the
+rest of `contextQuality` (enforcement mode, `recoveryWindow` — config-only
+knobs).
 
 ### Observability
 
@@ -333,8 +337,8 @@ committed `repovine.config.json` keeps the rest of `contextQuality`
 | HTTP / Telegram startup log | `Target mode: attach. Workspace: /workspace` |
 | `GET /status` | `targetMode: "attach"`, `resetAllowed: true`; `workspace` when authorized |
 | Successful-run reply | `📦 attach/run-<id> @ <oid> — fetch from the checkout to promote` |
-| Telemetry (`current-run.json`, `<run>.summary.json`) | `targetMode` and `workspace` fields |
-| Telemetry events (`events.jsonl`) | `attach_commit` with `runId`, `branch`, `oid` |
+| Telemetry (`active/current-run.json`, `runs/<runId>/summary.json`) | `targetMode` and `workspace` fields |
+| Telemetry events (`active/events.jsonl`) | `attach_commit` with `runId`, `branch`, `oid` |
 
 ### Preflight checks
 
@@ -615,11 +619,12 @@ weak run is rejected by compliance, never rubber-stamped.
 
 Each `/goal` writes lightweight operator telemetry under `.harness/`:
 
-- `current-run.json` — live run snapshot for `/status` (Telegram command and HTTP `GET /status`).
-- `events.jsonl` — append-only run events (`plan_finished` — carries `droppedAnnotationRoles`,
+- `active/current-run.json` — live run snapshot for `/status` (Telegram command and HTTP `GET /status`).
+- `active/events.jsonl` — append-only run events (`plan_finished` — carries `droppedAnnotationRoles`,
   `overPlanAdvisories`, `planReview` when present — `sub_agent_started`, `sub_agent_finished`,
   `runtime_check_finished`, `refresh_context`, `run_usage`, etc.).
-- `<run>.summary.json` — final compact card for the completed run.
+- `runs/<runId>/summary.json` — final compact card for the completed run. The card sits under
+  `active/<runId>/` while the run is in flight and moves to `runs/<runId>/` when it is archived.
 
 The final CLI/Telegram/HTTP reply includes a one-line `episode:` summary with
 elapsed time, measured token/cache/cost usage when the provider exposes it,

@@ -169,8 +169,10 @@ export function getAnnotationQueue(ctx: McpToolRuntime, args: Record<string, unk
     const modeText = derivedOnly || staleKindFilter === 'propagation'
       ? 'propagation-stale review queue'
       : 'annotation queue';
-    const reviewDepthHint = ' Tier order: content-stale before propagation-stale; within each tier, bottom-up by dependency depth.'
-      + ' Items with staleKind:"propagation" need inspect_node + upstream review and refreshImportBaseline:true (prose only when the upstream contract changed); staleKind:"content" needs full rewrite.';
+    // The priority-order sentence of the hint names the queue order once, phase tier included.
+    // This string carries what each staleKind asks of the reviewer, and no second ordering claim.
+    const reviewDepthHint =
+      ' Items with staleKind:"propagation" need inspect_node + upstream review and refreshImportBaseline:true (prose only when the upstream contract changed); staleKind:"content" needs full rewrite.';
     hint =
       `This is ONE unified ${modeText}, not separate queues. It spans every node type `
       + `(${typeParts}) and returns items in priority order: content-stale before propagation-stale, then modules/templates before services/infra/domain roll-ups, bottom-up within each tier. `
@@ -350,6 +352,18 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
     }
   }
 
+  // A write re-certifies only the fields it rewrote. When the node moved under an existing note, the
+  // fields this write did not resubmit were authored against the older content and nothing has checked
+  // them since — so the stamp stays on the hash they were written against. `fresh` answers for the
+  // whole note, and advancing it here would answer for fields the write never looked at: rewriting one
+  // `summary` would clear staleness for every invariant beside it.
+  // `unknown` counts as moved for the same reason a differing hash does: the fields this write did not
+  // resubmit were authored against nothing comparable, so advancing the stamp would certify them too.
+  const carriedOverFields = existing && existing.contentHash !== contentHash
+    ? Object.keys(mergedContentFinal).filter(field => !submittedKeys.includes(field))
+    : [];
+  const stampedHash = carriedOverFields.length > 0 ? existing!.contentHash : contentHash;
+
   const pass = existing ? existing.pass + 1 : 1;
   const contentStable = annotationContentWithStableKeyOrder(mergedContentFinal);
   const nodeType = node.type as StoredAnnotation['nodeType'];
@@ -361,7 +375,7 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
   annotations.set(nodeId, {
     nodeId,
     nodeType,
-    contentHash,
+    contentHash: stampedHash,
     pass,
     updatedAt: new Date().toISOString(),
     annotation: contentStable,
@@ -384,6 +398,14 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
 
   const warnings = consistencyWarnings(quality.consistency, mod);
 
+  if (carriedOverFields.length > 0) {
+    warnings.push(
+      `The node moved since this note was written, and this write did not resubmit ${carriedOverFields.join(', ')}. `
+      + 'Those fields stay unverified against the current content, so the note stays content-stale. '
+      + 'Resubmit every field to clear it.',
+    );
+  }
+
   const contextSessionId = ctx.contextSessionId;
   if (mod && contextSessionId && ctx.contextQualityStore) {
     const anchors = ctx.contextQualityStore.getReport(contextSessionId)?.aggregates.stableAnchors ?? [];
@@ -392,8 +414,7 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
     if (!grounded) {
       warnings.push(
         `Provenance: ${nodeId} was not inspected or mapped in context session "${contextSessionId}" before this write. `
-        + 'Run inspect_node on the node (or edit its file) in the same session so the annotation is grounded; '
-        + 'score measures completeness, not correctness.',
+        + 'Run inspect_node on the node (or edit its file) in the same session so the annotation is grounded.',
       );
     }
   }
@@ -404,7 +425,7 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
     status: 'saved',
     nodeId,
     pass,
-    contentHash,
+    contentHash: stampedHash,
     schemaVersion: CURRENT_ANNOTATION_SCHEMA_VERSION,
     merged: !!existing,
     moduleKind,
@@ -415,6 +436,7 @@ export function annotateModule(ctx: McpToolRuntime, args: Record<string, unknown
       tier: quality.tier,
       missingFields: quality.missingFields,
       consistency: quality.consistency,
+      provenance: quality.provenance,
     },
     submittedAnnotation,
     ...(warnings.length > 0 ? { warnings } : {}),
@@ -492,11 +514,11 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
   };
 
   const inconsistentNotes = computeInconsistentModuleAnnotations(annotations, modulesById);
-  const anomalyPreview = (shown: number, total: number) => total > shown
+  const anomalyPreview = (shown: number, total: number, hint?: string) => total > shown
     ? narrowTruncation({
       shown,
       total,
-      hint: 'Anomaly lists are previewed on the coverage view; raise limit, or call get_annotation_status({view:"queue"}) for the whole backlog.',
+      hint: hint ?? 'Anomaly lists are previewed on the coverage view; raise limit, or call get_annotation_status({view:"queue"}) for the whole backlog.',
     })
     : undefined;
   const anomalyBounds = truncationMap({
@@ -507,6 +529,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
       // The list was already cut to the ranking cap before the page limit saw it, so the honest
       // total is how many candidates were scored, not how many survived the first cut.
       Math.max(unannotatedModuleCandidates, topUnannotatedModules.length),
+      `Modules are ranked by downstream count and cut at ${TOP_UNANNOTATED_MODULE_CAP} before limit applies, so limit reaches ${TOP_UNANNOTATED_MODULE_CAP} at most; call get_annotation_status({view:"queue"}) for the whole backlog.`,
     ),
     inconsistent: anomalyPreview(Math.min(limit, inconsistentNotes.length), inconsistentNotes.length),
   });
@@ -530,8 +553,10 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
         })),
         note: 'Recomputed from annotation × current graph; advisory only (not a QueueStatus, does not affect freshness/coverage). Fix by re-running write_annotation with corrected fields.',
       },
-      // Four previews of one backlog, each cut to the same limit. The queue view is what returns
-      // them in full, so the bound points there rather than at an offset these previews do not take.
+      // Four previews of one backlog. The domain and inconsistency lists are cut to `limit`; the
+      // module list is cut to the ranking cap first, so `limit` reaches that cap at most. The queue
+      // view returns them in full, so the bound points there rather than at an offset these
+      // previews do not take.
       ...(anomalyBounds ? { truncation: anomalyBounds } : {}),
       ...(lightweightStaleSuppressed + lightweightUnannotatedSuppressed > 0 ? {
         lightweightSuppressed: {

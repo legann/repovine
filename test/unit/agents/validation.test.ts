@@ -1310,7 +1310,10 @@ describe('annotation grounding gates (Phase B)', () => {
     expect(report.errors.join(' ')).not.toMatch(/Annotation provenance/);
   });
 
-  it('judges only the run\'s new writes — pre-existing annotations are never failed (no retroactive harness failure)', () => {
+  // Scope of this case is the provenance gate alone. The thin-annotation and consistency gates
+  // read the stored annotation of every touched node, so a note written by an earlier run is
+  // judged there whenever this run touches its module.
+  it('judges only the run\'s new writes for provenance — a pre-existing annotation is never provenance-failed', () => {
     const report = checkCompliance({
       result: makeResult({ filesChanged: ['pkg/fresh.ts'], annotationsWritten: ['mod:pkg/fresh'] }),
       assignment: harnessAnnotate(),

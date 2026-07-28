@@ -31,7 +31,6 @@ export const REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS = [
   '.nx',
   '.venv',
   'venv',
-  'env',
   '.env',
   'node_modules',
   'bower_components',
@@ -40,6 +39,7 @@ export const REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS = [
   '.yarn',
   '.pnpm-store',
   'dist',
+  'env',
   'dist-bundled',
   'target',
   'build',
@@ -71,14 +71,23 @@ export function matchesEngineIgnorePath(relPath: string): boolean {
 }
 
 /**
- * Directory names that hold tests by convention, in any ecosystem the engine discovers.
+ * Directory names that hold tests by convention.
  *
- * Separate from the engine ignore list because it answers a separate question: those directories
- * are not build output or dependency trees, they are first-class repository content that the graph
- * deliberately leaves out. Keeping the two apart also keeps `scan.include` meaningful — a user who
- * points it at `tests/` is asking for something the engine ignore list would never have allowed.
+ * Membership is by directory name: a repository that marks a test by filename, under a directory no
+ * member names, is walked like any other source. The same members are asked of every tree the walk
+ * enters. {@link shouldWalkDiscoveryDir} takes a path and nothing else, so the answer does not depend
+ * on which language a plugin declared.
+ *
+ * Separate from the engine ignore list because it answers a separate question: those directories are
+ * not build output or dependency trees, they are first-class repository content that the graph
+ * deliberately leaves out.
+ *
+ * Exported from this module and re-exported by no package entry point: the composition net needs the
+ * same set the walker prunes by, and a net built from a second copy would miss a name newly added to
+ * the walker's set. Removal is caught independently by the net's pinned fixture. A barrel export
+ * would freeze this implementation set as plugin-author contract instead.
  */
-const TEST_LAYOUT_DIRS: ReadonlySet<string> = new Set([
+export const TEST_LAYOUT_DIRS: ReadonlySet<string> = new Set([
   'test', 'tests', '__tests__', '__mocks__', '__snapshots__',
   'e2e', '__e2e__', 'cypress', 'playwright',
 ]);
@@ -91,8 +100,12 @@ function hasTestLayoutSegment(relPath: string): boolean {
 /**
  * Whether a discovery walker should descend into this repo-relative directory at all: neither an
  * engine-ignored tree nor a test-layout one. Every walker that mints repository content — packages,
- * modules, templates, infra files — asks this, so a directory is present in the graph or absent
- * from it, not present through one producer and absent through another.
+ * modules, templates, infra files — asks this, so first-party producers agree on where the walk stops.
+ *
+ * Agreement holds for the walk, not for acceptance. The post-discovery filter asks only the engine
+ * ignore list, so a producer that reports a file under a test-layout directory without consulting this
+ * predicate keeps it: the composition net holds the walkers to the same answer, and the acceptance
+ * filter is where the two lists still part ways.
  *
  * The engine ignore list is the same one that rejects files, asked one level up: a directory the
  * list names holds nothing the graph wants, so pruning there and rejecting per file give the same
@@ -167,8 +180,9 @@ export interface WalkRepositoryOptions {
  * the host filesystem.
  *
  * A directory that cannot be read is skipped: the walk answers which files are present, and one it
- * cannot enumerate contributes none. It is not reported here — a producer has no delivery channel,
- * and the engine's own build refusals are where an absent tree is accounted for.
+ * cannot enumerate contributes none. Nothing records that it was skipped — a producer has no delivery
+ * channel for it, and the engine's refusal vocabulary has no kind for an unreadable tree either, so an
+ * absent subtree is indistinguishable from an empty one on every surface.
  */
 export function walkRepository(startDir: string, options: WalkRepositoryOptions): void {
   const repoRoot = options.repoRoot ?? startDir;

@@ -4,7 +4,7 @@
  * The Agent Protocol (src/agents/*) is canonical. Generated client assets are
  * PROJECTIONS of it. This module renders the protocol-governed pieces that get
  * embedded into onboarding assets:
- *   - a stable marker comment (doctor reads this to detect/version assets);
+ *   - a stable marker comment stamping the protocol and projection versions;
  *   - conditional client guidance for explicit Agent Protocol runs;
  *   - the structured AgentRunResult block harness workers must return.
  *
@@ -15,12 +15,15 @@ import { PROTOCOL_VERSION, type AgentManifest } from '../agents/protocol.js';
 import { getManifest } from '../agents/manifests.js';
 
 /**
- * Projection format version: an opaque cache-busting token embedded in every
- * generated asset's marker comment. Its only consumer is `doctor`, which does an
- * exact-string match (no numeric compare, no migration keyed on the value) and
- * warns "outdated projection — re-render" when a checked-in asset's marker does
- * not equal the current one. It guards a purely post-release scenario: a
- * consumer generated assets with one engine version, then upgraded the engine.
+ * Projection format version: an opaque cache-busting token embedded in the
+ * marker comment every protocol-governed asset carries. `doctor`,
+ * `agent-render`, `run-brief`, and `plugin-render` echo it as
+ * `projectionVersion` in their results; the plugin renderer also stamps it into
+ * the generated note and README. The token is never parsed: doctor compares a
+ * managed file against its template byte for byte and reports
+ * `stale-managed-content` on any difference, marker included. It guards a purely
+ * post-release scenario: a consumer generated assets with one engine version,
+ * then upgraded the engine.
  *
  * Pre-release policy: PINNED at '1' and intentionally NOT bumped. Before the
  * first public release there are no external consumers carrying stale generated
@@ -31,7 +34,7 @@ import { getManifest } from '../agents/manifests.js';
  */
 export const PROJECTION_VERSION = '1' as const;
 
-/** Stable marker embedded in every protocol-governed asset. Doctor greps this. */
+/** Stable marker embedded in every protocol-governed asset, carrying both versions. */
 export const AGENT_PROTOCOL_MARKER =
   `<!-- repovine:agent-protocol protocolVersion=${PROTOCOL_VERSION} projection=${PROJECTION_VERSION} -->`;
 
@@ -192,7 +195,7 @@ When explicit protocol mode is active for the \`${manifest.role}\` role, these f
 
 In explicit protocol mode, ${OBSERVABLE_CLAIMS_VALIDATION}
 
-Annotation quality has three orthogonal axes, so the \`quality.score\` (0–10) means **completeness only — not correctness or trust**. repovine separately validates \`quality.consistency\` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-\`pure\` while the graph detects side effects) and, as an observable signal over \`annotationsWritten\`, **provenance**: every annotated code module must have been \`inspect_node\`-ed (an \`export:\` of it counts; a \`pkg:\`/\`domain:\` does not) or edited in the SAME \`contextSessionId\` before \`write_annotation\`. So inspect the node you annotate in the same session, and never fill a field you cannot back from \`inspect_node\` or source — an empty field beats a fabricated one.
+Annotation quality has three orthogonal axes, so the \`quality.score\` (0–10) means **completeness only — not correctness or trust**. repovine separately validates \`quality.consistency\` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-\`pure\` while the graph detects side effects) and, as an observable signal over \`annotationsWritten\`, **provenance**: an annotated code module counts as grounded when the SAME \`contextSessionId\` carries an \`inspect_node\`, \`map_context\`, or \`analyze_dependencies\` call that resolved to it (an \`export:\` of it counts; a \`pkg:\`/\`domain:\` does not), when you edited its file, or when you list it in \`graphNodesTouched\`. Those last two channels are your own report; \`write_annotation\` warns whenever the session anchored no call on the node. So inspect the node you annotate in the same session, and never fill a field you cannot back from \`inspect_node\` or source — an empty field beats a fabricated one.
 
 Schema and field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
@@ -275,23 +278,29 @@ Every list field is a flat array of strings: \`scope\`, \`filesChanged\`, \`grap
 
 Context session (when the assignment provides contextSession.sessionId): pass that id as \`contextSessionId\` on EVERY repovine MCP call so repovine can score how well you used the EXISTING graph, and set \`contextSessionId\` to the same value in your AgentRunResult. repovine automatically does not penalize a greenfield first pass (a repo with no prior annotated context), so on later iterations this is where using the accumulated graph pays off.
 
-Honesty rules (repovine re-checks all of this against the real graph):
+Honesty rules. repovine re-checks the first four against the graph and the annotation store; the rest it takes from your report, so they hold only because you keep them:
 - refreshContextRun MUST be true if you changed any file.
 - annotationsWritten MUST list the node ids you actually wrote (they must exist and be fresh after write_annotation).
 - annotationsClean=true is honest only when annotation checks are clean for your scope; when your harness defers annotation sync to a later phase, annotationsClean=false with an empty annotationsWritten is the honest value.
 - In annotate phase, filesChanged MUST be [] and annotationsWritten must list the nodes you wrote. graphNodesTouched MUST list those same annotated node ids (you inspect_node each before writing) — this grounds the annotations; a written node absent from graphNodesTouched reads as ungrounded.
-- contractsChanged MUST describe your delta, not a replacement product spec. Mark removals/narrowing clearly and only when the user explicitly requested them; otherwise preserve existing graph-observed contracts.
-- Set dependencyImpactChecked / configSurfaceChecked / flowChecked / architectureChecked true ONLY for checks the assignment requested AND you actually performed.
-- Report ONLY files and node ids you truly touched. Invented nodes are rejected.
+- contractsChanged MUST describe your delta, not a replacement product spec. Mark removals/narrowing clearly and only when the user explicitly requested them; otherwise preserve existing graph-observed contracts. Nothing reads this field back, so its accuracy is yours alone.
+- Set dependencyImpactChecked / configSurfaceChecked / flowChecked / architectureChecked true ONLY for checks the assignment requested AND you actually performed. Compliance checks that a requested check carries its flag; a flag set for a check nobody asked for is not caught.
+- Report ONLY files and node ids you truly touched. An invented node id is rejected against the graph; a file path is not — nothing opens the filesystem to confirm it.
 - graphNodesTouched carries canonical ids COPIED from a tool response (refresh_context / map_context / inspect_node). Never compose an id by hand from a file path. The bundled source plugins exclude their conventional test/spec files and test directories by default, but filtering is plugin-specific, so verify absence in a tool response. Package identity also comes from plugin markers, not package.json alone: a workspace root with tsconfig.json or pyproject.toml may have a pkg: node. A file the graph does not return belongs in filesChanged only.`;
 }
 
-/** Context Session Quality guidance for AGENTS.md and client rules. */
+/** Context Session Quality guidance embedded in AGENTS.md. */
 export function renderContextQualityGuidance(): string {
   return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine agents compliance\`. The score and its thresholds are advisory until the labelled-corpus return bar in \`docs/context-quality.md\` is met; evidence-backed annotation checks remain enforceable.`;
 }
 
-/** Markers/snippets the doctor expects in every protocol-governed asset. */
+/**
+ * Marker and phrases carried by every asset that renders an Agent Protocol section.
+ *
+ * A reading aid for that set, not an input to a check. Drift in a managed asset is caught by the
+ * byte-for-byte comparison against its template, and the phrase list a client's surfaces are
+ * checked against is `REQUIRED_CLIENT_TOPICS` in `client-topics.ts`.
+ */
 export const PROJECTION_REQUIRED_SNIPPETS = {
   marker: AGENT_PROTOCOL_MARKER,
   protocolVersion: `Agent Protocol v${PROTOCOL_VERSION}`,

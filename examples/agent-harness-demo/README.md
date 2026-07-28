@@ -120,8 +120,8 @@ Multi mode derives run status from observable signals and persists them as a
 | `reviewProcessValid` / `reviewAccepted` | review sub-agent accepted + `complete` + `review` present + fresh tree; acceptance adds `verdict: "approve"` and no blocker/major findings |
 | `processOk` / `goalOk` | `processOk` = gate sub-agents + review gate + runtime + verify; `goalOk` = `runtimeAccepted && verificationAccepted && (!reviewRequired \|\| reviewAccepted)` |
 | `annotationHealth` | end-state annotation debt after the join cleanup (`repovine status --json` → `{needsWork, clean}`, null = unknown). Drives the card's annotation-sync severity: a sync sub-agent that failed to converge alone is not run debt once a later sweep clears its residual |
-| `idleImplementers` | implement-phase sub-agents that completed ok with zero delivered files ("already correct" verdicts) — over-plan tax telemetry |
-| `planReviewOutcomes` | plan-quality findings reconciled against the episode end state: `confirmed` (flagged role ended idle), `refuted` (it delivered surviving work), `ungradable`. Findings are timestamped predictions — never rewritten, only reconciled |
+| `idleImplementers` | implement-phase sub-agents that completed ok with an empty self-reported `filesChanged` ("already correct" verdicts) — over-plan tax telemetry |
+| `planReviewOutcomes` | plan-quality findings reconciled at episode end against each flagged role's own delivery report: `confirmed` (the role completed with an empty `filesChanged`), `refuted` (it completed ok with a non-empty one), `ungradable`. Both readings take the sub-agent's self-report; the tree diff does not reach the grader. Findings are timestamped predictions — never rewritten, only reconciled |
 
 Review freshness uses harness-captured tree oids: a code mutation after the review
 invalidates it (`reviewAccepted` false); an annotation-only mutation does not. A

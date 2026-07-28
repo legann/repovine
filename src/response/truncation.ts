@@ -20,9 +20,9 @@ export type TruncationUnit = 'item' | 'char' | 'line' | 'match' | 'name';
  *
  * This is the fact a caller acts on, and the one the previous shapes said with the same word for
  * opposite situations: a body slice pages, and a call-name list does not, because the dropped names
- * were never kept. `page` and `arg` are machine-actionable, `narrow` needs a different request,
- * `inline` says the rest is elsewhere in this same response, and `unavailable` says no call returns
- * it at any price.
+ * were never kept. `page` is machine-actionable, and so is `arg` where the tool declares the named
+ * argument. `narrow` needs a different request, `inline` says the rest is elsewhere in this same
+ * response, and `unavailable` says no call returns it at any price.
  *
  * `page` names its offset argument because three of them exist — `offset`, `exportOffset`,
  * `bodyOffset` — and a caller that guesses pages the wrong list.
@@ -135,7 +135,13 @@ export function pageTruncation(options: {
   };
 }
 
-/** Bound whose remainder a different argument value returns. */
+/**
+ * Bound whose remainder a different value of the named argument returns.
+ *
+ * The caller can act on it where the tool's schema declares that argument. A tool schema drops what
+ * it does not declare, so an internal argument named here reaches no handler and the same bound comes
+ * back; where a tool bounds on an argument it does not expose, {@link narrowTruncation} says so.
+ */
 export function argTruncation(options: {
   shown: number;
   total?: number;

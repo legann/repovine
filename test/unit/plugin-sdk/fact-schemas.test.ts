@@ -5,8 +5,8 @@ import {
 } from '@repovine/plugin-sdk';
 
 // Untrusted plugin output is Zod-validated at the boundary. These schemas must accept well-formed
-// facts (including forward-compatible semanticHints) and reject structurally-broken ones, without
-// freezing nested detail.
+// facts, including semanticHints carrying a slot core does not know yet, and reject
+// structurally-broken ones. Known nested slots keep their declared shape.
 describe('plugin-sdk fact schemas (untrusted-output boundary)', () => {
   it('accepts a well-formed source module delta with a forward-compatible hint slot', () => {
     const r = validateSemanticModuleDelta({

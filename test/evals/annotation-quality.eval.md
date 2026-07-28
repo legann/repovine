@@ -3,22 +3,22 @@ id: annotation-quality
 title: Annotation content quality — secrets, vocabulary, provenance, grounding
 mode: read-only
 repo_agnostic: true
-applies_when: has_annotations   # repo has a non-empty repovine.annots.json (coveragePct > 0); whole card N/A at 0%
+applies_when: has_annotations   # some coverage bucket reports annotated > 0; whole card N/A when none does
 budget: { tool_calls: 11, mode: full }   # quick subset: annotated-nodes-discovered, annotation-no-secret-values, read-only-guard
 rollup: worst-of
 checks:
   - id: annotated-nodes-discovered
-    assert:  get_annotation_status reports coveragePct > 0 AND at least one inspected first-party node exposes an annotation block (summary + annotationMeta)
-    fail_if: coverage reports > 0% but no inspected node in scope exposes an annotation block (coverage figure not backed by real annotations)
-    na_if:   coveragePct is 0 — repo carries no annotations (whole card N/A)
+    assert:  get_annotation_status coverage reports annotated > 0 in some bucket AND at least one inspected first-party node exposes an annotation block (summary + annotationMeta)
+    fail_if: coverage reports annotated nodes but no inspected node in scope exposes an annotation block (coverage figure not backed by real annotations)
+    na_if:   every coverage bucket reports annotated 0 — repo carries no annotations (whole card N/A)
     severity: warn
   - id: annotation-no-secret-values
     assert:  every annotation field (summary, risks, assumptions, integrationPoints, dataFlow, patterns, sideEffects) exposes env/resource NAMES only — never a literal secret value
     fail_if: any literal secret value (api key, token, password, private key, credentialed connection string) appears inside an annotation field
     severity: fail
   - id: side-effects-vocab
-    assert:  sideEffects entries use the controlled vocabulary (io-read, io-write, state-local, state-global, process, concurrency, time, subscribe, external, pure); validate_annotations surfaces any off-vocab term WITHOUT mutating the file
-    fail_if: an off-vocab sideEffect kind is present and validate_annotations does not flag it, OR validate_annotations mutates repovine.annots.json
+    assert:  sideEffects entries use the controlled vocabulary (io-read, io-write, state-local, state-global, process, concurrency, time, subscribe, external, resource, pure); write_annotation rejects an off-vocab kind on the way in, and validate_annotations reads the file without mutating it
+    fail_if: write_annotation accepts an off-vocab sideEffect kind, OR validate_annotations mutates repovine.annots.json
     na_if:   no annotated module in scope exposes a sideEffects array
     severity: warn
   - id: provenance-and-freshness
@@ -47,14 +47,17 @@ This card is strictly observational: `read-only-guard` fails the whole card if a
 cleanup call is issued.
 
 **Applicability gate.** Run `get_annotation_status({ view: "coverage", contextSessionId })` first.
-If `coveragePct` is 0, the repo has no annotations: report the **whole card N/A** (this is the normal
-cold-graph / pre-onboarding state, not a failure) and stop. Everything below is discovery-driven —
-derive annotated node ids from coverage + map/search; never hardcode repo names or ids.
+The coverage view publishes per-kind buckets (`modules`, `templates`, `infra`, `services`,
+`domainAnnotations`), each carrying `total`/`annotated`/`fresh`/`stale`/`unannotated`. If every
+bucket reports `annotated: 0`, the repo has no annotations: report the **whole card N/A** (this is
+the normal cold-graph / pre-onboarding state, not a failure) and stop. Everything below is
+discovery-driven — derive annotated node ids from coverage + map/search; never hardcode repo names
+or ids.
 
 ## Steps
 
 1. **Coverage gate + discover annotated nodes** → `annotated-nodes-discovered`.
-   `get_annotation_status({ view: "coverage", contextSessionId })`. If `coveragePct > 0`, use
+   `get_annotation_status({ view: "coverage", contextSessionId })`. If a bucket reports `annotated > 0`, use
    `map_context` / `search_context` to find 3–5 first-party `mod:` (and a `domain:`/`resource:` if
    annotated) and `inspect_node` each WITHOUT body. Confirm each exposes an `annotation` block
    (`summary`, `keyExports`, …) and `annotationMeta`. Record the exact node ids used.
@@ -85,14 +88,14 @@ derive annotated node ids from coverage + map/search; never hardcode repo names 
 ## Quick mode
 
 Steps 1, 2, and the read-only confirmation (`annotated-nodes-discovered`,
-`annotation-no-secret-values`, `read-only-guard`). Still discovery-driven; still whole-card N/A at
-`coveragePct` 0.
+`annotation-no-secret-values`, `read-only-guard`). Still discovery-driven; still whole-card N/A when
+no coverage bucket reports an annotated node.
 
 ## Report format
 
-- **Overall**: PASS / WARN / FAIL (`rollup: worst-of`); or whole-card **N/A** when `coveragePct` is 0.
+- **Overall**: PASS / WARN / FAIL (`rollup: worst-of`); or whole-card **N/A** when no coverage bucket reports an annotated node.
 - **Tested repo**: root, branch, short commit, `contextSessionId`.
-- **Annotation sample**: coveragePct, the annotated node ids inspected, quality tiers/scores seen.
+- **Annotation sample**: annotated/total per coverage bucket, the annotated node ids inspected, quality tiers/scores seen.
 - **Secret-safety statement**: explicit confirmation no literal secret value appeared in any
   annotation field (or a FAIL naming the leaking node + field, without reproducing the value).
 - **Check matrix** (one row per `checks[]` id) with evidence (node id / field / vocab term / meta).

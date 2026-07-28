@@ -680,7 +680,7 @@ Resources:
     ]);
   });
 
-  it('reads grants for every resource family the policy-template table advertises, not only DynamoDB', () => {
+  it('reads a policy-template grant for each policy template it names, and binds none for KMS', () => {
     fs.writeFileSync(path.join(tmpDir, 'template.yaml'), `
 Transform: AWS::Serverless-2016-10-31
 Resources:
@@ -694,6 +694,12 @@ Resources:
     Type: AWS::SNS::Topic
   DbSecret:
     Type: AWS::SecretsManager::Secret
+  Sessions:
+    Type: AWS::DynamoDB::Table
+  Settings:
+    Type: AWS::SSM::Parameter
+  DataKey:
+    Type: AWS::KMS::Key
   WorkerRole:
     Type: AWS::IAM::Role
   Worker:
@@ -713,6 +719,12 @@ Resources:
             TopicName: !Ref Events
         - SecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref DbSecret
+        - DynamoDBReadPolicy:
+            TableName: !Ref Sessions
+        - SSMParameterReadPolicy:
+            ParameterName: !Ref Settings
+        - KMSDecryptPolicy:
+            KeyId: !Ref DataKey
         - Statement:
             - Effect: Allow
               Action: sts:AssumeRole
@@ -725,14 +737,24 @@ Resources:
       (fn?.envRefs ?? []).map(ref => [ref.targetLogicalId, ref.access]),
     );
 
+    // One grant per policy template spelled in the fixture above: S3Read, SQSPoller,
+    // SNSPublishMessage, SecretsManagerGetSecretValue, DynamoDBRead, SSMParameterRead. The
+    // expectation is a fixed answer over those six, so a policy template the parser learns later
+    // stays unread here until a resource for it joins this fixture.
+    //
+    // KMSDecrypt is spelled above and binds nothing: a KMS key is not a grant target, so a policy
+    // template naming one reaches the parser and produces no binding.
     expect(accessByTarget).toEqual({
       Uploads: 'read',
       Reports: 'write',
       Jobs: 'read',
       Events: 'write',
       DbSecret: 'read',
+      Sessions: 'read',
+      Settings: 'read',
       // A role is the subject of a grant, never its target, so it is not a bound resource.
     });
+    expect((fn?.envRefs ?? []).map(ref => ref.targetLogicalId)).not.toContain('DataKey');
   });
 
   it('parses docker-compose services and resolves build dockerfile paths', () => {

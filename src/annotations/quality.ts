@@ -5,6 +5,7 @@
  * what is missing; consistency is a contradiction list recomputed from `annotation × current graph`.
  * They never touch each other: a note can be comprehensive and contradictory at once.
  */
+import { provenance, type Provenance } from '../response/provenance.js';
 import type { ModuleInfo, StoredAnnotation } from '../types.js';
 import { recommendedFieldsForKind, type ModuleKind } from './module-kind.js';
 import { detectSideEffectKindsFromHints } from './side-effect-vocab.js';
@@ -36,6 +37,12 @@ export interface AnnotationQuality {
   moduleKind?: ModuleKind;
   /** Orthogonal axis: do the filled fields contradict graph facts? Recomputable; does NOT move score/tier. */
   consistency: AnnotationConsistency;
+  /**
+   * What produced `score`/`tier`: a weighted count of filled fields. Travels with the value so a
+   * reader of `comprehensive` learns what the word measures from the same object, on every path that
+   * hands the quality block over.
+   */
+  provenance: Provenance;
 }
 
 export interface AnnotationQualityInput {
@@ -215,7 +222,14 @@ export function computeAnnotationQuality(
   // Consistency is computed independently and attached, but deliberately does NOT touch score/tier.
   const consistency = computeConsistency(content, moduleData);
 
-  return { score: Math.min(10, score), missingFields: missing, tier, moduleKind: kind, consistency };
+  return {
+    score: Math.min(10, score),
+    missingFields: missing,
+    tier,
+    moduleKind: kind,
+    consistency,
+    provenance: provenance('field-completeness'),
+  };
 }
 
 /**

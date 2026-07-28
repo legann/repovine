@@ -25,19 +25,19 @@ checks:
     fail_if: a documented security category is rejected as unknown or schema-errors
     severity: warn
   - id: strictness-thresholds
-    assert:  strictness:"strict" and analyze_architecture.thresholds knobs are accepted and reduce noisy findings
-    fail_if: strictness/thresholds args are rejected as unknown
+    assert:  analyze_architecture.strictness and its threshold knobs live in repovine.config.json; after refresh_context({reloadConfig:true}) the noisy findings drop
+    fail_if: the report treats strictness or thresholds as call arguments, or claims a per-call value changed the result
     na_if:   repo is too small to produce any findings to tune
     severity: warn
   - id: annotation-reasoning
-    assert:  analyze_architecture({ annotationReasoning:"on" }) attaches an annotationContext to findings — question + relevantFields + nodes[].annotation carrying ONLY picked relevant fields (not full annotation blobs) + annotationContentFresh; nodes lacking annotations yield null slices, not a crash
-    fail_if: annotationReasoning:"on" is rejected as unknown, returns full annotation blobs instead of the picked relevantFields, or crashes when implicated nodes are unannotated
-    na_if:   repo has no annotations (coveragePct 0) OR analyze_architecture produces zero findings to enrich
+    assert:  analyze_architecture({ annotationReasoning:"on" }) attaches an annotationContext to findings — question + relevantFields + nodes[].annotation carrying ONLY picked relevant fields (not full annotation blobs) + annotationContentFresh; nodes[] lists the annotated implicated nodes alone, and a finding left with too few of them carries no annotationContext at all
+    fail_if: annotationReasoning:"on" is rejected as unknown, returns full annotation blobs instead of the picked relevantFields, or lists an unannotated implicated node in nodes[]
+    na_if:   repo has no annotations (coverage view reports annotated 0 in every bucket) OR analyze_architecture produces zero findings to enrich
     severity: warn
   - id: annotation-gated-findings
-    assert:  annotation CONTENT shapes WHICH findings are produced, not only their enrichment — a module annotated sideEffects:[{kind:"pure"}] is suppressed from client-business-logic / effect-spaghetti candidates (un-annotated modules are treated as not-pure and stay eligible), so the same scope can yield a different candidate set before vs after annotation onboarding
-    fail_if: a module whose annotation declares it pure is still reported as a client-side-effect smell (effect detector ignores annotation content)
-    na_if:   repo has no annotations (coveragePct 0), or no pure-annotated module falls in the effect-detector candidate set this run
+    assert:  annotation CONTENT shapes WHICH findings are produced, not only their enrichment — a module annotated sideEffects:[{kind:"pure"}] is suppressed from client-business-logic candidates (un-annotated modules are treated as not-pure and stay eligible), so the same scope can yield a different candidate set before vs after annotation onboarding
+    fail_if: a module whose annotation declares it pure is still reported as a client-business-logic candidate
+    na_if:   repo has no annotations (coverage view reports annotated 0 in every bucket), or no pure-annotated module falls in the client-business-logic candidate set this run
     severity: warn
   - id: category-names-current
     assert:  every documented detector category slug (structural, frontend, security, annotation) is a CURRENT canonical name accepted by analyze_architecture — v1 has no legacy/deferred category aliases
@@ -63,8 +63,8 @@ Honor the shared preamble in `_PREAMBLE.md`. Session id e.g. `arch-YYYY-MM-DD-<r
    If empty, confirm an `emptyDiagnostic` explains why.
 
 3. **Security categories** → `security-categories`, `strictness-thresholds`.
-   `analyze_architecture({ scope: "<pkg>", categories: ["secret-config-boundary","authorization-policy-drift","trust-boundary-validation","privileged-client-side-effect","sensitive-browser-storage","server-client-boundary","source-disclosure-surface","annotation-secret-hygiene","annotation-risk"], minConfidence: 0.6, contextSessionId })`.
-   Re-run one with `strictness: "strict"` and confirm the args are accepted.
+   `analyze_architecture({ scope: "<pkg>", categories: ["secret-config-boundary","authorization-policy-drift","trust-boundary-validation","privileged-client-side-effect","sensitive-browser-storage","server-client-boundary","source-disclosure-surface","annotation-secret-hygiene","annotation-risk"], contextSessionId })`.
+   The confidence floor is not a call argument: set `analyze_architecture.strictness` in `repovine.config.json`, call `refresh_context({ "reloadConfig": true })`, and re-run to compare.
 
 4. **Annotation reasoning** → `annotation-reasoning`.
    `analyze_architecture({ scope: "<pkg>", annotationReasoning: "on", limit: 8, contextSessionId })`.
@@ -72,21 +72,24 @@ Honor the shared preamble in `_PREAMBLE.md`. Session id e.g. `arch-YYYY-MM-DD-<r
    `repovine.annots.json` carries an `annotationContext` with a `question`, `relevantFields`, and
    `nodes[].annotation` exposing ONLY the picked relevant fields (never the full annotation blob)
    plus `annotationContentFresh` (module text and schema only; the propagation half of freshness is `inspect_node`'s `annotationMeta`). Confirm: (a) the arg is accepted; (b) where findings exist on annotated
-   nodes, `annotationContext` is attached and field-scoped; (c) implicated nodes without annotations
-   yield null `annotation` slices rather than crashing. N/A when `coveragePct` is 0 (nothing to
-   reason over) or no findings are produced. The *content quality* of those annotations is graded by
-   the `annotation-quality` card — here only the consumer contract is checked.
+   nodes, `annotationContext` is attached and field-scoped; (c) on a finding that implicates a mix,
+   `nodes[]` carries the annotated ones alone — an unannotated node is left out, and a finding left
+   with too few annotated nodes carries no `annotationContext`. N/A when the repo carries no annotations
+   (nothing to reason over) or no findings are produced. The *content quality* of those annotations
+   is graded by the `annotation-quality` card — here only the consumer contract is checked.
 
 5. **Annotation-gated finding set** → `annotation-gated-findings`.
    Annotation content also changes which findings fire, independent of `annotationReasoning`. Run the
    effect/client-business-logic detectors
    (`analyze_architecture({ scope: "<pkg>", categories: ["client-business-logic","effect-spaghetti"], contextSessionId })`)
    and cross-check the candidate modules against their annotations: a module whose annotation declares
-   `sideEffects:[{kind:"pure"}]` must NOT appear as a client-side-effect smell (un-annotated modules
-   are treated as not-pure and stay eligible). As INFO, note where annotation sensitivity/privilege
+   `sideEffects:[{kind:"pure"}]` must NOT appear as a `client-business-logic` candidate (un-annotated
+   modules are treated as not-pure and stay eligible). `effect-spaghetti` ranks lifecycle effects
+   read from module text alone, so a pure annotation leaves its candidate set unchanged. As INFO,
+   note where annotation sensitivity/privilege
    (`hasSensitiveAnnotationData` / privileged side effects) raises a finding's `impact`. This is the
    cold-graph-vs-annotated differential: report it, do not try to mutate annotations to force it.
-   N/A when `coveragePct` is 0 or no pure-annotated module is a candidate.
+   N/A when the repo carries no annotations or no pure-annotated module is a candidate.
 
 6. **Current category names** → `category-names-current`.
    Confirm the category slugs are the current canonical set (v1): client-business-logic,

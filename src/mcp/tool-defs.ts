@@ -39,12 +39,12 @@ const DepthSchema = z
   .min(0)
   .max(10)
   .optional()
-  .describe('Graph traversal depth. Default depends on the tool, usually 1-2.');
+  .describe('Graph traversal depth. Omitted means unbounded: the walk runs to the edge of reachability, so pass a bound when the answer should stay local.');
 
 const IncludeSchema = z
   .array(z.string())
   .optional()
-  .describe('Optional sections to include. Tools ignore unknown include values.');
+  .describe('Accepted and ignored: the response is identical with and without it. trace_flow selects response sections through its own include enum.');
 
 const ResponseFormatSchema = z
   .enum(['concise', 'debug'])
@@ -127,6 +127,7 @@ const baseToolDefs: ToolDef[] = [
       'emptyDiagnostic appears only when totalResults is 0 and there are no config/entrypoint aux matches — not when OR-relax produced hits. ' +
       'When hits exist after OR-relax, read result.matches.strategy (used, relaxedFrom, strongTokens, weakTokenOnlySuppressed), gaps, topResults[].matchedTokenCount/score, and summary/confidence before inspect_node. ' +
       'When topResults[].annotationMatched is true, annotation fields are omitted — use inspect_node on that nodeId before source-only reasoning. ' +
+      'annotationStale beside it says the matched words come from a note the node content has since outrun: the hit is still a lead, its wording is not evidence for the current code. ' +
       'Weak/common tokens (package, route, handler, module, …) match at reduced weight; auto may suppress OR noise via weakTokenOnlySuppressed. ' +
       'A semantic-only nearest neighbour has low confidence, no matched tokens, and an advisory suggestedScope reason; it is not evidence that the requested functionality exists. ' +
       'When perTokenLimit truncates an OR posting list before global ranking, strategy.truncation names each affected token with shown/total counts, gaps repeat them, and confidence is low. ' +
@@ -136,7 +137,8 @@ const baseToolDefs: ToolDef[] = [
       types: z.array(NodeTypeSchema).optional().describe('Optional result type filter.'),
       match: SearchMatchSchema.optional().describe(
         'Token matching strategy. auto (default): AND first, then bounded OR — OR hits set strategy.relaxedFrom:"and" and omit emptyDiagnostic; weak-only OR noise may set weakTokenOnlySuppressed with emptyDiagnostic. '
-        + 'and: every token must match one node; partial token hits → totalResults:0 and emptyDiagnostic strict_and_no_single_node. '
+        + 'and: token candidates must carry every token, and a partial token hit alone gives totalResults:0 with emptyDiagnostic strict_and_no_single_node. '
+        + 'Semantic candidates enter under every match mode, so with semantic_search_embeddings enabled match:"and" also returns nodes carrying part of the tokens, and no emptyDiagnostic beside them — read topResults[].matchedTokenCount and semanticRank. '
         + 'or: union capped per-token candidates (may return noise on weak tokens like package/route/handler). Default auto.',
       ),
       perTokenLimit: z.number().int().min(1).max(MAX_PER_TOKEN_LIMIT).optional().describe(`Max OR candidates considered per query token before final ranking. Default scales with limit, capped at ${MAX_PER_TOKEN_LIMIT}.`),
@@ -153,8 +155,8 @@ const baseToolDefs: ToolDef[] = [
       'On a domain scope, taggedModules counts modules and taggedNonModuleCount the resources and subdomains beside them; byPackage keys are package ids, and modules under no package sit in withoutPackage.',
     schema: z.object({
       scope: ScopeSchema,
-      view: z.enum(['summary', 'modules', 'path']).optional().describe('Map shape to prefer. Default summary.'),
-      includeSecondaryMatches: z.boolean().optional().describe('Include domain members matched by regex pattern only, not by directory or import cluster. Default false.'),
+      view: z.enum(['summary', 'modules', 'path']).optional().describe('Map shape. On a domain scope, modules selects the module slice and any other value the domain summary; on a node scope, summary returns the shortened path and any other value the full path. all and query scopes ignore it. Default summary.'),
+      includeSecondaryMatches: z.boolean().optional().describe('Read on view modules: include domain members matched by regex pattern only, not by directory or import cluster. The domain summary counts those members either way. Default false.'),
       include: IncludeSchema,
       limit: LimitSchema,
       offset: OffsetSchema,
@@ -164,10 +166,10 @@ const baseToolDefs: ToolDef[] = [
     name: 'inspect_node',
     description:
       'Inspect one graph node in detail. For modules it returns exports/signatures/line ranges/annotations; for exports it returns signature/calls and can include source body. ' +
-      'Use this only after narrowing context. The response points deeper, sideways, up, cross-layer, and validation paths. ' +
+      'Use this only after narrowing context. The response points deeper, sideways, up, and cross-layer; package and domain scopes also point at validation. ' +
       'Annotations hint and constrain; they do not bound inspect scope — no annotation means no pre-written checklist, not skip. ' +
       'Stating a nodeId is unchanged requires inspect_node on that nodeId in the same session; annotation on another nodeId is not evidence for it. ' +
-      'A derived capability, permission, or feature flag is consumed at mount/render predicates and importers, not only the hook that derives it; on boundary tasks inspect those consumers before treating them unchanged. '
+      'A derived capability, permission, or feature flag is consumed by every importer of the module that derives it, not by that module alone; on boundary tasks inspect those consumers before treating them unchanged. '
       + `${ANNOTATION_INVESTIGATE_CLOSURE} `
       + 'When annotations are returned, treat relevant invariants, risks, dataFlow/flowDescription, integrationPoints, and sideEffects as verification obligations: must preserve, must verify, known risk, or surface to check before editing. '
       + 'annotationMeta.fresh answers for the whole note and matches what the annotation queue reports for that node; when it is false, staleReason names the check that decided it — content (the node text moved, rewrite the note), schema (backfill), no-baseline (written with no hash to compare against, rewrite), propagation (the note still matches this node but a module it imports moved, so re-verify its integrationPoints/dataFlow claims before relying on them). fresh is omitted only for a node kind that carries no hash at all. '
@@ -190,13 +192,13 @@ const baseToolDefs: ToolDef[] = [
   {
     name: 'get_entrypoints',
     description:
-      'List execution entrypoints independent of stack: pages, routes, APIs, webhooks, queue consumers, schedules, websockets, CLI commands, workers, tests, and unknown starts. ' +
+      'List execution entrypoints independent of stack: pages, routes, APIs, webhooks, queue consumers, schedules, websockets, and unknown starts. The kind filter also accepts cli, worker and test, which no shipped interpreter emits — a filter on one of them returns nothing about a repository that has them. ' +
       'Routes are just one entrypoint kind; provider/runtime details are returned as metadata instead of being baked into the tool name. Prefer package, module, service, or query scopes for runtime lookup; domain scopes are semantic/path tags and may be empty. Empty results include emptyDiagnostic with reason and conditional nextActions.',
     schema: z.object({
       scope: ScopeSchema,
       kind: EntryKindSchema.optional().describe('Entrypoint kind to filter. Default all.'),
       kinds: z.array(EntryKindSchema).optional().describe('Entrypoint kinds to filter. Overrides kind when provided.'),
-      layer: LayerSchema.optional().describe('Optional layer filter. Default all.'),
+      layer: LayerSchema.optional().describe('Optional layer filter. Entrypoints carry frontend or backend; IaC-derived service triggers carry backend. A filter on infra matches nothing. Default all.'),
       limit: LimitSchema,
       offset: OffsetSchema,
       include: IncludeSchema,
@@ -206,11 +208,11 @@ const baseToolDefs: ToolDef[] = [
     name: 'trace_flow',
     description:
       'Trace runtime/data flow through modules, services, resources, triggers, and entrypoints. Use this for cross-layer questions: UI to API, API to queue, queue to worker, worker to DB/resource, and request routing (e.g. ingress to backend service, surfaced as routesTo/routedFrom on a service). ' +
-      'The tool reports only graph-proven links and lists gaps when a transition cannot be proven. When scope includes annotated runtime resources or secret-linked bindings, runtimeHandoff lists handler modules (mod:) to inspect before editing code - annotations and consumer/boundary obligations live on code nodes, not on resource listings alone. ' +
-      'Prefer service or package scopes; domain scopes only work when the domain directly owns runtime services/resources. Topology is narrowed by all, resource:, mod:, pkg:, domain: and query: scopes; export:, template: and infra: scopes are refused by name. Empty results include emptyDiagnostic with reason and conditional nextActions.',
+      'The tool reports only graph-proven links and lists gaps when a transition cannot be proven. runtimeHandoff lists the handler module (mod:) of a traced runtime resource under three triggers, named per item: secret-binding (the resource or its handler binds a secret resource), annotation (a consumer- or boundary-scoped risk on the resource or its handler), and scoped-resource (a resource: scope, or a module scope with exactly one infra resource behind it). A summary-only note and a risk with no scope carry no trigger. Annotations and consumer/boundary obligations live on code nodes, not on resource listings alone. ' +
+      'Prefer service or package scopes; domain scopes only work when the domain directly owns runtime services/resources. Topology is narrowed by all, resource:, mod:, pkg:, domain: and query: scopes; export:, template: and infra: scopes answer empty with emptyDiagnostic reason scope_kind_not_analyzable and details.supportedScopeKinds. Empty results include emptyDiagnostic with reason and conditional nextActions.',
     schema: z.object({
       scope: ScopeSchema,
-      from: z.string().optional().describe('Optional starting node/entrypoint/service id.'),
+      from: z.string().optional().describe('Fallback for scope: read only when scope is absent, and resolved by the same rules. An entrypoint id has no scope branch and resolves as a query scope.'),
       include: z.array(z.enum(['services', 'resources', 'flows', 'entrypoints'])).optional().describe('Runtime sections to include. Default services/resources/flows.'),
       limit: LimitSchema,
       offset: OffsetSchema,
@@ -222,11 +224,11 @@ const baseToolDefs: ToolDef[] = [
       'Analyze import/export contracts and dependency risk. Replaces impact, cross-package dependencies, interface implementations, and import-map style queries. ' +
       'Use before changing exported APIs, types, package boundaries, interfaces, or shared modules. Empty or mode/scope-mismatch results include emptyDiagnostic with reason and conditional nextActions. ' +
       'impact on an export-symbol scope (or a module scope plus exportName) resolves reverse callers: precise resolved-import callers carry uses; callers matched by call name carry provenance {basis:"inferred",method:"call-name-index"} (spans re-export barrels) and are counted by nameMatchedCallers; an entry without provenance was reached over a graph edge. The name index is capped per declaration while extracting, so it is a completeness backstop, not grep parity, and gaps say so. ' +
-      'impact, interface-implementations, and package-boundaries cap every returned list; result.truncation names each bounded list with shown/total and how to reach the rest. An oversized result is withheld whole behind truncation.result with narrowing guidance.',
+      'impact, interface-implementations, and package-boundaries cap every returned list; each cut reports shown/total and how to reach the rest, in result.analysis.truncation for a top-level list and in a truncation block beside the list itself for a nested one (topModuleEdges on a package edge, importedBy on a boundary violation). An oversized result is withheld whole behind the envelope-level truncation.result with narrowing guidance.',
     schema: z.object({
       scope: ScopeSchema,
       mode: DependencyModeSchema.optional().describe('Dependency analysis mode. Default impact for module/export-symbol scopes, package-boundaries otherwise. mode callgraph requires an export-symbol scope, or a module scope plus exportName.'),
-      direction: DependencyDirectionSchema.optional().describe('imports, exports, or both. Default both.'),
+      direction: DependencyDirectionSchema.optional().describe('For package-boundaries and import-map on a pkg: scope: imports, exports, or both. Default both. Ignored by impact, callgraph and interface-implementations.'),
       exportName: z.string().optional().describe('Filter impact to consumers of a specific export. Required when mode is callgraph and scope is a module.'),
       interfaceName: z.string().optional().describe('Required for mode interface-implementations unless scope names an interface.'),
       depth: DepthSchema,
@@ -237,14 +239,15 @@ const baseToolDefs: ToolDef[] = [
   {
     name: 'get_config_surface',
     description:
-      'Inspect configuration and resource-binding surface: env vars, secrets, public config, IaC params, and code-to-resource bindings. ' +
+      'Inspect configuration and resource-binding surface: env vars, secrets, public config, and code-to-resource bindings. ' +
+      'Items carry kind env, secret, public-config or resource-binding; the kind filter also accepts iac-param, which no item carries, so a filter on it returns nothing. ' +
       'Use before adding config, changing resource names, or debugging hidden runtime coupling. Empty results include emptyDiagnostic with reason and conditional nextActions.',
     schema: z.object({
       scope: ScopeSchema,
       kind: ConfigKindSchema.optional().describe('Config kind to filter. Default all.'),
       kinds: z.array(ConfigKindSchema).optional().describe('Config kinds to filter. Overrides kind when provided.'),
       namePattern: z.string().optional().describe('Case-insensitive regex for config/resource names.'),
-      groupBy: ConfigGroupBySchema.optional().describe('How to group the result. Default name.'),
+      groupBy: ConfigGroupBySchema.optional().describe('Sort key for the flat item list. Items carry no module, service or resource key, so every value sorts by name. Default name.'),
       limit: LimitSchema,
       offset: OffsetSchema,
       include: IncludeSchema,
@@ -285,7 +288,7 @@ const baseToolDefs: ToolDef[] = [
       + 'They are inside total and never inside needsWork, so a coverage shortfall with needsWork 0 is unconfirmable nodes, not work.',
     schema: z.object({
       scope: ScopeSchema,
-      view: AnnotationStatusViewSchema.optional().describe('coverage; queue (default drain — content-stale before propagation-stale); derived-review (propagation-only filter, not first pass); propagation-preview (requires from); orphans; risk-scope-candidates (advisory plain/local risk scope candidates); carrier-gaps (missing-carrier-link candidates grouped by SSOT target with reviewed state); or all. Default coverage.'),
+      view: AnnotationStatusViewSchema.optional().describe('coverage; queue (default drain — content-stale before propagation-stale); derived-review (propagation-only filter, not first pass); propagation-preview (requires from); orphans; risk-scope-candidates (advisory plain/local risk scope candidates); carrier-gaps (missing-carrier-link candidates grouped by SSOT target with reviewed state); or all, which folds coverage, queue and orphans only. Default coverage.'),
       staleKind: z.enum(['content', 'propagation']).optional().describe('For queue view: filter to one staleKind. Default queue already ranks content before propagation.'),
       from: z.string().optional().describe('For propagation-preview: module node id of the changed upstream module.'),
       includeDomains: z.boolean().optional().describe('For propagation-preview: include path-domain ids affected. Default false.'),
@@ -308,7 +311,7 @@ const baseToolDefs: ToolDef[] = [
       'Resolve conflict markers in repovine.annots.json using annotation merge rules. ' +
       'Different node IDs are combined, compatible annotation fields are merged, and ambiguous scalar fields are reported for review. ' +
       'Scalar conflicts add patterns such as merge-review:summary plus [merge-review:…:ours/theirs] assumptions for a later write_annotation rewrite. ' +
-      'This only writes repovine.annots.json unless dryRun is true.',
+      'This writes repovine.annots.json, and snapshots the replaced worktree file under .repovine/annotation-backups/ (named in replacedBackupPath) whenever git index stages are the merge input. dryRun writes neither.',
     schema: z.object({
       dryRun: z.boolean().optional().describe('Preview the annotation merge without writing repovine.annots.json. Default false.'),
       fromIndex: z.boolean().optional().describe(
@@ -321,7 +324,7 @@ const baseToolDefs: ToolDef[] = [
   {
     name: 'validate_annotations',
     description:
-      'Validate repovine.annots.json against the current graph after annotation-file merge, especially after pull/merge/rebase, or before handoff. Reports conflict markers, parse problems, orphaned notes, content-stale and propagation-stale notes, riskScopeCandidates advisory counts, carrierLinkGaps candidates (runtime 2-hop delegation, minus targets suppressed via decline_advisory kind "carrier-link-gaps"), and annotation queue next actions.',
+      'Validate repovine.annots.json against the current graph after annotation-file merge, especially after pull/merge/rebase, or before handoff. Reports conflict markers, parse problems, orphaned notes, content-stale and propagation-stale notes, riskScopeCandidates advisory counts, carrierLinkGaps candidates (runtime 2-hop delegation, minus targets suppressed via decline_advisory kind "carrier-link-gaps"), counts.inconsistent (notes naming something the graph does not have — advisory, does not move status), and annotation queue next actions.',
     schema: z.object({
       limit: LimitSchema,
       scope: z.union([z.string(), z.array(z.string())]).optional().describe(
@@ -333,16 +336,16 @@ const baseToolDefs: ToolDef[] = [
     name: 'write_annotation',
     description:
       'Write or update an annotation for a module, export, template, domain, or service. Shared memory write path after understanding or changing code. ' +
-      'Existing fields are merged; send only fields that changed. New notes require annotation.summary; empty updates and obvious secret values are rejected. ' +
+      'Existing fields are merged; send only fields that changed. On a node whose content moved since the note was written, a partial write leaves the note content-stale and names the fields it did not resubmit — resubmit every field to clear it. New notes require annotation.summary; empty updates and obvious secret values are rejected. ' +
       'For code modules, every write snapshots importBaseline (direct import contentHashes) for propagation-stale detection. ' +
-      'To clear propagation-stale without changing prose, pass refreshImportBaseline: true (optional annotation fields for audit trail in assumptions). ' +
+      'To clear propagation-stale without changing prose, pass refreshImportBaseline: true alone; that shape is the one hard consistency issues refuse. A write that carries annotation fields re-snapshots the baseline on its own, flag or not. ' +
       'On success, result.submittedAnnotation reports submitted text size (chars, estimatedTokens ~chars/4; heuristic, not LLM billing). ' +
       'result.quality.score is COMPLETENESS only (how many fields), not correctness or trust; result.quality.consistency reports filled fields that contradict graph facts (keyExports/env names absent from the module, declared-pure while the graph detects effects). ' +
       'Do not fill a field you cannot back from inspect_node or source — an empty field beats a fabricated one; inspect the node in the same contextSessionId before writing (the harness checks that provenance over annotationsWritten).',
     schema: z.object({
       nodeId: z.string().describe('Node id to annotate.'),
       annotation: z.record(z.string(), z.unknown()).optional().describe(`Annotation object. New notes must include summary; updates may include only changed fields. Optional: assumptions, sideEffects, risks (string or { text, scope?: "local"|"consumer"|"boundary" }), invariants, dataFlow, keyExports, etc. ${ANNOTATION_CONSUMER_RISK_AUTHORING} Omit when using refreshImportBaseline alone on an existing module note.`),
-      refreshImportBaseline: z.boolean().optional().describe('When true on an existing code-module annotation, re-snapshot direct import contentHashes to clear propagation-stale. Blocked when hard consistency issues exist.'),
+      refreshImportBaseline: z.boolean().optional().describe('When true on an existing annotation, re-snapshot direct import contentHashes to clear propagation-stale. Sent alone it is refused while hard consistency issues exist; sent beside annotation fields it writes through them. On a node with no code module behind it the write is accepted and reports importBaselineRefreshed with no baseline computed.'),
       durable: z.boolean().optional().describe('When true, wait for the annotation to be flushed to disk before responding (result.persistence.persisted). Default false: the write is stored in memory and persisted by an 800ms debounced save. Use on the final write of a session.'),
       propagationSlice: z.object({
         anchor: z.string(),
@@ -357,7 +360,7 @@ const baseToolDefs: ToolDef[] = [
     description:
       'Build or refresh the repository syntax index after code changes. Acts as a synchronization barrier. '
       + 'The response reports graph deltas, annotation orphan status, searchTokens (token+annotation index size), '
-      + 'semanticSearch ({ status: disabled|up_to_date|updated|failed, embedded?, total?, error? }) when semantic_search_embeddings is enabled, '
+      + 'semanticSearch ({ status: disabled|up_to_date|updated|failed, embedded?, total?, error? }), which reports status disabled while semantic_search_embeddings is off, '
       + 'and domainsSuggestions ({ count, axes, declinedHidden }) for first-run domains advisor follow-up. '
       + 'annotationMergeKeeps ({ readded, reverted, sample, warning }) appears when the reload kept in-memory notes the '
       + 'file disagreed with — the shape a reverted repovine.annots.json produces, which is otherwise undone silently. '
@@ -383,7 +386,7 @@ const baseToolDefs: ToolDef[] = [
       orphanNodeType: z
         .enum(['all', 'domain', 'module', 'runtime-resource', 'template', 'export-symbol'])
         .optional()
-        .describe('Optional orphan cleanup/report filter. Default all.'),
+        .describe('Orphan cleanup filter, read with cleanupOrphans. The orphan report counts every type. Default all.'),
     }),
   },
   {
@@ -432,7 +435,7 @@ const baseToolDefs: ToolDef[] = [
   {
     name: 'get_build_status',
     description:
-      'Report the current build status of the repository graph. Use when other tools return a `result.status:"building"` payload to discover the current stage, remaining stage count, progress, and recommended retry delay. stageEtaSec estimates only the current stage, not time until ready. Stage 1 reports package/module counts; stage 3 reports semantic search embed card counts when `semantic_search_embeddings` is enabled. Always callable; returns immediately by default. Pass waitSec to long-poll: the call holds server-side and returns the moment the build settles (ready or failed) or the wait expires — one waiting call instead of a polling loop. Pass cancel:true to stop an in-flight startup build (mutating): Stage 1 worker threads terminate at the next package boundary and the response is the post-cancel status — `cancelled` (bare tree, no graph; other tools then report an error with the recovery action, since a settled build is not something to wait for) when no prior graph exists, or `ready` when a prior graph keeps serving. get_build_status itself answers normally in every state — reporting a failed build is an answered question. cancel ignores waitSec and is a no-op returning the current status when no build is running.',
+      'Report the current build status of the repository graph. Use when other tools return a `result.status:"building"` payload to discover the current stage, remaining stage count, progress, and recommended retry delay. stageEtaSec estimates only the current stage, not time until ready. Stage 1 reports package/module counts; stage 3 reports semantic search embed card counts when `semantic_search_embeddings` is enabled. Always callable; returns immediately by default. Pass waitSec to long-poll: the call holds server-side and returns the moment the build settles (ready or failed) or the wait expires — one waiting call instead of a polling loop. Pass cancel:true to stop an in-flight startup build (mutating): it stops Stage 1 where it stands — every worker thread is asked to shut down and force-terminated after a few seconds\' grace, so packages still extracting are dropped and the work already done on them is discarded. The response is the post-cancel status: `cancelled` (bare tree, no graph; other tools then report an error with the recovery action, since a settled build is not something to wait for) when no prior graph exists, or `ready` when a prior graph keeps serving. get_build_status itself answers normally in every state — reporting a failed build is an answered question. cancel ignores waitSec and is a no-op returning the current status when no build is running.',
     schema: z.object({
       waitSec: z
         .number()
@@ -444,7 +447,7 @@ const baseToolDefs: ToolDef[] = [
       cancel: z
         .boolean()
         .optional()
-        .describe('Mutating: stop the in-flight startup build. Stage 1 worker threads terminate at the next package boundary; the response is the resulting status (`cancelled` with no graph, or `ready` when a prior graph keeps serving). Ignores waitSec; no-op when no build is running.'),
+        .describe('Mutating: stop the in-flight startup build. It stops Stage 1 where it stands: every worker thread is asked to shut down and force-terminated after a few seconds\' grace, so packages still extracting are dropped and the work already done on them is discarded. The response is the resulting status (`cancelled` with no graph, or `ready` when a prior graph keeps serving). Ignores waitSec; no-op when no build is running.'),
     }),
   },
 ];

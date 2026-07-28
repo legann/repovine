@@ -1,10 +1,10 @@
 /**
  * Parity harness.
  *
- * Freezes a deterministic, *observable* projection of composeRepositoryGraph + MCP surfaces for the
- * full fixture corpus, so the structural / infra-link / frontend-routes lift-and-shift can be
- * proven byte-identical. The projection deliberately captures the surfaces that are actually
- * visible to MCP consumers — not raw graph.edges insertion order, which is invisible
+ * Freezes a deterministic, *observable* projection of composeRepositoryGraph + MCP surfaces for
+ * every fixture that carries an `expected.json`, so the structural / infra-link / frontend-routes
+ * lift-and-shift can be proven byte-identical. The projection deliberately captures the surfaces
+ * that are actually visible to MCP consumers — not raw graph.edges insertion order, which is invisible
  * (getLinks excludes `contains`, getChildren only reads `contains`, byType keeps per-type order):
  *
  *  - stats                : node/edge counts by type/kind
@@ -51,6 +51,10 @@ function findFixturesRoot(): string {
 
 const FIXTURES_ROOT = findFixturesRoot();
 
+/**
+ * The corpus: fixture directories carrying an `expected.json`, sorted (readdir order is not).
+ * A fixture without that file stays outside the freeze, so its projection is unwatched here.
+ */
 function listFixtures(): string[] {
   return fs
     .readdirSync(FIXTURES_ROOT, { withFileTypes: true })
@@ -131,7 +135,7 @@ describe('phase6 graph projection parity', () => {
   const fixtures = listFixtures();
   if (fixtures.length === 0) {
     it('has at least one fixture', () => {
-      throw new Error('No fixtures with expected.json found under test/fixtures/');
+      throw new Error(`No fixture with an expected.json found under ${FIXTURES_ROOT}`);
     });
     return;
   }

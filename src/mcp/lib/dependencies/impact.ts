@@ -50,7 +50,8 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
     downstreamEntries = downstreamEntries.filter(e => (e.uses as string[] | undefined)?.includes(filterName));
   }
 
-  // Reverse-by-name completeness backstop (grep-parity, works across barrels): when the query is
+  // Reverse-by-name completeness backstop (works across barrels, capped per declaration so it is not
+  // grep parity): when the query is
   // scoped to a single symbol — an export-symbol node, or a module plus exportName — union the
   // modules whose forward calls include that name. These are matched by call name, not a resolved
   // import edge, so they carry `provenance` naming the index that found them; entries reached over a

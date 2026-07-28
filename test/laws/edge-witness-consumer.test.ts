@@ -9,14 +9,21 @@ import type { EdgeKind, ModuleInfo, RepositoryFactsSnapshot, RepositoryGraph } f
 import { cloneWithoutEdgeKind, lawRuntime } from './graph-law-helpers.js';
 import { deliveredValue } from '../../src/response/refusal.js';
 
+/**
+ * Ablate one edge kind and require the named consumer's answer to move. `.not.toEqual` prints only
+ * `Expected: not <value>`, so the kind and the consumer travel inside the compared object: a failure
+ * names the query that stopped depending on the edge and shows the answer that stayed put.
+ */
 function expectDifferential(
   kind: EdgeKind,
+  consumer: string,
   graph: RepositoryGraph,
   project: (graph: RepositoryGraph) => unknown,
 ): void {
   const withKind = project(graph);
   const withoutKind = project(cloneWithoutEdgeKind(graph, kind));
-  expect(withoutKind).not.toEqual(withKind);
+  expect({ kind, consumer, answerWithoutEdge: withoutKind })
+    .not.toEqual({ kind, consumer, answerWithoutEdge: withKind });
 }
 
 function moduleInfo(id: string, imports: ModuleInfo['imports'] = []): ModuleInfo {
@@ -225,17 +232,23 @@ function templateCompositionGraph(): RepositoryGraph {
   return graph;
 }
 
+// Consumer names as a failure should read them: the MCP tool whose answer the ablation moves.
+const CONFIG_SURFACE = 'get_config_surface items';
+const TRACE_FLOW = 'trace_flow runtime topology';
+const IMPACT = 'analyze_dependencies impact downstream';
+const INTERFACE_IMPLEMENTATIONS = 'analyze_dependencies interface implementations';
+
 type ConsumerWitness = (() => void) | 'carveout';
 
 /**
  * Consumer registry: every EdgeKind is either witnessed by an ablation/differential check or an
- * explicit structural `carveout`. The `Record<EdgeKind, …>` type documents that intent and flags a
- * missing kind in the IDE, but it is NOT the enforced gate — test files are excluded from tsconfig
- * and transpiled with isolatedModules, so type errors here never fail CI. The enforced gate is the
- * runtime meta test below: it pins the registry to exactly EDGE_KINDS and the carveout set to exactly
- * the structural pair, so a new kind without a witness — or a load-bearing kind silently marked
- * `carveout` to dodge one — fails at run time. This closes the producer/consumer asymmetry:
- * producers are exhaustive over EdgeKind, and now so is the consumer side.
+ * explicit structural `carveout`. The `Record<EdgeKind, …>` type fails the build on a missing kind —
+ * `tsconfig.test.json` includes `test`, and `npm run typecheck` runs it in CI. What the type cannot
+ * say is which kinds may be `carveout`, so the runtime meta test below pins the registry to exactly
+ * EDGE_KINDS and the carveout set to exactly the structural pair: a new kind without a witness — or
+ * a load-bearing kind silently marked `carveout` to dodge one — fails at run time. This closes the
+ * producer/consumer asymmetry: producers are exhaustive over EdgeKind, and now so is the consumer
+ * side.
  */
 const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
   // Structural / navigation edges: witnessed through graph navigation + scope/domain lookup, not ablation.
@@ -244,18 +257,18 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
   // Load-bearing non-structural edges: each must change a query tool's answer when ablated.
   uses_env: () => {
     const { graph, snapshot } = secretUsesEnvGraph();
-    expectDifferential('uses_env', graph, configSurfaceProjection(snapshot));
+    expectDifferential('uses_env', CONFIG_SURFACE, graph, configSurfaceProjection(snapshot));
   },
   binds_to: () => {
     const { graph, snapshot } = bindsToGraph();
-    expectDifferential('binds_to', graph, configSurfaceProjection(snapshot));
+    expectDifferential('binds_to', CONFIG_SURFACE, graph, configSurfaceProjection(snapshot));
   },
-  publishes: () => expectDifferential('publishes', runtimeFlowGraph(), topologyProjection),
-  consumes: () => expectDifferential('consumes', runtimeFlowGraph(), topologyProjection),
-  infra: () => expectDifferential('infra', infraGraph(), topologyProjection),
+  publishes: () => expectDifferential('publishes', TRACE_FLOW, runtimeFlowGraph(), topologyProjection),
+  consumes: () => expectDifferential('consumes', TRACE_FLOW, runtimeFlowGraph(), topologyProjection),
+  infra: () => expectDifferential('infra', TRACE_FLOW, infraGraph(), topologyProjection),
   imports: () => {
     const { graph, snapshot } = importsGraph();
-    expectDifferential('imports', graph, candidate => {
+    expectDifferential('imports', IMPACT, graph, candidate => {
       const result = deliveredValue(analyzeImpact(lawRuntime(candidate, snapshot), { nodeId: 'mod:app/target' })) as {
         downstream: Array<{ id: string }>;
       };
@@ -263,7 +276,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
     });
   },
   reexports: () => {
-    expectDifferential('reexports', reExportsGraph(), candidate => {
+    expectDifferential('reexports', IMPACT, reExportsGraph(), candidate => {
       const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'mod:pkg/utils' })) as {
         downstream: Array<{ id: string }>;
       };
@@ -271,16 +284,16 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
     });
   },
   implements: () => {
-    expectDifferential('implements', implementsGraph(), candidate => {
+    expectDifferential('implements', INTERFACE_IMPLEMENTATIONS, implementsGraph(), candidate => {
       const result = findInterfaceImplementations(lawRuntime(candidate), { interfaceName: 'IRepo' }) as {
         implementations: Array<{ classId: string }>;
       };
       return result.implementations.map(entry => entry.classId).sort();
     });
   },
-  routes_to: () => expectDifferential('routes_to', routesToGraph(), topologyProjection),
+  routes_to: () => expectDifferential('routes_to', TRACE_FLOW, routesToGraph(), topologyProjection),
   renders: () => {
-    expectDifferential('renders', rendersGraph(), candidate => {
+    expectDifferential('renders', IMPACT, rendersGraph(), candidate => {
       const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/home.html' })) as {
         downstream: Array<{ id: string }>;
       };
@@ -288,7 +301,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
     });
   },
   extends: () => {
-    expectDifferential('extends', templateCompositionGraph(), candidate => {
+    expectDifferential('extends', IMPACT, templateCompositionGraph(), candidate => {
       const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/base.html' })) as {
         downstream: Array<{ id: string }>;
       };
@@ -296,7 +309,7 @@ const CONSUMER_WITNESSES: Record<EdgeKind, ConsumerWitness> = {
     });
   },
   includes: () => {
-    expectDifferential('includes', templateCompositionGraph(), candidate => {
+    expectDifferential('includes', IMPACT, templateCompositionGraph(), candidate => {
       const result = deliveredValue(analyzeImpact(lawRuntime(candidate), { nodeId: 'template:app/templates/partials/nav.html' })) as {
         downstream: Array<{ id: string }>;
       };

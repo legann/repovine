@@ -3,20 +3,20 @@
   "version": 2,
   "preamble": "_PREAMBLE.md",
   "axes": {
-    "build-signal": "Structural extraction / indexing / projection / navigation. Annotation-independent: the same verdict at 0% or 99% coverage (the preamble evidence gate forbids a PASS from annotations alone).",
+    "build-signal": "Structural extraction / indexing / projection / navigation. The verdict rests on extracted structure (the preamble evidence gate forbids a PASS from annotations alone). Annotation text is part of the search index, so search hits and ranking still differ between 0% and 99% coverage.",
     "annotation-quality": "Annotation memory itself — mechanics (coverage/queue/merge/validate) and content (secrets, sideEffects vocabulary, provenance/freshness, grounding).",
     "meta": "Audit methodology and MCP plumbing rather than one extraction surface — stack inventory / N-A discipline and context-session threading + quality scoring."
   },
   "profiles": {
     "cold-graph": {
-      "target_state": "freshly built graph before annotation onboarding (coveragePct 0)",
+      "target_state": "freshly built graph before annotation onboarding (every coverage bucket reports annotated 0)",
       "purpose": "Truest build-signal regression — modules indexed/parsed, entrypoints/edges/config extracted — with no annotations able to mask a broken extractor. Turns the preamble's 'do not lean on annotations' instruction into an enforced invariant (there are none to lean on).",
       "select": "cards whose profiles[] includes \"cold-graph\"",
-      "note": "annotation-quality is intentionally excluded (whole-card N/A at 0%). annotation-health and the annotation-driven checks in architecture-detectors stay in: they verify the annotation surfaces behave correctly against an empty store (figures/queue empty, annotation checks N/A) without crashing."
+      "note": "annotation-quality is intentionally excluded (whole-card N/A with no annotations). annotation-health and the annotation-driven checks in architecture-detectors stay in: they verify the annotation surfaces behave correctly against an empty store (figures/queue empty, annotation checks N/A) without crashing."
     },
     "annotated": {
-      "target_state": "graph after annotation onboarding (coveragePct > 0)",
-      "purpose": "Annotation coverage/queue/merge and content quality, plus the annotation-driven analyze_architecture paths (annotationReasoning enrichment + annotation-content gating of the finding set). Build-signal cards still pass identically.",
+      "target_state": "graph after annotation onboarding (a coverage bucket reports annotated above 0)",
+      "purpose": "Annotation coverage/queue/merge and content quality, plus the annotation-driven analyze_architecture paths (annotationReasoning enrichment + annotation-content gating of the finding set). Build-signal cards pass on the same extracted structure; annotation text adds search hits and shifts ranking.",
       "select": "cards whose profiles[] includes \"annotated\""
     }
   },

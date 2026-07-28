@@ -35,7 +35,7 @@ Changing `repovine.domains.json` is picked up by a normal refresh; using `reload
 
 Report:
 - nodes/edges before and after
-- `searchTokens` (token + annotation index size), and `semanticSearch.status` when embeddings are enabled
+- `searchTokens` (token + annotation index size), and `semanticSearch.status`, which reports `disabled` while `semantic_search_embeddings` is off
 - whether config was reloaded, when requested
 - `domainsSuggestions.count` (and `declinedHidden`) — follow up per Domains suggestions below
 - whether orphaned annotations were detected
@@ -63,4 +63,4 @@ When `refresh_context` returns `domainsSuggestions.count > 0`, the domains advis
 
 If the first MCP call on a large repo returns `result.status:"building"`, wait with one long-poll call — `get_build_status({ "waitSec": 45 })` returns the moment the build settles — instead of polling. If it still returns building, report the current stage and remaining stage count; `stageEtaSec` covers only the current stage. Tell the user they can pre-build the graph synchronously with the CLI: `repovine build`, or just re-run `repovine setup` (it builds by default). This warms the snapshot cache so MCP startup is near-instant on subsequent sessions.
 
-To abandon a cold build, call `get_build_status({ "cancel": true })`. It terminates Stage 1 worker threads at the next package boundary. With no prior graph the server ends in `result.status:"cancelled"` (bare tree) and tools report it as an error with a recovery action; a later `refresh_context` starts a fresh build. With a prior `ready` graph, cancel keeps serving it.
+To abandon a cold build, call `get_build_status({ "cancel": true })`. On the pooled Stage 1 path every worker thread is asked to shut down and force-terminated after a few seconds' grace; the inline path has no worker threads and observes the abort at its next package or shard boundary. The partial Stage 1 result is not served. With no prior graph the server ends in `result.status:"cancelled"` (bare tree) and tools report it as an error with a recovery action; a later `refresh_context` starts a fresh build. With a prior `ready` graph, cancel keeps serving it.

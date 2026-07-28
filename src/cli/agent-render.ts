@@ -4,8 +4,9 @@
  * Internal projection helper used by `repovine setup` to write protocol-governed
  * assets (per-client agent files, the AGENTS.md main-agent block, the project
  * subagent scaffold, and the raw manifests JSON) and optionally writes them to
- * their standard locations. AGENTS.md is merged by replacing/appending only the
- * repovine marked section so project-owned instructions are preserved.
+ * their standard locations. An AGENTS.md carrying the repovine markers keeps everything
+ * outside them. Without markers, a file that opens with the repovine heading is replaced
+ * whole; any other file keeps its content and gets the managed block appended.
  *
  * It is a leaf consumer: it imports onboarding-assets / templates / manifests,
  * and nothing imports it except the MCP handler and CLI.
@@ -204,8 +205,11 @@ function looksLikeRepoContextAgentsMd(content: string): boolean {
 }
 
 /**
- * Expected on-disk AGENTS.md after setup: preserves non-managed sections when
- * markers exist, or appends the managed block to project-owned instructions.
+ * Expected on-disk AGENTS.md after setup. With markers, the marked section is replaced
+ * and the rest of the file stands. Without markers, a file that opens with the repovine
+ * heading is replaced whole, and any other file keeps its content with the managed block
+ * appended. `setup --force` bypasses the last branch and overwrites, so the expectation
+ * this returns describes a run without `--force`.
  */
 export function computeAgentsMdDiskContent(repoRoot: string, canonicalSection: string): string {
   const abs = path.join(repoRoot, 'AGENTS.md');
@@ -229,8 +233,8 @@ function contentToWrite(repoRoot: string, asset: RenderedAgentAsset): string {
 /**
  * Project agent-protocol assets from the manifests. When `write` is true,
  * writable assets are written to their standard locations under `repoRoot`.
- * Per-client generated agent files are overwritten; AGENTS.md replaces or
- * appends only the repovine marked section.
+ * Per-client generated agent files are overwritten; AGENTS.md goes through
+ * `computeAgentsMdDiskContent`.
  */
 export function renderAgentAssets(options: RenderAgentAssetsOptions): RenderAgentAssetsResult {
   const client: RenderClientArg = options.client ?? 'all';

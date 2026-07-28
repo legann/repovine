@@ -5,6 +5,7 @@ import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
 import { doctorAgentAssets, runAgentAssetDoctor, agentAssetDoctorCliFindings } from '../../../src/cli/agent-doctor.js';
 import { renderAgentAssets } from '../../../src/cli/agent-render.js';
 import { initCodex, initCursor } from '../../../src/cli/init.js';
+import { listCanonicalManagedAssets } from '../../../src/cli/managed-setup-assets.js';
 import {
   COMMANDS,
   CURSOR_RULES,
@@ -359,8 +360,13 @@ describe('doctorAgentAssets', () => {
   });
 
   it('agentAssetDoctorCliFindings mirrors runAgentAssetDoctor for repovine doctor', () => {
-    renderAgentAssets({ repoRoot, client: 'claude', write: true });
-    renderAgentAssets({ repoRoot, client: 'agents-md', write: true });
+    // Every managed asset setup would write, not just the agent files: a partial render is drift, and
+    // the doctor now says so, which would drown the mirroring this case is about.
+    for (const asset of listCanonicalManagedAssets(repoRoot, ['claude'])) {
+      const target = path.join(repoRoot, asset.rel);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, asset.expected, 'utf-8');
+    }
     const report = runAgentAssetDoctor({ repoRoot, validToolNames, client: 'claude' });
     const cliFindings = agentAssetDoctorCliFindings(report);
     expect(report.ok).toBe(true);

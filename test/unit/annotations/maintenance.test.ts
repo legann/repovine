@@ -1467,20 +1467,27 @@ describe('annotation backup retention', () => {
     expect(backups()).toHaveLength(1);
   });
 
-  it('keeps only the newest MAX_ANNOTATION_BACKUPS snapshots', () => {
+  // Retention ranks snapshots by filename. ISO stamps rank chronologically; a same-millisecond
+  // `-<n>` disambiguator does not, so the names below carry the freshness this case asserts.
+  it('keeps the MAX_ANNOTATION_BACKUPS highest-ranking snapshot names and deletes the rest', () => {
+    // Timestamps resolve to the millisecond, so the pre-existing set is named outright: the
+    // seconds field orders it, oldest first.
+    const stampedNames: string[] = [];
     for (let i = 0; i < MAX_ANNOTATION_BACKUPS + 3; i++) {
-      // Distinct content per write, otherwise dedup would collapse them.
-      const written = writeAnnotationBackup(filePath(), Buffer.from(`{"n":${i}}`, 'utf-8'));
-      expect(written.status).toBe('written');
-      // Timestamps have millisecond resolution; force distinct names.
-      const stamped = (written as { backupPath: string }).backupPath;
-      fs.renameSync(stamped, path.join(tmpDir, `annotations.backup.2026-01-01T00-00-0${i}-000Z.json`));
+      const name = `annotations.backup.2026-01-01T00-00-${String(i).padStart(2, '0')}-000Z.json`;
+      fs.writeFileSync(path.join(tmpDir, name), `{"n":${i}}`);
+      stampedNames.push(name);
     }
 
-    // Rotation runs on the next write, over the renamed set.
-    writeAnnotationBackup(filePath(), Buffer.from('{"n":"final"}', 'utf-8'));
+    // Rotation runs on the next write. That write's own stamp is the current year, so it ranks
+    // above every synthetic 2026-01-01 name.
+    const final = writeAnnotationBackup(filePath(), Buffer.from('{"n":"final"}', 'utf-8'));
+    expect(final.status).toBe('written');
+    const finalName = path.basename((final as { backupPath: string }).backupPath);
 
-    expect(backups().length).toBeLessThanOrEqual(MAX_ANNOTATION_BACKUPS);
+    // Naming which snapshots survive, not how many: a rotation deleting from the wrong end still
+    // leaves MAX_ANNOTATION_BACKUPS files behind.
+    expect(backups()).toEqual([...stampedNames.slice(-(MAX_ANNOTATION_BACKUPS - 1)), finalName]);
   });
 });
 

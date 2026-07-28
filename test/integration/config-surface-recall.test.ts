@@ -4,8 +4,8 @@
  * The fixture contains 16 runtime env-name accesses. Ten are direct literal forms supported by the
  * TS/Python extractors; six are still statically obvious to a reader but pass through an alias,
  * constant, or wrapper that the extractors intentionally do not resolve. The exact comparison
- * measures recall and pins the user-facing contract: returned items are proven, but the list is
- * best-effort and therefore must not carry high confidence.
+ * measures recall and pins the user-facing contract: returned items are proven, and the best-effort
+ * coverage is stated in `gaps`. Envelope confidence answers whether the request resolved.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';

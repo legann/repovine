@@ -112,6 +112,19 @@ export function analyzePackageBoundaries(ctx: McpToolRuntime, args: Record<strin
         toModule: me.toModule,
         symbols: me.symbols,
       })),
+      // The cut is named the same way the importer preview beside it is: a count next to a slice is
+      // not the bound block a reader looks for, and this list is capped on every edge that has more.
+      ...(entry.moduleEdges.length > topN
+        ? {
+          truncation: {
+            topModuleEdges: narrowTruncation({
+              shown: topN,
+              total: entry.moduleEdges.length,
+              hint: 'Module edges are previewed per package edge; scope analyze_dependencies to one package for the full set.',
+            }),
+          },
+        }
+        : {}),
     });
   }
 

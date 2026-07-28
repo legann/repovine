@@ -10,7 +10,6 @@ import {
   ANNOTATIONS_FILENAME,
   artifactsDir,
   cacheDir,
-  mergeScanIgnorePatterns,
   REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
   repoRoot,
   resolveAnnotationsFilePath,
@@ -137,10 +136,8 @@ describe('derived paths', () => {
   });
 });
 
-describe('mergeScanIgnorePatterns', () => {
-  it('always includes engine-owned patterns', () => {
-    expect(mergeScanIgnorePatterns()).toEqual([...REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS]);
-    expect(mergeScanIgnorePatterns([])).toEqual([...REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS]);
+describe('REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS', () => {
+  it('names dependency, build-output and tooling trees, and never the workspace itself', () => {
     expect(REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS).not.toContain('repovine');
     expect(REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS).toEqual(expect.arrayContaining([
       'node_modules',
@@ -153,13 +150,6 @@ describe('mergeScanIgnorePatterns', () => {
       'coverage',
       '.next',
     ]));
-  });
-
-  it('appends user patterns without duplicating engine entries', () => {
-    expect(mergeScanIgnorePatterns(['.repovine', 'packages/excluded'])).toEqual([
-      ...REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
-      'packages/excluded',
-    ]);
   });
 });
 

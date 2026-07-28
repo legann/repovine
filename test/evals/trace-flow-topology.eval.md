@@ -18,8 +18,8 @@ checks:
     na_if:   no runtime anchor was discovered
     severity: warn
   - id: entrypoint-cross-link
-    assert:  'trace_flow output references mod:/entrypoint:/resource: ids consistent with get_entrypoints for the same anchor'
-    fail_if: trace_flow references ids that do not resolve via inspect_node
+    assert:  'trace_flow output references mod:/resource: ids that inspect_node resolves, plus entrypoint: fragments consistent with get_entrypoints for the same anchor'
+    fail_if: 'a referenced mod:/resource: id does not resolve via inspect_node, or an entrypoint fragment disagrees with get_entrypoints for the same anchor'
     na_if:   no runtime anchor was discovered
     severity: warn
   - id: library-only-na
@@ -48,8 +48,9 @@ Resolve a real runtime anchor first via search/map; do not hardcode `resource:aw
    Re-run with a narrower `include` to confirm it is honored.
 
 3. **Cross-link** → `entrypoint-cross-link`.
-   `get_entrypoints({ scope: "<anchor or its package>", contextSessionId })`; confirm trace_flow ids
-   resolve via `inspect_node`.
+   `get_entrypoints({ scope: "<anchor or its package>", contextSessionId })`; confirm the trace_flow
+   `mod:`/`resource:` ids resolve via `inspect_node`. `entrypoint:` ids are runtime fragments outside
+   the node set — compare them with `get_entrypoints` and inspect their `moduleId` instead.
 
 4. **Library-only path** → `library-only-na`.
    If no runtime graph exists, run one `trace_flow({ scope: "<a discovered mod/pkg>", contextSessionId })`

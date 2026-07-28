@@ -2,9 +2,10 @@
 // directories during `npx repovine setup {claude,cursor,codex,all}`.
 //
 // SOURCE OF TRUTH: these constants are rendered by `setup` into each client's
-// native project-level capability files. The Cursor Marketplace plugin is only
-// a scaffold for now; it intentionally does not ship duplicate commands,
-// skills, agents, rules, hooks, or MCP.
+// native project-level capability files, and by the plugin bundles from the same
+// constants. A Cursor bundle carries all five surfaces — MCP entry, hooks and
+// their dispatcher, agents, shared skills, and rules — so the two render paths
+// answer from one place rather than diverging into a second copy.
 //
 // Format differences between clients:
 //   Claude Code  -- .claude/agents/<name>.md     -> YAML frontmatter (same shape)
@@ -210,13 +211,13 @@ export const ANNOTATIONS_MCP_ONLY_GUARDRAIL =
 
 /** Reverse caller enumeration through the graph instead of grep. */
 export const REVERSE_CALLERS_GUIDANCE =
-  'Enumerate callers of an export (who-calls X) with impact scoped to the export-symbol — `analyze_dependencies({ "scope": "export:pkg/path/module/Name", "mode": "impact" })`, or a module scope plus `exportName`. This is grep-parity for caller lookup and spans re-export barrels, so prefer it over `grep`. Callers reached over a graph edge carry `uses` and no `provenance`; callers with `provenance.basis: "inferred"` are name-matched impact candidates, not proven edges. Inspect them or explicitly code-cite why they are out of scope before treating the caller set as complete.';
+  'Enumerate callers of an export (who-calls X) with impact scoped to the export-symbol — `analyze_dependencies({ "scope": "export:pkg/path/module/Name", "mode": "impact" })`, or a module scope plus `exportName`. It spans re-export barrels, which `grep` does not. The name index behind inferred callers is capped per declaration while extracting, so treat it as a completeness backstop rather than grep parity; the response reports that extraction cap in `gaps`. Callers reached over a graph edge carry `uses` and no `provenance`; callers with `provenance.basis: "inferred"` are name-matched impact candidates, not proven edges. Inspect them or explicitly code-cite why they are out of scope before treating the caller set as complete.';
 
 const ANNOTATION_IMPLEMENTATION_CONSTRAINT_CHECKPOINT = `${ANNOTATION_INSPECT_SCOPE_POLICY}
 
 Read relevant annotation fields before editing inspected nodes and derive annotation obligations from the existing fields:
 
-- \`annotationMeta.fresh\`: whether the note is still confirmed for this node, and the same verdict the annotation queue reports for it. When it is \`false\`, \`staleReason\` names the cause: \`content\` or \`no-baseline\` means the node text moved under the note — treat every field as a lead to verify in code, not as a claim. A domain roll-up has no text of its own, so \`content\` there means a member the author placed in the domain moved: re-check what the note claims about the member set, not its prose. \`schema\` means fields are missing while the present ones still describe this text; \`propagation\` means the note matches this node but a module it imports moved, so \`integrationPoints\`, \`dataFlow\`, and cross-module invariants are the claims to re-verify against the upstream before relying on them.
+- \`annotationMeta.fresh\`: whether the note is still confirmed for this node, and the same verdict the annotation queue reports for it. When it is \`false\`, \`staleReason\` names the cause: \`content\` means the node text moved under the note, and \`no-baseline\` that the note was written with no hash to compare against, so nothing was ever compared — treat every field as a lead to verify in code, not as a claim. A domain roll-up has no text of its own, so \`content\` there means a member the author placed in the domain moved: re-check what the note claims about the member set, not its prose. \`schema\` means fields are missing while the present ones still describe this text; \`propagation\` means the note matches this node but a module it imports moved, so \`integrationPoints\`, \`dataFlow\`, and cross-module invariants are the claims to re-verify against the upstream before relying on them.
 - \`invariants\`: implementation constraints that must still hold after the change.
 - \`risks\`: failure modes to mitigate, test, or explicitly ask the user to accept. ${ANNOTATION_CONSUMER_RISK_AUTHORING}
 - \`dataFlow\` / \`flowDescription\`: execution order to preserve, or intentionally change with tests.
@@ -236,7 +237,7 @@ const ANNOTATION_CONSTRAINT_REPORTING_GUIDANCE = `When reporting or handing off 
 
 const ANNOTATION_REVIEW_CONSTRAINT_CHECKPOINT = `For changed nodes with annotations, derive annotation obligations from \`invariants\`, \`risks\`, \`dataFlow\` / \`flowDescription\`, \`integrationPoints\`, and \`sideEffects\`, then compare the diff against them.
 
-- Read \`annotationMeta.fresh\` on each of those nodes first: a note with \`staleReason: "propagation"\` still describes this node, but its \`integrationPoints\`/\`dataFlow\` claims about upstream modules are unverified and are leads to check against the upstream, not evidence; \`content\` or \`no-baseline\` means the node text moved under the note, so no field of it is evidence for the current code — except on a domain roll-up, which has no text: there \`content\` means a member moved, and what needs re-checking is the note's account of the member set.
+- Read \`annotationMeta.fresh\` on each of those nodes first: a note with \`staleReason: "propagation"\` still describes this node, but its \`integrationPoints\`/\`dataFlow\` claims about upstream modules are unverified and are leads to check against the upstream, not evidence; \`content\` means the node text moved under the note, and \`no-baseline\` that the note was written with no hash to compare against, so nothing was ever compared, so no field of it is evidence for the current code — except on a domain roll-up, which has no text: there \`content\` means a member moved, and what needs re-checking is the note's account of the member set.
 - A violated must-preserve invariant is a review finding.
 - A must-verify flow, integration, or parity obligation without evidence is a review finding.
 - A known risk in the same behavior class as the requested fix is not a residual risk unless the user explicitly accepted it.
@@ -257,7 +258,7 @@ export const GIT_MERGE_ANNOTATION_WORKFLOW =
 export const SINGLE_QUEUE_GUIDANCE =
   '`view: "queue"` is one backlog (modules, templates, services, infra, domain roll-ups), not separate queues. '
   + '**Drain order (engine-sorted):** (1) content-stale (`staleKind: "content"`), '
-  + '(2) then propagation-stale (`staleKind: "propagation"`), (3) then unannotated; within each tier bottom-up by dependency depth. '
+  + '(2) then propagation-stale (`staleKind: "propagation"`), (3) then unannotated; within each tier modules and templates before runtime resources, infra and domain roll-ups, and only then bottom-up by dependency depth. '
   + 'Take the top page of `view: "queue"` — do **not** run a separate propagation-first pass via `derived-review` unless the orchestrator explicitly requests propagation-only review. '
   + 'Propagation items: `refreshImportBaseline: true` unless upstream contract changed. Content-stale: full rewrite. '
   + 'Finish when `needsWork: 0`. Offsets shift as notes are written.';
@@ -306,19 +307,20 @@ export const BULK_ANNOTATION_BREADTH =
 
 /**
  * Concise MCP responses omit empty/default envelope parts and can abbreviate
- * repeated long navigation IDs through a per-session refs map.
+ * repeated long navigation IDs through a bounded refs map held by the server process.
  */
 export const MCP_RESPONSE_FORMAT_GUIDANCE =
-  'All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`; reuse them in the same MCP session or expand from `refs`. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.';
+  'All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`. The server keeps the 500 most recently issued and drops the oldest beyond that, so reuse a ref while it is recent, or expand it from `refs` — a dropped ref is passed through as the literal `$…` and fails to resolve. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.';
 
 /**
  * Shared policy block: how a bounded answer says so, and what it costs to ignore.
  *
- * Every cap the engine applies is reported the same way, so a reader can tell a page from a ceiling
- * without knowing which tool answered.
+ * A cap the caller can move — a page, an argument, a narrower question — is reported the same way by
+ * every tool, so a reader tells a page from a ceiling without knowing which tool answered. Fixed-size
+ * shaping (navigation sections, row previews) is named in the guidance text itself.
  */
 export const MCP_TRUNCATION_GUIDANCE =
-  'A capped answer carries a `truncation` block beside what it bounded, keyed by the bounded field: `shown`/`total` on the scale named by `unit`, and `more` saying how to reach the rest — `page` (pass the named offset arg), `arg` (pass the named argument), `narrow` (ask a narrower question), `inline` (the rest is elsewhere in this same response), `unavailable` (no call returns it). Absence of the block means nothing was dropped. Treating a bounded list as the whole set is the failure this block exists to prevent; `unavailable` is the one case where paging cannot fix it.';
+  'A capped answer carries a `truncation` block beside what it bounded, keyed by the bounded field: `shown`/`total` on the scale named by `unit`, and `more` saying how to reach the rest — `page` (pass the named offset arg), `arg` (pass the named argument, when the tool declares it), `narrow` (ask a narrower question), `inline` (the rest is elsewhere in this same response), `unavailable` (no call returns it). Fixed-size shaping is not uniform: `attention` records its three-item preview as `truncation.attention` with `more.kind: "inline"`, while each `navigation` section keeps its first 4 entries without a bound and a row preview such as `context.topExports` keeps its first 10 next to its own count (`context.exportCount`). Treating a bounded or fixed-preview list as the whole set is the failure these signals prevent; `unavailable` is the one case where no call returns the omitted items.';
 
 /** Shared policy block: interpret search_context before inspect_node (also in eval _PREAMBLE). */
 export const SEARCH_CONTEXT_ANNOTATION_ESCALATION_GUIDANCE =
@@ -454,7 +456,7 @@ Use this only when the user asks to harden high-value \`scope:"consumer"\` or \`
 Suggested tokens / annotation:
 
 - \`types\` 1,000; \`infra\`/\`generic\` 2,000; \`domain\` 2,500; \`ui\` 2,800
-- \`adapter\`/\`service\` 3,200; \`api-handler\`/\`service-mgr\` 4,500
+- \`adapter\`/\`template\` 3,200; \`api-handler\`/\`service-mgr\`/\`runtime-resource\` 4,500
 
 ### Batch execution
 
@@ -492,7 +494,7 @@ Sum \`result.submittedAnnotation.estimatedTokens\` from successful writes (heuri
 ## Notes
 
 - Queue order is bottom-up within each tier: content-stale before propagation-stale before unannotated, then modules before services/infra/domains, lower dependency depth before importers.
-- A domain roll-up goes stale when a member the author placed there changes — a member an import cluster or a package name pulled in does not move it. Annotate members first: a roll-up rewritten before its members is stale again by the end of the batch.
+- A domain roll-up goes stale when a member the author placed there changes — a member an import cluster or a package name pulled in does not move it. A domain whose members all come from package names hashes every member, as does any domain under \`domainStalePolicy: "all-tags"\`. Annotate members first: a roll-up rewritten before its members is stale again by the end of the batch.
 - Derived-stale: \`importBaseline\` vs direct imports (\`upstreamTriggers\`); clear via rewrite or \`refreshImportBaseline: true\`.
 - The \`repovine-annotation-writer\` subagent must \`inspect_node\` each node before \`write_annotation\` (the harness checks this provenance over \`annotationsWritten\`) and fix any \`quality.consistency.issues\`; \`quality.score\` is completeness only — an empty field beats a fabricated one.
 - Drain hard-work batches until \`needsWork: 0\` in scope. Keep batches small. ${CHEAP_MODEL_GUIDANCE}
@@ -545,7 +547,7 @@ Changing \`repovine.domains.json\` is picked up by a normal refresh; using \`rel
 
 Report:
 - nodes/edges before and after
-- \`searchTokens\` (token + annotation index size), and \`semanticSearch.status\` when embeddings are enabled
+- \`searchTokens\` (token + annotation index size), and \`semanticSearch.status\`, which reports \`disabled\` while \`semantic_search_embeddings\` is off
 - whether config was reloaded, when requested
 - \`domainsSuggestions.count\` (and \`declinedHidden\`) — follow up per Domains suggestions below
 - whether orphaned annotations were detected
@@ -573,7 +575,7 @@ When \`refresh_context\` returns \`domainsSuggestions.count > 0\`, the domains a
 
 If the first MCP call on a large repo returns \`result.status:"building"\`, wait with one long-poll call — \`get_build_status({ "waitSec": 45 })\` returns the moment the build settles — instead of polling. If it still returns building, report the current stage and remaining stage count; \`stageEtaSec\` covers only the current stage. Tell the user they can pre-build the graph synchronously with the CLI: \`repovine build\`, or just re-run \`repovine setup\` (it builds by default). This warms the snapshot cache so MCP startup is near-instant on subsequent sessions.
 
-To abandon a cold build, call \`get_build_status({ "cancel": true })\`. It terminates Stage 1 worker threads at the next package boundary. With no prior graph the server ends in \`result.status:"cancelled"\` (bare tree) and tools report it as an error with a recovery action; a later \`refresh_context\` starts a fresh build. With a prior \`ready\` graph, cancel keeps serving it.
+To abandon a cold build, call \`get_build_status({ "cancel": true })\`. On the pooled Stage 1 path every worker thread is asked to shut down and force-terminated after a few seconds' grace; the inline path has no worker threads and observes the abort at its next package or shard boundary. The partial Stage 1 result is not served. With no prior graph the server ends in \`result.status:"cancelled"\` (bare tree) and tools report it as an error with a recovery action; a later \`refresh_context\` starts a fresh build. With a prior \`ready\` graph, cancel keeps serving it.
 `,
 };
 
@@ -679,11 +681,13 @@ export const SUBAGENT_ORCHESTRATION_CORE = `You are the **main agent**. Project 
 
 ${SUBAGENT_ORCHESTRATION_POLICY}`;
 
-const WORKFLOW_SKILL_DESCRIPTION = 'Main-agent implementation playbook: scope repo changes with repovine, choose the risk axis, verify after edits; delegation policy lives in the client-native orchestration policy';
+const WORKFLOW_SKILL_DESCRIPTION = 'Main-agent implementation playbook: scope repo changes with repovine, choose the risk axis, verify after edits, and delegate by the policy this skill carries';
 
 // Cursor and Codex share `.agents/skills`, so every skill written there must be
-// byte-identical for both clients. Client-specific orchestration lives in the
-// always-on instruction surface instead: Cursor rules or AGENTS.md.
+// byte-identical for both clients. Cursor gets the client-specific orchestration
+// from its always-on rule, and Claude from its own variant of the workflow skill.
+// Codex reads the shared skill, so it gets the client-neutral bridge and no
+// per-client delegation surface — the shared variant cannot name one.
 const MAIN_AGENT_ORCHESTRATION_BRIDGE = `## Relationship to Subagent Orchestration
 
 This workflow scopes a repo change and verifies it after edits. Main-agent delegation policy:
@@ -738,7 +742,7 @@ ${ANNOTATION_IMPLEMENTATION_CONSTRAINT_CHECKPOINT}
 | Runtime behavior, APIs, webhooks, queues, schedules, workers | \`get_entrypoints\`, then \`trace_flow\` |
 | UI routes, pages, components, client state, effects | \`get_entrypoints({ "layer": "frontend" })\`, \`search_context\`, \`inspect_node\`; use \`analyze_architecture\` only for review candidates |
 | Infra, resources, env vars, secrets, public config | \`get_config_surface\`, \`trace_flow\`, and targeted \`inspect_node\` |
-| Shared types, exports, interfaces, package APIs | \`analyze_dependencies({ "mode": "impact" })\` and package-boundary checks |
+| Shared types, exports, interfaces, package APIs | \`analyze_dependencies({ "scope": "mod:<changed-node>", "mode": "impact" })\` and package-boundary checks |
 | Architecture/refactoring questions | \`analyze_architecture\`, then inspect and validate before recommending movement |
 
 ${RUNTIME_HANDOFF_WORKFLOW_NOTE}
@@ -863,7 +867,7 @@ If the call fails with a connection error, the MCP server is not running. Tell t
 
 If the response is a successful envelope with \`result.status:"building"\` (not an error), the MCP server is up but the graph is still being built. \`stageEtaSec\` estimates only the current stage, not time until ready. Call \`get_build_status({ "waitSec": 45 })\` once to long-poll instead of repeated calls; respect \`retryAfterSec\`. If the long-poll still returns building, report \`stage\` and \`remainingStages\`, then fall back to direct file reads for this turn when the task can proceed without graph structure. \`get_build_status({ "cancel": true })\` abandons a cold build; it returns \`cancelled\` (no graph) or keeps a prior \`ready\` graph. A cancelled server has no graph to serve, so every other tool reports an error carrying the recovery action: call \`refresh_context\` to start a fresh build, or run \`repovine build\` and restart the server.
 
-When a tool returns no items, check \`result.emptyDiagnostic\` before retrying. It distinguishes an empty graph from a bad scope, a scope kind the tool does not inspect (\`scope_kind_not_analyzable\`, alongside \`result.error\` naming the kinds it does), a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
+When a tool returns no items, check \`result.emptyDiagnostic\` before retrying. It distinguishes an empty graph from a bad scope, a scope kind the tool does not inspect (\`scope_kind_not_analyzable\`; the complete accepted set is in \`details.supportedScopeKinds\` and, for \`analyze_architecture\`, the sibling \`result.supportedScopeKinds\` field), a mode/scope mismatch, a filter that removed existing items, or a valid-but-empty analysis result.
 
 ${SEARCH_CONTEXT_INTERPRETATION_POLICY}
 
@@ -900,7 +904,7 @@ Before adding environment variables, secrets, or resource bindings:
 
 Before recommending edits, narrow by \`scope\` and \`categories\`, expand a selected finding with \`detailFindingId\`, inspect key nodes with \`inspect_node\`, and verify dependencies with \`analyze_dependencies\`.
 
-Security-sensitive categories include \`secret-config-boundary\`, \`authorization-policy-drift\`, \`trust-boundary-validation\`, \`privileged-client-side-effect\`, \`sensitive-browser-storage\`, \`server-client-boundary\`, \`source-disclosure-surface\`, and \`annotation-secret-hygiene\`. \`analyze_architecture.strictness\` in \`repovine.config.json\` tunes these detectors; set \`strict\` for fewer public-config/authz/storage false positives, then \`refresh_context({ "reloadConfig": true })\`.
+Security-sensitive categories include \`secret-config-boundary\`, \`authorization-policy-drift\`, \`trust-boundary-validation\`, \`privileged-client-side-effect\`, \`sensitive-browser-storage\`, \`server-client-boundary\`, \`source-disclosure-surface\`, and \`annotation-secret-hygiene\`. \`analyze_architecture.strictness\` in \`repovine.config.json\` picks a threshold profile; set \`strict\` for fewer public-config/authz/storage false positives, then \`refresh_context({ "reloadConfig": true })\`. Two of the categories above — \`source-disclosure-surface\` and \`annotation-secret-hygiene\` — carry the same thresholds in every profile, so the setting does not move them.
 
 ## Security
 
@@ -1026,7 +1030,7 @@ write_annotation({
 })
 \`\`\`
 
-Use concrete names, keep notes short, and point-merge stale notes by sending only fields that actually changed.
+Use concrete names and keep notes short. Point-merge a fresh note by sending only the fields that changed; a content-stale note needs every field resubmitted, because a partial write leaves it stale and says which fields it did not cover.
 `,
   },
   {
@@ -1055,7 +1059,7 @@ export const ANNOTATION_WRITER_AGENT: OnboardingAsset = {
 
 You build and maintain the repository's annotations so future agents can understand code without rereading it from scratch.
 
-Annotating is summary-class work; this agent is configured for the cheapest, fastest model.
+Annotating is summary-class work. Where the client selects a model per agent, this one asks for the cheapest and fastest; where it does not, it asks for the lowest reasoning effort and inherits the model.
 
 ## Core principles
 
@@ -1073,7 +1077,7 @@ Annotating is summary-class work; this agent is configured for the cheapest, fas
 
 ## Available MCP tools
 
-Use annotation health tools (\`get_annotation_status\`, \`get_annotation_merge_status\`, \`merge_annotations\`, \`validate_annotations\`), inspection (\`inspect_node\`), writes (\`write_annotation\`), and graph sync (\`refresh_context\`).
+Use annotation health tools (\`get_annotation_status\`, \`get_annotation_merge_status\`, \`merge_annotations\`, \`validate_annotations\`), inspection (\`inspect_node\`), writes (\`write_annotation\`), advisory declines (\`decline_advisory\`), and graph sync (\`refresh_context\`).
 
 ## Workflow
 
@@ -1110,8 +1114,9 @@ Queue statuses:
 | \`unannotated\` | — | No note yet | Write from scratch using recommended fields. |
 
 A domain roll-up is stale when a member the author placed there changed; a member an import cluster
-or a package name pulled in does not move it. Take members before the roll-up that holds them — a
-roll-up rewritten first is stale again by the end of the batch.
+or a package name pulled in does not move it. A domain whose members all come from package names
+hashes every member, as does any domain under \`domainStalePolicy: "all-tags"\`. Take members before
+the roll-up that holds them — a roll-up rewritten first is stale again by the end of the batch.
 
 ### 3. Inspect and write
 
@@ -1160,7 +1165,7 @@ export const REPO_EXPLORER_AGENT: OnboardingAsset = {
 
 You help the user understand architecture, find modules, and explain relationships using the repovine graph.
 
-Reading and summarizing source is summary-class work; this agent is configured for the cheapest, fastest model.
+Reading and summarizing source is summary-class work. Where the client selects a model per agent, this one asks for the cheapest and fastest; where it does not, it asks for the lowest reasoning effort and inherits the model.
 
 ## Core principles
 
@@ -1280,7 +1285,7 @@ analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 
 validate_annotations({})
 ~~~
 
-Scope both flow and architecture calls at module granularity or wider: an \`export:\` scope is refused by name, and a single module reports per-node signals only — \`gaps\` names the comparisons that granularity rules out.
+Flow and architecture narrow to different scope kinds. \`trace_flow\` takes \`all\`, \`resource:\`, \`mod:\`, \`pkg:\`, \`domain:\` and \`query:\`. \`analyze_architecture\` takes \`all\`, \`pkg:\`, \`domain:\`, \`mod:\` and \`resource:\`. Both refuse \`export:\`, \`template:\` and \`infra:\` by name; \`query:\` is refused by architecture alone. A \`mod:\` or \`resource:\` scope holds one node, so per-node signals are reported and \`gaps\` names the comparisons that granularity rules out.
 
 3. Evaluate tests:
 
@@ -1294,7 +1299,7 @@ Scope both flow and architecture calls at module granularity or wider: an \`expo
 - \`approve\`: tests and coverage are adequate, no blocker/major findings.
 - \`changes-requested\`: a defect, regression, failed test, or material missing test blocks acceptance.
 - \`needs-human\`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
-- \`blocked\`: missing diff, assignment, context, or test setup prevents review.
+- \`blocked\`: missing diff, assignment, context, or test setup prevents review. When the assignment requested \`code-review\`, compliance still requires a non-empty \`review.reviewedFiles\`, so name what you did read.
 
 ${renderClientProtocolGuidanceSection(getManifest('repovine-code-reviewer')!)}
 `,
@@ -1380,7 +1385,7 @@ trace_flow({ "scope": "<changed-scope>", "include": ["entrypoints", "services", 
 analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 })
 \`\`\`
 
-Scope both flow and architecture calls at module granularity or wider: an \`export:\` scope is refused by name, and a single module reports per-node signals only — \`gaps\` names the comparisons that granularity rules out.
+Flow and architecture narrow to different scope kinds. \`trace_flow\` takes \`all\`, \`resource:\`, \`mod:\`, \`pkg:\`, \`domain:\` and \`query:\`. \`analyze_architecture\` takes \`all\`, \`pkg:\`, \`domain:\`, \`mod:\` and \`resource:\`. Both refuse \`export:\`, \`template:\` and \`infra:\` by name; \`query:\` is refused by architecture alone. A \`mod:\` or \`resource:\` scope holds one node, so per-node signals are reported and \`gaps\` names the comparisons that granularity rules out.
 
 Use only relevant checks. Shared exports/types need dependency impact; env/resources need config surface; API/webhook/queue/worker changes need runtime flow; structural/boundary changes may need architecture candidates.
 
@@ -1424,7 +1429,7 @@ analyze_architecture({
 })
 \`\`\`
 
-Omit \`categories\` to scan all categories. Use \`includeComponentEntrypoints: true\` only when investigating deep frontend flow convergence.
+Omitting \`categories\` runs the default set. \`duplicate-like\`, \`god-module\` and \`authorization-policy-drift\` fired on clean-code counterexamples and run only when named — ask for them by name when duplication, god modules or authorization drift is the question. Use \`includeComponentEntrypoints: true\` only when investigating deep frontend flow convergence.
 
 4. Expand one finding before recommending code movement:
 
@@ -1484,7 +1489,7 @@ The auditor should return an \`architectureAudit\` object. If you audit locally,
 - \`approve\`: no blocker/major findings, claimed/rerun tests are credible, and coverage is adequate.
 - \`changes-requested\`: defect, regression, failed relevant test, broken contract, or material missing test.
 - \`needs-human\`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
-- \`blocked\`: missing diff, assignment, context, or test setup prevents review.
+- \`blocked\`: missing diff, assignment, context, or test setup prevents review. When the assignment requested \`code-review\`, compliance still requires a non-empty \`review.reviewedFiles\`, so name what you did read.
 
 ## Report format
 
@@ -1524,7 +1529,7 @@ export const CLAUDE_SHARED_SKILLS: OnboardingAsset[] = withWorkflowSkillBridge(
 export const CURSOR_SHARED_SKILLS: OnboardingAsset[] = SHARED_SKILLS;
 
 // -----------------------------------------------------------------------------
-// Project subagent scaffold (create-if-missing on init)
+// Project subagent scaffold (managed on init, like rules and skills: setup rewrites a drifted file)
 // -----------------------------------------------------------------------------
 
 /** Working generic leaf subagent shipped by init; scope comes from the main agent prompt. */
@@ -1541,7 +1546,7 @@ You are a **leaf subagent**. The main agent delegates implementation work to you
 
 1. **MCP before files** — on non-trivial work, call repovine MCP first; follow \`navigation\` when present.
 2. **Stay in prompt scope** — implement only what the main agent scoped; do not expand into other layers unless the prompt explicitly includes them.
-3. **Check impact** — before changing shared types/exports/APIs, call \`analyze_dependencies({ "mode": "impact" })\`.
+3. **Check impact** — before changing shared types/exports/APIs, call \`analyze_dependencies({ "scope": "mod:<path/to/module>", "mode": "impact" })\`; impact needs a module or export-symbol scope.
 4. **Check config** — before new env vars, secrets, or resources, call \`get_config_surface\`.
 5. **Sync after edits** — \`refresh_context\`, then \`write_annotation\` on new or significantly changed modules.
 6. **Return a handoff block** — files, graph nodeIds, contracts, env vars, and what the main agent or a sibling agent still needs.
@@ -1630,7 +1635,7 @@ You are a **leaf subagent** for this repository. The main chat agent delegates s
 
 1. **MCP before files** — on non-trivial work, call repovine MCP first; follow \`navigation\` when present.
 2. **Stay in scope** — do only what this role owns; delegate sibling work back to the main agent.
-3. **Check impact** — before changing shared types/exports/APIs, call \`analyze_dependencies({ "mode": "impact" })\`.
+3. **Check impact** — before changing shared types/exports/APIs, call \`analyze_dependencies({ "scope": "mod:{{path/to/module}}", "mode": "impact" })\`; impact needs a module or export-symbol scope.
 4. **Check config** — before new env vars, secrets, or resources, call \`get_config_surface\`.
 5. **Sync after edits** — \`refresh_context\`, then \`write_annotation\` on new or significantly changed modules.
 6. **Return a handoff** — list files touched, contracts, env vars, and what sibling agents still need.
@@ -1680,11 +1685,13 @@ analyze_dependencies({ "scope": "pkg:{{client-package}}", "mode": "package-bound
 **Infra axis** — add as needed:
 
 \`\`\`json
-map_context({ "scope": "infra-sam", "view": "modules", "limit": 30 })
-inspect_node({ "nodeId": "infra:cloudformation:{{path/to/template.yaml}}" })
-inspect_node({ "nodeId": "resource:aws-lambda:{{FunctionName}}" })
-get_config_surface({ "scope": "all", "kinds": ["env", "resource", "iac-param", "resource-binding"], "groupBy": "resource" })
+map_context({ "scope": "{{infra-domain, e.g. infra-terraform}}", "view": "modules", "limit": 30 })
+inspect_node({ "nodeId": "infra:{{iac-kind}}:{{path/to/iac-file}}" })
+inspect_node({ "nodeId": "resource:{{resource-kind}}:{{ResourceName}}" })
+get_config_surface({ "scope": "all", "kinds": ["env", "secret", "resource-binding"] })
 \`\`\`
+
+The IaC plugin that read the file picks \`{{iac-kind}}\`, \`{{resource-kind}}\` and the infra domain. Find those identifiers with \`search_context\`, then use \`map_context\` on the concrete package, domain, module, or resource it resolves before hardcoding a form. \`map_context({ "scope": "all" })\` only returns repository/package statistics.
 
 Use \`grepBody\` or bounded \`includeBody\` on \`inspect_node\` only after narrowing.
 

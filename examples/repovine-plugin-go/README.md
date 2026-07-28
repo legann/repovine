@@ -32,6 +32,10 @@ node examples/repovine-plugin-go/run.mjs
 Expected: conformance passes, **2 Go modules**, **3 API entrypoints** projected from
 `semanticHints.routes` (GET `/health`, GET `/orders/:id`, POST `/orders`).
 
+`run.mjs` calls the core route collector directly. In a graph build the built-in
+`server-entrypoints` interpreter reads `semanticHints.routes` for the `typescript` and `python`
+source plugins.
+
 ## Use in another repo
 
 ```bash
@@ -53,7 +57,7 @@ installed. A missing install is skipped with a warning (never a hard error).
 | Manifest (`package.json#repovine`) | `package.json` |
 | Resolve from analyzed repo's `node_modules` | `run.mjs` symlinks plugin into `fixtures/sample/node_modules` |
 | Semantics only in `extract()` | `index.js` — no id/paths/hash on deltas |
-| Routes → API entrypoints without a new interpreter | `semanticHints.routes` + `webFramework: 'gin'` |
+| Normalized route facts | `index.js` — `semanticHints.routes` + `webFramework: 'gin'` |
 | Conformance self-check | `run.mjs` → `checkSourcePluginConformance` |
 
 For production, wrap the same object with `defineSourcePlugin` from `@repovine/plugin-sdk` and add

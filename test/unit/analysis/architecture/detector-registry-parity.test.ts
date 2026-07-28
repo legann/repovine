@@ -11,7 +11,7 @@
  *
  * Fixtures are chosen to exercise the `appliesTo` regimes and every detector
  * category that actually fires on the corpus (trust-boundary-validation,
- * duplicate-like, annotation-risk, god-module):
+ * duplicate-like, annotation-risk, god-module, boundary, low-cohesion):
  *   - react-spa        — all TypeScript frontend (frontend detectors run, no skip)
  *   - basic-python     — all Python (frontend detectors skipped via capability)
  *   - basic-python-web — Python web (richest: trust-boundary + annotation-risk + god-module)

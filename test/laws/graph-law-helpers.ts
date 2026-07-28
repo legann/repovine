@@ -125,16 +125,18 @@ export function guardedRoots(): Array<{ root: string; dir: string }> {
   ].filter(entry => fs.existsSync(entry.dir));
 }
 
-/** A file's code with comments dropped, one entry per file. */
+/** A file's text with every line opening in `*`, `//` or `/*` dropped, one entry per file. */
 export function codeFiles(exempt: readonly string[]): Array<{ where: string; text: string }> {
   const out: Array<{ where: string; text: string }> = [];
   for (const { root, dir } of guardedRoots()) {
     for (const file of sourceFiles(dir)) {
       const rel = toPosixPath(path.relative(root, file));
       if (exempt.some(e => rel.endsWith(e))) continue;
-      // Prose names a form without declaring it, so comment lines are dropped before the text is
-      // joined. Joined without newlines: a chain broken across lines is the same declaration, and
-      // a line-local guard is one `prettier` run away from blind.
+      // Prose names a form without declaring it, so lines that open like a comment are dropped
+      // before the text is joined. The test is a line prefix: a trailing comment survives, and a
+      // template-literal line opening the same way goes with the comments. Joined without
+      // newlines: a chain broken across lines is the same declaration, and a line-local guard is
+      // one `prettier` run away from blind.
       const code = fs.readFileSync(file, 'utf8').split('\n')
         .filter(line => {
           const t = line.trim();

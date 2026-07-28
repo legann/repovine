@@ -33,13 +33,14 @@ const ENV_PROCESS_PATTERN = /process\.env\.([A-Z][A-Z0-9_]+)/g;
 
 /**
  * Detect a directive (`'use server'` or `'use client'`) at the top of a file.
- * Tolerates BOM, leading whitespace, shebangs, single-line comments, and multi-line comments
- * — anything that can legitimately appear before the directive in JS/TS.
+ * Skips leading whitespace, shebangs, single-line comments, and multi-line comments: what can
+ * legitimately appear before the directive in JS/TS. The leading-BOM step covers raw file text.
+ * ts-morph strips the BOM off source text, so text taken from a `SourceFile` starts past it.
  */
 function hasTopLevelDirective(text: string, directive: 'use server' | 'use client'): boolean {
   // Walk past leading non-code characters until we hit the first statement.
   let i = 0;
-  // BOM
+  // BOM, present in raw file text only.
   if (text.charCodeAt(0) === 0xfeff) i++;
   while (i < text.length) {
     const ch = text[i];

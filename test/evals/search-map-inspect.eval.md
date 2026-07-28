@@ -82,5 +82,7 @@ Steps 1 (anchor only), 2 (`absent-package-clean` + optional `absent-weak-token-o
 - **Overall**: PASS / WARN / FAIL (`rollup: worst-of`).
 - **Tested repo**: root, branch, short commit, `contextSessionId`.
 - **Anchors discovered**: the mod/pkg/domain ids used.
-- **Check matrix** (one row per `checks[]` id) with evidence (query, `result.total`, sample ids).
+- **Check matrix** (one row per `checks[]` id) with evidence: query, sample ids, and the count the
+  response carries (`totalResults` for `search_context`, `packageTotal` for `map_context` scope
+  `all`). `inspect_node` carries no count — cite ids.
 - **Findings** by severity; **MCP calls made**; **context quality**; **INFO** notes.

@@ -67,6 +67,9 @@ const ANNOTATION_TOOLS = [
   'inspect_node',
   'write_annotation',
   'refresh_context',
+  // The annotation loop declines carrier-link advisories it has reviewed; without the tool the
+  // instruction to do so names a call the role cannot make.
+  'decline_advisory',
 ];
 
 const ALL_PUBLIC_TOOLS = [
@@ -86,6 +89,8 @@ const ALL_PUBLIC_TOOLS = [
   'refresh_context',
   'get_build_status',
   'get_context_session_quality',
+  'suggest_domains_config',
+  'decline_advisory',
 ];
 
 function dedupe(tools: string[]): string[] {

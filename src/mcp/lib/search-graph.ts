@@ -1,6 +1,8 @@
+import { resolveNodeContentHash } from '../../annotations/content-hash.js';
 import { buildNodeView } from '../../graph/index.js';
 import {
   argTruncation,
+  narrowTruncation,
   pageTruncation,
   truncationMap,
   type Truncation,
@@ -124,6 +126,8 @@ type SearchMatch = {
   linksCount: number;
   matchedTokens: string[];
   annotationMatched: boolean;
+  /** Set only when the match came from annotation text the current node content has outrun. */
+  annotationStale?: boolean;
   semanticRank?: number;
   semanticScore?: number;
   tier?: string;
@@ -138,7 +142,26 @@ export function searchGraph(
   args: Record<string, unknown>,
   semanticPolicy: SemanticFusionPolicy = DEFAULT_SEMANTIC_FUSION_POLICY,
 ): unknown {
-  const { graph, searchIndex } = ctx.getState();
+  const { graph, searchIndex, snapshot, annotations } = ctx.getState();
+  // A stale note keeps its place in the index — coverage is what makes annotation text useful as a
+  // bridge from question wording to repository terminology. What it must not keep is the reader's
+  // assumption that the matched words still describe the node: the ranking treats verified and
+  // outrun text alike, and only the match itself can say which one it came from.
+  const propagation = ctx.getConfig().annotations.propagation;
+  const staleAnnotation = new Map<string, boolean>();
+  // The mark is a positive claim, so it is set only where staleness is established. A caller holding a
+  // projection of the store without the freshness helper establishes nothing, and an unset mark says
+  // exactly that — never that the text was checked and found current.
+  const canJudgeFreshness = typeof annotations?.freshnessOf === 'function' && snapshot !== undefined;
+  const annotationIsStale = (nodeId: string): boolean => {
+    if (!canJudgeFreshness) return false;
+    const cached = staleAnnotation.get(nodeId);
+    if (cached !== undefined) return cached;
+    const currentHash = resolveNodeContentHash(nodeId, { graph, snapshot, propagation });
+    const stale = annotations.freshnessOf(nodeId, currentHash)?.state === 'stale';
+    staleAnnotation.set(nodeId, stale);
+    return stale;
+  };
   const rawQuery = (args.query as string).trim();
   const normalized = rawQuery.replace(/\.(tsx?|jsx?)$/, '').replace(/\/index$/, '');
   const tokens = searchTokenize(normalized);
@@ -334,6 +357,7 @@ export function searchGraph(
       const weight = node.type === 'domain' && node.data?.weight ? node.data.weight : undefined;
       allMatches.push({
         id: node.id, label: node.label, type: node.type, score, linksCount, matchedTokens, annotationMatched,
+        ...(annotationMatched && annotationIsStale(nodeId) ? { annotationStale: true } : {}),
         ...(semanticHit ? { semanticRank: semanticHit.rank, semanticScore: Number(semanticHit.score.toFixed(4)) } : {}),
         tier, weight,
       });
@@ -360,6 +384,7 @@ export function searchGraph(
       links: nodeView?.truncation?.links?.total ?? nodeView?.links?.length ?? 0,
     };
     if (m.annotationMatched) out.annotationMatched = true;
+    if (m.annotationStale) out.annotationStale = true;
     if (m.semanticRank !== undefined) {
       out.semanticRank = m.semanticRank;
       out.semanticScore = m.semanticScore;
@@ -514,16 +539,16 @@ const SEARCH_GROUP_TYPE: Record<string, string> = {
 /**
  * Lightweight domain tags dropped from the candidate set.
  *
- * They are filtered out rather than paged away, so the bound they report is the flag that returns
- * them.
+ * They are filtered out rather than paged away. `includeLightweight` is a `searchGraph` argument
+ * that the `search_context` and `map_context` schemas strip, so the bound points at the route those
+ * two tools do have: an exact name in the query. An `arg` bound here named a key the request layer
+ * drops, which reads as machine-actionable and answers the same page on a retry.
  */
 function lightweightTruncation(hidden: number): Truncation | undefined {
   if (hidden <= 0) return undefined;
-  return argTruncation({
+  return narrowTruncation({
     shown: 0,
     total: hidden,
-    arg: 'includeLightweight',
-    value: true,
     hint: 'Lightweight domain tags are hidden unless the query names one exactly.',
   });
 }

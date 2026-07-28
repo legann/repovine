@@ -20,8 +20,8 @@ checks:
     fail_if: a documented phase or mode is rejected as unknown
     severity: warn
   - id: score-reflects-mcp
-    assert:  the score reflects the quality of repovine MCP responses in the session (not agent prose), and degrades for broad/low-signal calls
-    fail_if: never FAIL — note if the score appears unaffected by deliberately broad, low-signal calls
+    assert:  the score is computed from repovine MCP responses, not agent prose; shipped weights reduce it to 1 when the session called inspect_node and 0 otherwise
+    fail_if: never FAIL — note the score value, and which rejectReasons/warnings a deliberately broad, low-signal call adds
     severity: warn
   - id: gates-surfaced
     assert:  hard gates (threshold / qualityThreshold) and soft gates (warningThreshold) are reflected when supplied
@@ -35,7 +35,7 @@ threads through all tools and that get_context_session_quality scores the sessio
 
 Honor the shared preamble in `_PREAMBLE.md`. Session id e.g. `ctx-quality-YYYY-MM-DD-<repo-slug>`.
 This card deliberately exercises a small spread of tools so the session accrues signal, then reads
-the quality report. The score grades MCP response quality, not your prose.
+the quality report. The score is computed from MCP response JSON and byte volume, not your prose.
 
 ## Steps
 
@@ -49,10 +49,11 @@ the quality report. The score grades MCP response quality, not your prose.
    then once with `mode: "harness"` (and another documented `phase` if applicable). Confirm both
    are accepted and a score/report is returned.
 
-3. **Score sensitivity (soft)** → `score-reflects-mcp`, `gates-surfaced`.
+3. **Noise signals (soft)** → `score-reflects-mcp`, `gates-surfaced`.
    Issue one deliberately broad, low-signal `search_context` under the same session and re-read
-   quality; note whether the score/warnings move. If the tool accepts `threshold` /
-   `warningThreshold`, supply them and confirm the gate is reflected.
+   quality. Under shipped weights the score holds the value step 2 read; report the `rejectReasons`
+   and warnings the broad call adds. If the tool accepts `threshold` / `warningThreshold`, supply
+   them and confirm the gate is reflected.
 
 ## Quick mode
 

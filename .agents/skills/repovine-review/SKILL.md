@@ -53,7 +53,7 @@ validate_annotations({})
 
 For changed nodes with annotations, derive annotation obligations from `invariants`, `risks`, `dataFlow` / `flowDescription`, `integrationPoints`, and `sideEffects`, then compare the diff against them.
 
-- Read `annotationMeta.fresh` on each of those nodes first: a note with `staleReason: "propagation"` still describes this node, but its `integrationPoints`/`dataFlow` claims about upstream modules are unverified and are leads to check against the upstream, not evidence; `content` or `no-baseline` means the node text moved under the note, so no field of it is evidence for the current code — except on a domain roll-up, which has no text: there `content` means a member moved, and what needs re-checking is the note's account of the member set.
+- Read `annotationMeta.fresh` on each of those nodes first: a note with `staleReason: "propagation"` still describes this node, but its `integrationPoints`/`dataFlow` claims about upstream modules are unverified and are leads to check against the upstream, not evidence; `content` means the node text moved under the note, and `no-baseline` that the note was written with no hash to compare against, so nothing was ever compared, so no field of it is evidence for the current code — except on a domain roll-up, which has no text: there `content` means a member moved, and what needs re-checking is the note's account of the member set.
 - A violated must-preserve invariant is a review finding.
 - A must-verify flow, integration, or parity obligation without evidence is a review finding.
 - A known risk in the same behavior class as the requested fix is not a residual risk unless the user explicitly accepted it.
@@ -69,7 +69,7 @@ trace_flow({ "scope": "<changed-scope>", "include": ["entrypoints", "services", 
 analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 })
 ```
 
-Scope both flow and architecture calls at module granularity or wider: an `export:` scope is refused by name, and a single module reports per-node signals only — `gaps` names the comparisons that granularity rules out.
+Flow and architecture narrow to different scope kinds. `trace_flow` takes `all`, `resource:`, `mod:`, `pkg:`, `domain:` and `query:`. `analyze_architecture` takes `all`, `pkg:`, `domain:`, `mod:` and `resource:`. Both refuse `export:`, `template:` and `infra:` by name; `query:` is refused by architecture alone. A `mod:` or `resource:` scope holds one node, so per-node signals are reported and `gaps` names the comparisons that granularity rules out.
 
 Use only relevant checks. Shared exports/types need dependency impact; env/resources need config surface; API/webhook/queue/worker changes need runtime flow; structural/boundary changes may need architecture candidates.
 
@@ -113,7 +113,7 @@ analyze_architecture({
 })
 ```
 
-Omit `categories` to scan all categories. Use `includeComponentEntrypoints: true` only when investigating deep frontend flow convergence.
+Omitting `categories` runs the default set. `duplicate-like`, `god-module` and `authorization-policy-drift` fired on clean-code counterexamples and run only when named — ask for them by name when duplication, god modules or authorization drift is the question. Use `includeComponentEntrypoints: true` only when investigating deep frontend flow convergence.
 
 4. Expand one finding before recommending code movement:
 
@@ -127,7 +127,7 @@ analyze_architecture({
 
 Follow returned `navigation.deeper`, `sideways`, `crossLayer`, and `validate` suggestions before reading broadly when present.
 
-All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`; reuse them in the same MCP session or expand from `refs`. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.
+All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`. The server keeps the 500 most recently issued and drops the oldest beyond that, so reuse a ref while it is recent, or expand it from `refs` — a dropped ref is passed through as the literal `$…` and fails to resolve. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.
 
 5. Validate with focused context before reporting:
 
@@ -173,7 +173,7 @@ The auditor should return an `architectureAudit` object. If you audit locally, p
 - `approve`: no blocker/major findings, claimed/rerun tests are credible, and coverage is adequate.
 - `changes-requested`: defect, regression, failed relevant test, broken contract, or material missing test.
 - `needs-human`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
-- `blocked`: missing diff, assignment, context, or test setup prevents review.
+- `blocked`: missing diff, assignment, context, or test setup prevents review. When the assignment requested `code-review`, compliance still requires a non-empty `review.reviewedFiles`, so name what you did read.
 
 ## Report format
 

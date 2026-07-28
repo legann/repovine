@@ -820,7 +820,8 @@ function withReviewTreeDiff(spec, parentTask, repoRoot, baselineTree) {
     ...spec,
     task: `${spec.task ?? parentTask.task}\n${reviewTreeDiffSection(repoRoot, baselineTree)}${runtimeModeReviewNote(repoRoot)}`,
     // spec.reviewDiffBase stays a STRING (sub-agent.mjs forces it into
-    // review.reviewedDiffBase; engine compliance reads it as a git oid).
+    // review.reviewedDiffBase, where the protocol schema types it as a plain string
+    // and compliance never reads the value).
     ...(baselineTree ? { reviewDiffBase: baselineTree.digest } : {}),
   };
 }
@@ -844,8 +845,9 @@ export function markReviewedRevision(subAgent, repoRoot, baselineTree, { soleInS
     return;
   }
   subAgent.reviewedRevision = captureWorkspaceRevision(repoRoot, { backend: REVISION_BACKEND });
-  // reviewedRevision is the in-memory revision OBJECT; the persisted diff base
-  // stays a digest STRING (engine compliance reads it as a git oid in sandbox mode).
+  // reviewedRevision is the in-memory revision OBJECT; the persisted diff base stays a
+  // digest STRING — the protocol schema types it as a plain string and compliance never
+  // reads the value.
   subAgent.reviewedDiffBase = baselineTree?.digest ?? null;
   if (baselineTree && subAgent.result?.review && typeof subAgent.result.review === 'object') {
     subAgent.result.review.reviewedDiffBase = baselineTree.digest;
@@ -1001,8 +1003,11 @@ export function deriveMultiRunStatus({
   const testFloorBlockers = missingTestFloorBlockers(repoRoot, subAgents);
   const artifactFloorBlockers = missingReferencedArtifacts(repoRoot);
   // A verify sub-agent rejected ONLY for a weak context session, with its verdicts
-  // delivered (contractsChanged), counts as a delivered verification: the epistemic
-  // signal stays visible via contextQualityRejections, the verification axis judges the verdicts.
+  // delivered (contractsChanged), counts as a delivered verification: the verification
+  // axis judges the verdicts. The engine emits that rejection as a compliance error only
+  // behind a context-quality hard gate that is currently off, so a weak session reaches
+  // compliance as a warning and this branch reads false on every real report. It takes
+  // effect when the gate turns on.
   const verifyEffective = verifySubAgent && !verifySubAgent.ok && subAgentCsqOnlyDelivered(verifySubAgent)
     ? { ...verifySubAgent, ok: true }
     : verifySubAgent;
@@ -1054,7 +1059,8 @@ export function deriveMultiRunStatus({
     testFloorBlockers,
     artifactFloorBlockers,
     // Delivered subAgents rejected ONLY for a weak context session — advisory
-    // (yellow) in the reply, forgiven by the run gate, visible here.
+    // (yellow) in the reply, forgiven by the run gate, listed here. Empty while the
+    // context-quality hard gate is off: a weak session reaches compliance as a warning.
     contextQualityRejections: subAgents.filter(subAgentCsqOnlyDelivered).map((l) => l.instanceId || l.role),
     // Over-plan tax telemetry: implement-phase sub-agents that completed ok with
     // zero delivered files ("already correct" verdicts) — planner width probes.

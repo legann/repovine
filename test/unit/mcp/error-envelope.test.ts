@@ -8,13 +8,19 @@ const RESPONSE = { mode: 'debug' as const, pretty: false, maxChars: 100_000 };
 
 const flag = (result: unknown): boolean | undefined => toCallToolMcpResult(result, RESPONSE).isError;
 
-// A client decides "did this fail" from `isError`, and failure has one shape: `result.error` inside
-// the envelope. Every refusal comes back that way — an unknown tool, invalid arguments, an
-// unresolved scope, a handler that threw — so the flag is read in one place.
+// A client decides "did this fail" from `isError`, and every refusal repovine itself produces has one
+// shape: `result.error` inside the envelope — an unknown tool, an unresolved scope, a handler that
+// threw — so the flag is read in one place.
+//
+// One class does not reach repovine at all: the MCP SDK validates arguments against the tool's schema
+// before the handler runs, and answers a shape violation with a bare `McpError` carrying no envelope.
+// The cases below are the ones repovine answers; the envelope contract does not cover the other.
 describe('every failure class reaches the client flagged', () => {
   it.each([
     ['unknown tool', envelopeError('all', 'Unknown tool: nope')],
-    ['missing argument with a retry call', envelopeError('all', 'Missing required argument(s): nodeId', { nextAction: { tool: 'inspect_node', args: { nodeId: '...' }, reason: 'Retry with every required argument filled in.' } })],
+    // Reached by an argument present but empty: `z.string()` accepts `''`, so the SDK passes it
+    // through and repovine's own required-argument gate answers. An omitted argument never gets here.
+    ['empty required argument with a retry call', envelopeError('all', 'Missing required argument(s): nodeId', { nextAction: { tool: 'inspect_node', args: { nodeId: '...' }, reason: 'Retry with every required argument filled in.' } })],
     ['envelopeError (nested under result)', envelopeError('all', 'query is required')],
     ['envelopeError from a resolved scope', envelopeError({ kind: 'query', raw: 'x', resolvedScope: 'query:x' }, 'Could not resolve node: x')],
     ['envelope whose result carries a not-found', envelope('pkg:a', 'Not found', { error: 'Not found: pkg:a' })],

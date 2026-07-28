@@ -24,11 +24,16 @@ describe('SemanticIndex persistence (streamed save)', () => {
     const embedder = stubEmbedder();
     const index = new SemanticIndex(filePath, embedder, 8);
 
+    // Ids that differ only by case: UTF-16 code-unit order groups the capitals first, host
+    // collation interleaves them ('nodea', 'nodeA', 'nodeb', 'nodeB'), so the key order below
+    // tells the two rules apart.
     const report = await index.sync(new Map([
       ['nodeB', 'beta card text'],
       ['nodeA', 'alpha card text longer'],
+      ['nodeb', 'beta lower cards'],
+      ['nodea', 'alpha lower'],
     ]));
-    expect(report.embedded).toBe(2);
+    expect(report.embedded).toBe(4);
     expect(fs.existsSync(filePath)).toBe(true);
 
     // On-disk shape: { version, embedder, dims, entries: { nodeId: { hash, vector } } }, entries sorted.
@@ -36,12 +41,13 @@ describe('SemanticIndex persistence (streamed save)', () => {
     expect(raw.version).toBe(1);
     expect(raw.embedder).toBe(embedder.id);
     expect(raw.dims).toBe(4);
-    expect(Object.keys(raw.entries)).toEqual(['nodeA', 'nodeB']); // localeCompare-sorted
+    // Key order is UTF-16 code units (compareCodeUnits), independent of host locale and ICU build.
+    expect(Object.keys(raw.entries)).toEqual(['nodeA', 'nodeB', 'nodea', 'nodeb']);
     expect(typeof raw.entries.nodeA.hash).toBe('string');
     expect(typeof raw.entries.nodeA.vector).toBe('string'); // base64 Float32
 
     const reloaded = await SemanticIndex.load(filePath, embedder, 8);
-    expect(reloaded.size).toBe(2);
+    expect(reloaded.size).toBe(4);
     const q = await reloaded.embedQuery('alpha card text longer');
     expect(reloaded.query(q, 1)[0].id).toBe('nodeA');
   });

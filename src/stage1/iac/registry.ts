@@ -1,5 +1,5 @@
 import type { IaCDocFormat, IaCParser } from '../../types.js';
-import type { IaCPluginDescriptor } from '@repovine/plugin-sdk';
+import type { IaCPluginDescriptor, ResourceKindMeta, TriggerEntryKind, TriggerTypeMeta } from '@repovine/plugin-sdk';
 import { domainNodeId } from '../../graph/node-ids.js';
 import { domainLabelSlug } from '../../stage2/domain-slug.js';
 
@@ -147,10 +147,9 @@ export function getAllRegisteredKindDomains(): Array<{ kind: string; meta: Infra
 
 /* ---------------------- InfraResourceKind metadata ---------------------- */
 
-export interface ResourceKindMeta {
-  /** stage2 attempts to resolve the resource's `handler` attribute to a code module. */
-  hasCodeHandler?: boolean;
-}
+// Declared once in the SDK, which is the published contract a plugin writes against; re-exported so
+// engine callers keep reading this vocabulary from the registry that applies it.
+export type { ResourceKindMeta, TriggerEntryKind, TriggerTypeMeta };
 
 const resourceKindMeta = new Map<string, ResourceKindMeta>();
 
@@ -163,24 +162,6 @@ export function getResourceKindMeta(kind: string): ResourceKindMeta | undefined 
 }
 
 /* ---------------------- InfraTrigger type metadata ---------------------- */
-
-export type TriggerEntryKind =
-  | 'api'
-  | 'websocket'
-  | 'queue-consumer'
-  | 'schedule'
-  | 'webhook'
-  | 'unknown';
-
-export interface TriggerTypeMeta {
-  /**
-   * Stage2 emits a `consumes` edge from `trigger.queueRef` to the target lambda when this is
-   * true (SQS, DynamoDB stream, Kinesis stream are the built-ins).
-   */
-  isStreamLike?: boolean;
-  /** Default entrypoint label used by mcp/handlers.triggerEntryKind. */
-  entrypointKind?: TriggerEntryKind;
-}
 
 const triggerTypeMeta = new Map<string, TriggerTypeMeta>();
 

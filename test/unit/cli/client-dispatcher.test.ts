@@ -1,9 +1,9 @@
 /**
  * Behavioral coverage for the client hook dispatcher's stale-graph-notice and
  * session-mcp-hint actions, per-client emit shapes, and CLI edge cases
- * (unknown action, malformed stdin). The boundary-notice action is covered in
- * boundary-notice-hook.test.ts. Each run spawns the dispatcher inside an ESM
- * project (package.json type:module).
+ * (unknown action, malformed stdin, JSON that parses to a non-object). The
+ * boundary-notice action is covered in boundary-notice-hook.test.ts. Each run
+ * spawns the dispatcher inside an ESM project (package.json type:module).
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -58,6 +58,51 @@ describe('repovine-client-dispatcher', () => {
       expect(res.status).toBe(0);
       expect(res.stdout.trim()).toBe('');
     }
+  });
+
+  // JSON that parses to something other than an object carries no payload keys, so it gets
+  // the same degradation as unparsable stdin — reached through the success branch of the
+  // parse, where every action then reads keys off the parsed value. The session hint reads
+  // its first key straight off that value, so a `null` payload throws there; a hook that
+  // throws exits non-zero and drops the advisory the host asked for.
+  //
+  // Expected rows are written out rather than derived from the input list, so one failure
+  // names which payload broke, under which action, and how.
+  it('degrades a parsed non-object payload to an empty payload', () => {
+    const NON_OBJECT_PAYLOADS = ['null', '[]', '5', '"text"'];
+    const outcome = (action: string, raw: string): string => {
+      const res = runDispatcher([action, 'claude'], raw);
+      const label = `${action} ${raw} ->`;
+      if (res.status !== 0) {
+        const lines = res.stderr.split('\n').map(line => line.trim()).filter(Boolean);
+        const cause = lines.find(line => /^\w*Error\b/.test(line)) ?? lines[0] ?? 'no stderr';
+        return `${label} exit ${res.status}: ${cause}`;
+      }
+      const emitted = res.stdout.trim();
+      if (!emitted) return `${label} silent`;
+      return `${label} ${JSON.parse(emitted).hookSpecificOutput.hookEventName}`;
+    };
+
+    expect(NON_OBJECT_PAYLOADS.map(raw => outcome('session-mcp-hint', raw))).toEqual([
+      'session-mcp-hint null -> SessionStart',
+      'session-mcp-hint [] -> SessionStart',
+      'session-mcp-hint 5 -> SessionStart',
+      'session-mcp-hint "text" -> SessionStart',
+    ]);
+
+    expect(NON_OBJECT_PAYLOADS.map(raw => outcome('stale-graph-notice', raw))).toEqual([
+      'stale-graph-notice null -> silent',
+      'stale-graph-notice [] -> silent',
+      'stale-graph-notice 5 -> silent',
+      'stale-graph-notice "text" -> silent',
+    ]);
+
+    expect(NON_OBJECT_PAYLOADS.map(raw => outcome('boundary-notice', raw))).toEqual([
+      'boundary-notice null -> silent',
+      'boundary-notice [] -> silent',
+      'boundary-notice 5 -> silent',
+      'boundary-notice "text" -> silent',
+    ]);
   });
 
   describe('stale-graph-notice', () => {

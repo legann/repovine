@@ -10,11 +10,18 @@
  *  - runtime resources point at real declarations, with their label present in the declaration
  *    or represented by the declared file itself.
  *
+ * The frozen corpus carries no composed `default (<local>)` label — the fixture producing that
+ * shape has no `expected.json` and so stays outside the freeze. The last describe block builds that
+ * fixture live and runs the same export check over it, so the composed-label decode has a witness.
+ *
  * Domain labels have their stronger tree-name invariant in domain-label-provenance.test.ts.
  */
 import { describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { compareCodeUnits } from '../../src/platform/ordering.js';
+import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
+import { composeRepositoryGraph } from '../../src/stage2/index.js';
 
 interface GoldenNode {
   id: string;
@@ -67,6 +74,16 @@ function packageLabelHasEvidence(fixtureRoot: string, node: GoldenNode): boolean
   return markerText.includes(node.label) || pathLabel === node.label;
 }
 
+/**
+ * Text the frozen source window must contain for a label. A signature-less default export is
+ * displayed as `default (<local declaration>)` and its line range covers that declaration, so the
+ * local name carries the evidence; every other label is its own evidence.
+ */
+function labelEvidenceText(label: string): string {
+  const composedDefault = /^default \((.+)\)$/.exec(label);
+  return composedDefault ? composedDefault[1] : label;
+}
+
 function exportLabelHasEvidence(
   fixtureRoot: string,
   node: GoldenNode,
@@ -83,7 +100,7 @@ function exportLabelHasEvidence(
   const lines = fs.readFileSync(ownerPath, 'utf8').split(/\r?\n/);
   const start = Math.max(0, range.start - 2);
   const end = Math.min(lines.length, range.end + 1);
-  return lines.slice(start, end).join('\n').includes(node.label);
+  return lines.slice(start, end).join('\n').includes(labelEvidenceText(node.label));
 }
 
 function runtimeResourceHasEvidence(fixtureRoot: string, node: GoldenNode): boolean {
@@ -164,5 +181,68 @@ describe.each(GOLDEN_FILES)('frozen golden provenance: %s', (goldenFile) => {
     }
 
     expect(gaps).toEqual([]);
+  });
+});
+
+/**
+ * Fixture whose default export is a signature-less re-export of a named local declaration, the only
+ * shape that produces a composed label. It carries no `expected.json`, so no golden freezes it.
+ */
+const COMPOSED_DEFAULT_FIXTURE = 'basic-typescript';
+
+/** The composed export node that fixture must produce, as `<id> -> <label>`. */
+const COMPOSED_DEFAULT_EXPORTS = ['export:basic-typescript/src/plugin-descriptor/default -> default (namedDescriptor)'];
+
+/** Golden `data.filePath` form: fixture-root-relative behind the `<FIXTURE>` marker, `/`-separated. */
+function fixtureMarkerPath(relativeFilePath: string): string {
+  return `<FIXTURE>/${relativeFilePath.split(path.sep).join('/')}`;
+}
+
+describe(`composed default export label: ${COMPOSED_DEFAULT_FIXTURE}`, () => {
+  it('backs a composed label through the local declaration it names', async () => {
+    const fixtureRoot = path.join(FIXTURES_ROOT, COMPOSED_DEFAULT_FIXTURE);
+    const snapshot = await collectRepositoryFactsAsync(fixtureRoot);
+    const graph = composeRepositoryGraph(snapshot);
+
+    const modules = new Map<string, GoldenNode>();
+    for (const node of graph.nodes.values()) {
+      if (node.type !== 'module') continue;
+      const relativeFilePath = node.data?.relativeFilePath;
+      if (relativeFilePath === undefined) continue;
+      modules.set(node.id, {
+        id: node.id,
+        type: node.type,
+        label: node.label,
+        data: { filePath: fixtureMarkerPath(relativeFilePath) },
+      });
+    }
+
+    const composed: GoldenNode[] = [...graph.nodes.values()]
+      .filter(node => node.type === 'export-symbol' && /^default \(.+\)$/.test(node.label))
+      .map(node => ({
+        id: node.id,
+        type: node.type,
+        label: node.label,
+        data: { lineRange: node.type === 'export-symbol' ? node.data?.lineRange : undefined },
+      }))
+      // Node ids collate by UTF-16 code unit, the same order the engine ships. The expectation
+      // below is a frozen literal, and a locale-sensitive comparator would reorder ids that differ
+      // by case or by `-` vs `_` from one ICU build to the next.
+      .sort((a, b) => compareCodeUnits(a.id, b.id));
+
+    // Without this the checks below are vacuous: a producer that stopped composing the label leaves
+    // nothing to check, and the composed decode would go unwitnessed again.
+    expect(composed.map(node => `${node.id} -> ${node.label}`)).toEqual(COMPOSED_DEFAULT_EXPORTS);
+
+    for (const node of composed) {
+      // The line range covers the local declaration, not the `export default …` statement, so the
+      // composed label is absent from the source window and the local name carries the evidence.
+      expect(`${node.id}: ${exportLabelHasEvidence(fixtureRoot, node, modules)}`).toBe(`${node.id}: true`);
+
+      // A local name the window does not carry stays unbacked — evidence text that decays to
+      // something every window contains would pass the case above too.
+      const unnamed = { ...node, label: 'default (absentLocalDeclaration)' };
+      expect(`${node.id}: ${exportLabelHasEvidence(fixtureRoot, unnamed, modules)}`).toBe(`${node.id}: false`);
+    }
   });
 });

@@ -70,8 +70,8 @@ export function findWorkspaceRootWithin(startDir: string): string | undefined {
 /**
  * Workspace root resolution order:
  * 1. REPOVINE_ROOT env var (explicit override; a relative value resolves against cwd)
- * 2. cwd (typical for standalone npm package usage)
- * 3. Walk up from cwd until .git found
+ * 2. Otherwise the nearest ancestor of cwd holding .git
+ * 3. cwd, when no ancestor holds .git
  *
  * A resolved root that carries no repovine.config.json is then subject to
  * upward workspace discovery bounded by the enclosing git repo: a configured
@@ -114,15 +114,6 @@ export const ANNOTATIONS_FILENAME = 'repovine.annots.json';
  * the scan vocabulary from one module.
  */
 export { REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS };
-
-/** Merge non-removable engine ignores with optional user patterns from repovine.config.json. */
-export function mergeScanIgnorePatterns(userPatterns?: readonly string[]): string[] {
-  const merged: string[] = [...REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS];
-  for (const pattern of userPatterns ?? []) {
-    if (pattern && !merged.includes(pattern)) merged.push(pattern);
-  }
-  return merged;
-}
 
 export function domainsConfigFilePath(repoRoot: string): string {
   return path.join(repoRoot, DOMAINS_CONFIG_FILENAME);

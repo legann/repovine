@@ -1029,3 +1029,134 @@ describe('initAll', () => {
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'hooks', CLIENT_DISPATCHER_FILENAME))).toBe(true);
   });
 });
+
+/**
+ * AGENTS.md ends with one sentence telling each client where its instruction surfaces live. The
+ * sentence is read as the map of where a client's instructions are, so an instruction surface the run
+ * creates and the sentence omits sends the reader to the wrong directory. The two sides here are
+ * independent: the clause comes from the template constant, the surfaces come from the filesystem one
+ * setup run produced.
+ *
+ * Instruction surface is the three shapes a reader opens for text: the client's `agents` directory,
+ * its `skills` directory of `SKILL.md` files, and its `rules` directory. A setup run also writes
+ * client config files and a `hooks` directory holding the dispatcher script; those are wiring, held by
+ * the setup tests above, and the sentence does not map them. The last test here holds that boundary:
+ * a directory kind outside the triaged list is one nobody decided about.
+ */
+describe('AGENTS.md client-surface sentence', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'init-surface-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  /** Instruction surfaces present under a workspace root, in the glob shape AGENTS.md names. */
+  function writtenSurfaces(root: string): string[] {
+    const found = new Set<string>();
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !entry.name.startsWith('.')) continue;
+      const agentsDir = path.join(root, entry.name, 'agents');
+      if (fs.existsSync(agentsDir)) {
+        for (const file of fs.readdirSync(agentsDir)) {
+          if (file.startsWith('repovine-')) found.add(`${entry.name}/agents/*${path.extname(file)}`);
+        }
+      }
+      const skillsDir = path.join(root, entry.name, 'skills');
+      if (fs.existsSync(skillsDir)) {
+        for (const skill of fs.readdirSync(skillsDir)) {
+          if (fs.existsSync(path.join(skillsDir, skill, 'SKILL.md'))) {
+            found.add(`${entry.name}/skills/*/SKILL.md`);
+          }
+        }
+      }
+      if (fs.existsSync(path.join(root, entry.name, 'rules'))) found.add(`${entry.name}/rules`);
+    }
+    // Directory order is discovery order; sort so a failure lists the same surfaces everywhere.
+    return [...found].sort();
+  }
+
+  /** The clause the surface sentence gives one client. */
+  function surfaceClause(client: string): string {
+    const clauses = [...AGENTS_MD.matchAll(
+      /\b(Claude|Codex|Cursor) uses ([\s\S]*?)(?=\b(?:Claude|Codex|Cursor) uses |\n)/g,
+    )];
+    const clause = clauses.find(match => match[1] === client);
+    if (!clause) throw new Error(`AGENTS.md carries no surface clause for ${client}`);
+    return clause[2];
+  }
+
+  /**
+   * Directory kinds a setup run puts under a client directory, and who holds each one.
+   *
+   * | kind | held by |
+   * |---|---|
+   * | agents, rules, skills | the surface sentence, through the tests below |
+   * | hooks | the setup tests above, which assert the dispatcher file |
+   *
+   * Written by hand: a kind outside this list is a directory the recogniser above passes over in
+   * silence, so the run that introduces one has to say where it belongs.
+   */
+  const TRIAGED_CLIENT_DIRECTORIES = ['agents', 'hooks', 'rules', 'skills'];
+
+  /** Directories one level under the workspace's dot-directories. */
+  function writtenClientDirectories(root: string): string[] {
+    const found: string[] = [];
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !entry.name.startsWith('.')) continue;
+      for (const child of fs.readdirSync(path.join(root, entry.name), { withFileTypes: true })) {
+        if (child.isDirectory()) found.push(path.join(entry.name, child.name));
+      }
+    }
+    // Directory order is discovery order; sort so a failure lists the same directories everywhere.
+    return found.sort();
+  }
+
+  type SetupRun = (cwd: string, opts: { forceBootstrap: boolean; replaceMcp: boolean }) => unknown;
+
+  function expectClauseNamesEveryInstructionSurface(client: string, init: SetupRun): void {
+    init(tmpDir, { forceBootstrap: false, replaceMcp: false });
+    const surfaces = writtenSurfaces(tmpDir);
+    // A run that wrote nothing would make the check below pass without reading anything.
+    expect(surfaces.length).toBeGreaterThan(1);
+    const clause = surfaceClause(client);
+    const unnamed = surfaces.filter(surface => !clause.includes(`\`${surface}\``));
+    expect({ client, unnamed }).toEqual({ client, unnamed: [] });
+  }
+
+  function expectEveryClientDirectoryTriaged(client: string, init: SetupRun): void {
+    init(tmpDir, { forceBootstrap: false, replaceMcp: false });
+    const written = writtenClientDirectories(tmpDir);
+    // A run that created no client directory would make the filter below pass over an empty list.
+    expect(written.length).toBeGreaterThan(1);
+    const untriaged = written.filter(dir => !TRIAGED_CLIENT_DIRECTORIES.includes(path.basename(dir)));
+    expect({ client, untriaged }).toEqual({ client, untriaged: [] });
+  }
+
+  it('names every instruction surface a Claude setup writes', () => {
+    expectClauseNamesEveryInstructionSurface('Claude', initClaude);
+  });
+
+  it('names every instruction surface a Codex setup writes', () => {
+    expectClauseNamesEveryInstructionSurface('Codex', initCodex);
+  });
+
+  it('names every instruction surface a Cursor setup writes', () => {
+    expectClauseNamesEveryInstructionSurface('Cursor', initCursor);
+  });
+
+  it('writes no untriaged client directory in a Claude setup', () => {
+    expectEveryClientDirectoryTriaged('Claude', initClaude);
+  });
+
+  it('writes no untriaged client directory in a Codex setup', () => {
+    expectEveryClientDirectoryTriaged('Codex', initCodex);
+  });
+
+  it('writes no untriaged client directory in a Cursor setup', () => {
+    expectEveryClientDirectoryTriaged('Cursor', initCursor);
+  });
+});

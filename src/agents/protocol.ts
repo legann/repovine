@@ -292,7 +292,13 @@ export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
 
 // ── AgentRunResult ──
 
-/** Self-reported compliance flags. repovine re-checks these against state. */
+/**
+ * Self-reported compliance flags. `annotationsClean` is the one flag repovine re-checks against
+ * observable state: a `true` claim over a queue that still needs work is an error. `refreshContextRun`
+ * is read only in the `false` direction, against a non-empty `filesChanged`. `architectureChecked` is
+ * compared with the presence of `architectureAudit`, itself self-reported. The remaining three stand
+ * as the run declares them, and serve as the evidence that a requested check was performed.
+ */
 export const ComplianceFlagsSchema = z.object({
   refreshContextRun: z.boolean(),
   annotationsClean: z.boolean(),
@@ -450,6 +456,8 @@ export const AGENT_PROTOCOL_CLI_COMMANDS = [
   'agents compliance',
   'agents session-quality',
   'agents run-brief',
+  'agents roles',
+  'agents orient',
 ] as const;
 
 /** Build the AgentProtocol descriptor object. */
@@ -476,7 +484,7 @@ export const AGENT_JSON_SCHEMAS: Record<string, unknown> = {
   [SCHEMA_IDS.reviewInput]: toJSONSchema(ReviewInputSchema),
 };
 
-/** Field names every AgentRunResult declares (drives projections + doctor checks). */
+/** Field names the AgentRunResult schema declares, in schema order; the last six are optional. */
 export const RUN_RESULT_FIELDS = [
   'protocolVersion',
   'runId',

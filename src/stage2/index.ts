@@ -81,9 +81,11 @@ export function composeRepositoryGraph(
   logDomains(graph);
   // Node view fields are computed on-demand by buildNodeView
 
-  // Read-only invariant gate: every snapshot record projected into the graph, no dangling
-  // edge. Healthy graphs produce zero problems, so this is silent in normal operation. It throws under
-  // REPOVINE_DEV (git checkout / CI) to catch a pass regression at the source, and otherwise warns.
+  // Read-only invariant gate over two snapshot collections: every stage1 module and every template
+  // projected into the graph, and no edge points at a node the graph does not hold. Packages and
+  // infra modules also become nodes; the gate does not walk them. Healthy graphs produce zero
+  // problems, so this is silent in normal operation. It throws under REPOVINE_DEV (git checkout /
+  // CI) to catch a pass regression at the source, and otherwise warns.
   const problems = validateComposedGraph(graph, snapshot);
   // Returned, not written onto `snapshot`: composition runs in a worker over a structured clone, so
   // a refusal recorded on the argument would be dropped at the isolate boundary — the same loss the
@@ -98,7 +100,7 @@ export function composeRepositoryGraph(
     composedRefusals.set(graph, [refusal(
       'incomplete',
       GRAPH_VALIDATION_REFUSAL,
-      `The graph did not take every record the scan produced: ${summary}. What is named there is missing from the graph or points at a node that is not in it.`,
+      `The graph did not take every module and template the scan produced: ${summary}. What is named there is missing from the graph or points at a node that is not in it.`,
       { problems: problems.length },
     )]);
   }

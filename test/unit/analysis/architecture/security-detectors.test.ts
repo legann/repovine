@@ -151,7 +151,7 @@ describe('security refactoring detectors', () => {
     };
   }
 
-  it('reports the security categories except resource permission blast radius', () => {
+  it('reports every requested security category', () => {
     const { graph, modulesById, annotations } = buildSecurityFixture();
     const report = runRefactoringReport({
       graph,

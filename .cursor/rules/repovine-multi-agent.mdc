@@ -53,4 +53,4 @@ write_annotation({
 })
 ```
 
-Use concrete names, keep notes short, and point-merge stale notes by sending only fields that actually changed.
+Use concrete names and keep notes short. Point-merge a fresh note by sending only the fields that changed; a content-stale note needs every field resubmitted, because a partial write leaves it stale and says which fields it did not cover.

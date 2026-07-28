@@ -12,7 +12,7 @@ Attach mode bind-mounts a pre-created git worktree into a hardened container. Th
 |---|---|
 | No mount strictly below the worktree or state dir | A nested mount shadows or leaks through the container bind |
 | No bind source aliases another bind source | One mount grants writes into a sibling trust domain |
-| The source repo's common git dir is unreachable from any bind | The agent rewrites source history or refs |
+| The source repo's common git dir is unreachable from the worktree and state-dir binds | The agent rewrites source history or refs |
 | No multiply-referenced regular file inside the worktree | A hardlink shares content with a path outside the mount |
 
 Linux proves these via `/proc/self/mountinfo` with a tri-state contract: enumerated-clean, enumerated-offending, cannot-enumerate. Cannot-enumerate refuses before Docker (`scripts/attach-host-adapter.mjs`, `readHostMountTable`). A complete `lstat` walk rejects regular files with `nlink > 1`. macOS has no `/proc`, and Node ships no mount-table API. Attach on macOS is therefore refused before any Docker call. This document designs the proof that could lift the refusal.

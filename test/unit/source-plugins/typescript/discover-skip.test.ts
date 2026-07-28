@@ -25,10 +25,14 @@ describe('shouldSkipRepoRelativePath — build-output / dependency subtrees are 
     }
   });
 
-  // One isolating path per skipped directory name: each path is skipped ONLY because of the name
-  // it is keyed by, so removing that name from the engine ignore list or from TEST_LAYOUT_DIRS
-  // turns exactly this case red.
-  it('skips a path under every skipped directory name', () => {
+  // One isolating path per name in the map below: each path is skipped ONLY because of the name it
+  // is keyed by, so a red case names the name that stopped being pruned.
+  //
+  // The map is a hand-written subset of the pruned set. Coverage of the whole set — the engine
+  // ignore list plus the test-layout directories — is a build-level law in
+  // test/laws/pruning-composition-net.test.ts, which puts a directory on disk for every name and
+  // asserts none of them mints a module.
+  it('skips a path under each directory name listed here', () => {
     const perAlternative: Record<string, string> = {
       dist: 'dist/main.js',
       'dist-bundled': 'dist-bundled/x.js',

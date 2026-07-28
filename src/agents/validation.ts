@@ -294,7 +294,7 @@ const CHECK_TO_FLAG: Record<Exclude<RequestedCheck, 'code-review'>, keyof AgentR
 };
 
 const CHECK_FOLLOWUP: Record<RequestedCheck, string> = {
-  dependencies: 'Run analyze_dependencies({ "mode": "impact" }) for the touched scope.',
+  dependencies: 'Run analyze_dependencies({ "scope": "mod:<path/to/module>", "mode": "impact" }) for the touched scope; impact needs a module or export-symbol scope.',
   config: 'Run get_config_surface for the touched scope.',
   'runtime-flow': 'Run trace_flow for the touched runtime scope.',
   architecture: 'Run analyze_architecture for the touched scope.',

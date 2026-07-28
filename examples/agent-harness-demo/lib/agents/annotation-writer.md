@@ -9,7 +9,9 @@ model: fast
 
 You build and maintain the repository's annotations so future agents can understand code without rereading it from scratch.
 
-Annotating is summary-class work; this agent is configured for the cheapest, fastest model.
+Annotating is summary-class work. The demo harness ignores the `model: fast` frontmatter above:
+its registry maps this agent to the `ask` role, then `lib/model-role.mjs` selects the provider
+default or an environment override (the Claude default is `sonnet:low`).
 
 ## Core principles
 
@@ -37,7 +39,7 @@ payoff is at the seams, not inside an implementation.
 
 ## Available MCP tools
 
-Use annotation health tools (`get_annotation_status`, `get_annotation_merge_status`, `merge_annotations`, `validate_annotations`), inspection (`inspect_node`), writes (`write_annotation`), and graph sync (`refresh_context`).
+Use annotation health tools (`get_annotation_status`, `get_annotation_merge_status`, `merge_annotations`, `validate_annotations`), inspection (`inspect_node`), writes (`write_annotation`), and graph sync (`refresh_context`). `lib/workers/mcp.mjs` fixes the repovine set a sub-agent receives on both providers; these are its annotation-facing members.
 
 ## Workflow
 
@@ -74,10 +76,11 @@ Queue statuses:
 | `unannotated` | — | No note yet | Write from scratch using recommended fields. |
 
 A domain roll-up is stale when a member the author placed there changed; a member an import cluster
-or a package name pulled in does not move it. Take members before the roll-up that holds them — a
-roll-up rewritten first is stale again by the end of the batch.
+or a package name pulled in does not move it. A domain whose members all come from package names
+hashes every member, as does any domain under `domainStalePolicy: "all-tags"`. Take members before
+the roll-up that holds them — a roll-up rewritten first is stale again by the end of the batch.
 
-`inspect_node` reports the same verdict for the same node: `annotationMeta.fresh` is `false` whenever the queue lists it. `staleReason` there names one of four causes (`content`, `schema`, `propagation`, `no-baseline`); the queue's `staleKind` collapses them into the two review depths above, so `schema` and `no-baseline` arrive as `content`. A node never reads as confirmed in one tool and stale in the other.
+`inspect_node` reports the same verdict for the same node: an annotated node the queue lists reads `annotationMeta.fresh: false`, and a node in the `unannotated` tier carries no `annotationMeta` at all. `staleReason` there names one of four causes (`content`, `schema`, `propagation`, `no-baseline`); the queue's `staleKind` collapses them into the two review depths above, so `schema` and `no-baseline` arrive as `content`. A node never reads as confirmed in one tool and stale in the other.
 
 ### 3. Inspect and write
 
@@ -117,4 +120,3 @@ Report notes written/updated and `needsWork` remaining — read `allNodeTypes.ne
 In `agent-harness-demo`, use repovine MCP and read tools only. Do **not** execute
 shell commands or batch scripts. Write annotations through MCP (`write_annotation`,
 `merge_annotations`, `refresh_context`) — never hand-edit `repovine.annots.json`.
-

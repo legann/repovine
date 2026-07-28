@@ -1,6 +1,6 @@
 ---
 name: repovine-workflow
-description: "Main-agent implementation playbook: scope repo changes with repovine, choose the risk axis, verify after edits; delegation policy lives in the client-native orchestration policy"
+description: "Main-agent implementation playbook: scope repo changes with repovine, choose the risk axis, verify after edits, and delegate by the policy this skill carries"
 ---
 
 # Development Workflow
@@ -53,7 +53,7 @@ Annotations hint and constrain; they do not bound inspect scope. Locality: `anno
 
 Read relevant annotation fields before editing inspected nodes and derive annotation obligations from the existing fields:
 
-- `annotationMeta.fresh`: whether the note is still confirmed for this node, and the same verdict the annotation queue reports for it. When it is `false`, `staleReason` names the cause: `content` or `no-baseline` means the node text moved under the note — treat every field as a lead to verify in code, not as a claim. A domain roll-up has no text of its own, so `content` there means a member the author placed in the domain moved: re-check what the note claims about the member set, not its prose. `schema` means fields are missing while the present ones still describe this text; `propagation` means the note matches this node but a module it imports moved, so `integrationPoints`, `dataFlow`, and cross-module invariants are the claims to re-verify against the upstream before relying on them.
+- `annotationMeta.fresh`: whether the note is still confirmed for this node, and the same verdict the annotation queue reports for it. When it is `false`, `staleReason` names the cause: `content` means the node text moved under the note, and `no-baseline` that the note was written with no hash to compare against, so nothing was ever compared — treat every field as a lead to verify in code, not as a claim. A domain roll-up has no text of its own, so `content` there means a member the author placed in the domain moved: re-check what the note claims about the member set, not its prose. `schema` means fields are missing while the present ones still describe this text; `propagation` means the note matches this node but a module it imports moved, so `integrationPoints`, `dataFlow`, and cross-module invariants are the claims to re-verify against the upstream before relying on them.
 - `invariants`: implementation constraints that must still hold after the change.
 - `risks`: failure modes to mitigate, test, or explicitly ask the user to accept. Mark a risk `scope: "consumer"` when an importer must verify it locally; mark `scope: "boundary"` for an off-limits surface importers must not edit in place (published contract, frozen migration, id-resolved structural slot). Leave risks local by default — standing risks are normal; consumer and boundary scopes are the selective exceptions that keep the edge flag meaningful.
 - `dataFlow` / `flowDescription`: execution order to preserve, or intentionally change with tests.
@@ -76,7 +76,7 @@ Before editing, make a short checklist of these obligations. Do not collapse dis
 | Runtime behavior, APIs, webhooks, queues, schedules, workers | `get_entrypoints`, then `trace_flow` |
 | UI routes, pages, components, client state, effects | `get_entrypoints({ "layer": "frontend" })`, `search_context`, `inspect_node`; use `analyze_architecture` only for review candidates |
 | Infra, resources, env vars, secrets, public config | `get_config_surface`, `trace_flow`, and targeted `inspect_node` |
-| Shared types, exports, interfaces, package APIs | `analyze_dependencies({ "mode": "impact" })` and package-boundary checks |
+| Shared types, exports, interfaces, package APIs | `analyze_dependencies({ "scope": "mod:<changed-node>", "mode": "impact" })` and package-boundary checks |
 | Architecture/refactoring questions | `analyze_architecture`, then inspect and validate before recommending movement |
 
 Infra/runtime tasks: after trace_flow or inspect_node on a resource:, follow runtimeHandoff (or integrationPoints mod: refs on the resource annotation) to the **handler module** before editing code or declaring a node unchanged. Consumer/boundary obligations live on code nodes; resource listings are topology index only.
@@ -100,7 +100,7 @@ analyze_dependencies({ "scope": "pkg:package-name", "mode": "package-boundaries"
 analyze_dependencies({ "mode": "interface-implementations", "interfaceName": "MyInterface" })
 ```
 
-Enumerate callers of an export (who-calls X) with impact scoped to the export-symbol — `analyze_dependencies({ "scope": "export:pkg/path/module/Name", "mode": "impact" })`, or a module scope plus `exportName`. This is grep-parity for caller lookup and spans re-export barrels, so prefer it over `grep`. Callers reached over a graph edge carry `uses` and no `provenance`; callers with `provenance.basis: "inferred"` are name-matched impact candidates, not proven edges. Inspect them or explicitly code-cite why they are out of scope before treating the caller set as complete.
+Enumerate callers of an export (who-calls X) with impact scoped to the export-symbol — `analyze_dependencies({ "scope": "export:pkg/path/module/Name", "mode": "impact" })`, or a module scope plus `exportName`. It spans re-export barrels, which `grep` does not. The name index behind inferred callers is capped per declaration while extracting, so treat it as a completeness backstop rather than grep parity; the response reports that extraction cap in `gaps`. Callers reached over a graph edge carry `uses` and no `provenance`; callers with `provenance.basis: "inferred"` are name-matched impact candidates, not proven edges. Inspect them or explicitly code-cite why they are out of scope before treating the caller set as complete.
 
 Use `get_config_surface` for env/config changes and `trace_flow` for runtime dispatch/resource questions.
 
@@ -165,8 +165,8 @@ For notes written this session, confirm both non-completeness axes: each annotat
 ## Guardrails
 
 - repovine tool output is strict JSON; rely on `navigation` suggestions when present before guessing the next call.
-- All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`; reuse them in the same MCP session or expand from `refs`. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.
-- A capped answer carries a `truncation` block beside what it bounded, keyed by the bounded field: `shown`/`total` on the scale named by `unit`, and `more` saying how to reach the rest — `page` (pass the named offset arg), `arg` (pass the named argument), `narrow` (ask a narrower question), `inline` (the rest is elsewhere in this same response), `unavailable` (no call returns it). Absence of the block means nothing was dropped. Treating a bounded list as the whole set is the failure this block exists to prevent; `unavailable` is the one case where paging cannot fix it.
+- All MCP tools accept `responseFormat: "concise" | "debug"`. Prefer concise; use debug only for full payloads. Concise navigation may return refs like `"$3x9a1"`. The server keeps the 500 most recently issued and drops the oldest beyond that, so reuse a ref while it is recent, or expand it from `refs` — a dropped ref is passed through as the literal `$…` and fails to resolve. For context-quality runs, pass the provided `contextSessionId` on repovine calls and inspect with `get_context_session_quality`.
+- A capped answer carries a `truncation` block beside what it bounded, keyed by the bounded field: `shown`/`total` on the scale named by `unit`, and `more` saying how to reach the rest — `page` (pass the named offset arg), `arg` (pass the named argument, when the tool declares it), `narrow` (ask a narrower question), `inline` (the rest is elsewhere in this same response), `unavailable` (no call returns it). Fixed-size shaping is not uniform: `attention` records its three-item preview as `truncation.attention` with `more.kind: "inline"`, while each `navigation` section keeps its first 4 entries without a bound and a row preview such as `context.topExports` keeps its first 10 next to its own count (`context.exportCount`). Treating a bounded or fixed-preview list as the whole set is the failure these signals prevent; `unavailable` is the one case where no call returns the omitted items.
 - Do not treat `analyze_architecture` findings as proof. They are review candidates.
 - Do not store secrets in annotations. repovine records env var names, not secret values.
 - Only ever change `repovine.annots.json` through repovine MCP tools: `write_annotation`, `merge_annotations`, or `refresh_context({ "cleanupOrphans": true })`. Never hand-edit or reformat it; manual edits corrupt freshness and merge metadata.

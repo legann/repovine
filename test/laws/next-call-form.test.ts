@@ -13,8 +13,17 @@
  * of the graph-empty guard, six names for "a filter removed everything", and, in four tools, a gap
  * sentence beside a diagnostic message saying the same thing in different words.
  *
- * Two passes per tool over a real fixture, matching the envelope law: repository scope reaches the
- * summary branches, node scope reaches the ones that build a node view.
+ * Two passes per tool over a real fixture: a read-only pass at repository scope, and a miss pass
+ * whose arguments reach the branches that answer "nothing came back, and here is why". Between them
+ * the two passes deliver two of the five carrier names below — the envelope's `navigation`, and the
+ * `nextActions` a payload attaches to an empty diagnostic or to annotation health.
+ *
+ * The other three ship on branches no argument set here reaches. `attention[].next` is typed as a
+ * next call by the response schema, which the envelope law in test/laws/mcp-envelope.test.ts parses
+ * every response against. `nextAction` is written by the dispatcher above the handlers called here,
+ * on the not-ready and missing-argument paths. A payload's `nextCalls` comes from a detail branch
+ * that needs a finding id, and this fixture produces no findings. The text guards below reach those
+ * three by shape instead of by execution: they read the source for a second spelling of the form.
  */
 import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
 import * as fs from 'node:fs';
@@ -240,13 +249,34 @@ describe('core-laws next-call form (L2)', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('leaves no retired spelling of a next call', () => {
+    // The factory guard above reads one line and matches one spelling, `{ tool: 'x', args: … }`. The
+    // empty-diagnostic spelling this form replaced — `when` and `note` beside `tool` — walked past
+    // it, and walked past it wherever it sat, including the three carriers the passes above never
+    // reach. Whole-file text so a literal split across lines still reads as one; `[^{}]` keeps the
+    // match inside a single brace level, so an `args` object nested in it cannot bridge two
+    // unrelated literals; both key orders, because the retired shape wrote them either way.
+    const retiredBeforeTool = /\{[^{}]*\b(?:when|note)\s*:[^{}]*\btool\s*:/;
+    const retiredAfterTool = /\{[^{}]*\btool\s*:[^{}]*\b(?:when|note)\s*:/;
+    const offenders: string[] = [];
+    for (const file of codeFiles([])) {
+      const hit = retiredBeforeTool.exec(file.text) ?? retiredAfterTool.exec(file.text);
+      if (hit) offenders.push(`${file.where}: ${hit[0].replace(/\s+/g, ' ').trim()}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it('leaves no second name for the narrowing that emptied a set', () => {
     const retired = /'(kind_filter_empty|name_pattern_empty|type_filter_excluded|weak_token_only_suppressed)'/;
     const offenders = codeLines([]).filter(line => retired.test(line.text));
     expect(offenders).toEqual([]);
   });
 
-  it('holds the text guards above over a non-empty file set', () => {
+  it('holds the text guards above over a non-empty corpus', () => {
+    // The guards read two corpora: the line guards call `codeLines`, the spelling guard calls
+    // `codeFiles`. Counting one stands in for the other only while both walk the same roots, so
+    // each is counted for itself and a root that stopped resolving reddens whichever it emptied.
     expect(codeFiles([]).length).toBeGreaterThan(200);
+    expect(codeLines([]).length).toBeGreaterThan(20_000);
   });
 });

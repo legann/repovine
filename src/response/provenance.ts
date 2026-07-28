@@ -27,7 +27,8 @@ export type ProvenanceMethod =
   | 'content-hash'
   | 'import-baseline'
   | 'not-comparable'
-  | 'call-name-index';
+  | 'call-name-index'
+  | 'field-completeness';
 
 /**
  * Basis per method, declared once.
@@ -42,6 +43,7 @@ const BASIS_BY_METHOD: Record<ProvenanceMethod, ProvenanceBasis> = {
   'import-baseline': 'computed',
   'not-comparable': 'absent',
   'call-name-index': 'inferred',
+  'field-completeness': 'computed',
 };
 
 /** How a neighbouring fact was established. */
@@ -59,6 +61,7 @@ export const ProvenanceSchema = z.strictObject({
     'import-baseline',
     'not-comparable',
     'call-name-index',
+    'field-completeness',
   ]),
 });
 

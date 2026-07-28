@@ -169,7 +169,7 @@ follow-ups, but the shipped `overall` uses only the binary `inspect_node`
 baseline. Non-zero custom weights are experimental and must not be used as a
 hard gate before the return bar is met.
 
-Defaults are general-purpose and configurable in `repovine.config.json`:
+Defaults are configurable in `repovine.config.json`:
 
 ```json
 {
@@ -181,14 +181,29 @@ Defaults are general-purpose and configurable in `repovine.config.json`:
       "implement": { "threshold": 0.55, "warningThreshold": 0.7, "minAnchors": 1, "byteBudget": 120000 },
       "annotate": { "threshold": 0.35, "warningThreshold": 0.5, "minAnchors": 0, "byteBudget": 100000 }
     },
+    "weights": {
+      "or": 0, "cap": 0, "volume": 0, "low": 0, "unresolved": 0, "test": 0, "bytes": 0,
+      "chain": 0, "map": 0, "inspect": 1, "impact": 0, "anchor": 0, "recover": 0, "end": 0
+    },
+    "recoveryWindow": 3,
+    "recoveryDiscount": 0.3,
     "exportSymbolFloodRatio": 0.7,
     "archResponseOversizeBytes": 100000,
+    "lowConfidenceRejectRatio": 0.5,
+    "testPackageRegex": "(^pkg:|-)test(-|_)|fixtures|ftr_",
     "retainSessions": false,
     "persistEvents": false,
     "maxRequestEchoes": 20
   }
 }
 ```
+
+`purgeSessionsOnMcpStart` follows `enforcement.mode === "client"` when the key is absent.
+
+`testPackageRegex` is matched against stable anchors and search hits; one hit adds
+the `TEST_PACKAGE_ANCHOR` reject reason regardless of the score. The default
+pattern also matches the `ftr_` prefix, so repos where that substring is not a
+test marker override it.
 
 The report includes bounded `requestEchoes` for audit/debug. Echoes are kept out
 of normal tool responses so routine context collection does not inflate the

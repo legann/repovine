@@ -154,11 +154,11 @@ function loadPipeline(model: string, workspaceRoot: string): Promise<FeatureExtr
       applyModelCache(mod);
       return await mod.pipeline('feature-extraction', model, {
         dtype: PIPELINE_DTYPE,
-        // Single-threaded ORT on darwin: onnxruntime-node 1.21 aborts at
-        // process exit tearing down its intra-op pool (libc++ "mutex lock
-        // failed" → SIGABRT); session dispose alone does not prevent it. With
-        // no pool threads the teardown is trivially clean. Other platforms
-        // keep default threading.
+        // Single-threaded ORT on darwin: one session, no intra-op pool.
+        // The macOS exit abort of onnxruntime-node 1.21 (libc++ "mutex lock
+        // failed" → SIGABRT) survives these session options; the darwin
+        // embedder floor is transformers 4.x, which ships onnxruntime 1.24.3
+        // (docs/platform-support.md). Other platforms keep default threading.
         session_options: {
           logSeverityLevel: 3,
           ...(process.platform === 'darwin' ? { intraOpNumThreads: 1, interOpNumThreads: 1 } : {}),
@@ -178,9 +178,9 @@ function loadPipeline(model: string, workspaceRoot: string): Promise<FeatureExtr
  * Serialized behind the embed limiter: an in-flight batch finishes before its
  * session is released. A later embed lazily reloads the pipeline.
  *
- * This alone does NOT prevent the macOS exit-teardown SIGABRT (onnxruntime's
- * global pool aborts in static destructors regardless); the darwin
- * single-thread session_options in loadPipeline is that mitigation.
+ * The macOS exit-teardown SIGABRT of onnxruntime-node 1.21 outlives this and the
+ * darwin session_options in loadPipeline alike; the transformers 4.x floor is
+ * what closes it (docs/platform-support.md).
  */
 export async function disposeEmbedderPipelines(): Promise<void> {
   const pending = [...pipelineByModel.values()];

@@ -93,9 +93,10 @@ bleed into each other:
 - **Build-signal cards** (the structural majority — `search-map-inspect`, `entrypoint-coverage`,
   `dependencies-boundaries`, `trace-flow-topology`, `config-surface`, `naming-regression`,
   `polyglot-ts-python-iac`, `stack-applicability`, `build-and-sync-health`). These verify parsing,
-  indexing, extraction, projection, and navigation. They are **annotation-independent by design**:
-  the preamble's evidence gate forbids summarizing a PASS *from annotations alone*, so they produce
-  the same verdict whether the target is at 0% or 99% coverage.
+  indexing, extraction, projection, and navigation. Their verdicts rest on **extracted structure**:
+  the preamble's evidence gate forbids summarizing a PASS *from annotations alone*. Annotation text
+  is part of the search index, so `search-map-inspect` sees more hits and different ranking at 99%
+  coverage than at 0%.
 - **Annotation-quality cards** (`annotation-health` for the mechanics; `annotation-quality` for the
   content — secrets/vocabulary/provenance/grounding). `annotation-quality` is gated
   `applies_when: has_annotations` and reports whole-card N/A when `coveragePct` is 0.
@@ -103,15 +104,16 @@ bleed into each other:
   (`annotation-reasoning`, `annotation-gated-findings`) checks that `analyze_architecture` reads the
   annotation memory correctly — `annotationReasoning:"on"` attaches a field-scoped `annotationContext`
   with graceful null slices, AND annotation content gates the finding set itself (a module annotated
-  `pure` is suppressed from effect smells), so the same scope yields a different candidate set before
-  vs after onboarding. The *data* those paths read is graded by `annotation-quality`.
+  `pure` is suppressed from the `client-business-logic` finding), so the same scope yields a
+  different candidate set before vs after onboarding. The *data* those paths read is graded by
+  `annotation-quality`.
 
 **Run profiles.** The same cards can be run against two target states to isolate the axes:
 
 | Profile | Target state | Best for |
 |---------|--------------|----------|
 | **cold-graph** | freshly built graph, **before annotation onboarding** (`coveragePct` 0) | Truest build-signal regression: modules indexed/parsed, entrypoints/edges/config extracted, with no annotations able to mask a broken extractor. `annotation-quality` is whole-card N/A here. |
-| **annotated** | graph after annotation onboarding (`coveragePct` > 0) | Annotation coverage/queue/merge **and** content quality, plus the `annotation-reasoning` consumer path. Build-signal cards still pass identically. |
+| **annotated** | graph after annotation onboarding (`coveragePct` > 0) | Annotation coverage/queue/merge **and** content quality, plus the `annotation-reasoning` consumer path. Build-signal cards pass on the same extracted structure; annotation text adds search hits and shifts ranking. |
 
 Running the build-signal cards cold turns the preamble's "do not lean on annotations" *instruction*
 into an *enforced invariant* (there are no annotations to lean on), so a green build-signal card on a

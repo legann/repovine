@@ -336,12 +336,27 @@ describe('loadConfig', () => {
     expect(cfg.analyze_architecture.thresholds.sensitiveBrowserStorage.requireSensitiveKey).toBe(false);
   });
 
-  it('invalid analyze_architecture schema falls back to defaults silently', () => {
-    fs.writeFileSync(path.join(tmpDir, 'repovine.config.json'), JSON.stringify({
-      analyze_architecture: { strictness: 'banana' },  // invalid enum
-    }));
-    const cfg = loadConfig(tmpDir);
-    expect(cfg.analyze_architecture.strictness).toBe('normal');
+  it('drops the whole file to defaults and warns when analyze_architecture fails the schema', () => {
+    const previousSink = getPipelineLogSink();
+    setPipelineLogSink('stderr');
+    const stderrWrite = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      fs.writeFileSync(path.join(tmpDir, 'repovine.config.json'), JSON.stringify({
+        analyze_architecture: { strictness: 'banana' },  // invalid enum
+        workspace: { annotationsFile: 'docs/repovine/annots.json' },  // valid, and lost with the file
+      }));
+
+      const cfg = loadConfig(tmpDir);
+
+      expect(cfg.analyze_architecture.strictness).toBe('normal');
+      expect(cfg.workspace.annotationsFile).toBe('repovine.annots.json');
+      const output = stderrWrite.mock.calls.map(call => String(call[0])).join('');
+      expect(output).toContain('using defaults');
+      expect(output).toContain('analyze_architecture.strictness');
+    } finally {
+      stderrWrite.mockRestore();
+      setPipelineLogSink(previousSink);
+    }
   });
 
   it('loads workspace.annotationsFile from repovine.config.json', () => {

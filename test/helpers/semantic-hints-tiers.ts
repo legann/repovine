@@ -7,9 +7,11 @@ import { zSemanticHints, type ModuleInfo, type SemanticHints } from '@repovine/p
  * (vacuously always-undefined) while missing the real `ui` slot.
  *
  * `routes`/`hasRoutes` are intentionally absent: backends legitimately emit backend routes; the law
- * is *frontend* Tier-3 absence. The `satisfies` is IDE-only (test files are not type-checked in CI —
- * tsconfig excludes test/ and ts-jest runs isolatedModules), so the load-bearing phantom guard is the
- * runtime `phantomFrontendHints()` check below, pinned against the versioned hints schema.
+ * is *frontend* Tier-3 absence. The `satisfies readonly (keyof SemanticHints)[]` fails the build on a
+ * name that is not a key of the hints type — `tsconfig.test.json` includes `test`, and `npm run
+ * typecheck` runs it in CI. What the type cannot say is whether a key of that type is still a slot of
+ * the versioned hints schema, so the runtime `phantomFrontendHints()` check below pins the list
+ * against `zSemanticHints.shape`.
  */
 export const FRONTEND_ONLY_HINTS = ['ui', 'conditionalRenders', 'ssr'] as const satisfies readonly (keyof SemanticHints)[];
 

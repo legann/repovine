@@ -2,7 +2,9 @@
  * Architecture analysis thresholds: per-repo tunable values that gate detector emission.
  *
  * Three-tier model:
- *   1. Tool API (per-call) — minConfidence, limit, scope, annotationReasoning, etc.
+ *   1. Tool API (per-call) — scope, categories, limit, annotationReasoning, etc. The confidence
+ *      floor is not among them: `analyze_architecture` declares no `minConfidence`, and an
+ *      undeclared argument is stripped on the way in.
  *   2. Config file (per-repo) — this module. Sets `strictness` preset or
  *      per-knob overrides in `.repovine.config.json`.
  *   3. Hardcoded (research-level) — confidence formulas, severity mapping,

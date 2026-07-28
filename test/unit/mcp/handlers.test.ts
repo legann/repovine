@@ -1,6 +1,7 @@
 /**
- * Unit tests for MCP handlers. Uses a small in-memory fixture graph + snapshot,
- * mocks fs for includeBody/grepBody, so no file I/O occurs.
+ * Unit tests for MCP handlers. Uses a small in-memory fixture graph + snapshot;
+ * `node:fs/promises` readFile is mocked, so includeBody/grepBody read no bytes
+ * from disk. The decline_advisory case runs against a real temp directory.
  */
 import { jest } from '@jest/globals';
 import { backlogCoverage, fakeQueuePage, kindCoverage, type FakeQueueRow } from '../../helpers/backlog.js';

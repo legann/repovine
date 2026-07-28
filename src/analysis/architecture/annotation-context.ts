@@ -181,7 +181,12 @@ export const QUESTION_HINTS: Record<SemanticQuestion, string> = {
 export interface SemanticContextNode {
   id: string;
   label: string;
-  annotation: Partial<StoredAnnotation['annotation']> | null;
+  /**
+   * The `relevantFields` slice of this node's annotation, at excerpt budgets. Carries at least one
+   * field: a node whose slice comes back empty is left out of the packet, so a listed node always
+   * gives the caller something to read.
+   */
+  annotation: Partial<StoredAnnotation['annotation']>;
   /**
    * Whether the note still matches the module's own text and schema.
    *

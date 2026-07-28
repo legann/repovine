@@ -1,10 +1,12 @@
 /**
  * Per-client integration contracts for the generated hook and MCP projections.
  *
- * `CLIENT_CAPABILITIES` is the single record of how each supported client
- * launches hook commands and declares MCP servers. Template builders,
- * plugin rendering, setup, clear, and health derive their client-specific
- * strings from this descriptor; the values state each client's own contract.
+ * `CLIENT_CAPABILITIES` records each supported client's hook paths, root
+ * expressions, and MCP server shape. Template builders, plugin rendering,
+ * setup, and health derive their client-specific strings from this descriptor;
+ * the values state each client's own contract. `commandForm`,
+ * `supportsShellField`, and `windowsOverrideField` describe the launch form for
+ * a reader; each renderer emits its client's form directly.
  */
 import { CLIENT_DISPATCHER_FILENAME } from './dispatcher/index.js';
 

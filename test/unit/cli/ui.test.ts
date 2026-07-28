@@ -122,15 +122,21 @@ describe('cli/ui formatters', () => {
     });
   });
 
-  it('suppresses pipeline logs when sink is silent', () => {
+  // Both streams, because the sink picks stderr only by name: any other value writes to stdout, and
+  // stdout is the stream `silent` exists for — MCP stdio carries JSON-RPC there, where one stray
+  // line of build chatter breaks the frame.
+  it('suppresses pipeline logs on stdout and stderr alike when sink is silent', () => {
     const stderrWrite = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const stdoutWrite = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
     const previous = getPipelineLogSink();
     setPipelineLogSink('silent');
     try {
       logPipeline('hidden');
+      expect(stdoutWrite).not.toHaveBeenCalled();
       expect(stderrWrite).not.toHaveBeenCalled();
     } finally {
       setPipelineLogSink(previous);
+      stdoutWrite.mockRestore();
       stderrWrite.mockRestore();
     }
   });

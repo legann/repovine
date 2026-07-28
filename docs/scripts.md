@@ -118,7 +118,7 @@ engine checkout resolves `devDependencies` that a published install does not shi
 `node dist/mcp/index.js --help` passing here proves nothing about the tarball. CI runs
 this on every PR.
 
-`npm run build` **≠** `repovine build`. The first compiles the engine; the second builds the **syntax index and graph cache** for the workspace you point repovine at (cwd or `REPOVINE_ROOT`).
+`npm run build` **≠** `repovine build`. The first compiles the engine; the second builds the **syntax index and graph cache** for the resolved workspace root: `REPOVINE_ROOT` when set, otherwise the nearest ancestor holding `.git`. An unconfigured root re-roots to a configured ancestor — see [workspace-files.md](workspace-files.md).
 
 ### CLI entry (local dev)
 
@@ -146,7 +146,7 @@ There are no per-command npm aliases in this package — use `cli --` or `npx re
 |--|-------------------|------------------|
 | **Needs** | Clone + `npm ci` + `npm run build` | Network (or cache); no clone |
 | **Runs** | Local `dist/` via the `cli` script | Published bin from npm |
-| **CWD** | Any directory; repovine uses cwd or `REPOVINE_ROOT` | Same |
+| **CWD** | Any directory; the root is `REPOVINE_ROOT`, else the nearest ancestor holding `.git` | Same |
 | **For agents** | Local MCP config can point at `node …/dist/mcp/index.js` | **Typical** — MCP config uses `npx -y repovine` |
 
 MCP hosts (Cursor, Claude, Codex) usually invoke **`npx repovine`**. When you run

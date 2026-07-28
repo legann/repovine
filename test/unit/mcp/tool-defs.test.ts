@@ -186,7 +186,7 @@ describe('public MCP tool definitions', () => {
     expect(inspect?.description).toContain('verification obligations');
     expect(inspect?.description).toContain('must preserve');
     expect(inspect?.description).toContain('unchanged requires inspect_node');
-    expect(inspect?.description).toContain('consumed at mount/render predicates'); // derived-flag nudge
+    expect(inspect?.description).toContain('consumed by every importer of the module that derives it'); // derived-flag nudge
     expect(inspect?.description).toContain('investigate tag (risk/boundary/effect/wiring/co-change/hub)'); // investigate channel — all six tags
     expect(inspect?.description).toContain('investigatePointers'); // integrationPoints reach channel
     expect(inspect?.description).toContain('affordanceCount'); // affordance count documented in the tool description
@@ -207,7 +207,7 @@ describe('public MCP tool definitions', () => {
     const dependencies = toolDefs.find(def => def.name === 'analyze_dependencies');
     expect(dependencies?.description).toContain('mode/scope-mismatch');
     expect(dependencies?.description).toContain('emptyDiagnostic');
-    expect(dependencies?.description).toContain('result.truncation'); // build-site list caps documented
+    expect(dependencies?.description).toContain('result.analysis.truncation'); // build-site list caps documented
     expect(dependencies?.description).toContain('truncation.result'); // global size backstop documented
     expect(dependencies?.schema.shape.offset).toBeDefined(); // pages the capped lists
 

@@ -42,7 +42,7 @@ Risk-scope candidate advisory: `validate_annotations` may report plain/local ris
 
 After git merge/rebase: resolve code conflicts first, then `merge_annotations({})`, `git add repovine.annots.json`, `refresh_context({})`, and `validate_annotations({})`. If merge-review markers remain, compare the ours/theirs assumptions and rewrite the final field via `write_annotation`.
 
-`view: "queue"` is one backlog (modules, templates, services, infra, domain roll-ups), not separate queues. **Drain order (engine-sorted):** (1) content-stale (`staleKind: "content"`), (2) then propagation-stale (`staleKind: "propagation"`), (3) then unannotated; within each tier bottom-up by dependency depth. Take the top page of `view: "queue"` — do **not** run a separate propagation-first pass via `derived-review` unless the orchestrator explicitly requests propagation-only review. Propagation items: `refreshImportBaseline: true` unless upstream contract changed. Content-stale: full rewrite. Finish when `needsWork: 0`. Offsets shift as notes are written.
+`view: "queue"` is one backlog (modules, templates, services, infra, domain roll-ups), not separate queues. **Drain order (engine-sorted):** (1) content-stale (`staleKind: "content"`), (2) then propagation-stale (`staleKind: "propagation"`), (3) then unannotated; within each tier modules and templates before runtime resources, infra and domain roll-ups, and only then bottom-up by dependency depth. Take the top page of `view: "queue"` — do **not** run a separate propagation-first pass via `derived-review` unless the orchestrator explicitly requests propagation-only review. Propagation items: `refreshImportBaseline: true` unless upstream contract changed. Content-stale: full rewrite. Finish when `needsWork: 0`. Offsets shift as notes are written.
 
 3. Inspect each changed or stale target:
 
@@ -141,7 +141,7 @@ Use this only when the user asks to harden high-value `scope:"consumer"` or `sco
 Suggested tokens / annotation:
 
 - `types` 1,000; `infra`/`generic` 2,000; `domain` 2,500; `ui` 2,800
-- `adapter`/`service` 3,200; `api-handler`/`service-mgr` 4,500
+- `adapter`/`template` 3,200; `api-handler`/`service-mgr`/`runtime-resource` 4,500
 
 ### Batch execution
 
@@ -179,7 +179,7 @@ Sum `result.submittedAnnotation.estimatedTokens` from successful writes (heurist
 ## Notes
 
 - Queue order is bottom-up within each tier: content-stale before propagation-stale before unannotated, then modules before services/infra/domains, lower dependency depth before importers.
-- A domain roll-up goes stale when a member the author placed there changes — a member an import cluster or a package name pulled in does not move it. Annotate members first: a roll-up rewritten before its members is stale again by the end of the batch.
+- A domain roll-up goes stale when a member the author placed there changes — a member an import cluster or a package name pulled in does not move it. A domain whose members all come from package names hashes every member, as does any domain under `domainStalePolicy: "all-tags"`. Annotate members first: a roll-up rewritten before its members is stale again by the end of the batch.
 - Derived-stale: `importBaseline` vs direct imports (`upstreamTriggers`); clear via rewrite or `refreshImportBaseline: true`.
 - The `repovine-annotation-writer` subagent must `inspect_node` each node before `write_annotation` (the harness checks this provenance over `annotationsWritten`) and fix any `quality.consistency.issues`; `quality.score` is completeness only — an empty field beats a fabricated one.
 - Drain hard-work batches until `needsWork: 0` in scope. Keep batches small. Annotating modules and reading source to summarize them is summary-class work. Use the cheapest, fastest model for exploration/annotation; reserve stronger models for implementation and hard reasoning.

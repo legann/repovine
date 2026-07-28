@@ -86,9 +86,9 @@ describe('core-laws annotatable backlog differential (D6 anchor consumer)', () =
 
   /**
    * Registry keyed by AnnotatableNodeType. A `function` asserts that one unannotated node of that
-   * type strictly increases the unified backlog. `'carveout'` declares a type that has NO own
-   * backlog bucket because it rolls up elsewhere — only `export-symbol` qualifies (its annotation
-   * grounds its parent module). The meta-test below pins this registry to exactly
+   * type strictly increases the unified backlog. `'carveout'` declares a type the backlog walk
+   * never visits — only `export-symbol` qualifies: `write_annotation` accepts an `export:` id, and
+   * no queue phase or coverage bucket reads one. The meta-test below pins this registry to exactly
    * ANNOTATABLE_NODE_TYPES, so a new annotatable type cannot be added without choosing one.
    */
   const WITNESSES: Record<AnnotatableNodeType, Witness> = {
@@ -138,6 +138,25 @@ describe('core-laws annotatable backlog differential (D6 anchor consumer)', () =
   const entries = Object.entries(WITNESSES) as Array<[AnnotatableNodeType, Witness]>;
   const witnessedKinds = entries.filter(([, w]) => typeof w === 'function').map(([k]) => k);
 
+  /**
+   * A carveout states a fact about the backlog, so it is witnessed like a queue-backed type — in
+   * the negative. `Record<carveout>` forces a new carveout to bring its own fixture, and the
+   * assertion fails the moment the backlog starts ranking that type, which is the point at which
+   * it belongs in WITNESSES instead.
+   */
+  const CARVEOUT_WITNESSES: Record<typeof CARVEOUTS[number], () => void> = {
+    'export-symbol': () => {
+      const graph = createEmptyGraph();
+      addNode(graph, {
+        id: 'export:mod:law/x/doThing',
+        type: 'export-symbol',
+        label: 'doThing',
+        description: 'exported symbol',
+      });
+      expect(queueTotal(graph, emptySnapshot)).toBe(baseline());
+    },
+  };
+
   it('covers every annotatable NodeType as a backlog witness or explicit carveout', () => {
     const carveouts = entries.filter(([, w]) => w === 'carveout').map(([k]) => k).sort();
     // Only roll-up types may skip the differential; nothing queue-backed hides as a carveout.
@@ -148,5 +167,9 @@ describe('core-laws annotatable backlog differential (D6 anchor consumer)', () =
 
   it.each(witnessedKinds)('%s moves the unified annotation backlog (queueTotal) when unannotated', kind => {
     (WITNESSES[kind] as () => void)();
+  });
+
+  it.each([...CARVEOUTS])('%s leaves the unified annotation backlog (queueTotal) unchanged', kind => {
+    CARVEOUT_WITNESSES[kind]();
   });
 });

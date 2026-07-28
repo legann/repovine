@@ -7,6 +7,7 @@ import {
   scopeLabel,
 } from '../scope/resolve.js';
 import { ARCHITECTURE_SCOPE_KINDS, architectureCanScope } from '../../analysis/architecture/scope.js';
+import { DEFAULT_REFACTORING_CATEGORIES } from '../../analysis/architecture/types.js';
 import { domainLabelFromId, owningModuleId } from '../../graph/node-ids.js';
 import { RUNTIME_TOPOLOGY_SCOPE_KINDS, topologyCanScope } from '../lib/topology.js';
 import {
@@ -231,7 +232,15 @@ export function entrypointsEmptyDiagnostic(
       const narrowings: Narrowing[] = [];
       if (hasKindFilter) {
         const arg = Array.isArray(args.kinds) ? 'kinds' : 'kind';
-        narrowings.push({ by: arg, value: args[arg], before, after: 0, restoreWith: { arg, value: 'all' } });
+        // The restore value takes the shape of the argument it restores: the array form rejects a
+        // bare string, so suggesting one hands back a call the schema refuses.
+        narrowings.push({
+          by: arg,
+          value: args[arg],
+          before,
+          after: 0,
+          restoreWith: { arg, value: arg === 'kinds' ? ['all'] : 'all' },
+        });
       }
       if (hasLayerFilter) {
         narrowings.push({ by: 'layer', value: args.layer, before, after: 0, restoreWith: { arg: 'layer', value: 'all' } });
@@ -248,10 +257,12 @@ export function entrypointsEmptyDiagnostic(
       reason: 'semantic_domain_not_runtime_boundary',
       message: `${scope.resolvedScope} is a semantic/path tag. Entrypoints are owned by handler modules, pages, packages, or runtime resources, not by the domain tag itself.`,
       confidence: 'high',
+      // No dependency call belongs here: `import-map`/`package-boundaries` filter by package scope and
+      // return the same repository-wide edge list for every domain, and `impact` refuses a domain
+      // scope. The `map_context` action narrows to a module, which every dependency mode accepts.
       nextActions: [
         emptyAction('if you need runtime/API/page entrypoints', 'search_context', { query: `${label} handler route lambda` }),
         emptyAction('if you need code structure', 'map_context', { scope: scope.resolvedScope, view: 'modules' }),
-        emptyAction('if you need import/consumer relationships', 'analyze_dependencies', { scope: scope.resolvedScope, mode: 'import-map' }),
       ],
     };
   }
@@ -448,7 +459,15 @@ export function configSurfaceEmptyDiagnostic(
       const narrowings: Narrowing[] = [];
       if (hasKindFilter) {
         const arg = Array.isArray(args.kinds) ? 'kinds' : 'kind';
-        narrowings.push({ by: arg, value: args[arg], before, after: 0, restoreWith: { arg, value: 'all' } });
+        // The restore value takes the shape of the argument it restores: the array form rejects a
+        // bare string, so suggesting one hands back a call the schema refuses.
+        narrowings.push({
+          by: arg,
+          value: args[arg],
+          before,
+          after: 0,
+          restoreWith: { arg, value: arg === 'kinds' ? ['all'] : 'all' },
+        });
       }
       if (hasNamePattern) {
         narrowings.push({ by: 'namePattern', value: args.namePattern, before, after: 0, restoreWith: { arg: 'namePattern', value: '' } });
@@ -585,8 +604,14 @@ export function dependencyModeScopeMismatchDiagnostic(
 
   const nextActions: EmptyDiagnosticAction[] = [];
   if (mode === 'impact') {
+    // `import-map` filters by package scope and returns the same repository-wide edge list for every
+    // domain, so a domain scope gets only the `map_context` narrowing to a module.
+    if (scope.kind !== 'domain') {
+      nextActions.push(
+        emptyAction('if you need package import shape', 'analyze_dependencies', { scope: scope.resolvedScope, mode: 'import-map' }),
+      );
+    }
     nextActions.push(
-      emptyAction('if you need domain/package import shape', 'analyze_dependencies', { scope: scope.resolvedScope, mode: 'import-map' }),
       emptyAction('if you need a concrete change target first', 'map_context', { scope: scope.resolvedScope, view: scope.kind === 'domain' ? 'modules' : 'summary' }),
     );
   } else if (mode === 'callgraph') {
@@ -633,10 +658,16 @@ export function dependenciesEmptyDiagnostic(
     if (edgeTotal === 0) {
       return {
         reason: 'no_cross_package_edges',
-        message: `No cross-package import edges matched ${scopeLabel(scope)}. Intra-package imports are intentionally not reported in package-boundary/import-map mode.`,
+        // These modes narrow by package only, so a scope of another kind did not filter this answer
+        // — saying it did would send the reader to widen a scope that was never applied.
+        message: scope.kind === 'package'
+          ? `No cross-package import edges matched ${scopeLabel(scope)}. Intra-package imports are intentionally not reported in package-boundary/import-map mode.`
+          : `No cross-package import edges in the repository. ${scopeLabel(scope)} did not narrow this answer: package-boundary/import-map mode filters by package scope only, and intra-package imports are intentionally not reported.`,
         confidence: 'medium',
         nextActions: [
-          emptyAction('to include every package boundary', 'analyze_dependencies', { scope: 'all', mode, ...(args.direction ? { direction: args.direction } : {}) }),
+          // `direction` reads only inside the package filter, so the suggested `scope: 'all'` call
+          // leaves it out: an argument echoed into a call that ignores it reads as a live knob.
+          emptyAction('to include every package boundary', 'analyze_dependencies', { scope: 'all', mode }),
           emptyAction('if you need consumers of one concrete module/export', 'analyze_dependencies', { scope: '<module-or-export-symbol-scope>', mode: 'impact' }),
           emptyAction('if you need structure rather than dependencies', 'map_context', { scope: scope.resolvedScope, view: scope.kind === 'domain' ? 'modules' : 'summary' }),
         ],
@@ -764,16 +795,25 @@ export function architectureEmptyDiagnostic(
     const detected = typeof result.detectedFindings === 'number' ? result.detectedFindings : undefined;
     const narrowings: Narrowing[] = [];
     if (Array.isArray(args.categories)) {
-      narrowings.push({ by: 'categories', value: args.categories, before: detected, after: 0, restoreWith: { arg: 'categories', value: [] } });
+      // Widening means dropping the argument, not emptying it: an empty list intersects the detector
+      // set to nothing, so restoring with `[]` guarantees the zero it claims to undo.
+      narrowings.push({
+        by: 'categories',
+        value: args.categories,
+        before: detected,
+        after: 0,
+        restoreWith: { arg: 'categories', value: DEFAULT_REFACTORING_CATEGORIES },
+      });
     }
     if (typeof result.minConfidence === 'number') {
+      // No `restoreWith`: the confidence floor is a config knob, not a tool argument, so no call
+      // widens it back. Naming one would hand the reader a retry the schema strips on the way in.
       narrowings.push({
         by: 'minConfidence',
         value: result.minConfidence,
         before: detected,
         after: 0,
         threshold: result.minConfidence,
-        restoreWith: { arg: 'minConfidence', value: 0 },
       });
     }
     const nextActions: EmptyDiagnosticAction[] = [

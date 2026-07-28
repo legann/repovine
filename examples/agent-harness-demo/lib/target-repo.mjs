@@ -195,11 +195,14 @@ const fail = (msg) => {
 
 /**
  * Validate an attached workspace. Only checks that are provable from inside the
- * container: existence and shape of the repovine files, the read-only pointer,
- * the disposable repo, and mount writability. Proving the host path was a
- * registered clean Git worktree is the host launcher's job
- * (scripts/attach-launcher.mjs) — that evidence stays host-side. Never writes;
- * the only git spawn is a read-only HEAD probe of the disposable repo.
+ * container: `repovine.config.json` and `repovine.annots.json` present and
+ * writable, the annotation store parsing as JSON, the read-only pointer, the
+ * disposable repo, and mount writability. The config bytes stay unread; the
+ * engine reads that file and falls back to its defaults when it does not parse.
+ * Proving the host path was a registered clean Git worktree is the host
+ * launcher's job (scripts/attach-launcher.mjs) — that evidence stays host-side.
+ * Never writes; the only git spawn is a read-only HEAD probe of the disposable
+ * repo.
  */
 export function validateAttachedWorkspace(repoRoot, {
   inDocker = process.env.REPOVINE_IN_DOCKER === '1',

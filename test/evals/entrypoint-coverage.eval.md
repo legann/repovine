@@ -14,12 +14,12 @@ checks:
   - id: backend-api-typed
     assert:  where a backend web framework exists, get_entrypoints({ kind:"api", layer:"backend" }) returns typed entries (e.g. source:"fastify-route", webFramework set)
     fail_if: backend route modules exist with route facts but the typed query returns total 0
-    na_if:   no backend web framework (Fastify/Express/Nest/FastAPI/Flask/Django) is present
+    na_if:   no backend web framework (Fastify/Nest/FastAPI/Flask/Django) is present
     severity: warn
   - id: frontend-page-typed
     assert:  where a frontend route framework exists, get_entrypoints({ kinds:["page","route"], layer:"frontend" }) returns typed entries (e.g. source:"nextjs-app", fileType:"page")
     fail_if: frontend route/page modules exist but the typed query returns total 0
-    na_if:   no frontend route framework (Next.js/React Router/Remix/SvelteKit) is present
+    na_if:   no frontend route framework (Next.js/React Router/TanStack Router/Angular/SvelteKit) is present
     severity: warn
   - id: cli-entrypoints
     assert:  where a CLI surface exists (argparse/click/Typer/console_scripts/commander), get_entrypoints({ kind:"cli" }) returns entries

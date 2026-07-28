@@ -1,9 +1,11 @@
 /**
  * Shell-spawn guard: production and maintainer code spawns children with argv
- * arrays, never through a shell. The two registered shell adapters are the
- * ComSpec fallback in scripts/lib/spawn.cjs and the win32 PowerShell probe in
- * test/helpers/process-probe.ts; everything else in src/, packages/, scripts/,
- * and test/ must stay shell-free. New violations fail this test with file:line.
+ * arrays, never through a shell. Three shell adapters are registered — the
+ * ComSpec fallback in scripts/lib/spawn.cjs, the win32 PowerShell probe in
+ * test/helpers/process-probe.ts, and the hook runner in
+ * test/helpers/client-projections.mjs that reproduces how a client executes a
+ * hook command string. Every other file under src/, packages/, scripts/, and
+ * test/ stays shell-free. New violations fail this test with file:line.
  */
 import fs from 'node:fs';
 import path from 'node:path';

@@ -8,7 +8,7 @@
  *   repovine agents validate-assignment <assignment.json>
  *   repovine agents validate-result <result.json>
  *   repovine agents validate-review-input <review-input.json>
- *   repovine agents compliance <result.json> [--assignment <a.json>] [--manifest <name>]
+ *   repovine agents compliance <result.json> [--assignment <a.json>] [--manifest <name>] [--greenfield-run]
  *   repovine agents session-quality <sessionId> [--phase <phase>] [--events] [--consume] [--retain]
  *   repovine agents orient --query "<task text>" [--scope <pkg>]
  *   repovine agents run-brief [--role <role>] [--name <name>]
@@ -60,8 +60,9 @@ function printUsage(): void {
       '  validate-assignment <assignment.json>        Schema-validate an AgentAssignment',
       '  validate-result <result.json>                Schema-validate an AgentRunResult (structure only)',
       '  validate-review-input <review-input.json>    Schema-validate + linkage-check a standalone ReviewInput',
-      '  compliance <result.json> [--assignment <a.json>] [--manifest <name>]',
-      '                                               Schema-validate + compliance-check an AgentRunResult',
+      '  compliance <result.json> [--assignment <a.json>] [--manifest <name>] [--greenfield-run]',
+      '                                               Schema-validate + compliance-check an AgentRunResult;',
+      '                                               --greenfield-run marks a run that started with no annotated context',
       '  session-quality <sessionId> [--phase <phase>] [--mode harness|client] [--threshold n] [--warning-threshold n] [--min-anchors n] [--byte-budget n] [--max-recovery-attempts n] [--events] [--consume] [--retain]',
       '                                               Print deterministic Context Session Quality report',
       '  orient --query "<task text>" [--scope <pkg>]   Deterministic search_context + trace_flow (no LLM)',

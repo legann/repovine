@@ -165,9 +165,10 @@ export function getPathBasedDomains(relativeFilePath: string, extraStructural?: 
 /**
  * Decide whether the basename of a file should be a domain candidate, and what its label is.
  *
- * Universal basename heuristic (no framework-specific rules). The extension comes off through the
- * registered source plugins, so `main.py` and `main.ts` reach the same verdict:
- * - PascalCase / contains uppercase → reject (React component, class file).
+ * Basename heuristic over naming conventions, including framework slot names. The extension comes
+ * off through the registered source plugins, so `main.py` and `main.ts` reach the same verdict:
+ * - PascalCase / contains uppercase → low-confidence candidate (React component, class file);
+ *   `pascalCaseBasename: 'reject'` drops it instead.
  * - Reserved basename (`index`, `main`, `app`, ...) → reject.
  * - Starts with `_` → reject (Next.js `_app`, `_document`, private).
  * - Suffix in NON_DOMAIN_SUFFIXES (`test`, `spec`, `types`, `config`, ...) → reject entire file.

@@ -120,7 +120,9 @@ function publicFinding(finding: RefactoringFinding, preview: boolean): Record<st
 }
 
 /** The analysis payload projected to what the tool publishes: findings without their score, the
- *  internal `minConfidence` knob dropped, and the empty-result diagnostic folded in. */
+ *  top-level `minConfidence` field dropped, and the empty-result diagnostic folded in. An empty
+ *  report still names the threshold, under `emptyDiagnostic.details.minConfidence`, because it is
+ *  the reason the report is empty. */
 function publicArchitectureResult(
   raw: Record<string, unknown>,
   mode: string,

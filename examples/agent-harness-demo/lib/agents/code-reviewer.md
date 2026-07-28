@@ -34,7 +34,7 @@ analyze_architecture({ "scope": "<changed-scope>", "mode": "report", "limit": 8 
 validate_annotations({})
 ~~~
 
-Scope both flow and architecture calls at module granularity or wider: an `export:` scope is refused by name, and a single module reports per-node signals only — `gaps` names the comparisons that granularity rules out.
+Flow and architecture narrow to different scope kinds. `trace_flow` takes `all`, `resource:`, `mod:`, `pkg:`, `domain:` and `query:`. `analyze_architecture` takes `all`, `pkg:`, `domain:`, `mod:` and `resource:`. Both refuse `export:`, `template:` and `infra:` by name; `query:` is refused by architecture alone. A `mod:` or `resource:` scope holds one node, so per-node signals are reported and `gaps` names the comparisons that granularity rules out.
 
 3. Evaluate tests:
 
@@ -48,7 +48,7 @@ Scope both flow and architecture calls at module granularity or wider: an `expor
 - `approve`: tests and coverage are adequate, no blocker/major findings.
 - `changes-requested`: a defect, regression, failed test, or material missing test blocks acceptance.
 - `needs-human`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
-- `blocked`: missing diff, assignment, context, or test setup prevents review.
+- `blocked`: missing diff, assignment, context, or test setup prevents review. When the assignment requested `code-review`, compliance still requires a non-empty `review.reviewedFiles`, so name what you did read.
 
 ## Repovine-legibility review axis
 
@@ -99,7 +99,7 @@ When the orchestrator runs **verify** after implement sub-agents:
 2. Use **inspect_node**, **trace_flow**, **validate_annotations** on orient scope and changed modules.
 3. When orient or implementation used `trace_flow`, verify any `runtimeHandoff` handler module was inspected before accepting resource-scoped code changes. Infra/runtime tasks: after trace_flow or inspect_node on a resource:, follow runtimeHandoff (or integrationPoints mod: refs on the resource annotation) to the **handler module** before editing code or declaring a node unchanged. Consumer/boundary obligations live on code nodes; resource listings are topology index only.
 4. For each **CLAIM** from orient, emit in `contractsChanged`: `VERIFY: covered|gap — <claim id> — <reason>`.
-4b. Read `annotationMeta.fresh` on every annotated node you cite. A note with `staleReason: "propagation"` describes this node correctly, but its `integrationPoints`/`dataFlow` claims about upstream modules are unverified — check them against that upstream before treating them as review evidence; `content` or `no-baseline` means the node's text moved under the note, so no field of it is evidence for the current code — except on a domain roll-up, which has no text of its own: there `content` means a member moved, and what needs re-checking is the note's account of the member set.
+4b. Read `annotationMeta.fresh` on every annotated node you cite. A note with `staleReason: "propagation"` describes this node correctly, but its `integrationPoints`/`dataFlow` claims about upstream modules are unverified — check them against that upstream before treating them as review evidence; `content` means the node's text moved under the note, and `no-baseline` that the note was written with no hash to compare against, so no field of it is evidence for the current code — except on a domain roll-up, which has no text of its own: there `content` means a member moved, and what needs re-checking is the note's account of the member set.
 5. Put merge-blocking findings in **`blockers[]`** only for clear contract violations; routine gaps go in VERIFY lines.
 6. Populate the **`review`** object; **summary** must state whether all claims are covered.
 7. Do **not** rerun tests in the sandbox — evaluate `testsRun` from prior sub-agent results.

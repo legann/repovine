@@ -23,10 +23,12 @@ import {
 } from '../annotations/maintenance.js';
 import {
   agentAssetDoctorCliFindings,
+  parseDoctorClientScopeArg,
   runAgentAssetDoctor,
 } from './agent-doctor.js';
 import {
   type DoctorClient,
+  type DoctorClientScope,
   type ResolvedDoctorClients,
   DOCTOR_CLIENT_MCP_LABEL,
   describeDoctorClientScope,
@@ -84,11 +86,12 @@ function printJson(value: unknown): void {
 }
 
 function usageStatus(): void {
-  console.error('Usage: repovine status');
+  console.error('Usage: repovine status [--json]');
+  console.error('  Report graph, cache, MCP setup, annotations, and client setup projections.');
 }
 
 function usageDoctor(): void {
-  console.error('Usage: repovine doctor [--json]');
+  console.error('Usage: repovine doctor [--json] [--client cursor|claude|codex|all]');
   console.error('  Diagnose MCP setup, cache, annotations, and client setup projections.');
 }
 
@@ -337,10 +340,16 @@ export function globalMcpFindings(
     });
   }
   if (findings.length === 0) {
+    // The sweep opens one config per client in the doctor scope, so the verdict covers those
+    // clients. A client outside the scope keeps its user-scope config unread, and the message
+    // names the ones that were read.
+    const scanned = checks.map(check => check.client).join(', ');
     findings.push({
       area: 'Global MCP',
       severity: 'ok',
-      message: 'No user-scope repovine MCP servers detected (repo-scoped setup is canonical).',
+      message: scanned.length > 0
+        ? `No user-scope repovine MCP servers detected in the ${scanned} user config(s); repo-scoped setup is canonical. Clients outside the doctor scope were not read.`
+        : 'No user-scope repovine MCP servers detected: the doctor scope holds no client, so no user config was read.',
     });
   }
   return findings;
@@ -386,7 +395,7 @@ function agentsMdFinding(env: HealthCliEnv, clients: DoctorClient[]): HealthFind
       area: 'AGENTS.md',
       severity: 'warning',
       message: 'AGENTS.md exists but does not contain the repovine managed section.',
-      action: 'Regenerate AGENTS.md with repovine setup (claude/codex/all) or repovine setup --force.',
+      action: 'Regenerate AGENTS.md with repovine setup <client> (claude, codex, or all); repovine setup <client> --force replaces the whole file.',
     };
   }
   return {
@@ -449,7 +458,8 @@ export function parseLongPathsRegOutput(output: string): LongPathsVerdict {
 function detectLongPaths(): LongPathsVerdict | null {
   if (process.platform !== 'win32') return null;
   try {
-    // Absolute path: the probe must not depend on System32 being on PATH.
+    // WINDIR names the system directory, so the probe spawns reg.exe by absolute path.
+    // Without it the bare name reaches the OS executable search, which tries the cwd before PATH.
     const regExe = process.env.WINDIR ? path.join(process.env.WINDIR, 'System32', 'reg.exe') : 'reg.exe';
     const out = spawnSync(
       regExe,
@@ -584,9 +594,11 @@ function clientHooksDir(env: HealthCliEnv, client: ClientId): string {
 
 /**
  * Diagnose the pre-edit boundary push channel — the delivery path the pre-edit hook depends on:
- * the on-disk `.repovine/boundary-index.json` (presence, schema version, freshness) and every
- * installed dispatcher's accepted schema version. Fail-loud only; nothing here
- * auto-repairs.
+ * the on-disk `.repovine/boundary-index.json` (presence, schema version, freshness) and the index
+ * version an installed dispatcher accepts. A dispatcher states that version as a literal
+ * comparison against `index.version`, and this scan reads it back from the source text; a
+ * dispatcher whose comparison the scan cannot read leaves its version unreported. Fail-loud only;
+ * nothing here auto-repairs.
  */
 function boundaryPushChannelFindings(env: HealthCliEnv): HealthFinding[] {
   const area = 'boundary push channel';
@@ -655,19 +667,33 @@ function boundaryIndexFinding(env: HealthCliEnv, area: string): HealthFinding {
   } catch {
     annPath = undefined;
   }
-  if (!Number.isNaN(builtAtMs) && annPath && fs.existsSync(annPath) && fs.statSync(annPath).mtimeMs > builtAtMs) {
-    return {
-      area,
-      severity: 'warning',
-      message: 'Boundary index is older than the annotations file; a boundary risk written since the last build is not yet pushed.',
-      action: 'Run refresh_context to rebuild the boundary index.',
-    };
+  // Both timestamps are needed. An index carrying no parseable `builtAt` still passes the schema
+  // read, and the annotations path is absent when the config fails to load or the file is not
+  // written yet — the comparison then stays unrun, and the verdict below says so.
+  const annStat = annPath && fs.existsSync(annPath) ? fs.statSync(annPath) : undefined;
+  if (annStat && !Number.isNaN(builtAtMs)) {
+    if (annStat.mtimeMs > builtAtMs) {
+      return {
+        area,
+        severity: 'warning',
+        message: 'Boundary index is older than the annotations file; a boundary risk written since the last build is not yet pushed.',
+        action: 'Run refresh_context to rebuild the boundary index.',
+      };
+    }
+    return { area, severity: 'ok', message: 'Pre-edit boundary index present, current-version, and not older than the annotations file.' };
   }
-  return { area, severity: 'ok', message: 'Pre-edit boundary index present, current-version, and not older than the annotations file.' };
+  return {
+    area,
+    severity: 'ok',
+    message: 'Pre-edit boundary index present and current-version. Freshness stayed uncompared: the index carries no parseable build time, or the annotations file was not found.',
+  };
 }
 
-function buildDoctorClientScope(env: HealthCliEnv): ResolvedDoctorClients {
-  return resolveDoctorClients(env.repoRoot);
+function buildDoctorClientScope(
+  env: HealthCliEnv,
+  client?: DoctorClientScope,
+): ResolvedDoctorClients {
+  return resolveDoctorClients(env.repoRoot, client);
 }
 
 function buildAgentAssetDoctorReport(
@@ -849,7 +875,7 @@ export async function runDoctorCli(argv: string[], env: HealthCliEnv): Promise<n
     return 0;
   }
   const json = argv.includes('--json');
-  const allowed = new Set(['--json', '--help', '-h']);
+  const allowed = new Set(['--json', '--client', '--help', '-h']);
   const unknown = argv.filter(arg => arg.startsWith('--') && !allowed.has(arg));
   if (unknown.length > 0) {
     console.error(`Unknown doctor option(s): ${unknown.join(', ')}`);
@@ -857,7 +883,29 @@ export async function runDoctorCli(argv: string[], env: HealthCliEnv): Promise<n
     return 1;
   }
 
-  const clientScope = buildDoctorClientScope(env);
+  const clientFlagIndexes = argv
+    .map((arg, index) => arg === '--client' ? index : -1)
+    .filter(index => index >= 0);
+  if (clientFlagIndexes.length > 1) {
+    console.error('Doctor option --client may be supplied only once.');
+    usageDoctor();
+    return 1;
+  }
+  const clientFlagIndex = clientFlagIndexes[0];
+  const clientArg = clientFlagIndex === undefined ? undefined : argv[clientFlagIndex + 1];
+  if (clientFlagIndex !== undefined && (!clientArg || clientArg.startsWith('-'))) {
+    console.error('Doctor option --client requires one of: cursor, claude, codex, all.');
+    usageDoctor();
+    return 1;
+  }
+  const parsedClient = parseDoctorClientScopeArg(clientArg);
+  if (parsedClient.error) {
+    console.error(parsedClient.error);
+    usageDoctor();
+    return 1;
+  }
+
+  const clientScope = buildDoctorClientScope(env, parsedClient.client);
   const agentReport = buildAgentAssetDoctorReport(env, clientScope);
   const checks = inspectMcpConfigs(env);
 

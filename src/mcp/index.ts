@@ -23,13 +23,16 @@ import { cli, logCli, logPipeline, formatPipelineMuted, setPipelineLogSink, setP
 const args = process.argv.slice(2);
 const command = args[0];
 
-/** Hard exit after ONNX teardown and stdout/stderr drain. process.exit() (a)
- * during onnxruntime's static teardown SIGABRTs on macOS (libc++ "mutex lock
- * failed"), so loaded embedder sessions are released first (2s cap — a wedged
- * runtime must not hang the exit); (b) discards queued pipe writes past the
- * 64KB pipe buffer, truncating JSON payloads mid-document (reproducible:
- * `repovine agents protocol --schemas | wc -c` → 65536), so both streams are
- * flushed via an empty write whose callback fires after the prior queue. */
+/** Hard exit after ONNX teardown and stdout/stderr drain. Loaded embedder
+ * sessions are released first as exit-path hygiene, freeing native sessions
+ * before the process goes down (2s cap — a wedged runtime must not hang the
+ * exit); the macOS exit-teardown SIGABRT of onnxruntime-node 1.21 (libc++
+ * "mutex lock failed") outlives that release, and the transformers 4.x floor
+ * is what closes it (docs/platform-support.md). process.exit() also discards
+ * queued pipe writes past the 64KB pipe buffer, truncating JSON payloads
+ * mid-document (reproducible: `repovine agents protocol --schemas | wc -c` →
+ * 65536), so both streams are flushed via an empty write whose callback fires
+ * after the prior queue. */
 async function exitAfterFlush(code: number): Promise<never> {
   await Promise.race([
     disposeEmbedderPipelines().catch(() => undefined),
@@ -97,7 +100,8 @@ if (command === 'setup') {
     forcePublished: setupFlags.includes('--published'),
   });
   if (mcpLauncher.command !== 'npx') {
-    console.log(`Self-dogfood: MCP wired to local build ${mcpLauncher.args[0]} (not npx). Use --published to force npx.`);
+    console.log(`Self-dogfood: a new MCP entry points at the local build ${mcpLauncher.args[0]} (not npx); --published writes npx instead.`);
+    console.log('An existing repovine MCP entry keeps its launcher — run `repovine clear`, then setup again, to switch it.');
   }
   runSetup(target, repoRoot, {
     forceBootstrap: setupFlags.includes('--force'),
@@ -188,7 +192,7 @@ function printSetupUsage(): void {
   console.error('  --force: overwrite generated instructions/client assets; project config files are preserved.');
   console.error('  --replace-mcp: replace MCP config when safe; refused if other servers would be removed.');
   console.error('  --no-build: skip the graph build; it will run on first MCP start instead.');
-  console.error('  --published: force the published npx launcher even when run from the repovine source repo (self-dogfood otherwise wires the local dist).');
+  console.error('  --published: write the published npx launcher even when run from the repovine source repo (self-dogfood otherwise wires the local dist); an existing repovine MCP entry is kept either way.');
 }
 
 function promptLine(prompt: string): string {
@@ -230,9 +234,9 @@ ${cli.bold('Usage:')}
   repovine agents <cmd>       Harness/CI Agent Protocol CLI (repovine agents --help)
 
 ${cli.bold('Setup clients:')}
-  cursor    .cursor/mcp.json + .cursor capabilities
-  claude    .mcp.json + .claude/settings.json + .claude/hooks + AGENTS.md
-  codex     .codex/config.toml + .codex/hooks + .codex/agents + AGENTS.md
+  cursor    .cursor/ (mcp.json, rules, agents, hooks) + .agents/skills
+  claude    .mcp.json + .claude/ (settings.json, agents, skills, hooks) + CLAUDE.md + AGENTS.md
+  codex     .codex/ (config.toml, agents, hooks) + .agents/skills + AGENTS.md
   all       All of the above
   (none)    Workspace-only setup
 
@@ -351,9 +355,9 @@ const REPOVINE_MCP_INSTRUCTIONS =
   'Always pass arguments as a JSON object; if a tool has no parameters, pass {}. ' +
   'Required argument names are listed in inputSchema.required. ' +
   'Optional responseFormat:"concise"|"debug" overrides the response shape for one call. ' +
-  'Concise navigation args may use refs like "$abc123"; copy them as-is in the same MCP session, or expand them from the response refs map. ' +
+  'Concise navigation may return refs like "$abc123". The server keeps the 500 most recently issued and drops the oldest beyond that, so reuse a ref while it is recent, or expand it from the response `refs` map — a dropped ref is passed through as the literal `$…` and fails to resolve. ' +
   'Successful results and structured errors are JSON in content[0].text; if isError is true, fix arguments or server state. ' +
-  'Build state: tool calls before the graph finishes building return a successful response (not an error) whose result carries status:"building" plus stage, remainingStages, pct, donePackages/totalPackages, stageEtaSec, retryAfterSec. Every tool answers in one envelope: the payload is under `result`, failures under `result.error`. stageEtaSec estimates only the current stage, not time until the graph is ready. ' +
+  'Build state: tool calls before the graph finishes building return a successful response (not an error) whose result carries status:"building" with stage, remainingStages and retryAfterSec. Progress detail — pct, donePackages/totalPackages, stageEtaSec — is present only while the running stage measures it, so read stage and remainingStages for progress. Every tool answers in one envelope: the payload is under `result`, failures under `result.error`. stageEtaSec estimates only the current stage, not time until the graph is ready. ' +
   'When you see result.status:"building": (1) do not retry the same tool in a tight loop — respect retryAfterSec; ' +
   '(2) call get_build_status (always available); pass waitSec (e.g. { waitSec: 45 }) to long-poll — one waiting call that returns as soon as the build settles, instead of repeated polling; ' +
   '(3) if that call still returns building, report the current stage and remainingStages; use direct file reads for this turn when the task can proceed without graph structure instead of polling again. ' +
@@ -638,9 +642,10 @@ function createShutdownHandler(
     },
     afterFlushHooks,
     closeTransport: options.closeTransport,
-    // Release ONNX sessions before the hard exit — same macOS SIGABRT teardown
-    // hazard as the CLI paths (see exitAfterFlush); capped so a wedged runtime
-    // cannot outlive the shutdown deadline.
+    // Release ONNX sessions before the hard exit — exit-path hygiene shared with
+    // the CLI paths, capped so a wedged runtime cannot outlive the shutdown
+    // deadline. The macOS exit-teardown SIGABRT of onnxruntime-node 1.21 outlives
+    // the release; the transformers 4.x floor closes it (docs/platform-support.md).
     exit: code => {
       void Promise.race([
         disposeEmbedderPipelines().catch(() => undefined),
@@ -740,7 +745,8 @@ async function main(): Promise<void> {
 
   // Connect the MCP transport BEFORE building so the `initialize` handshake
   // never blocks on the cold-cache path. Tool calls received before the build finishes
-  // return success-shape envelopes carrying `result.status:"building"` (see executeTool).
+  // return success-shape envelopes carrying the build snapshot: `result.status:"pending"` until
+  // `controller.start()` runs, `result.status:"building"` from then until the graph is ready.
   registerStdioDisconnectShutdown(requestShutdown);
   serverHolder.server = await runStdio(controller, processState);
 

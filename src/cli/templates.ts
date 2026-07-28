@@ -179,9 +179,9 @@ const CODEX_HOOK_ROWS: readonly CodexHookRow[] = [
 
 /**
  * Windows alternate for the project-scope Codex hook command. cmd.exe cannot
- * evaluate `$(git rev-parse --show-toplevel)`; the dispatcher resolves the repo
- * root itself by walking up to `.repovine`, so a workspace-relative path
- * suffices. Verification on a real Windows Codex client is pending.
+ * evaluate `$(git rev-parse --show-toplevel)`, so the command names the dispatcher by a
+ * workspace-relative path. That path is resolved by the client's working directory, before
+ * the dispatcher runs. Verification on a real Windows Codex client is pending.
  */
 function codexProjectWindowsCommand(action: HookAction): string {
   return `node "${CLIENT_CAPABILITIES.codex.hooks.projectScriptsDir}/${CLIENT_DISPATCHER_FILENAME}" ${action} codex`;
@@ -325,7 +325,7 @@ ${renderContextQualityGuidance()}
 - Orient/map/inspect: \`search_context\`, \`map_context\`, \`inspect_node\`.
 - Follow the task axis: runtime/user flow -> \`get_entrypoints\` + \`trace_flow\`; shared contracts -> \`analyze_dependencies\`; env/resources -> \`get_config_surface\`; architecture/review candidates -> \`analyze_architecture\`; annotation health -> \`get_annotation_status\`.
 - After code edits, call \`refresh_context({})\`. After changing \`repovine.config.json\`, call \`refresh_context({ "reloadConfig": true })\` so the running MCP process re-reads config and rebuilds the graph. Changing \`repovine.domains.json\` is picked up by a normal refresh; using \`reloadConfig: true\` is harmless when both files changed.
-- Never hand-edit \`repovine.annots.json\`. Use \`write_annotation\`, \`merge_annotations\`, \`validate_annotations\`, or \`refresh_context({ "cleanupOrphans": true })\`.
+- Never hand-edit \`repovine.annots.json\`. Change it through \`write_annotation\`, \`merge_annotations\`, or \`refresh_context({ "cleanupOrphans": true })\`; \`validate_annotations\` reads it and reports, and writes nothing.
 
 ## Public MCP tools
 
@@ -349,7 +349,7 @@ Use generated skills for the longer procedures:
 - \`repovine-review\`: code review and architecture audit.
 - \`repovine-annotations\`: annotation onboarding, merge repair, sideEffects vocabulary, and quality/provenance rules.
 
-Claude uses \`.claude/agents/*.md\` and \`.claude/skills/*/SKILL.md\`. Codex uses \`.codex/agents/*.toml\` and \`.agents/skills/*/SKILL.md\`. Cursor uses \`.cursor/rules\` and does not rely on this \`AGENTS.md\` surface.
+Claude uses \`.claude/agents/*.md\` and \`.claude/skills/*/SKILL.md\`. Codex uses \`.codex/agents/*.toml\` and \`.agents/skills/*/SKILL.md\`. Cursor uses \`.cursor/rules\`, \`.cursor/agents/*.md\`, and \`.agents/skills/*/SKILL.md\`, and does not rely on this \`AGENTS.md\` surface.
 
 ## Artifacts
 
@@ -358,7 +358,7 @@ Claude uses \`.claude/agents/*.md\` and \`.claude/skills/*/SKILL.md\`. Codex use
 | \`repovine.annots.json\` | Commit | Shared annotation memory between agents/sessions (workspace root). |
 | \`repovine.config.json\` | Commit | Graph build (\`build.scan\`, \`build.linking\`), MCP/analyzer settings (workspace root). |
 | \`repovine.domains.json\` | Commit | Domain patterns and package grouping (workspace root). |
-| \`.repovine/\` | Ignore | Local engine cache (snapshot, graph dumps, build calibration). |
+| \`.repovine/\` | Ignore | Engine cache under \`.cache\` (snapshot, graph dumps, build calibration); \`onboarding-state.json\` and \`carrier-review.json\` hold advisory declines a rebuild does not restore. |
 
 Commit \`repovine.annots.json\`. Never store secrets in annotations; the engine records env var names, not values, and rejects obvious secret values written through \`write_annotation\`.
 
@@ -366,8 +366,12 @@ ${renderMainAgentProtocolSection()}
 ${AGENTS_MD_END_MARKER}
 `;
 
-/** Claude Code project instructions -- points at AGENTS.md (same content as init codex/claude). */
+/**
+ * Claude Code project instructions -- points at AGENTS.md. `setup` writes this to the workspace root
+ * beside the AGENTS.md it renders; the Claude plugin bundle ships the same constant beside its own
+ * `skills/` and `agents/` layout. The body therefore names no client-specific asset paths.
+ */
 export const CLAUDE_MD = `@AGENTS.md
 
-Thin repovine bootstrap: **AGENTS.md**. Detailed workflows live in \`.claude/skills/*/SKILL.md\` and \`.claude/agents/*.md\`. Full tool/config reference: \`repovine/README.md\` when present, else MCP **tools/list** on \`repovine\`.
+Thin repovine bootstrap: **AGENTS.md**. Detailed workflows live in the generated skills, agent files, and hooks. Full tool/config reference: \`repovine/README.md\` when present, else MCP **tools/list** on \`repovine\`.
 `;

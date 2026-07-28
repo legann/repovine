@@ -17,22 +17,81 @@ import { detectPython, discoverPython } from '../../src/source-plugins/python/di
  * Asserting sorted output alone would not catch a regression here: this filesystem already hands
  * back sorted entries, so the assertion passes with or without the fix. The guard therefore forces
  * the hostile order — every directory read in reverse — and requires discovery to correct it.
+ *
+ * The correction is held twice over, and it takes removing both layers to turn the first case red:
+ * `readDirSorted` orders each directory read, and `discoverPackages`/`collectTemplates` sort their
+ * own output before returning it. Either layer alone answers in code-unit order under a reversed
+ * enumeration — redundancy in the engine, not slack in the law. Swapping the comparator is the other
+ * rollback, and one is enough for it: the first case pins literal output arrays, while the second
+ * computes its oracle with an inline code-unit comparison independent of the production helper.
  */
 describe('law: discovery order does not depend on filesystem enumeration order', () => {
-  it('yields the same module order when the host enumerates directories in reverse', async () => {
-    jest.resetModules();
-    jest.unstable_mockModule('node:fs', () => ({
-      ...actualFs,
-      default: actualFs,
-      readdirSync: ((dir: string, options?: unknown) => {
-        const entries = (actualFs.readdirSync as (d: string, o?: unknown) => unknown[])(dir, options);
-        return [...entries].reverse();
-      }),
-    }));
+  /**
+   * Two package names and two template names whose reversed order differs from their sorted one.
+   * These seed the fixture; the order discovery has to answer with is written out at the assertion,
+   * so dropping a name here reddens the case rather than shrinking both sides of it.
+   */
+  const REVERSE_DIRS = ['alpha', 'zulu'];
+  const REVERSE_TEMPLATES = ['apple.html', 'zebra.html'];
 
+  function reverseFixture(): string {
+    const root = actualFs.realpathSync(actualFs.mkdtempSync(path.join(os.tmpdir(), 'repovine-reverse-law-')));
+    const templates = path.join(root, 'templates');
+    actualFs.mkdirSync(templates);
+    for (const name of REVERSE_TEMPLATES) {
+      actualFs.writeFileSync(path.join(templates, name), '<p>{% block body %}{% endblock %}</p>\n');
+    }
+    for (const dir of REVERSE_DIRS) {
+      const abs = path.join(root, dir);
+      actualFs.mkdirSync(abs);
+      actualFs.writeFileSync(path.join(abs, 'tsconfig.json'), JSON.stringify({ compilerOptions: {} }));
+      actualFs.writeFileSync(path.join(abs, 'package.json'), JSON.stringify({ name: `pkg-${dir}` }));
+    }
+    return root;
+  }
+
+  it('yields the same discovery order when the host enumerates directories in reverse', async () => {
+    const root = reverseFixture();
+    try {
+      jest.resetModules();
+      jest.unstable_mockModule('node:fs', () => ({
+        ...actualFs,
+        default: actualFs,
+        readdirSync: ((dir: string, options?: unknown) => {
+          const entries = (actualFs.readdirSync as (d: string, o?: unknown) => unknown[])(dir, options);
+          return [...entries].reverse();
+        }),
+      }));
+
+      // Imported under the mock on purpose: the statically imported copies at the top of this file
+      // hold the real `node:fs`, so calling those would answer the wrong question.
+      // Sequentially: linking these in parallel under a fresh module registry races in the ESM loader.
+      const { discoverPackages: discover } = await import('../../src/source-plugins/typescript/packages.js');
+      const { collectTemplates: templates } = await import('../../src/stage1/templates.js');
+      const { compileScanPatterns: compile } = await import('../../src/scan-filters.js');
+
+      // Every readdir on the way in is reversed, so an entry point that passed enumeration order
+      // through would answer in reverse. Discovery is required to correct it, not the helper alone.
+      // Written out rather than sorted with `compareCodeUnits`: an expectation produced by the same
+      // comparator the engine sorts with moves whenever that comparator moves, and the two sides
+      // agree again on the far side of the change. The literal is the order this law claims.
+      const scanPatterns = compile([], []);
+      expect(discover(root).map(pkg => pkg.path)).toEqual(['alpha', 'zulu']);
+      expect(templates({ repoRoot: root, scanPatterns }).map(t => t.relPath))
+        .toEqual(['templates/apple.html', 'templates/zebra.html']);
+    } finally {
+      actualFs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('orders bracketed route segments by code unit, not by host collation', async () => {
+    jest.resetModules();
     const { readDirSorted } = await import('../../src/fs/read-dir-sorted.js');
     const names = readDirSorted('test/fixtures/sveltekit/src/routes').map(e => e.name);
 
+    // Independent oracle: importing the production comparator here would make the expectation move
+    // with the defect. In particular, a comparator that strips `.ts` before comparing must put
+    // `+page.ts` beside `+page.svelte`, while this literal code-unit relation keeps the true order.
     expect(names).toEqual([...names].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
     // The bracketed and parenthesised route segments are the ones NTFS orders differently; pin them
     // so a future comparator swap (e.g. localeCompare) is caught rather than silently accepted.
@@ -72,6 +131,11 @@ describe('law: discovery order does not depend on filesystem enumeration order',
  *   half of the comparison is skipped, reported by `PYTHON_AVAILABLE` below.
  * - Stage 2. This exercises stage-1 discovery only, so it does not prove the composed graph is
  *   collation-independent end to end.
+ * - The test tree. The text guard reads the two trees the engine ships, so `test/` is outside it.
+ *   Thirteen test files call `localeCompare`; applying this guard's exact comment stripping and
+ *   patterns to `test/` reports fourteen offenders because this law contains its own
+ *   `.localeCompare(` probe string. A test that sorts a fixture and asserts a literal order is
+ *   host-dependent in the same way, but that CI-only exposure is outside this graph-source law.
  */
 describe('law: discovery order does not depend on the runtime collation', () => {
   const PYTHON_AVAILABLE = detectPython() !== null;
@@ -219,9 +283,16 @@ describe('law: discovery order does not depend on the runtime collation', () => 
     const root = candidates.find(c => actualFs.existsSync(path.join(c, 'src', 'platform', 'ordering.ts')));
     if (!root) throw new Error(`Could not find repo root. Tried: ${candidates.join(', ')}`);
 
-    const files = sourceFiles(path.join(root, 'src'));
-    // A move that emptied the tree would otherwise pass with nothing to check.
+    // Both trees the engine ships: the discovery walk and its comparator live in the SDK, so reading
+    // `src` alone would leave the module that does the sorting outside the guard that forbids a
+    // locale-sensitive one.
+    const files = [
+      ...sourceFiles(path.join(root, 'src')),
+      ...sourceFiles(path.join(root, 'packages', 'plugin-sdk', 'src')),
+    ];
+    // A move that emptied a tree would otherwise pass with nothing to check.
     expect(files.length).toBeGreaterThan(100);
+    expect(files.some(f => f.includes(`${path.sep}plugin-sdk${path.sep}`))).toBe(true);
 
     const offenders: string[] = [];
     for (const abs of files) {

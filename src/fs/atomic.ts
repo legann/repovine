@@ -8,8 +8,10 @@ import { randomUUID } from 'node:crypto';
  * directory, fsyncs it, then renames it over the target and fsyncs the parent directory. A concurrent
  * reader sees either the old file or the new file, never a truncated one (rename atomicity); after the
  * call resolves the new contents and the directory entry survive a power loss (the fsync pair). The
- * temp and the target share a directory (same filesystem) so the rename is atomic. On any failure the
- * temp is removed and the original target is left untouched.
+ * temp and the target share a directory (same filesystem) so the rename is atomic. A failure up to and
+ * including the rename removes the temp and leaves the original target as it was. The directory fsync
+ * runs after the rename, so a failure it surfaces reports a durability gap over contents already
+ * published to the target.
  */
 function tempPathFor(filePath: string): string {
   return `${filePath}.tmp.${process.pid}.${randomUUID()}`;

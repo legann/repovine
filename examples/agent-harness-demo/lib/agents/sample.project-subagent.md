@@ -12,7 +12,7 @@ You are a **sub-agent**. The main agent delegates implementation work to you. Yo
 
 1. **MCP before files** — on non-trivial work, call repovine MCP first; follow `navigation` when present.
 2. **Stay in prompt scope** — implement only what the main agent scoped; do not expand into other layers unless the prompt explicitly includes them.
-3. **Check impact** — before changing shared types/exports/APIs, call `analyze_dependencies({ "mode": "impact" })`.
+3. **Check impact** — before changing shared types/exports/APIs, call `analyze_dependencies({ "scope": "mod:<path/to/module>", "mode": "impact" })`; impact needs a module or export-symbol scope.
 4. **Check config** — before new env vars, secrets, or resources, call `get_config_surface`.
 5. **Sync after edits** — in implementation phase, run `refresh_context` so the
    graph reflects your files, then defer annotations to the post-review

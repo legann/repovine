@@ -15,7 +15,14 @@ export const COMPACT_RETRY_BASE =
   'Continue the SAME assignment in this resumed session — its scope, contracts, and inter-sub-agent handoff are already in our conversation above; do not restate or redo them.';
 
 // Errors that are fixable WITHOUT touching code (just the repovine sync step).
-const SYNC_ONLY = /annotation|orphan|tier|coverage|refresh_context|annotationsClean|graphNodesTouched|stale|missing fields|recommendedFields/i;
+//
+// `coverage` is absent on purpose: bare, it also matched the engine's review-verdict error
+// (`testReview.coverageAssessment="insufficient"`), so a reviewer that approved a change with
+// inadequate tests was retried with "the code is accepted, just finish the annotation sync".
+// Dropping it costs nothing here — the annotation-coverage error the harness gate raises reads
+// "Annotation coverage incomplete in scope (N node(s) unannotated/stale)", which `annotation`
+// already carries.
+const SYNC_ONLY = /annotation|orphan|tier|refresh_context|annotationsClean|graphNodesTouched|stale|missing fields|recommendedFields/i;
 
 // Harness contract-handoff failures require code or contractsChanged — never sync-only skip.
 const CONTRACT_HANDOFF = /inter-sub-agent contract|contractsChanged/i;

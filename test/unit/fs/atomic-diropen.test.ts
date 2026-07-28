@@ -4,7 +4,10 @@ import * as path from 'node:path';
 import * as realFs from 'node:fs';
 import * as realFsPromises from 'node:fs/promises';
 
-// R7/H4: directory-open failures are fail-closed except for a narrow Windows-only unsupported policy.
+// The writer surfaces every directory-open failure of the fsync step, except the narrow Windows-only
+// "a directory cannot be opened" policy, which it tolerates. That fsync runs after the rename, so a
+// surfaced failure still leaves the new contents in the target; every case below asserts that disk
+// state next to the error, which by itself says nothing about what reached the target.
 // The fs namespace is frozen (can't jest.spyOn it), so inject the error via a module mock and override
 // process.platform (a configurable property) to exercise both sides of the platform gate.
 describe('atomic writer directory-open errno', () => {
@@ -67,6 +70,8 @@ describe('atomic writer directory-open errno', () => {
     } else {
       expect(() => atomic.writeFileAtomicSync(target, 'data')).toThrow(errno ?? 'codeless failure');
     }
+    // The rename happens before the directory fsync, so the write the caller saw fail is on disk.
+    expect(realFs.readFileSync(target, 'utf-8')).toBe('data');
   }
 
   async function expectOpenUnsupported(kind: WriterKind, errno: string): Promise<void> {

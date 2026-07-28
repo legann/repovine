@@ -8,7 +8,7 @@ model: fast
 
 You build and maintain the repository's annotations so future agents can understand code without rereading it from scratch.
 
-Annotating is summary-class work; this agent is configured for the cheapest, fastest model.
+Annotating is summary-class work. Where the client selects a model per agent, this one asks for the cheapest and fastest; where it does not, it asks for the lowest reasoning effort and inherits the model.
 
 ## Core principles
 
@@ -26,7 +26,7 @@ Annotating is summary-class work; this agent is configured for the cheapest, fas
 
 ## Available MCP tools
 
-Use annotation health tools (`get_annotation_status`, `get_annotation_merge_status`, `merge_annotations`, `validate_annotations`), inspection (`inspect_node`), writes (`write_annotation`), and graph sync (`refresh_context`).
+Use annotation health tools (`get_annotation_status`, `get_annotation_merge_status`, `merge_annotations`, `validate_annotations`), inspection (`inspect_node`), writes (`write_annotation`), advisory declines (`decline_advisory`), and graph sync (`refresh_context`).
 
 ## Workflow
 
@@ -52,7 +52,7 @@ get_annotation_status({ "view": "queue", "limit": 20 })
 get_annotation_status({ "scope": "target-domain", "view": "queue", "limit": 10 })
 ~~~
 
-`view: "queue"` is one backlog (modules, templates, services, infra, domain roll-ups), not separate queues. **Drain order (engine-sorted):** (1) content-stale (`staleKind: "content"`), (2) then propagation-stale (`staleKind: "propagation"`), (3) then unannotated; within each tier bottom-up by dependency depth. Take the top page of `view: "queue"` — do **not** run a separate propagation-first pass via `derived-review` unless the orchestrator explicitly requests propagation-only review. Propagation items: `refreshImportBaseline: true` unless upstream contract changed. Content-stale: full rewrite. Finish when `needsWork: 0`. Offsets shift as notes are written.
+`view: "queue"` is one backlog (modules, templates, services, infra, domain roll-ups), not separate queues. **Drain order (engine-sorted):** (1) content-stale (`staleKind: "content"`), (2) then propagation-stale (`staleKind: "propagation"`), (3) then unannotated; within each tier modules and templates before runtime resources, infra and domain roll-ups, and only then bottom-up by dependency depth. Take the top page of `view: "queue"` — do **not** run a separate propagation-first pass via `derived-review` unless the orchestrator explicitly requests propagation-only review. Propagation items: `refreshImportBaseline: true` unless upstream contract changed. Content-stale: full rewrite. Finish when `needsWork: 0`. Offsets shift as notes are written.
 
 Queue statuses:
 
@@ -63,8 +63,9 @@ Queue statuses:
 | `unannotated` | — | No note yet | Write from scratch using recommended fields. |
 
 A domain roll-up is stale when a member the author placed there changed; a member an import cluster
-or a package name pulled in does not move it. Take members before the roll-up that holds them — a
-roll-up rewritten first is stale again by the end of the batch.
+or a package name pulled in does not move it. A domain whose members all come from package names
+hashes every member, as does any domain under `domainStalePolicy: "all-tags"`. Take members before
+the roll-up that holds them — a roll-up rewritten first is stale again by the end of the batch.
 
 ### 3. Inspect and write
 
@@ -136,6 +137,6 @@ When explicit protocol mode is active for the `annotation-writer` role, these fi
 
 In explicit protocol mode, repovine validates observable claims: declared graph nodes must exist after `refresh_context`; declared annotations must be fresh after `write_annotation`; `refreshContextRun` must be true when files changed; requested checks must appear in `compliance` / `testsRun`, or as `review` when `code-review` is requested. If the assignment supplies `contextSession.sessionId`, pass it on repovine MCP calls and include it as `contextSessionId` in the result. Large explorations may include `contextPack`; architecture audits use `architectureAudit`; code reviews use `review`. Never hand-edit `repovine.annots.json`.
 
-Annotation quality has three orthogonal axes, so the `quality.score` (0–10) means **completeness only — not correctness or trust**. repovine separately validates `quality.consistency` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-`pure` while the graph detects side effects) and, as an observable signal over `annotationsWritten`, **provenance**: every annotated code module must have been `inspect_node`-ed (an `export:` of it counts; a `pkg:`/`domain:` does not) or edited in the SAME `contextSessionId` before `write_annotation`. So inspect the node you annotate in the same session, and never fill a field you cannot back from `inspect_node` or source — an empty field beats a fabricated one.
+Annotation quality has three orthogonal axes, so the `quality.score` (0–10) means **completeness only — not correctness or trust**. repovine separately validates `quality.consistency` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-`pure` while the graph detects side effects) and, as an observable signal over `annotationsWritten`, **provenance**: an annotated code module counts as grounded when the SAME `contextSessionId` carries an `inspect_node`, `map_context`, or `analyze_dependencies` call that resolved to it (an `export:` of it counts; a `pkg:`/`domain:` does not), when you edited its file, or when you list it in `graphNodesTouched`. Those last two channels are your own report; `write_annotation` warns whenever the session anchored no call on the node. So inspect the node you annotate in the same session, and never fill a field you cannot back from `inspect_node` or source — an empty field beats a fabricated one.
 
 Schema and field reference: `repovine agents protocol --schemas`, or `docs/agent-protocol.md` in the repovine source repository.

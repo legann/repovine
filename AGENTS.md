@@ -18,7 +18,7 @@ Context Session Quality scores repovine MCP responses, not agent prose. Pass `co
 - Orient/map/inspect: `search_context`, `map_context`, `inspect_node`.
 - Follow the task axis: runtime/user flow -> `get_entrypoints` + `trace_flow`; shared contracts -> `analyze_dependencies`; env/resources -> `get_config_surface`; architecture/review candidates -> `analyze_architecture`; annotation health -> `get_annotation_status`.
 - After code edits, call `refresh_context({})`. After changing `repovine.config.json`, call `refresh_context({ "reloadConfig": true })` so the running MCP process re-reads config and rebuilds the graph. Changing `repovine.domains.json` is picked up by a normal refresh; using `reloadConfig: true` is harmless when both files changed.
-- Never hand-edit `repovine.annots.json`. Use `write_annotation`, `merge_annotations`, `validate_annotations`, or `refresh_context({ "cleanupOrphans": true })`.
+- Never hand-edit `repovine.annots.json`. Change it through `write_annotation`, `merge_annotations`, or `refresh_context({ "cleanupOrphans": true })`; `validate_annotations` reads it and reports, and writes nothing.
 
 ## Public MCP tools
 
@@ -42,7 +42,7 @@ Use generated skills for the longer procedures:
 - `repovine-review`: code review and architecture audit.
 - `repovine-annotations`: annotation onboarding, merge repair, sideEffects vocabulary, and quality/provenance rules.
 
-Claude uses `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`. Codex uses `.codex/agents/*.toml` and `.agents/skills/*/SKILL.md`. Cursor uses `.cursor/rules` and does not rely on this `AGENTS.md` surface.
+Claude uses `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`. Codex uses `.codex/agents/*.toml` and `.agents/skills/*/SKILL.md`. Cursor uses `.cursor/rules`, `.cursor/agents/*.md`, and `.agents/skills/*/SKILL.md`, and does not rely on this `AGENTS.md` surface.
 
 ## Artifacts
 
@@ -51,7 +51,7 @@ Claude uses `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`. Codex uses `.
 | `repovine.annots.json` | Commit | Shared annotation memory between agents/sessions (workspace root). |
 | `repovine.config.json` | Commit | Graph build (`build.scan`, `build.linking`), MCP/analyzer settings (workspace root). |
 | `repovine.domains.json` | Commit | Domain patterns and package grouping (workspace root). |
-| `.repovine/` | Ignore | Local engine cache (snapshot, graph dumps, build calibration). |
+| `.repovine/` | Ignore | Engine cache under `.cache` (snapshot, graph dumps, build calibration); `onboarding-state.json` and `carrier-review.json` hold advisory declines a rebuild does not restore. |
 
 Commit `repovine.annots.json`. Never store secrets in annotations; the engine records env var names, not values, and rejects obvious secret values written through `write_annotation`.
 

@@ -6,6 +6,10 @@
  * before it fails. The branch that produced one does not have to be reachable to do damage — it
  * only has to be believable to whoever reads the source next. This test reads the strings
  * themselves, so an unreachable branch fails here just like a live one.
+ *
+ * An instruction reaches the reader in two spellings, and both are read here: an imperative
+ * sentence naming the command bare, and the command as a backticked code span, which carries
+ * the same instruction with or without a verb in front of it.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -14,9 +18,15 @@ const SRC_ROOT = path.resolve(process.cwd(), 'src');
 const ROUTER_FILE = path.join(SRC_ROOT, 'mcp', 'index.ts');
 const AGENTS_ROUTER_FILE = path.join(SRC_ROOT, 'cli', 'agents.ts');
 
-/** Imperative advice. Prose that merely names the product ("the repovine policy lives …") is not
- *  an instruction and must not be matched. */
-const ADVICE_RE = /\b(?:Run|Rerun) repovine ([a-z][a-z-]*)(?:\s+([a-z][a-z-]*))?/g;
+/** Imperative advice, either capitalization. Prose that merely names the product ("the repovine
+ *  policy lives …") is not an instruction and must not be matched. */
+const ADVICE_RE = /\b[Rr](?:un|erun) repovine ([a-z][a-z-]*)(?:\s+([a-z][a-z-]*))?/g;
+
+/** The other spelling an instruction reaches the reader in: the command as a code span, with or
+ *  without a verb in front of it ("or run `repovine build` now", "Recommended: `repovine setup`").
+ *  A code span holds a command line — the command word, then further words and flags, then the
+ *  closing backtick — so product prose that opens a template literal does not qualify. */
+const QUOTED_COMMAND_RE = /`repovine ([a-z][a-z-]*)(?: (?:[a-z][a-z-]*|--?[a-z][a-z-]*))*`/g;
 
 /** `repovine agents <sub>` anywhere, imperative or not: a second command in the same sentence
  *  ("Run repovine setup, then repovine agents compliance") is advice too, and the subcommand
@@ -58,6 +68,20 @@ describe('remediation advice names commands the router dispatches', () => {
     expect(agentsSubcommands.size).toBeGreaterThan(5);
   });
 
+  // Sanity: a spelling that silently stopped matching would make the scan below vacuous for it.
+  it('finds both instruction spellings in the source tree', () => {
+    const imperative = new Set<string>();
+    const quoted = new Set<string>();
+    for (const file of listSourceFiles(SRC_ROOT)) {
+      const source = fs.readFileSync(file, 'utf-8');
+      if ([...source.matchAll(ADVICE_RE)].length > 0) imperative.add(file);
+      if ([...source.matchAll(QUOTED_COMMAND_RE)].length > 0) quoted.add(file);
+    }
+    expect(imperative.size).toBeGreaterThan(0);
+    // The code-span spelling carries advice the imperative one never sees.
+    expect([...quoted].filter(file => !imperative.has(file)).length).toBeGreaterThan(0);
+  });
+
   it('advises no command the router would reject', () => {
     const phantoms: Array<{ file: string; advice: string }> = [];
 
@@ -67,6 +91,9 @@ describe('remediation advice names commands the router dispatches', () => {
       for (const [advice, command] of source.matchAll(ADVICE_RE)) {
         // Only `agents` takes a subcommand; elsewhere the next word belongs to the sentence, so
         // the second capture is checked by AGENTS_INVOCATION_RE rather than here.
+        if (!commands.has(command)) phantoms.push({ file: rel, advice });
+      }
+      for (const [advice, command] of source.matchAll(QUOTED_COMMAND_RE)) {
         if (!commands.has(command)) phantoms.push({ file: rel, advice });
       }
       for (const [advice, subcommand] of source.matchAll(AGENTS_INVOCATION_RE)) {

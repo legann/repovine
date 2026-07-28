@@ -24,7 +24,10 @@ describe("SSR markers — 'use server' / 'use client' directives", () => {
     expect(h?.ssr?.useClient).toBe(true);
   });
 
-  it("tolerates BOM, comments, and shebang before directive", () => {
+  // Detection reads `sf.getFullText()`, and ts-morph drops a byte-order mark before that text
+  // exists — a BOM-prefixed file arrives here already stripped. This case covers the prefixes that
+  // do survive into the text: shebang, line comment, block comment.
+  it("tolerates comments and shebang before directive", () => {
     const sf = makeSf(`#!/usr/bin/env node\n// banner\n/* multi */\n'use server';\nexport {};`);
     const h = collectSemanticHints(sf);
     expect(h?.ssr?.useServer).toBe(true);

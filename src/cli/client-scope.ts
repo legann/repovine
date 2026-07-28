@@ -2,9 +2,9 @@
  * Client scope detection for agent-asset doctor and health checks.
  *
  * Maps repovine setup targets to the instruction surfaces each client reads:
- *   - Cursor  → `.cursor/rules/repovine-*.mdc` + `.cursor/agents/*`
- *   - Claude  → `AGENTS.md` + `.claude/agents/*`
- *   - Codex   → `AGENTS.md` + `.codex/agents/*`
+ *   - Cursor  → `.cursor/rules/repovine-*.mdc` + `.cursor/agents` + `.agents/skills`
+ *   - Claude  → `AGENTS.md` + `.claude/agents` + `.claude/skills`
+ *   - Codex   → `AGENTS.md` + `.codex/agents` + `.agents/skills`
  */
 import fs from 'node:fs';
 import path from 'node:path';

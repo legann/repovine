@@ -1,4 +1,4 @@
-// Example third-party repovine source plugin (OSS-plugin plan Phase 3/Path B).
+// Example third-party repovine source plugin.
 //
 // A deliberately tiny Go parser built on regex — NO `go` toolchain required — so it runs anywhere.
 // It demonstrates the whole contract a third-party plugin honors:
@@ -6,8 +6,9 @@
 //   • extract() emits SEMANTICS ONLY (imports/exports/semanticHints) keyed back to the
 //     engine-minted moduleId — discover() reports pkg + relPath and the engine mints the id, so a
 //     plugin never spells `mod:<pkg>/<path>` itself and never sets id/filePath/contentHash;
-//   • routes go into `semanticHints.routes`, which the CORE projects into API entrypoints with no
-//     new interpreter (a new language gets backend interpretation for free).
+//   • routes go into `semanticHints.routes`, the normalized route fact the core reads — in a graph
+//     build the built-in `server-entrypoints` interpreter reads that slot for the `typescript` and
+//     `python` source plugins.
 //
 // Authored through the SDK, which is what a real package does: `defineSourcePlugin` stamps the
 // contract major, and `walkRepository` is the discovery traversal — it prunes the directories the

@@ -15,9 +15,11 @@
 //     client: claude | codex | cursor (default: claude; codex shares claude's shape)
 // stdin: one JSON hook payload from the host client.
 //
-// Advisory only, never blocking: unknown actions, malformed payloads, and
-// missing index/config files exit 0 with no output. Uses node: builtins only —
-// no npx, no network.
+// Advisory only: every run exits 0. Unknown actions and missing index/config
+// files produce no output. Stdin that is unparsable, or parses to something
+// other than a JSON object, degrades to an empty payload: the session hint
+// still emits, the edit-scoped actions stay silent.
+// Uses node: builtins only — no npx, no network.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -297,8 +299,9 @@ function runSessionMcpHint(data) {
       'For any non-trivial task, START with repovine MCP tools search_context or map_context; do not grep or read files first. ' +
       'The MCP provides structure, annotations, entrypoints, dependency analysis, config surface, and flow tracing. ' +
       'After editing files, call repovine MCP tool refresh_context to refresh the syntax index before further structural navigation. ' +
-      'Build state: tool calls received before the graph finishes building return a successful envelope (not an error) whose result carries status:"building", stage, remainingStages, and stageEtaSec (current stage only); ' +
-      'do not retry in a loop — call get_build_status once with waitSec (e.g. { waitSec: 45 }), respect retryAfterSec, and if it still returns building report the stage/remaining stages and fall back to direct file reads when possible. ' +
+      'Build state: tool calls received before the graph finishes building return a successful envelope (not an error) whose result carries status:"building" with stage, remainingStages and retryAfterSec. ' +
+      'Progress detail — pct, donePackages/totalPackages, stageEtaSec — is present only while the running stage measures it, so read stage and remainingStages for progress; stageEtaSec covers the current stage, not time until ready. ' +
+      'Do not retry in a loop — call get_build_status once with waitSec (e.g. { waitSec: 45 }), respect retryAfterSec, and if it still returns building report the stage/remaining stages and fall back to direct file reads when possible. ' +
       DOMAINS_ADVISOR_AGENT_CONTRACT +
       onboardingHint +
       conflictHint,
@@ -319,6 +322,9 @@ process.stdin.on('end', () => {
     if (action !== 'session-mcp-hint') process.exit(0);
     data = {};
   }
+  // Every action reads `data` as a record of payload keys. JSON null, scalars,
+  // and arrays parse cleanly and carry none, so they become an empty payload.
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) data = {};
 
   if (action === 'boundary-notice') runBoundaryNotice(data);
   else if (action === 'stale-graph-notice') runStaleGraphNotice(data);

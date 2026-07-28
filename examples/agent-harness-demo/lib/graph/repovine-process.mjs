@@ -206,11 +206,13 @@ export async function runOrientPhase({
   let claimContracts = (subAgent.result?.contractsChanged ?? []).filter((c) =>
     /^CLAIM:/i.test(String(c)),
   );
-  // CSQ-retry payload loss: a retry that repairs the navigation funnel may not
+  // Retry payload loss: a retry that repairs the navigation funnel may not
   // re-emit the CLAIM lines the rejected attempt already carried (observed live:
-  // 12 claims on attempt 1, 0 on the accepted attempt 2). Recover the newest
-  // prior attempt's claims ONLY when the accepted result carries none — never a
-  // union, so a revised/retracted claim set is left alone.
+  // 12 claims on attempt 1, 0 on the accepted attempt 2). A retry starts from a
+  // compliance rejection; a weak context session alone stays a warning and
+  // retries nothing. Recover the newest prior attempt's claims ONLY when the
+  // accepted result carries none — never a union, so a revised/retracted claim
+  // set is left alone.
   if (claimContracts.length === 0) {
     const recovered = recoverClaimContractsFromAttempts(
       repoRoot,
@@ -424,10 +426,13 @@ const CSQ_ERROR_RE = /^Context session quality rejected handoff/;
  * Delivered work whose ONLY compliance failure is a weak context session.
  * Outcome gates (review, verify + graph obligations, test floor) own
  * correctness; the epistemic signal stays visible (yellow subAgent in the reply,
- * `signals.contextQualityRejections`) and the retry pressure stays — the subAgent already
- * retried to recover. It no longer fails the run's process axis. Mirrors the
- * subAgentGateEffectivelyOk precedent for out-of-scope blocker noise. Any other
- * compliance error (false claims, schema, required fields) still fails.
+ * `signals.contextQualityRejections`). It no longer fails the run's process axis.
+ * Mirrors the subAgentGateEffectivelyOk precedent for out-of-scope blocker noise. Any
+ * other compliance error (false claims, schema, required fields) still fails.
+ *
+ * The engine emits that rejection as a compliance error only behind a context-quality hard
+ * gate that is currently off, so a weak session reaches compliance as a warning and this
+ * predicate reads false on every real report. The branch takes effect when the gate turns on.
  */
 export function subAgentCsqOnlyDelivered(subAgent) {
   if (!subAgent || subAgent.ok) return false;

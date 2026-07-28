@@ -34,7 +34,7 @@ Mirror `src/` under `test/unit/` when you can: `src/mcp/…` → `test/unit/mcp/
 | `integration/root-ts-python-fixtures.test.ts` | Root-level TS + Python with colliding package name (`expected.json` → `polyglot`) |
 | `integration/runtime-links.test.ts` | Lambda / K8s / compose runtime linking |
 | `integration/pipeline.test.ts` | End-to-end on `basic-typescript` |
-| `unit/stage2/__phase6_parity__/graph-projection.test.ts` | Byte-stable MCP graph projection (21 fixtures) |
+| `unit/stage2/__phase6_parity__/graph-projection.test.ts` | Byte-stable MCP graph projection (22 fixtures) |
 | `unit/analysis/architecture/detector-registry-parity.test.ts` | Byte-stable `analyze_architecture` output (7 fixtures) |
 
 The same fixture may appear in several suites — they guard **different contracts**, not duplicate work.

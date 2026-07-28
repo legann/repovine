@@ -793,7 +793,11 @@ describe('architecture detail expansion', () => {
     expect(refactoringNextCalls(
       state.graph,
       finding('event-driven-boundary', 'event-driven-boundary:resource:orders-topic', ['resource:orders-topic']),
-    )).toContainEqual(expect.objectContaining({ tool: 'trace_flow', args: { include: ['entrypoints', 'services', 'resources', 'flows'] } }));
+    )).toContainEqual(expect.objectContaining({
+      tool: 'trace_flow',
+      // Scoped to the finding's own node: without it the call resolves to `all` and traces the repo.
+      args: { scope: 'resource:orders-topic', include: ['entrypoints', 'services', 'resources', 'flows'] },
+    }));
     expect(refactoringNextCalls(
       state.graph,
       finding('server-client-boundary', `server-client-boundary:${mod.id}`, [mod.id]),
