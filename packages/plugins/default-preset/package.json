@@ -1,0 +1,34 @@
+{
+  "name": "@repovine/plugin-default-preset",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@repovine/plugin-iac-docker-compose": "0.1.0",
+    "@repovine/plugin-iac-dockerfile": "0.1.0",
+    "@repovine/plugin-iac-helm": "0.1.0",
+    "@repovine/plugin-iac-kubernetes": "0.1.0",
+    "@repovine/plugin-iac-sam": "0.1.0",
+    "@repovine/plugin-iac-terraform": "0.1.0",
+    "@repovine/plugin-iac-vercel": "0.1.0",
+    "@repovine/plugin-source-python": "0.1.0",
+    "@repovine/plugin-source-typescript": "0.1.0"
+  }
+}

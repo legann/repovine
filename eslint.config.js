@@ -9,6 +9,7 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'packages/*/dist/**',
+      'packages/plugins/*/dist/**',
       'node_modules/**',
       'examples/**',
       'coverage/**',
@@ -23,12 +24,60 @@ export default tseslint.config(
   },
   ...tseslint.configs.recommended,
   {
-    files: ['src/**/*.ts', 'packages/plugin-sdk/src/**/*.ts', 'test/**/*.test.ts', 'test/helpers/**/*.ts'],
+    files: [
+      'src/**/*.ts',
+      'packages/plugin-sdk/src/**/*.ts',
+      'packages/plugins/*/src/**/*.ts',
+      'test/**/*.test.ts',
+      'test/helpers/**/*.ts',
+    ],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
+  },
+  {
+    // Physical plugin-package boundary. The total law in
+    // test/laws/plugin-workspace-boundary.test.ts is authoritative; this rule
+    // gives immediate editor/CI feedback for the forbidden spellings.
+    files: ['packages/plugins/*/src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'repovine',
+                'repovine/*',
+                'repovine/**',
+                '@repovine/plugin-sdk/src',
+                '@repovine/plugin-sdk/src/*',
+                '@repovine/plugin-sdk/src/**',
+                '@repovine/plugin-sdk/dist',
+                '@repovine/plugin-sdk/dist/*',
+                '@repovine/plugin-sdk/dist/**',
+                '**/../../../../src/*',
+                '**/../../../../src/**',
+                '**/../../../plugin-sdk/src/*',
+                '**/../../../plugin-sdk/src/**',
+                '**/../../*/src/*',
+                '**/../../*/src/**',
+                '../../../../src/*',
+                '../../../../src/**',
+                '../../../plugin-sdk/src/*',
+                '../../../plugin-sdk/src/**',
+                '../../*/src/*',
+                '../../*/src/**',
+              ],
+              message:
+                'Plugin workspaces use public package entrypoints only; core, SDK source/dist, and sibling-source bypasses are forbidden.',
+            },
+          ],
+        },
       ],
     },
   },

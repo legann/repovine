@@ -106,9 +106,9 @@ Kept minimal on purpose. Use **`npx repovine`** in downstream projects or **`npm
 
 | Script | Meaning |
 |--------|---------|
-| `build` | Compile TypeScript → `dist/` (`tsc`) |
-| `clean` | Remove `dist/` |
-| `typecheck` | Build plugin-sdk (`tsc -p packages/plugin-sdk/tsconfig.json`, emits `packages/plugin-sdk/dist`), then no-emit check of src + tests (`tsc -p tsconfig.test.json`) |
+| `build` | Compile the SDK and private plugin workspaces through TypeScript project references, then the engine → `dist/` |
+| `clean` | Remove engine, SDK, and private plugin workspace build output |
+| `typecheck` | Build/typecheck every workspace, then no-emit check of src + tests (`tsc -p tsconfig.test.json`) |
 | `test` | Jest unit tests |
 | `smoke:pack-install` | Pack both packages, install into a throwaway repo, drive the MCP over stdio |
 | `profile` | Memory profiler (dev) |
@@ -116,7 +116,10 @@ Kept minimal on purpose. Use **`npx repovine`** in downstream projects or **`npm
 `smoke:pack-install` runs the path `npx -y repovine@<version>` takes. A build inside the
 engine checkout resolves `devDependencies` that a published install does not ship, so
 `node dist/mcp/index.js --help` passing here proves nothing about the tarball. CI runs
-this on every PR.
+this on every PR. The smoke also verifies the tarball's bundled dependency set,
+then resolves and imports the private default preset and all nine built-in
+package entrypoints from the clean installed dependency tree; finding their
+filenames in the archive is not sufficient.
 
 `npm run build` **≠** `repovine build`. The first compiles the engine; the second builds the **syntax index and graph cache** for the resolved workspace root: `REPOVINE_ROOT` when set, otherwise the nearest ancestor holding `.git`. An unconfigured root re-roots to a configured ancestor — see [workspace-files.md](workspace-files.md).
 

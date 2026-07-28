@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -9,6 +10,7 @@
     "esModuleInterop": true,
     "declaration": true,
     "sourceMap": true,
+    "tsBuildInfoFile": "tsconfig.tsbuildinfo",
     "skipLibCheck": true,
     "types": ["node"]
   },

@@ -23,6 +23,22 @@ const keep = process.argv.includes('--keep');
 
 /** Tools the MCP server publishes; a short install that starts but exposes nothing is a failure. */
 const MIN_TOOLS = 18;
+const BUNDLED_PLUGIN_PACKAGES = {
+  '@repovine/plugin-source-typescript': 'typescript',
+  '@repovine/plugin-source-python': 'python',
+  '@repovine/plugin-iac-sam': 'sam',
+  '@repovine/plugin-iac-kubernetes': 'kubernetes',
+  '@repovine/plugin-iac-helm': 'helm',
+  '@repovine/plugin-iac-terraform': 'terraform',
+  '@repovine/plugin-iac-vercel': 'vercel',
+  '@repovine/plugin-iac-dockerfile': 'dockerfile',
+  '@repovine/plugin-iac-docker-compose': 'docker-compose',
+};
+const DEFAULT_PRESET_PACKAGE = '@repovine/plugin-default-preset';
+const EXPECTED_BUNDLED_PACKAGES = [
+  DEFAULT_PRESET_PACKAGE,
+  ...Object.keys(BUNDLED_PLUGIN_PACKAGES),
+].sort();
 
 const failures = [];
 const check = (ok, message) => {
@@ -35,6 +51,65 @@ function npm(args, cwd) {
   if (res.error) throw res.error;
   if (res.status !== 0) throw new Error(`npm ${args.join(' ')} exited ${res.status}\n${res.stderr || ''}`);
   return res.stdout;
+}
+
+/** Resolve and import the bundled packages from a child whose module base is
+ * the installed engine. The smoke runner itself lives in the development
+ * checkout, so resolving here would be a false positive through workspaces. */
+function probeInstalledPluginPackages(installed) {
+  const probe = `
+    import { createRequire } from 'node:module';
+    import { pathToFileURL } from 'node:url';
+
+    const expected = JSON.parse(process.env.REPOVINE_SMOKE_PLUGIN_SPECS);
+    const anchoredRequire = createRequire(process.env.REPOVINE_SMOKE_ENGINE_MANIFEST);
+    const direct = new Map();
+    const packages = {};
+    for (const [name, pluginId] of Object.entries(expected)) {
+      try {
+        const resolved = anchoredRequire.resolve(name);
+        const mod = await import(pathToFileURL(resolved).href);
+        direct.set(name, mod.default);
+        packages[name] = {
+          resolved,
+          pluginId: mod.default?.pluginId,
+          activation: mod.default?.activation,
+          expectedPluginId: pluginId,
+        };
+      } catch (error) {
+        packages[name] = { error: error?.code ?? error?.message ?? String(error) };
+      }
+    }
+    let preset;
+    try {
+      const resolved = anchoredRequire.resolve(process.env.REPOVINE_SMOKE_PRESET);
+      const mod = await import(pathToFileURL(resolved).href);
+      const value = mod.default;
+      preset = {
+        resolved,
+        activation: value?.activation,
+        pluginCount: Array.isArray(value?.plugins) ? value.plugins.length : -1,
+        sameInstances: Array.isArray(value?.plugins)
+          && value.plugins.every(plugin => direct.get(plugin.packageName) === plugin),
+      };
+    } catch (error) {
+      preset = { error: error?.code ?? error?.message ?? String(error) };
+    }
+    process.stdout.write(JSON.stringify({ packages, preset }));
+  `;
+  return JSON.parse(nodeOutput(
+    ['--input-type=module', '-e', probe],
+    {
+      cwd: installed,
+      env: {
+        ...process.env,
+        REPOVINE_SMOKE_ENGINE_MANIFEST: path.join(installed, 'package.json'),
+        REPOVINE_SMOKE_PLUGIN_SPECS: JSON.stringify(BUNDLED_PLUGIN_PACKAGES),
+        REPOVINE_SMOKE_PRESET: DEFAULT_PRESET_PACKAGE,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  ));
 }
 
 /** Send initialize + tools/list to the packed server over stdio, as an MCP client
@@ -101,7 +176,14 @@ const consumer = path.join(workRoot, 'consumer');
 try {
   console.log(`Packing repovine@${pkg.version} and @repovine/plugin-sdk…`);
   const sdkTgz = npm(['pack', '-w', '@repovine/plugin-sdk', '--pack-destination', workRoot], engineRoot).trim().split('\n').pop();
-  const engineTgz = npm(['pack', '--pack-destination', workRoot], engineRoot).trim().split('\n').pop();
+  const enginePack = JSON.parse(
+    npm(['pack', '--json', '--pack-destination', workRoot], engineRoot),
+  )[0];
+  const engineTgz = enginePack.filename;
+  check(
+    JSON.stringify([...(enginePack.bundled ?? [])].sort()) === JSON.stringify(EXPECTED_BUNDLED_PACKAGES),
+    'repovine tarball bundles the default preset and all nine private plugin packages',
+  );
 
   // A consumer repo with one TS file: enough for a graph build and a real tools/list.
   mkdirSync(path.join(consumer, 'src'), { recursive: true });
@@ -113,6 +195,37 @@ try {
 
   const installed = path.join(consumer, 'node_modules', 'repovine');
   check(existsSync(installed), 'repovine installs from the tarball');
+  const pluginProbe = probeInstalledPluginPackages(installed);
+  const installedTree = path.join(consumer, 'node_modules');
+  const resolvesInsideInstalledTree = resolved => {
+    if (typeof resolved !== 'string' || !path.isAbsolute(resolved)) return false;
+    const rel = path.relative(installedTree, resolved);
+    return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
+  };
+  for (const [packageName, pluginId] of Object.entries(BUNDLED_PLUGIN_PACKAGES)) {
+    const result = pluginProbe.packages[packageName];
+    check(
+      resolvesInsideInstalledTree(result?.resolved),
+      `${packageName} resolves from installed repovine/package.json`,
+    );
+    check(
+      result?.pluginId === pluginId && result?.activation === 'scaffold-only',
+      `${packageName} public entrypoint imports from the installed tarball`,
+    );
+  }
+  check(
+    resolvesInsideInstalledTree(pluginProbe.preset?.resolved),
+    `${DEFAULT_PRESET_PACKAGE} resolves from installed repovine/package.json`,
+  );
+  check(
+    pluginProbe.preset?.activation === 'scaffold-only'
+      && pluginProbe.preset?.pluginCount === Object.keys(BUNDLED_PLUGIN_PACKAGES).length,
+    'default preset imports all nine bundled public entrypoints',
+  );
+  check(
+    pluginProbe.preset?.sameInstances === true,
+    'default preset and direct imports resolve the same bundled module instances',
+  );
   check(
     existsSync(path.join(consumer, 'node_modules', 'typescript')),
     'typescript resolves at runtime (declared as a dependency, not a devDependency)',
