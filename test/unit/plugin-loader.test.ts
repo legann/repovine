@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { applyPluginConfig, getActivePluginIds } from '../../src/stage1/plugin-loader.js';
 import { getSourcePlugin } from '../../src/stage1/source/registry.js';
 import { getParsers, getTriggerTypeMeta } from '../../src/stage1/iac/registry.js';
+import { catalogTriggerTypeMeta } from '../../src/plugins/declaration-catalog.js';
 import type { SourceExtractInput } from '@repovine/plugin-sdk';
 import '../../src/stage1/source/bootstrap.js';
 import '../../src/stage1/iac/bootstrap.js';
@@ -196,8 +197,10 @@ describe('plugin-loader', () => {
       role: 'tool-output',
       declaredBy: { pluginId: 'declaring', packageName: 'repovine-plugin-declaring', packageVersion: '2.3.4' },
     });
-    // Declared trigger metadata reaches the registry that projects entrypoints.
-    expect(getTriggerTypeMeta('edge-http')).toEqual({ entrypointKind: 'api' });
+    // Declared trigger metadata reaches the per-run catalog that projects entrypoints, and not the
+    // process-global registry: a declaration must not survive into the next build in this process.
+    expect(catalogTriggerTypeMeta(report.runtime.catalog, 'edge-http')).toEqual({ entrypointKind: 'api' });
+    expect(getTriggerTypeMeta('edge-http')).toBeUndefined();
   });
 
   it('refuses a manifest whose declaration claims its own owner', async () => {

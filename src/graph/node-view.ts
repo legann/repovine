@@ -4,7 +4,7 @@
  * is built here (graph → view); MCP depends on this, not the reverse.
  */
 import type { NodeType, EdgeKind, TagEdgeSource } from './model.js';
-import type { FieldInfo, ParamInfo, SsrMarkers, SymbolKind, InternalInfo } from '@repovine/plugin-sdk';
+import type { ExtensionRecord, FieldInfo, ParamInfo, SsrMarkers, SymbolKind, InternalInfo } from '@repovine/plugin-sdk';
 import type { AnnotationContent } from '../annotations/types.js';
 import type { StaleReason } from '../annotations/freshness.js';
 import type { TruncationMap } from '../response/truncation.js';
@@ -101,6 +101,14 @@ export interface NodeViewDetail extends NodeView {
   body?: string;
   /** Set when file could not be read for includeBody or when parent module is missing. */
   bodyError?: string;
+  /**
+   * Namespaced extensions a plugin attached to this node, with owner and provenance.
+   *
+   * These are echoed, not interpreted: no traversal, dependency or architecture answer reads a
+   * payload, and an extension is never presented as a canonical graph fact. Omitted when the node
+   * carries none.
+   */
+  extensions?: ExtensionRecord[];
   /**
    * Count of affordances/exports on this node. A per-node enumeration floor: list each affordance
    * and its capability gate before reporting the node unchanged. Per-node completeness, not task

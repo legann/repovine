@@ -1,4 +1,4 @@
-import type { RepositoryGraph } from '../types.js';
+import type { InfraResourceProvider, RepositoryGraph } from '../types.js';
 import { nodesOfType } from './index.js';
 
 /**
@@ -14,8 +14,8 @@ export interface InfraRefScope {
   declaredIn?: readonly string[];
   /** Kubernetes namespace of the referencing resource. */
   namespace?: string;
-  /** Provider of the referencing resource. */
-  provider?: 'aws' | 'k8s' | 'generic' | 'terraform' | 'vercel';
+  /** Provider of the referencing resource, as the opaque label the node carries. */
+  provider?: InfraResourceProvider;
 }
 
 export type InfraRefResolution =

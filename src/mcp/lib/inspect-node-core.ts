@@ -5,6 +5,8 @@ import { hashedNodeKind, resolveNodeContentHash } from '../../annotations/conten
 import { annotationFreshness, annotationFreshnessMeta } from '../../annotations/freshness.js';
 import { isEntrypointBoundedDerivedStale } from '../../annotations/propagation.js';
 import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
+import { getGraphExtensions } from '../../graph/build-artifact.js';
+import { extensionsForNode } from '../../graph/extension-store.js';
 import { DEFAULT_PROPAGATION_CONFIG } from '../../config.js';
 import { inferModuleKind } from '../../annotations/module-kind.js';
 import {
@@ -197,6 +199,11 @@ export async function buildInspectNodeDetail(ctx: McpToolRuntime, args: Record<s
       if (body) view.truncation = { ...view.truncation, body };
     }
   }
+
+  // Extensions are echoed with their provenance and never folded into the node's own fields: a
+  // plugin's namespaced fact stays distinguishable from what the graph itself asserts.
+  const nodeExtensions = extensionsForNode(getGraphExtensions(graph), nodeId);
+  if (nodeExtensions.length > 0) view.extensions = [...nodeExtensions];
 
   const ann = annotations.get(nodeId);
   const mod = modulesById.get(nodeId);

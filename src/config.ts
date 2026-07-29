@@ -261,11 +261,18 @@ const AnnotationsConfigSchema = z.object({
  * `add` names third-party plugins that must already be npm-installed in the ANALYZED repo (resolved
  * from its node_modules); `disable` drops a plugin (bundled or added) by its id. Arbitrary npm
  * is never auto-installed — install + listing here is the user's trust decision.
+ *
+ * `retract` removes single declared facts by catalog key (`dir:node_modules`,
+ * `resource-kind:<namespace>/<provider>/<kind>`, `trigger-type:<namespace>/<provider>/<type>`,
+ * `value:<axis>=<value>`), for the case where a plugin's claim is wrong for one repository but the
+ * plugin itself is wanted. Disabling a capability keeps its declarations; this is the explicit way
+ * to drop one, and a selector that matches nothing is reported rather than ignored.
  */
 const PluginsConfigSchema = z.object({
   defaults: z.boolean().optional(),
   add: z.array(z.string()).optional(),
   disable: z.array(z.string()).optional(),
+  retract: z.array(z.string()).optional(),
 });
 
 const RepoContextConfigSchema = z.object({
@@ -372,6 +379,8 @@ export interface PluginsConfig {
   defaults: boolean;
   add: string[];
   disable: string[];
+  /** Catalog keys this repository retracts from the declarations its plugins ship. */
+  retract: string[];
 }
 
 // ── Defaults ──
@@ -410,7 +419,7 @@ const DEFAULTS: ResolvedConfig = {
   annotations: {
     propagation: { ...DEFAULT_PROPAGATION_CONFIG },
   },
-  plugins: { defaults: true, add: [], disable: [] },
+  plugins: { defaults: true, add: [], disable: [], retract: [] },
 };
 
 const CONFIG_FILENAME = 'repovine.config.json';
@@ -573,6 +582,7 @@ function resolveConfig(file: RepoContextFileConfig, repoRoot: string): ResolvedC
       defaults: file.plugins?.defaults ?? DEFAULTS.plugins.defaults,
       add: file.plugins?.add ?? [...DEFAULTS.plugins.add],
       disable: file.plugins?.disable ?? [...DEFAULTS.plugins.disable],
+      retract: file.plugins?.retract ?? [...DEFAULTS.plugins.retract],
     },
   };
 }

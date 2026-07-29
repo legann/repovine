@@ -9,7 +9,17 @@ import type {
   DomainTier,
   DomainNodeData,
 } from '../types.js';
-import { addEdge, addNode, createEmptyGraph, domainMembers, infraTargetIds, isTaggedInto, modulePackageId, nodesOfType, taggedDomains } from '../graph/index.js';
+import { addEdge, addNode, applyValidated, createEmptyGraph, domainMembers, infraTargetIds, isTaggedInto, modulePackageId, nodesOfType, taggedDomains } from '../graph/index.js';
+import { rememberGraphExtensions, rememberProjectionReport } from '../graph/build-artifact.js';
+import { emptyExtensionStore, extensionStoreOf, type ExtensionStore } from '../graph/extension-store.js';
+import { getPluginRuntime } from '../plugins/runtime-store.js';
+import {
+  composeProjections,
+  emptyProjectionCompositionResult,
+  type ContributorOutcome,
+  type ProjectionCompositionResult,
+} from './projection/compose.js';
+import { createFactView } from './projection/fact-view.js';
 import { domainNodeId } from '../graph/node-ids.js';
 import { collectAllDomainTags, loadDomainsConfig, STRUCTURAL_DIRS } from './domains.js';
 import { MemoryProfiler } from '../perf/memory-profiler.js';
@@ -63,8 +73,18 @@ export function composeRepositoryGraph(
   // module/service/infra edges that the domain passes depend on. The composer also collects
   // entrypoint fragments in the same pass (services exist after infra-link.contribute).
   const interpreterResult = composeInterpreters({ graph, snapshot, modulesById: modsMap, domainsConfig: config });
-  rememberInterpreterEntrypoints(graph, interpreterResult.entrypoints);
   profiler.phase('stage2:after-interpreter-composer');
+
+  // Plugin projection runs after the structural layers and before the domain passes: its resources
+  // are nodes the domain passes must see, and its references resolve against modules those layers
+  // already minted. Every contributor runs before anything is applied, so registration order
+  // decides nothing here.
+  const projection = composeProjectionsFor(graph, snapshot);
+  applyValidated(graph, projection.delta);
+  rememberInterpreterEntrypoints(graph, [...interpreterResult.entrypoints, ...projection.entrypoints]);
+  rememberGraphExtensions(graph, extensionStoreOf(projection.extensions));
+  rememberProjectionReport(graph, projection.contributors);
+  profiler.phase('stage2:after-projection-composer');
 
   // Opt-in witness gate (infra.pruneInert): drop inert runtime-resources now that every load-bearing
   // edge exists but before the domain passes, so inert plumbing never tags domains or inflates tiers.
@@ -90,14 +110,14 @@ export function composeRepositoryGraph(
   // Returned, not written onto `snapshot`: composition runs in a worker over a structured clone, so
   // a refusal recorded on the argument would be dropped at the isolate boundary — the same loss the
   // interpreter entrypoints already pay for and carry across explicitly.
-  composedRefusals.set(graph, []);
+  composedRefusals.set(graph, [...projection.refusals]);
   if (problems.length > 0) {
     const summary = summarizeGraphValidationProblems(problems);
     if (process.env.REPOVINE_DEV) {
       throw new Error(`stage2 graph validation failed: ${summary}`);
     }
     logPipeline(formatPipelineDetail(`  ⚠ graph validation: ${summary}`));
-    composedRefusals.set(graph, [refusal(
+    composedRefusals.set(graph, [...projection.refusals, refusal(
       'incomplete',
       GRAPH_VALIDATION_REFUSAL,
       `The graph did not take every module and template the scan produced: ${summary}. What is named there is missing from the graph or points at a node that is not in it.`,
@@ -140,7 +160,7 @@ function runStage2InWorker(snapshot: RepositoryFactsSnapshot, signal?: AbortSign
   if (signal?.aborted) return Promise.reject(new Stage2Aborted());
   return new Promise<RepositoryGraph>((resolve, reject) => {
     const worker = new Worker(url, { workerData: { snapshot } });
-    let result: { type?: string; graph?: RepositoryGraph; entrypoints?: EntrypointFragment[]; refusals?: Refusal[]; message?: string; stack?: string } | undefined;
+    let result: { type?: string; graph?: RepositoryGraph; entrypoints?: EntrypointFragment[]; refusals?: Refusal[]; extensions?: ExtensionStore; contributors?: ContributorOutcome[]; message?: string; stack?: string } | undefined;
     let settled = false;
     // Holder breaks the settle ↔ onAbort mutual reference without a reassigned `let` (prefer-const).
     const abortRef: { fn?: () => void } = {};
@@ -163,6 +183,8 @@ function runStage2InWorker(snapshot: RepositoryFactsSnapshot, signal?: AbortSign
         // not survive structured clone (see R5). Absent field ⇒ empty (stale/pre-fix worker).
         rememberInterpreterEntrypoints(result.graph, result.entrypoints ?? []);
         rememberComposedRefusals(result.graph, result.refusals ?? []);
+        rememberGraphExtensions(result.graph, result.extensions ?? emptyExtensionStore());
+        rememberProjectionReport(result.graph, result.contributors ?? []);
         resolve(result.graph);
       } else {
         const err = new Error(result?.message ?? 'stage2 worker exited before returning a graph');
@@ -192,6 +214,15 @@ export async function composeRepositoryGraphAsync(
     signal?.throwIfAborted(); // honor cancel on the inline path too
     return composeRepositoryGraph(snapshot, modulesById);
   }
+  // Projectors are code. A function survives neither structured clone nor the worker's own module
+  // graph, which carries the bundled preset only — so a build with projectors composes where they
+  // were loaded rather than in an isolate that would silently project nothing. Same reason external
+  // source plugins force inline extraction in Stage 1, and stage 7 retires both by giving the worker
+  // the one plugin-loading path.
+  if (getPluginRuntime(snapshot).contributors.length > 0) {
+    signal?.throwIfAborted();
+    return composeRepositoryGraph(snapshot, modulesById);
+  }
   try {
     return await runStage2InWorker(snapshot, signal);
   } catch (e) {
@@ -205,6 +236,27 @@ export async function composeRepositoryGraphAsync(
     }
     return composeRepositoryGraph(snapshot, modulesById);
   }
+}
+
+/**
+ * Run this build's projectors against the graph as it stands.
+ *
+ * The contributors come from the runtime keyed to this snapshot. Inside a worker isolate, or
+ * against a snapshot restored from cache, there are none — which is why a build with projectors
+ * composes inline (see `composeRepositoryGraphAsync`) rather than silently projecting nothing.
+ */
+function composeProjectionsFor(
+  graph: RepositoryGraph,
+  snapshot: RepositoryFactsSnapshot,
+): ProjectionCompositionResult {
+  const { contributors } = getPluginRuntime(snapshot);
+  if (contributors.length === 0) return emptyProjectionCompositionResult();
+  return composeProjections({
+    contributors,
+    input: { repoRoot: snapshot.repoRoot, facts: createFactView({ snapshot }) },
+    knownModuleIds: new Set(snapshot.modules.map(mod => mod.id)),
+    knownNodeIds: new Set(graph.nodes.keys()),
+  });
 }
 
 function logDomains(graph: RepositoryGraph): void {

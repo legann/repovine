@@ -5,6 +5,7 @@ import type { RepositoryFactsSnapshot } from '../types.js';
 // so composeRepositoryGraph has the full interpreter set inside this isolate.
 import { composeRepositoryGraph, getComposedRefusals } from './index.js';
 import { getInterpreterEntrypoints } from './interpreter/entrypoint-store.js';
+import { getGraphExtensions, getProjectionReport } from '../graph/build-artifact.js';
 
 if (!parentPort) {
   throw new Error('stage2 worker must be spawned via worker_threads');
@@ -30,6 +31,8 @@ try {
     graph,
     entrypoints: getInterpreterEntrypoints(graph),
     refusals: getComposedRefusals(graph),
+    extensions: getGraphExtensions(graph),
+    contributors: getProjectionReport(graph),
   });
 } catch (e) {
   const error = e instanceof Error ? e : new Error(String(e));

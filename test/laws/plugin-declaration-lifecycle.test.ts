@@ -1,0 +1,212 @@
+import { afterEach, describe, expect, it } from '@jest/globals';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { applyPluginConfig } from '../../src/stage1/plugin-loader.js';
+import {
+  buildDeclarationCatalog,
+  catalogAmbiguities,
+  catalogResourceKindMeta,
+  catalogTriggerTypeMeta,
+  declarationCatalogIdentity,
+} from '../../src/plugins/declaration-catalog.js';
+import { pluginRuntimeIdentity } from '../../src/plugins/runtime.js';
+import type { StampedDeclarationCatalog } from '@repovine/plugin-sdk';
+import '../../src/stage1/source/bootstrap.js';
+import '../../src/stage1/iac/bootstrap.js';
+
+/**
+ * Law: a build's declarations are that build's, and a conflict is refused rather than resolved.
+ *
+ * Two failures this guards. The first is accumulation: a plugin loaded once used to leave its
+ * metadata in a process-global map that no later build cleared, so a long-lived MCP server answered
+ * a default build with an external plugin's facts. The second is last-write-wins: two plugins
+ * claiming one key used to be settled by whichever was read first, which makes config order a
+ * semantic input.
+ */
+
+const owner = (pluginId: string, packageVersion = '1.0.0'): StampedDeclarationCatalog['dirs'][number]['declaredBy'] =>
+  ({ pluginId, packageName: `repovine-plugin-${pluginId}`, packageVersion });
+
+function catalogOf(entries: Partial<StampedDeclarationCatalog>): StampedDeclarationCatalog {
+  return {
+    dirs: entries.dirs ?? [],
+    values: entries.values ?? [],
+    resourceKinds: entries.resourceKinds ?? [],
+    triggerTypes: entries.triggerTypes ?? [],
+  };
+}
+
+describe('core-laws plugin declaration lifecycle (per-run catalog, no last-write-wins)', () => {
+  const tmpRoots: string[] = [];
+
+  afterEach(() => {
+    for (const root of tmpRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  function makeRepoWithPlugin(name: string, manifest: unknown, indexJs: string): string {
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-decl-law-'));
+    tmpRoots.push(repoRoot);
+    const pkgDir = path.join(repoRoot, 'node_modules', name);
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({
+      name, version: '2.3.4', type: 'module', main: 'index.js', repovine: manifest,
+    }));
+    fs.writeFileSync(path.join(pkgDir, 'index.js'), indexJs);
+    return repoRoot;
+  }
+
+  const IAC_PLUGIN_JS = `export default {
+    id: 'edge',
+    capabilities: {
+      iac: { parsers: [{ kind: 'edge-infra', supports() { return false; }, parse() { return null; } }] },
+    },
+  };`;
+
+  const EDGE_MANIFEST = {
+    kind: 'plugin',
+    id: 'edge',
+    apiVersion: 1,
+    entry: 'index.js',
+    declarations: {
+      ecosystem: 'edge',
+      dirs: [{ name: '.edge-out', role: 'tool-output', because: 'edge build artifacts' }],
+      resourceKinds: [{ namespace: 'edge', provider: 'edge', kind: 'edge-fn', hasCodeHandler: true }],
+      triggerTypes: [{ type: 'edge-http', namespace: 'edge', provider: 'edge', entrypointKind: 'api' }],
+    },
+  };
+
+  // GATE 4: an external build followed by a default build agrees with a cold default build.
+  it('leaves nothing behind for the next build in the same process', async () => {
+    const repoRoot = makeRepoWithPlugin('repovine-plugin-edge', EDGE_MANIFEST, IAC_PLUGIN_JS);
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-decl-law-bare-'));
+    tmpRoots.push(bare);
+
+    // Cold default build, before any external plugin was ever loaded in this process.
+    const cold = await applyPluginConfig({ repoRoot: bare, config: { defaults: true, add: [], disable: [] } });
+
+    const external = await applyPluginConfig({
+      repoRoot, config: { defaults: true, add: ['repovine-plugin-edge'], disable: [] },
+    });
+    expect(external.refused).toEqual([]);
+    expect(catalogResourceKindMeta(external.runtime.catalog, 'edge-fn')).toEqual({ hasCodeHandler: true });
+
+    // Default build again, in the same process, right after the external one.
+    const after = await applyPluginConfig({ repoRoot: bare, config: { defaults: true, add: [], disable: [] } });
+
+    expect(declarationCatalogIdentity(after.runtime.catalog))
+      .toEqual(declarationCatalogIdentity(cold.runtime.catalog));
+    expect(pluginRuntimeIdentity(after.runtime)).toEqual(pluginRuntimeIdentity(cold.runtime));
+    expect(catalogResourceKindMeta(after.runtime.catalog, 'edge-fn')).toBeUndefined();
+    expect(catalogTriggerTypeMeta(after.runtime.catalog, 'edge-http')).toBeUndefined();
+  });
+
+  it('is decided by the declaration set, not by the order plugins were read', () => {
+    const first = catalogOf({
+      resourceKinds: [{ namespace: 'a', provider: 'a', kind: 'queue', hasCodeHandler: false, declaredBy: owner('a') }],
+    });
+    const second = catalogOf({
+      resourceKinds: [{ namespace: 'b', provider: 'b', kind: 'topic', hasCodeHandler: true, declaredBy: owner('b') }],
+    });
+
+    const forward = buildDeclarationCatalog({ catalogs: [first, second] });
+    const reverse = buildDeclarationCatalog({ catalogs: [second, first] });
+    expect(declarationCatalogIdentity(reverse)).toEqual(declarationCatalogIdentity(forward));
+  });
+
+  it('merges an identical declaration from two plugins and keeps both owners', () => {
+    const dir = { name: 'dist', role: 'build-output' as const, because: 'compiler output' };
+    const catalog = buildDeclarationCatalog({
+      catalogs: [
+        catalogOf({ dirs: [{ ...dir, declaredBy: owner('a') }] }),
+        catalogOf({ dirs: [{ ...dir, declaredBy: owner('b') }] }),
+      ],
+    });
+
+    expect(catalog.conflicts).toEqual([]);
+    expect(catalog.dirs).toHaveLength(1);
+    expect(catalog.dirs[0]!.declarations.map(d => d.declaredBy.pluginId)).toEqual(['a', 'b']);
+  });
+
+  it('refuses both sides when two plugins claim one key with different effects', () => {
+    const catalog = buildDeclarationCatalog({
+      catalogs: [
+        catalogOf({ dirs: [{ name: 'out', role: 'build-output', because: 'compiler output', declaredBy: owner('a') }] }),
+        catalogOf({ dirs: [{ name: 'out', role: 'tool-output', because: 'tool state', declaredBy: owner('b') }] }),
+      ],
+    });
+
+    expect(catalog.dirs).toEqual([]);
+    expect(catalog.conflicts).toHaveLength(1);
+    expect(catalog.conflicts[0]!.sides.map(side => side.declaredBy.pluginId)).toEqual(['a', 'b']);
+  });
+
+  it('answers nothing when two composite keys narrow onto one lookup component', () => {
+    const catalog = buildDeclarationCatalog({
+      catalogs: [
+        catalogOf({ resourceKinds: [{ namespace: 'a', provider: 'a', kind: 'queue', hasCodeHandler: true, declaredBy: owner('a') }] }),
+        catalogOf({ resourceKinds: [{ namespace: 'b', provider: 'b', kind: 'queue', hasCodeHandler: false, declaredBy: owner('b') }] }),
+      ],
+    });
+
+    // The composite key kept them apart; the narrowed lookup cannot, and says so.
+    expect(catalog.resourceKinds).toHaveLength(2);
+    expect(catalogResourceKindMeta(catalog, 'queue')).toBeUndefined();
+    expect(catalogAmbiguities(catalog)).toHaveLength(1);
+    expect(catalogAmbiguities(catalog)[0]!.component).toBe('queue');
+  });
+
+  it('keeps declarations when a capability is disabled and drops them only on explicit retraction', async () => {
+    const repoRoot = makeRepoWithPlugin('repovine-plugin-edge', EDGE_MANIFEST, IAC_PLUGIN_JS);
+
+    // The parser capability is off; the pruning and metadata facts it shipped stay in force.
+    const disabledParser = await applyPluginConfig({
+      repoRoot,
+      config: { defaults: false, add: ['repovine-plugin-edge'], disable: [] },
+    });
+    expect(disabledParser.runtime.catalog.dirs.map(record => record.key)).toEqual(['dir:.edge-out']);
+    expect(catalogResourceKindMeta(disabledParser.runtime.catalog, 'edge-fn')).toEqual({ hasCodeHandler: true });
+
+    // An explicit retraction is the way to drop one, and it names what it removed.
+    const retracted = await applyPluginConfig({
+      repoRoot,
+      config: {
+        defaults: true,
+        add: ['repovine-plugin-edge'],
+        disable: [],
+        retract: ['dir:.edge-out', 'resource-kind:edge/edge/edge-fn'],
+      },
+    });
+    expect(retracted.runtime.catalog.dirs).toEqual([]);
+    expect(catalogResourceKindMeta(retracted.runtime.catalog, 'edge-fn')).toBeUndefined();
+    expect(retracted.runtime.catalog.retractions.map(r => r.removed)).toEqual([
+      ['dir:.edge-out'],
+      ['resource-kind:edge/edge/edge-fn'],
+    ]);
+    // The trigger type was not named, so it is untouched.
+    expect(catalogTriggerTypeMeta(retracted.runtime.catalog, 'edge-http')).toEqual({ entrypointKind: 'api' });
+  });
+
+  it('reports a retraction selector that matched nothing instead of ignoring it', () => {
+    const catalog = buildDeclarationCatalog({ catalogs: [], retract: ['dir:never-declared'] });
+    expect(catalog.retractions).toEqual([{ selector: 'dir:never-declared', removed: [] }]);
+  });
+
+  it('folds the catalog and the projector set into the reuse fingerprint input', () => {
+    const base = buildDeclarationCatalog({ catalogs: [] });
+    const withFact = buildDeclarationCatalog({
+      catalogs: [catalogOf({ dirs: [{ name: 'out', role: 'build-output', because: 'x', declaredBy: owner('a') }] })],
+    });
+    expect(declarationCatalogIdentity(withFact)).not.toEqual(declarationCatalogIdentity(base));
+
+    // A conflicting declaration produces a different build than an accepted one, so it moves the
+    // identity too — otherwise a refused build could reuse an accepted build's snapshot.
+    const conflicting = buildDeclarationCatalog({
+      catalogs: [
+        catalogOf({ dirs: [{ name: 'out', role: 'build-output', because: 'x', declaredBy: owner('a') }] }),
+        catalogOf({ dirs: [{ name: 'out', role: 'tool-output', because: 'y', declaredBy: owner('b') }] }),
+      ],
+    });
+    expect(declarationCatalogIdentity(conflicting)).not.toEqual(declarationCatalogIdentity(withFact));
+  });
+});

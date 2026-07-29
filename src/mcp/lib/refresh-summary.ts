@@ -1,5 +1,7 @@
 import type { SemanticSyncReport } from '../../semantic/store.js';
-import type { RepositoryFactsSnapshot } from '../../types.js';
+import type { RepositoryFactsSnapshot, RepositoryGraph } from '../../types.js';
+import { getGraphExtensions, getProjectionReport } from '../../graph/build-artifact.js';
+import { extensionSchemas } from '../../graph/extension-store.js';
 import type { SemanticSearchRefresh } from '../types.js';
 import type { Refusal } from '../../response/refusal.js';
 import { OUTSIDE_WORKSPACE_REFUSAL } from '../../stage1/refusal-kinds.js';
@@ -18,6 +20,42 @@ export interface OutsideRepoReport {
 export function buildRefusalReport(snapshot: RepositoryFactsSnapshot): Refusal[] | undefined {
   const refusals = snapshot.buildRefusals ?? [];
   return refusals.length > 0 ? refusals : undefined;
+}
+
+export interface ProjectionReport {
+  /** One entry per projector that ran, with its batch tally. */
+  contributors: Array<{
+    pluginId: string;
+    contributorId: string;
+    status: 'applied' | 'skipped' | 'failed';
+    reason?: string;
+    appliedBatches: number;
+    rejectedBatches: number;
+  }>;
+  /** Namespaced extensions the build stored, counted by owner and schema. */
+  extensions: Array<{ pluginId: string; schema: string; count: number }>;
+}
+
+/**
+ * What plugin projection did this build, for `refresh_context` and `get_build_status`.
+ *
+ * Refusals already carry every rejection and its cause; this carries the other half, so a projector
+ * that ran and contributed nothing is distinguishable from one that was never asked. The extension
+ * inventory names owners and schemas without reading a payload — generic tools enumerate them, they
+ * do not interpret them. Absent when the build had no projector and stored no extension.
+ */
+export function projectionReport(graph: RepositoryGraph): ProjectionReport | undefined {
+  const contributors = getProjectionReport(graph).map(outcome => ({
+    pluginId: outcome.pluginId,
+    contributorId: outcome.contributorId,
+    status: outcome.status,
+    ...(outcome.reason === undefined ? {} : { reason: outcome.reason }),
+    appliedBatches: outcome.batches.filter(batch => batch.status === 'applied').length,
+    rejectedBatches: outcome.batches.filter(batch => batch.status === 'rejected').length,
+  }));
+  const extensions = extensionSchemas(getGraphExtensions(graph));
+  if (contributors.length === 0 && extensions.length === 0) return undefined;
+  return { contributors, extensions };
 }
 
 /**

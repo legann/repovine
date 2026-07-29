@@ -11,6 +11,8 @@ import type { HandlerResolveContext } from '@repovine/plugin-sdk';
 import { addEdge, addNode, hasEdge, infraTargetIds } from '../../graph/index.js';
 import { makeRuntimeResourceId } from '../../graph/make-runtime-resource-id.js';
 import { resolveInfraRef, type InfraRefScope } from '../../graph/resolve-infra-ref.js';
+import type { DeclarationCatalog } from '../../plugins/declaration-catalog.js';
+import { resolveResourceKindMeta, resolveTriggerTypeMeta } from '../../stage2/runtime/declared-meta.js';
 import { matchesInfraResourceExclude, type DomainsConfig } from '../../stage2/domains.js';
 import {
   linkContainerRuntimeTargets,
@@ -26,8 +28,6 @@ import '../../stage1/iac/bootstrap.js';
 import '../../stage1/source/bootstrap.js';
 import {
   getInfraKindDomain,
-  getResourceKindMeta,
-  getTriggerTypeMeta,
 } from '../../stage1/iac/registry.js';
 import { getKnownExtensions, getSourcePlugins } from '../../stage1/source/registry.js';
 import { resolveRelPath, toPosixPath } from '../../platform/paths.js';
@@ -176,7 +176,11 @@ function uniqueStrings(values: string[]): string[] {
  * During the first infra pass those targets may not exist yet, so uses_env / consumes are missing.
  * Link them after all IaC resources are nodes in the graph.
  */
-function linkDeferredInfraEdges(graph: RepositoryGraph, infraModules: InfraModuleInfo[]): void {
+function linkDeferredInfraEdges(
+  graph: RepositoryGraph,
+  infraModules: InfraModuleInfo[],
+  declarations: DeclarationCatalog | undefined,
+): void {
   for (const infraMod of infraModules) {
     for (const res of infraMod.resources) {
       const serviceId = makeRuntimeResourceId(res);
@@ -187,7 +191,7 @@ function linkDeferredInfraEdges(graph: RepositoryGraph, infraModules: InfraModul
       if (res.kind === 'lambda' && res.triggers) {
         for (const trigger of res.triggers) {
           // Sources that drive a consumer Lambda: SQS queue, DynamoDB stream, Kinesis stream.
-          const isStreamLike = !!getTriggerTypeMeta(trigger.type)?.isStreamLike;
+          const isStreamLike = !!resolveTriggerTypeMeta(declarations, trigger.type)?.isStreamLike;
           if (!isStreamLike || !trigger.queueRef) continue;
           const queueServiceId = findServiceIdByLogicalId(graph, trigger.queueRef, serviceId, scope);
           if (queueServiceId && graph.nodes.has(queueServiceId) && !hasEdge(graph, queueServiceId, 'consumes', serviceId)) {
@@ -328,6 +332,9 @@ function pass2Infra(
 ): void {
   const infraModules = snapshot.infraModules ?? [];
   if (infraModules.length === 0) return;
+  // This build's own declarations, carried on the snapshot so they reach composition inside the
+  // Stage 2 worker isolate. Absent when no plugin declared anything.
+  const declarations = snapshot.declarations;
   const deferredComposeDockerfileInfraEdges: Array<{ fromServiceId: string; toDockerfileModuleId: string }> = [];
   const deferredLogicalIdRefs: Array<{
     logicalId: string;
@@ -405,7 +412,7 @@ function pass2Infra(
       addEdge(graph, infraModuleId, serviceId, 'contains');
       addEdge(graph, serviceId, domainId, 'tagged');
 
-      if (getResourceKindMeta(res.kind)?.hasCodeHandler && res.attributes.handler) {
+      if (resolveResourceKindMeta(declarations, res.kind)?.hasCodeHandler && res.attributes.handler) {
         const modId = resolveHandlerToModuleId(
           res.attributes.handler,
           snapshot,
@@ -428,7 +435,7 @@ function pass2Infra(
 
       if (res.triggers) {
         for (const trigger of res.triggers) {
-          const isStreamLike = !!getTriggerTypeMeta(trigger.type)?.isStreamLike;
+          const isStreamLike = !!resolveTriggerTypeMeta(declarations, trigger.type)?.isStreamLike;
           if (isStreamLike && trigger.queueRef) {
             deferredLogicalIdRefs.push({ logicalId: trigger.queueRef, serviceId, scope, kind: 'consumes' });
           }
@@ -484,7 +491,7 @@ function pass2Infra(
     }
   }
 
-  linkDeferredInfraEdges(graph, infraModules);
+  linkDeferredInfraEdges(graph, infraModules, declarations);
   linkHandlerModuleEnvBindings(graph, infraModules);
   linkRuntimePublishes(graph, infraModules, modulesById);
   linkContainerRuntimeTargets(graph, snapshot);

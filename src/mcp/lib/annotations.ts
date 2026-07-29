@@ -34,7 +34,7 @@ import { narrowTruncation, pageTruncation, truncationMap, type TruncationMap } f
 
 /** Ranking cut on the unannotated-module anomaly list, applied before the page limit sees it. */
 const TOP_UNANNOTATED_MODULE_CAP = 20;
-import { buildRefusalReport, outsideRepoReport } from './refresh-summary.js';
+import { buildRefusalReport, outsideRepoReport, projectionReport } from './refresh-summary.js';
 import { type McpToolRuntime } from '../types.js';
 import { resolveScope } from '../scope/resolve.js';
 import { writeBoundaryIndex } from '../boundary-index.js';
@@ -797,6 +797,7 @@ export async function refreshContextCore(ctx: McpToolRuntime, args: Record<strin
   const domainsSuggestions = afterState.domainsSuggestions ?? { count: 0, axes: [], declinedHidden: 0 };
   const outsideRepo = outsideRepoReport(afterState.snapshot);
   const buildRefusals = buildRefusalReport(afterState.snapshot);
+  const projection = projectionReport(afterState.graph);
   const mergeKeeps = afterState.annotations.lastMergeKeeps;
   const mergeKeepsWarning = describeMergeKeeps(mergeKeeps);
 
@@ -824,6 +825,7 @@ export async function refreshContextCore(ctx: McpToolRuntime, args: Record<strin
     },
     ...(outsideRepo ? { outsideRepo } : {}),
     ...(buildRefusals ? { buildRefusals } : {}),
+    ...(projection ? { projection } : {}),
     // A separate key, not `annotations.warning`: that field is a single scalar and the orphan report
     // already owns it, and the two conditions are independent.
     ...(mergeKeepsWarning ? {

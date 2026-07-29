@@ -102,7 +102,7 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
     const node = graph.nodes.get(svcId);
     if (!node || node.type !== 'runtime-resource') continue;
     for (const trigger of node.data?.triggers ?? []) {
-      const kind = triggerEntryKind(trigger);
+      const kind = triggerEntryKind(trigger, snapshot.declarations);
       const disambiguator = trigger.name ?? trigger.path ?? trigger.queueRef ?? trigger.schedule ?? 'trigger';
       pushInterpreterEntry(interpreterEntrypoints.get(serviceTriggerLayerKey(kind, svcId, disambiguator)));
     }

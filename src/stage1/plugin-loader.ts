@@ -12,11 +12,14 @@ import {
   validateSemanticInfraDelta,
 } from '@repovine/plugin-sdk';
 import type {
+  DocumentLoader,
   IaCPluginDescriptor,
   IaCParser,
   PluginCapabilityName,
   PluginManifest,
+  PluginOwnerIdentity,
   PluginRuntimeDescriptor,
+  ProjectionContributor,
   SemanticInfraDelta,
   SourcePlugin,
   SourceExtractInput,
@@ -30,13 +33,12 @@ import {
 } from './source/registry.js';
 import {
   registerIaCPlugin,
-  registerResourceKindMeta,
-  registerTriggerTypeMeta,
   unregisterIaCPlugin,
   getRegisteredIaCPluginIds,
 } from './iac/registry.js';
 import { getBuiltinSourcePluginIds, resetToBuiltinSourcePlugins } from './source/bootstrap.js';
 import { getBuiltinIaCPluginIds, resetToBuiltinIaCPlugins } from './iac/bootstrap.js';
+import { buildPluginRuntime, emptyPluginRuntime, type PluginRuntime } from '../plugins/runtime.js';
 
 /**
  * Plugin loader.
@@ -51,16 +53,23 @@ import { getBuiltinIaCPluginIds, resetToBuiltinIaCPlugins } from './iac/bootstra
  * confirms it, the package name and version come from package metadata, and declarations are
  * stamped from that identity — a payload never states who it belongs to.
  *
- * The registries are process-global singletons, so every build re-derives the active set from a
- * clean built-in baseline (`resetToBuiltin*`) and re-applies `{defaults, add, disable}`. That makes
- * repeated builds with the same config idempotent (no double registration) in a long-lived MCP
- * process.
+ * The parser and extractor registries are still process-global singletons, so every build re-derives
+ * the active set from a clean built-in baseline (`resetToBuiltin*`) and re-applies
+ * `{defaults, add, disable}`. That makes repeated builds with the same config idempotent (no double
+ * registration) in a long-lived MCP process.
+ *
+ * Declarations, loaders and projectors do not go there at all: they are assembled into a per-run
+ * `PluginRuntime` and returned. A build that loaded an external plugin therefore leaves nothing
+ * behind for the next build in the same process, which is what makes an external build followed by a
+ * default build agree with a cold default build.
  */
 
 export interface PluginsConfigInput {
   defaults: boolean;
   add: string[];
   disable: string[];
+  /** Catalog keys this build retracts, in the spelling `src/plugins/declaration-catalog.ts` mints. */
+  retract?: string[];
 }
 
 export interface LoadedPlugin {
@@ -82,6 +91,17 @@ export interface PluginLoadReport {
   /** Ids of external source plugins loaded this run — the caller forces inline extraction for them
    *  (worker isolates only carry the bundled preset). */
   externalSourceIds: Set<string>;
+  /** What this build's plugin set declares and contributes. Rebuilt from nothing on every call. */
+  runtime: PluginRuntime;
+}
+
+/** One loaded plugin as the per-run runtime consumes it: identity, declarations, live capabilities. */
+interface RuntimeCandidate {
+  owner: PluginOwnerIdentity;
+  capabilities: readonly PluginCapabilityName[];
+  declarations: StampedDeclarationCatalog;
+  loaders?: readonly DocumentLoader[];
+  projectors?: readonly ProjectionContributor[];
 }
 
 interface ResolvedPluginPackage {
@@ -203,34 +223,12 @@ async function importDefaultExport(entryAbsPath: string): Promise<unknown> {
 }
 
 /**
- * Register one descriptor's capabilities on the current pre-boundary registries.
+ * Register one descriptor's parser and extractor capabilities on the pre-boundary registries.
  *
- * `loaders` and `projectors` are validated and reported here but not yet composed: document loading
- * and two-phase projection arrive with the composer, and a capability that silently did nothing
- * would be worse than one the report names.
+ * `loaders` and `projectors` are not registered here: they are code with no process-global home.
+ * The loader hands them to the per-run runtime, and composition receives them as an argument, so a
+ * build leaves neither behind for the next build in the same process.
  */
-/**
- * Apply a stamped declaration catalog to the metadata registries.
- *
- * The declaration carries the composite `(namespace, provider, kind)` the contract defines; the
- * registry behind it still keys resource metadata by `kind` alone. Narrowing happens here, in the
- * pre-boundary path, so the composite key lands with the registry rewrite rather than reaching the
- * public contract as a single-component key.
- */
-function applyDeclarations(catalog: StampedDeclarationCatalog): void {
-  for (const declaration of catalog.resourceKinds) {
-    registerResourceKindMeta(declaration.kind, {
-      ...(declaration.hasCodeHandler === undefined ? {} : { hasCodeHandler: declaration.hasCodeHandler }),
-    });
-  }
-  for (const declaration of catalog.triggerTypes) {
-    registerTriggerTypeMeta(declaration.type, {
-      ...(declaration.isStreamLike === undefined ? {} : { isStreamLike: declaration.isStreamLike }),
-      ...(declaration.entrypointKind === undefined ? {} : { entrypointKind: declaration.entrypointKind }),
-    });
-  }
-}
-
 function registerCapabilities(
   descriptor: PluginRuntimeDescriptor,
   manifest: PluginManifest,
@@ -262,7 +260,10 @@ function registerCapabilities(
 }
 
 /** Load and register one plugin by package name. Throws on any failure (caller records it). */
-async function loadExternalPlugin(repoRoot: string, name: string): Promise<LoadedPlugin> {
+async function loadExternalPlugin(
+  repoRoot: string,
+  name: string,
+): Promise<{ loaded: LoadedPlugin; candidate: RuntimeCandidate }> {
   const resolved = resolvePluginPackage(repoRoot, name);
 
   const exported = await importDefaultExport(resolved.entryAbsPath);
@@ -277,20 +278,30 @@ async function loadExternalPlugin(repoRoot: string, name: string): Promise<Loade
     );
   }
 
-  const declarations = stampDeclarationCatalog(resolved.manifest.declarations, {
+  const owner: PluginOwnerIdentity = {
     pluginId: resolved.manifest.id,
     packageName: resolved.packageName,
     packageVersion: resolved.packageVersion,
-  });
-  applyDeclarations(declarations);
+  };
+  const declarations = stampDeclarationCatalog(resolved.manifest.declarations, owner);
   registerCapabilities(descriptor.descriptor, resolved.manifest);
 
+  const { capabilities } = descriptor.descriptor;
   return {
-    name,
-    version: resolved.packageVersion,
-    id: resolved.manifest.id,
-    capabilities: descriptor.declared,
-    declarations,
+    loaded: {
+      name,
+      version: resolved.packageVersion,
+      id: resolved.manifest.id,
+      capabilities: descriptor.declared,
+      declarations,
+    },
+    candidate: {
+      owner,
+      capabilities: descriptor.declared,
+      declarations,
+      ...(capabilities.loaders === undefined ? {} : { loaders: capabilities.loaders }),
+      ...(capabilities.projectors === undefined ? {} : { projectors: capabilities.projectors }),
+    },
   };
 }
 
@@ -315,7 +326,9 @@ export async function applyPluginConfig(args: {
     disabled: [],
     defaultsOff: config.defaults === false,
     externalSourceIds: new Set(),
+    runtime: emptyPluginRuntime(),
   };
+  const candidates = new Map<string, RuntimeCandidate>();
 
   // defaults:false → drop the entire bundled preset; the user must supply everything via `add`.
   if (config.defaults === false) {
@@ -326,8 +339,9 @@ export async function applyPluginConfig(args: {
   // add[] → resolve + validate + register external plugins from the analyzed repo.
   for (const name of config.add) {
     try {
-      const loaded = await loadExternalPlugin(repoRoot, name);
+      const { loaded, candidate } = await loadExternalPlugin(repoRoot, name);
       report.loaded.push(loaded);
+      candidates.set(loaded.id, candidate);
       if (loaded.capabilities.includes('source')) report.externalSourceIds.add(loaded.id);
     } catch (e) {
       const reason = (e as Error).message;
@@ -337,16 +351,25 @@ export async function applyPluginConfig(args: {
   }
 
   // disable[] → remove a plugin (bundled or added) by id from either registry.
+  //
+  // A disabled plugin loses its capabilities and its declarations together. Declarations outliving a
+  // disabled CAPABILITY is the lifetime rule; a disabled PLUGIN is gone, and a catalog entry with no
+  // package behind it is the accumulation this runtime exists to prevent.
   for (const id of config.disable) {
-    const removed = unregisterSourcePlugin(id) || unregisterIaCPlugin(id);
+    const removed = unregisterSourcePlugin(id) || unregisterIaCPlugin(id) || candidates.has(id);
     if (removed) {
       report.disabled.push(id);
       report.externalSourceIds.delete(id);
+      candidates.delete(id);
     } else {
       logPipelineWarn(`  ⚠ plugins.disable: "${id}" is not a registered plugin id.`);
     }
   }
 
+  report.runtime = buildPluginRuntime({
+    plugins: [...candidates.values()],
+    ...(config.retract === undefined ? {} : { retract: config.retract }),
+  });
   return report;
 }
 

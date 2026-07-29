@@ -1,7 +1,7 @@
 import type { IndexBuildStatus } from '../build-controller.js';
 import type { RepovineState, ToolHandler } from '../types.js';
 import { envelope, envelopeError, type ToolResponse } from '../response/envelope.js';
-import { buildRefusalReport, outsideRepoReport } from '../lib/refresh-summary.js';
+import { buildRefusalReport, outsideRepoReport, projectionReport } from '../lib/refresh-summary.js';
 
 /** Cap below the MCP SDK client's 60s default request timeout: a longer long-poll would always time
  *  out client-side and auto-cancel while the server pends and discards the eventual reply. */
@@ -20,6 +20,7 @@ function buildStatusEnvelope(snapshot: IndexBuildStatus, state: RepovineState | 
   // what it refused.
   const outsideRepo = state ? outsideRepoReport(state.snapshot) : undefined;
   const buildRefusals = state ? buildRefusalReport(state.snapshot) : undefined;
+  const projection = state ? projectionReport(state.graph) : undefined;
   const settledBad = snapshot.status === 'failed' || snapshot.status === 'cancelled';
   return envelope('all', `Build status: ${snapshot.status}.`, {
     ...snapshot,
@@ -32,6 +33,7 @@ function buildStatusEnvelope(snapshot: IndexBuildStatus, state: RepovineState | 
     } : {}),
     ...(outsideRepo ? { outsideRepo } : {}),
     ...(buildRefusals ? { buildRefusals } : {}),
+    ...(projection ? { projection } : {}),
   }, {
     confidence: 'high',
     gaps: [

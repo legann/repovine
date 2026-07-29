@@ -23,6 +23,13 @@ import { runSourceExtraction } from './source/extract-runner.js';
 import { applyPluginConfig, type PluginsConfigInput } from './plugin-loader.js';
 import { currentEngineBuildId, engineBuildMatches } from './engine-build-id.js';
 import { computeExtractionConfigFingerprint } from './extraction-config-fingerprint.js';
+import {
+  emptyPluginRuntime,
+  pluginRuntimeIdentity,
+  type PluginRuntime,
+} from '../plugins/runtime.js';
+import { rememberPluginRuntime } from '../plugins/runtime-store.js';
+import type { DeclarationCatalog } from '../plugins/declaration-catalog.js';
 import { getRegisteredIaCPluginIds } from './iac/registry.js';
 import type { SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
 // Side-effect: register built-in source plugins (typescript, …) before discovery runs.
@@ -419,6 +426,16 @@ function resolveRemainingImports(allModules: ModuleInfo[], packages: PackageInfo
   }
 }
 
+/** True when the catalog decided anything; an empty one is left off the snapshot entirely. */
+function hasDeclarations(catalog: DeclarationCatalog): boolean {
+  return catalog.dirs.length > 0
+    || catalog.values.length > 0
+    || catalog.resourceKinds.length > 0
+    || catalog.triggerTypes.length > 0
+    || catalog.conflicts.length > 0
+    || catalog.retractions.length > 0;
+}
+
 function buildSnapshot(
   repoRoot: string,
   packages: PackageInfo[],
@@ -427,6 +444,7 @@ function buildSnapshot(
   scanPatterns: ReturnType<typeof compileScanPatterns>,
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
   buildRefusals: Refusal[],
+  declarations: DeclarationCatalog,
   profiler: MemoryProfiler,
 ): RepositoryFactsSnapshot {
   const normalizedLinking = linkingOpt ? normalizeLinkingConfig(linkingOpt) : undefined;
@@ -474,6 +492,7 @@ function buildSnapshot(
     modules: allModules,
     infraModules,
     ...(buildRefusals.length > 0 ? { buildRefusals } : {}),
+    ...(hasDeclarations(declarations) ? { declarations } : {}),
     ...(templates.length > 0 ? { templates } : {}),
     ...(Object.keys(bundleOutputHandlerMap).length > 0 ? { bundleOutputHandlerMap } : {}),
     ...(linkingOpt && hasLinkingConfig(linkingOpt) ? {
@@ -508,7 +527,11 @@ interface PreparedRun {
   profiler: MemoryProfiler;
 }
 
-async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined): Promise<PreparedRun> {
+async function prepareRun(
+  repoRoot: string,
+  options: SnapshotOptions | undefined,
+  pluginRuntime: PluginRuntime,
+): Promise<PreparedRun> {
   const profiler = MemoryProfiler.ensure();
   profiler.phase('stage1:start');
 
@@ -601,6 +624,7 @@ async function prepareRun(repoRoot: string, options: SnapshotOptions | undefined
     sourcePlugins: activeSourcePlugins,
     iacPluginIds: getRegisteredIaCPluginIds(),
     extractContextByPlugin,
+    pluginRuntime: pluginRuntimeIdentity(pluginRuntime),
   });
   profiler.setCounter('packagesScanned', packages.length);
   profiler.phase('stage1:after-discover-packages');
@@ -689,6 +713,7 @@ function finalize(
   scanPatterns: ReturnType<typeof compileScanPatterns>,
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
   buildRefusals: Refusal[],
+  declarations: DeclarationCatalog,
   profiler: MemoryProfiler,
 ): { snapshot: RepositoryFactsSnapshot; reused: number; rescanned: number } {
   const allModules: ModuleInfo[] = [];
@@ -711,6 +736,7 @@ function finalize(
     scanPatterns,
     linkingOpt,
     buildRefusals,
+    declarations,
     profiler,
   );
   return { snapshot, reused, rescanned };
@@ -779,9 +805,13 @@ export async function collectRepositoryFactsAsync(
   // bundled preset, so an external source plugin's extract() must run on the main thread.
   let forceInlineExtraction = false;
   const pluginRefusals: Refusal[] = [];
+  // Assembled fresh here every call: the runtime is what this build's plugin set declares and
+  // contributes, and it is handed on rather than left in module state.
+  let pluginRuntime = emptyPluginRuntime();
   if (resolvedOptions?.plugins) {
     const report = await applyPluginConfig({ repoRoot, config: resolvedOptions.plugins });
     forceInlineExtraction = report.externalSourceIds.size > 0;
+    pluginRuntime = report.runtime;
     for (const { name, reason } of report.refused) {
       pluginRefusals.push(refusal(
         'unreadable',
@@ -790,10 +820,13 @@ export async function collectRepositoryFactsAsync(
         { plugin: name },
       ));
     }
+    // Conflicting and unnarrowable declarations change what the build knows, so they reach the
+    // reader beside the plugins that could not be loaded at all.
+    pluginRefusals.push(...pluginRuntime.refusals);
   }
 
   const signal = resolvedOptions?.signal;
-  const prep = await prepareRun(repoRoot, resolvedOptions);
+  const prep = await prepareRun(repoRoot, resolvedOptions, pluginRuntime);
   // Plugin loading happens before discovery, so its refusals are prepended: the sink reads as the
   // order the build made them.
   prep.buildRefusals.unshift(...pluginRefusals);
@@ -866,9 +899,13 @@ export async function collectRepositoryFactsAsync(
       prep.scanPatterns,
       prep.linkingOpt,
       prep.buildRefusals,
+      pluginRuntime.catalog,
       prep.profiler,
     );
     snap = finalized.snapshot;
+    // The declarations rode along on the snapshot; the loaded capability code cannot, so it is
+    // keyed to this snapshot object for whoever composes it in this isolate.
+    rememberPluginRuntime(snap, pluginRuntime);
     reuseStats = { reused: finalized.reused, rescanned: finalized.rescanned };
   } finally {
     logPipelineProgressEnd();

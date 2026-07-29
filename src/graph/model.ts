@@ -6,6 +6,7 @@ import type {
   FieldInfo,
   InfraEnvRef,
   InfraModuleInfo,
+  InfraResource,
   InfraResourceKind,
   InfraTrigger,
   InternalInfo,
@@ -17,6 +18,7 @@ import type {
   SymbolKind,
 } from '@repovine/plugin-sdk';
 import type { Refusal } from '../response/refusal.js';
+import type { DeclarationCatalog } from '../plugins/declaration-catalog.js';
 
 // ── Symbol & Node taxonomy ──
 
@@ -92,6 +94,15 @@ export interface RepositoryFactsSnapshot {
    * Recomputed by every discovery pass, never reused from a cached snapshot.
    */
   buildRefusals?: Refusal[];
+  /**
+   * What this build's plugin set declares, merged into one per-run catalog.
+   *
+   * Declarations are data, so they travel with the facts: across the Stage 2 worker boundary, where
+   * a registry populated on the main thread never arrives, and into the cache, where a build under
+   * one catalog must not reuse a snapshot taken under another. Absent when no plugin declared
+   * anything.
+   */
+  declarations?: DeclarationCatalog;
   /** Template/rendered-surface artifacts discovered by stage1 producers. */
   templates?: TemplateFileInfo[];
   /**
@@ -166,6 +177,17 @@ export interface DomainNodeData {
   subdomains?: string[];
 }
 
+/**
+ * Ecosystem label on a runtime-resource node.
+ *
+ * The pre-boundary `InfraResource.provider` is closed over the five ecosystems the built-in parsers
+ * cover. A projected resource carries the label its own plugin owns, so the graph field is open in
+ * the shape `InfraKind` and `InfraResourceKind` already use: the members are autocomplete, and the
+ * graph stores, compares and reports the value without reading it.
+ */
+export type KnownInfraResourceProvider = InfraResource['provider'];
+export type InfraResourceProvider = KnownInfraResourceProvider | (string & {});
+
 export interface RuntimeResourceNodeData {
   handler?: string;
   envVars?: string[];
@@ -177,8 +199,18 @@ export interface RuntimeResourceNodeData {
   kind?: InfraResourceKind;
   /** Original Kubernetes manifest kind before it is collapsed into an InfraResource kind. */
   k8sKind?: string;
-  /** Provider that declared the resource (aws/k8s/terraform/vercel/generic). */
-  provider?: 'aws' | 'k8s' | 'generic' | 'terraform' | 'vercel';
+  /**
+   * Ecosystem that declared the resource, as an opaque label. The pre-boundary IaC parsers spell one
+   * of five, a projected resource spells whatever its plugin owns, and the graph stores and reports
+   * the string without branching on its value.
+   */
+  provider?: InfraResourceProvider;
+  /**
+   * Ecosystem attributes a projecting plugin attached to the resource, opaque to the graph. Present
+   * only on projected resources; the pre-boundary parsers lift the attributes they act on into the
+   * typed fields above instead.
+   */
+  attributes?: Record<string, string>;
   /**
    * Repo-relative paths of the IaC documents declaring this resource. Scopes logical-id
    * resolution: a reference prefers a target its own document declares. More than one entry means
@@ -251,7 +283,7 @@ export const NODE_DATA_KEYS = {
   package: ['path', 'version', 'sourcePluginId'],
   module: ['filePath', 'relativeFilePath', 'hasRoutes', 'envVars', 'ssr', 'sourcePluginId'],
   'export-symbol': ['symbolKind', 'signature', 'params', 'returnType', 'typeValue', 'fields', 'implementsInterfaces', 'calls', 'callsTotal', 'privateMembers', 'internals', 'lineRange', 'isDefault'],
-  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'k8sKind', 'provider', 'declaredIn', 'namespace', 'unresolvedRefs'],
+  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'k8sKind', 'provider', 'attributes', 'declaredIn', 'namespace', 'unresolvedRefs'],
   domain: ['tier', 'weight', 'parent', 'subdomains'],
   template: ['relPath', 'contentHash', 'engine', 'blocks'],
 } as const satisfies Record<NodeType, readonly string[]>;

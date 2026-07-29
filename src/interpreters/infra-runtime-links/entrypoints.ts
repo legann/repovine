@@ -22,7 +22,7 @@ export function collectServiceTriggerEntrypoints(ctx: InterpreterEntrypointConte
     if (!node || node.type !== 'runtime-resource') continue;
     const [handlerModule] = infraTargetIds(graph, svcId);
     for (const trigger of node.data?.triggers ?? []) {
-      const kind = triggerEntryKind(trigger);
+      const kind = triggerEntryKind(trigger, ctx.snapshot.declarations);
       out.push({
         [LAYER_ENTRYPOINT_SLOT_KEY]: 'service-trigger',
         id: `entrypoint:${kind}:${svcId}:${trigger.name ?? trigger.path ?? trigger.queueRef ?? trigger.schedule ?? 'trigger'}`,

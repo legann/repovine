@@ -12,7 +12,10 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import yaml from 'js-yaml';
 import { collectRepositoryFactsAsync } from '../stage1/index.js';
-import { composeRepositoryGraph } from '../stage2/index.js';
+import { composeRepositoryGraph, getComposedRefusals } from '../stage2/index.js';
+import { getGraphExtensions } from '../graph/build-artifact.js';
+import type { ExtensionRecord } from '@repovine/plugin-sdk';
+import type { Refusal } from '../response/refusal.js';
 import { domainMembers, getChildren, graphStats, infraTargetIds, nodesOfType, taggedDomains } from '../graph/index.js';
 import type { RepositoryGraph, RepositoryFactsSnapshot, FieldInfo, MemberInfo, RouteInfo, ConditionalRender } from '../types.js';
 import { repoRoot, cacheDir } from '../paths.js';
@@ -57,10 +60,20 @@ interface DumpGraph {
   domains: Record<string, string[]>;
   services: Array<{ id: string; label: string; handler?: string }>;
   packages: DumpPackage[];
+  /**
+   * Namespaced extensions, with owner, subject and provenance. Serialized beside the graph and never
+   * inside it: the dump publishes what a plugin contributed without claiming the graph interprets it.
+   * Omitted when the build produced none.
+   */
+  extensions?: ExtensionRecord[];
+  /** What the build refused. Omitted when it took every record. */
+  refusals?: Refusal[];
 }
 
 function buildDump(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot): DumpGraph {
   const stats = graphStats(graph);
+  const extensions = getGraphExtensions(graph);
+  const refusals = [...(snapshot.buildRefusals ?? []), ...getComposedRefusals(graph)];
 
   // Domains → tagged module ids
   const domains: Record<string, string[]> = {};
@@ -169,6 +182,8 @@ function buildDump(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot): D
     domains,
     services,
     packages,
+    ...(extensions.records.length > 0 ? { extensions: extensions.records } : {}),
+    ...(refusals.length > 0 ? { refusals } : {}),
   };
 }
 

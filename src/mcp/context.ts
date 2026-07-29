@@ -101,7 +101,7 @@ export class RepovineRuntime {
       bundles: { scripts: [], autoDetect: true },
       containers: { dockerfileRoots: [] },
     };
-    this.pluginsConfig = config?.plugins ?? { defaults: true, add: [], disable: [] };
+    this.pluginsConfig = config?.plugins ?? { defaults: true, add: [], disable: [], retract: [] };
     // Falling back to `true` here would re-enable embeddings for a runtime constructed without a
     // resolved config, defeating the peer-derived default that loadConfig computes.
     this.semanticSearchEmbeddingsEnabled = config?.semanticSearchEmbeddings

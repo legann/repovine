@@ -11,6 +11,12 @@ export interface ExtractionConfigFingerprintInput {
   sourcePlugins: readonly SourcePlugin[];
   iacPluginIds: readonly string[];
   extractContextByPlugin: ReadonlyMap<string, unknown>;
+  /**
+   * Identity of the per-run plugin runtime: plugin versions, the merged declaration catalog, loader
+   * ids and projector ids with their declared fact needs. Each changes what a build produces from
+   * unchanged source bytes, so a snapshot taken under one is not reusable under another.
+   */
+  pluginRuntime?: unknown;
 }
 
 function portableString(value: string, repoRoot: string): string {
@@ -90,6 +96,7 @@ export function computeExtractionConfigFingerprint(input: ExtractionConfigFinger
     sourcePlugins: input.sourcePlugins.map(sourcePluginIdentity),
     iacPluginIds: [...input.iacPluginIds],
     extractContextByPlugin: input.extractContextByPlugin,
+    pluginRuntime: input.pluginRuntime ?? null,
   };
   return sha256Hex(stableSerialize(payload, input.repoRoot), HASH_WIDTH.config);
 }
