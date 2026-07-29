@@ -7,6 +7,7 @@ import {
   ANNOTATIONS_FILENAME,
   ARTIFACTS_DIR_NAME,
   DOMAINS_CONFIG_FILENAME,
+  currentDirLayoutTable,
 } from '../paths.js';
 import {
   REPOVINE_GITIGNORE_ENTRY,
@@ -37,7 +38,7 @@ import { applyEol, detectEol, isUniformEol, normalizeEol } from './eol.js';
 import { CLIENT_CAPABILITIES, type ClientId } from './client-capabilities.js';
 import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from './dispatcher/index.js';
 import { shouldWalkDiscoveryDir } from '../scan-filters.js';
-// Side-effect import: the built-in source plugins must be registered before the preflight asks
+// The preflight reads the set the CLI loaded; nothing is registered by having been imported.
 import { getKnownExtensions } from '../plugin-host/source-set.js';
 import { normalizeRelPath } from '../platform/paths.js';
 import {
@@ -214,8 +215,13 @@ const INIT_CAPABILITY_MATRIX = {
 } as const;
 
 
-// Python (pyproject.toml / setup.py) is a SUPPORTED source plugin now and is handled
-// separately via pythonPackageCount — it is intentionally absent from this list.
+/**
+ * Project files of ecosystems the preflight can name but no plugin indexes.
+ *
+ * The list is the complement of the loaded plugin set, so it cannot be derived from it — but it is
+ * subtracted from it before use: a name a loaded plugin declares as a package marker is a supported
+ * project, whichever ecosystem wrote this list.
+ */
 const UNSUPPORTED_PROJECT_FILES = new Set([
   'requirements.txt', 'poetry.lock', 'Pipfile',
   'go.mod', 'go.sum',
@@ -224,8 +230,6 @@ const UNSUPPORTED_PROJECT_FILES = new Set([
   'Gemfile',
   'composer.json',
 ]);
-
-const PYTHON_PACKAGE_MARKERS = new Set(['pyproject.toml', 'setup.py']);
 
 const UNSUPPORTED_SOURCE_EXTENSIONS = new Set([
   '.go', '.rs', '.java', '.kt', '.kts', '.rb', '.php', '.cs',
@@ -245,12 +249,37 @@ function isProjectSignalExtension(ext: string): boolean {
 }
 
 export interface WorkspaceSupportInspection {
-  tsconfigCount: number;
-  /** Count of Python package markers (pyproject.toml / setup.py). */
-  pythonPackageCount: number;
+  /**
+   * Package-marker files found, by the id of the plugin that declared the marker.
+   *
+   * Keyed by plugin rather than by language: the preflight predicts what discovery will find, and
+   * discovery finds a package where a marker its plugin declared sits. A repository in an ecosystem
+   * this engine has never heard of counts here as soon as its plugin is loaded.
+   */
+  packagesByPlugin: Record<string, number>;
   hasIaC: boolean;
   hasUnsupportedSignals: boolean;
   hasProjectSignals: boolean;
+}
+
+/** Package markers of the loaded plugin set, flattened for a filename test. */
+function loadedPackageMarkers(): Map<string, string> {
+  const byName = new Map<string, string>();
+  for (const [pluginId, markers] of currentDirLayoutTable().packageMarkers) {
+    for (const marker of markers) if (!byName.has(marker)) byName.set(marker, pluginId);
+  }
+  return byName;
+}
+
+/** How many package roots the preflight expects discovery to find, across every loaded plugin. */
+export function totalPackageMarkers(inspection: WorkspaceSupportInspection): number {
+  return Object.values(inspection.packagesByPlugin).reduce((sum, count) => sum + count, 0);
+}
+
+/** The marker filenames this build would recognise, for a message that has to say what it looked for. */
+function describeLoadedMarkers(): string {
+  const markers = [...loadedPackageMarkers().keys()].sort();
+  return markers.length > 0 ? markers.join(', ') : 'no source plugin is loaded';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -272,12 +301,12 @@ function isLikelyIacFile(name: string): boolean {
 
 export function inspectWorkspaceSupport(cwd: string): WorkspaceSupportInspection {
   const result: WorkspaceSupportInspection = {
-    tsconfigCount: 0,
-    pythonPackageCount: 0,
+    packagesByPlugin: {},
     hasIaC: false,
     hasUnsupportedSignals: false,
     hasProjectSignals: false,
   };
+  const markerOwners = loadedPackageMarkers();
 
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
@@ -289,22 +318,30 @@ export function inspectWorkspaceSupport(cwd: string): WorkspaceSupportInspection
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        // The preflight count predicts what the graph will hold, so it prunes where discovery does.
-        if (!shouldWalkDiscoveryDir(entry.name)) continue;
-        walk(path.join(dir, entry.name));
+        // The preflight count predicts what the graph will hold, so it prunes where discovery does —
+        // including the names claimed only on evidence, which is why the absolute path goes with the
+        // name.
+        const childAbs = path.join(dir, entry.name);
+        if (!shouldWalkDiscoveryDir(entry.name, childAbs)) continue;
+        walk(childAbs);
         continue;
       }
       if (!entry.isFile()) continue;
 
       const name = entry.name;
       const ext = path.extname(name).toLowerCase();
-      if (name === 'tsconfig.json') result.tsconfigCount++;
-      if (PYTHON_PACKAGE_MARKERS.has(name)) result.pythonPackageCount++;
+      const markerOwner = markerOwners.get(name);
+      if (markerOwner !== undefined) {
+        result.packagesByPlugin[markerOwner] = (result.packagesByPlugin[markerOwner] ?? 0) + 1;
+      }
       if (isLikelyIacFile(name)) result.hasIaC = true;
-      if (UNSUPPORTED_PROJECT_FILES.has(name) || UNSUPPORTED_SOURCE_EXTENSIONS.has(ext)) {
+      // A name a loaded plugin claims is a supported project, whatever the hand-written list says:
+      // the list names ecosystems with no plugin, and installing one moves a name out of it.
+      if (markerOwner === undefined
+        && (UNSUPPORTED_PROJECT_FILES.has(name) || UNSUPPORTED_SOURCE_EXTENSIONS.has(ext))) {
         result.hasUnsupportedSignals = true;
       }
-      if (PROJECT_SIGNAL_FILES.has(name) || isProjectSignalExtension(ext)) {
+      if (markerOwner !== undefined || PROJECT_SIGNAL_FILES.has(name) || isProjectSignalExtension(ext)) {
         result.hasProjectSignals = true;
       }
     }
@@ -314,13 +351,14 @@ export function inspectWorkspaceSupport(cwd: string): WorkspaceSupportInspection
   return result;
 }
 
-/** Rough wall-time estimate for a cold-build on 4 worker threads. Heuristic only —
- * actual time depends on package sizes, shared imports, and machine speed. */
-export function estimateColdBuild(tsconfigCount: number): { range: string; recommendBuild: boolean } {
-  if (tsconfigCount === 0) return { range: '—', recommendBuild: false };
-  if (tsconfigCount < 50) return { range: '~20-60s', recommendBuild: false };
-  if (tsconfigCount < 200) return { range: '~1-3 min', recommendBuild: false };
-  if (tsconfigCount < 600) return { range: '~3-10 min', recommendBuild: true };
+/** Rough wall-time estimate for a cold-build on 4 worker threads, from the number of package roots
+ * the preflight found. Heuristic only — actual time depends on package sizes, shared imports, and
+ * machine speed. */
+export function estimateColdBuild(packageCount: number): { range: string; recommendBuild: boolean } {
+  if (packageCount === 0) return { range: '—', recommendBuild: false };
+  if (packageCount < 50) return { range: '~20-60s', recommendBuild: false };
+  if (packageCount < 200) return { range: '~1-3 min', recommendBuild: false };
+  if (packageCount < 600) return { range: '~3-10 min', recommendBuild: true };
   return { range: '~10-30 min (cold), seconds (warm)', recommendBuild: true };
 }
 
@@ -328,14 +366,18 @@ export function formatWorkspaceSupportPreflight(
   inspection: WorkspaceSupportInspection,
   opts?: { autoBuild?: boolean },
 ): string {
-  const { tsconfigCount, pythonPackageCount, hasIaC } = inspection;
-  if (tsconfigCount > 0 || pythonPackageCount > 0) {
-    const langs: string[] = [];
-    if (tsconfigCount > 0) langs.push(`TypeScript (${tsconfigCount} tsconfig(s))`);
-    if (pythonPackageCount > 0) langs.push(`Python (${pythonPackageCount} package(s))`);
+  const { hasIaC } = inspection;
+  const packageCount = totalPackageMarkers(inspection);
+  if (packageCount > 0) {
+    // Named by plugin id in id order: the preflight reports what the loaded set found, and an
+    // ecosystem the engine has no name for reads the same as one it does.
+    const langs = Object.entries(inspection.packagesByPlugin)
+      .filter(([, count]) => count > 0)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([pluginId, count]) => `${pluginId} (${count} package(s))`);
     const iacSuffix = hasIaC ? ' with IaC infra' : '';
     const base = `Detected ${langs.join(' + ')} project${iacSuffix}.`;
-    const est = estimateColdBuild(tsconfigCount);
+    const est = estimateColdBuild(packageCount);
     const buildLine = `First-time graph build: ${est.range === '—' ? 'seconds' : est.range}.`;
     const recLine = opts?.autoBuild
       ? 'The graph builds now as part of setup (pass --no-build to defer to first MCP start).'
@@ -345,10 +387,10 @@ export function formatWorkspaceSupportPreflight(
     return `${base}\n  ${buildLine}\n  ${recLine}`;
   }
   if (hasIaC) {
-    return 'IaC files detected but no source project (no tsconfig.json / pyproject.toml). repovine will build an infra-only graph (infra modules, no code modules).';
+    return `IaC files detected but no source project (no package marker of a loaded plugin: ${describeLoadedMarkers()}). repovine will build an infra-only graph (infra modules, no code modules).`;
   }
   if (inspection.hasUnsupportedSignals || inspection.hasProjectSignals) {
-    return 'Existing unsupported project detected. repovine currently indexes TypeScript and Python projects, with or without IaC infra.';
+    return `Existing project detected in an ecosystem no loaded plugin owns. repovine indexes what its plugins declare (${describeLoadedMarkers()}), with or without IaC infra.`;
   }
   return 'No supported files found yet.';
 }

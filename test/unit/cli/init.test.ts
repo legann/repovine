@@ -18,6 +18,7 @@ import {
   ensureWorkspaceBootstrap,
   inspectWorkspaceSupport,
   formatWorkspaceSupportPreflight,
+  totalPackageMarkers,
 } from '../../../src/cli/init.js';
 import { stripAnsi } from '../../../src/cli/ui.js';
 import {
@@ -368,10 +369,12 @@ describe('workspace support preflight', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('reports TypeScript projects with and without IaC infra', () => {
+  it('reports a marker-bearing project with and without IaC infra', () => {
+    // `tsconfig.json` is named here because the TypeScript plugin declares it, and the preflight
+    // reports the plugin that claimed the marker rather than a language it spells itself.
     fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{}');
     const tsOnly = formatWorkspaceSupportPreflight(inspectWorkspaceSupport(tmpDir));
-    expect(tsOnly).toContain('Detected TypeScript');
+    expect(tsOnly).toContain('Detected typescript (1 package(s))');
     expect(tsOnly).not.toContain('with IaC infra');
 
     fs.writeFileSync(path.join(tmpDir, 'main.tf'), 'resource "aws_s3_bucket" "bucket" {}\n');
@@ -380,8 +383,7 @@ describe('workspace support preflight', () => {
 
   it('recommends setup for larger repositories', () => {
     const message = formatWorkspaceSupportPreflight({
-      tsconfigCount: 650,
-      pythonPackageCount: 0,
+      packagesByPlugin: { typescript: 650 },
       hasIaC: true,
       hasUnsupportedSignals: false,
       hasProjectSignals: true,
@@ -393,8 +395,7 @@ describe('workspace support preflight', () => {
 
   it('says setup builds automatically when autoBuild is set', () => {
     const inspection = {
-      tsconfigCount: 650,
-      pythonPackageCount: 0,
+      packagesByPlugin: { typescript: 650 },
       hasIaC: true,
       hasUnsupportedSignals: false,
       hasProjectSignals: true,
@@ -409,25 +410,38 @@ describe('workspace support preflight', () => {
     expect(formatWorkspaceSupportPreflight(inspection)).toContain('repovine setup');
   });
 
-  it('distinguishes empty workspaces from Python and infra-only projects', () => {
+  it('distinguishes empty workspaces from marker-bearing and infra-only projects', () => {
     expect(formatWorkspaceSupportPreflight(inspectWorkspaceSupport(tmpDir))).toBe('No supported files found yet.');
 
-    // Python is a supported source plugin now — a pyproject.toml is a recognized project.
+    // `pyproject.toml` is a marker the Python plugin declares, so the preflight counts it under that
+    // plugin without the engine knowing what Python is.
     fs.writeFileSync(path.join(tmpDir, 'pyproject.toml'), '[project]\nname = "demo"\n');
-    expect(formatWorkspaceSupportPreflight(inspectWorkspaceSupport(tmpDir))).toContain('Python');
+    expect(formatWorkspaceSupportPreflight(inspectWorkspaceSupport(tmpDir))).toContain('python (1 package(s))');
 
     fs.unlinkSync(path.join(tmpDir, 'pyproject.toml'));
     fs.writeFileSync(path.join(tmpDir, 'template.yaml'), 'Resources: {}\n');
     expect(formatWorkspaceSupportPreflight(inspectWorkspaceSupport(tmpDir))).toContain('infra-only graph');
   });
 
-  it('treats TypeScript source without tsconfig as an unsupported existing project', () => {
+  it('treats source with no package marker as a project no loaded plugin owns', () => {
     fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'src', 'index.ts'), 'export const ok = true;\n');
 
     const message = formatWorkspaceSupportPreflight(inspectWorkspaceSupport(tmpDir));
-    expect(message).toContain('unsupported project');
-    expect(message).toContain('TypeScript and Python');
+    expect(message).toContain('no loaded plugin owns');
+    // The message names what it looked for, and it looked for what the loaded set declared.
+    expect(message).toContain('tsconfig.json');
+    expect(message).toContain('pyproject.toml');
+  });
+
+  it('counts a package marker under the plugin that declared it, not under a spelled-out language', () => {
+    fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{}');
+    fs.writeFileSync(path.join(tmpDir, 'pyproject.toml'), '[project]\nname = "demo"\n');
+
+    const inspection = inspectWorkspaceSupport(tmpDir);
+
+    expect(inspection.packagesByPlugin).toEqual({ typescript: 1, python: 1 });
+    expect(totalPackageMarkers(inspection)).toBe(2);
   });
 });
 

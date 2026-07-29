@@ -1,6 +1,7 @@
 import type { ModuleInfo, PackageInfo, PendingModule, PendingModuleDraft, SemanticModuleDelta } from '../types.js';
 import type { PluginRequirements, PluginAvailability } from '../runtime.js';
 import type { ReadonlyFactRecord } from '../plugin/projection.js';
+import type { PrunedDir } from './discovery-walk.js';
 
 /**
  * Source plugin contract types.
@@ -113,8 +114,29 @@ export type SourceDiscoveryLogLevel = 'debug' | 'warn' | 'error';
 
 /** Options handed to discover(). Path filters the orchestrator already resolved. */
 export interface SourceDiscoveryOptions {
+  /**
+   * The filenames that mark a package root for this plugin, resolved by the host from this build's
+   * layout table.
+   *
+   * Required, and required for a reason: the plugin DECLARES its markers, and a producer that read
+   * its own copy instead would discover by something the build never agreed to. Every input that
+   * decides which packages exist then lands in one place — the fingerprint hashes it, `repovine init`
+   * counts by it, and a config that retracts a marker changes discovery instead of only the report.
+   * An absent option would have to mean "no markers", which is a producer that silently finds
+   * nothing.
+   */
+  packageMarkers: readonly string[];
   /** Compiled `scan.include` / `scan.exclude` from repovine.config.json. */
   scanPatterns?: CompiledScanPatterns;
+  /**
+   * Where this producer's walk stopped, reported back to the host.
+   *
+   * Pruning decides which modules exist, and a skipped tree is otherwise indistinguishable from an
+   * empty one: nothing downstream can tell a repository with no `node_modules` from one whose
+   * `node_modules` was walked past. A producer forwards `walkRepository`'s `onPruned` here, and the
+   * host publishes the total as `layoutSkipped`. Absent means the host wants no report.
+   */
+  onPruned?(pruned: PrunedDir): void;
   /**
    * Diagnostic sink for discovery. The host decides where a line goes and whether it goes anywhere:
    * a build driven by the MCP server writes to a different stream than a CLI run, and both silence
@@ -197,7 +219,13 @@ export interface SourcePlugin {
    *  `ok:false` the engine skips the plugin with one warning (graceful degradation) instead of
    *  letting every file fail downstream. Absent ⇒ assumed available. May be async. */
   available?(): PluginAvailability | Promise<PluginAvailability>;
-  /** Marker files that activate package discovery for this plugin (e.g. ['tsconfig.json']). */
+  /**
+   * Marker files that activate package discovery for this plugin (e.g. ['tsconfig.json']).
+   *
+   * Declared here and handed back on {@link SourceDiscoveryOptions.packageMarkers}: this is the one
+   * statement of what a package root looks like for this ecosystem, and discovery reads it from the
+   * host rather than from a second copy of its own.
+   */
   packageMarkers?: string[];
   fileMatch?: SourceFileMatch;
   /** Declarative capabilities core asks instead of hardcoding language ids. Optional and additive:

@@ -1,4 +1,4 @@
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { currentDirLayoutTable, HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 import type { ScanPatternInput } from '../scan-filters.js';
 import { compareCodeUnits } from '../platform/ordering.js';
@@ -73,7 +73,8 @@ function sourcePluginIdentity(plugin: SourcePlugin): Record<string, unknown> {
   return {
     id: plugin.id,
     apiVersion: plugin.apiVersion,
-    packageMarkers: plugin.packageMarkers,
+    // `packageMarkers` is absent here on purpose: it is folded in from the installed layout table
+    // below, which is the value discovery actually ran with.
     fileMatch: plugin.fileMatch && {
       extensions: plugin.fileMatch.extensions,
       fileNames: plugin.fileMatch.fileNames,
@@ -90,10 +91,20 @@ function sourcePluginIdentity(plugin: SourcePlugin): Record<string, unknown> {
  * edits, and active plugin changes force a full extraction instead of reusing stale semantics.
  */
 export function computeExtractionConfigFingerprint(input: ExtractionConfigFingerprintInput): string {
+  const layout = currentDirLayoutTable();
   const payload = {
     scanInclude: input.scanInclude ?? [],
     scanExclude: input.scanExclude ?? [],
     sourcePlugins: input.sourcePlugins.map(sourcePluginIdentity),
+    // The layout this build walked by, read from the same table discovery read: which directories
+    // were skipped and which filenames marked a package root both decide which modules exist, so a
+    // snapshot taken under one table is not reusable under another.
+    dirLayout: {
+      pruned: [...layout.pruned],
+      testLayout: [...layout.testLayout],
+      prunedWhenContains: layout.prunedWhenContains,
+      packageMarkers: layout.packageMarkers,
+    },
     iacPluginIds: [...input.iacPluginIds],
     extractContextByPlugin: input.extractContextByPlugin,
     pluginRuntime: input.pluginRuntime ?? null,

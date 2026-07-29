@@ -3,7 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, describe, expect, it } from '@jest/globals';
 import { currentDirLayoutTable } from '../../packages/plugin-sdk/src/source-plugin/dir-layout.js';
-import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
+import { collectRepositoryFactsAsync, type SnapshotOptions } from '../../src/stage1/index.js';
+import { defaultPluginsConfig, loadPluginSet } from '../../src/plugin-host/load.js';
 import { shouldWalkDiscoveryDir } from '../../src/scan-filters.js';
 
 // Law: the set of directory names discovery prunes is held by a fixture that contains one of each.
@@ -29,11 +30,11 @@ import { shouldWalkDiscoveryDir } from '../../src/scan-filters.js';
  */
 const NET_FIXTURE_DIRS: readonly string[] = [
   '.aws-sam', '.cache', '.eggs', '.env', '.git', '.mypy_cache', '.next', '.nox', '.nuxt', '.nx',
-  '.pnpm-store', '.pytest_cache', '.repovine', '.ruff_cache', '.svelte-kit', '.tox', '.turbo',
-  '.venv', '.yarn', '__e2e__', '__mocks__', '__pycache__', '__snapshots__', '__tests__',
-  'bower_components', 'build', 'coverage', 'cypress', 'dist', 'dist-bundled', 'e2e', 'env',
-  'htmlcov', 'node_modules', 'out', 'playwright', 'site-packages', 'target', 'test', 'tests',
-  'vendor', 'venv',
+  '.pnpm-store', '.pytest_cache', '.repovine', '.ruff_cache', '.serverless', '.svelte-kit',
+  '.terraform', '.tox', '.turbo', '.venv', '.yarn', '__e2e__', '__mocks__', '__pycache__',
+  '__snapshots__', '__tests__', 'bower_components', 'build', 'cdk.out', 'coverage', 'cypress',
+  'dist', 'dist-bundled', 'e2e', 'env', 'htmlcov', 'node_modules', 'out', 'playwright',
+  'site-packages', 'target', 'test', 'tests', 'vendor', 'venv',
 ];
 
 const ENGINE_PRUNED: string[] = [...new Set(
@@ -78,16 +79,42 @@ function buildFixtureTree(): string {
     write(`${name}/templates/hidden.j2`, '{% extends "base.html" %}\n');
     write(`${name}/infra/Dockerfile`, 'FROM node:22\n');
   }
+  // `env` is claimed on evidence, not on the name: the Python plugin prunes it only inside a
+  // virtualenv. The fixture supplies the evidence so this tree stays the "everything prunes" case;
+  // the other direction has its own case below.
+  write('env/pyvenv.cfg', 'home = /usr/bin\n');
   return root;
 }
 
-async function snapshotOf(root: string) {
+/** A tree with one package under a conditionally-claimed name, with or without the marker beside it. */
+function buildConditionalTree(withMarker: boolean): string {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-prune-cond-')));
+  tempRoots.push(root);
+  const write = (rel: string, content: string): void => {
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, content);
+  };
+  write('package.json', '{ "name": "condfx", "version": "1.0.0" }\n');
+  write('tsconfig.json', '{ "compilerOptions": { "target": "ES2022", "module": "ESNext" }, "include": ["src"] }\n');
+  write('src/kept.ts', 'export const kept = 1;\n');
+  write('env/package.json', '{ "name": "@scope/react-env", "version": "1.0.0" }\n');
+  write('env/tsconfig.json', '{ "compilerOptions": { "target": "ES2022" }, "include": ["src"] }\n');
+  write('env/src/index.ts', 'export const env = 1;\n');
+  if (withMarker) write('env/pyvenv.cfg', 'home = /usr/bin\n');
+  return root;
+}
+
+async function snapshotOf(root: string, options?: SnapshotOptions) {
   const origLog = console.log;
   console.log = () => {};
   try {
-    return await collectRepositoryFactsAsync(root);
+    return await collectRepositoryFactsAsync(root, options);
   } finally {
     console.log = origLog;
+    // Every build installs its own plugin set and its own layout table into this isolate. A case
+    // that built under a retraction would leave the next one walking by a table it did not ask for.
+    await loadPluginSet({ repoRoot: process.cwd(), config: defaultPluginsConfig() });
   }
 }
 
@@ -152,5 +179,67 @@ describe('core-laws the pruned set is held by a fixture that contains one of eac
     for (const rel of admittedModules) {
       expect(`${rel} walkable=${shouldWalkDiscoveryDir(rel)}`).toBe(`${rel} walkable=true`);
     }
+  }, 180_000);
+
+  // ── the catalog path: the net measures the channel the names arrive through, not only the table ──
+
+  it('reports every name that pruned, with the plugin that declared it', async () => {
+    const root = buildFixtureTree();
+
+    const snapshot = await snapshotOf(root);
+
+    // A pruned tree and an absent tree look identical everywhere else, so the build says which
+    // entries decided. Every fixture name has a directory on disk, so every one of them must
+    // appear: a name that pruned silently is the failure this case exists for.
+    const reported = new Set((snapshot.layoutSkipped ?? []).map(skip => skip.name));
+    expect(PRUNED.filter(name => !reported.has(name))).toEqual([]);
+    expect((snapshot.layoutSkipped ?? []).every(skip => skip.stops > 0)).toBe(true);
+
+    // Ownership is joined from the declaration catalog, so the report names the plugin a reader
+    // would have to disable — not just the name.
+    const bySamPlugin = (snapshot.layoutSkipped ?? []).find(skip => skip.name === '.aws-sam');
+    expect(bySamPlugin?.declaredBy).toEqual(['sam']);
+  }, 180_000);
+
+  it('claims a conditional name only where the marker is, and keeps the package where it is not', async () => {
+    // `env` is a virtualenv in one repository and a published package in the next. Claiming the name
+    // outright deletes the second from the graph, which is what this case measures on both trees.
+    const withoutMarker = await snapshotOf(buildConditionalTree(false));
+    const withMarker = await snapshotOf(buildConditionalTree(true));
+
+    expect(withoutMarker.packages.map(pkg => pkg.name).sort())
+      .toEqual(['@scope/react-env', 'condfx']);
+    expect(withoutMarker.modules.map(mod => mod.id).sort())
+      .toEqual(['mod:@scope/react-env/src', 'mod:condfx/src/kept']);
+    expect((withoutMarker.layoutSkipped ?? []).some(skip => skip.name === 'env')).toBe(false);
+
+    expect(withMarker.packages.map(pkg => pkg.name)).toEqual(['condfx']);
+    expect(withMarker.modules.map(mod => mod.id)).toEqual(['mod:condfx/src/kept']);
+    expect((withMarker.layoutSkipped ?? []).find(skip => skip.name === 'env')?.declaredBy)
+      .toEqual(['python']);
+  }, 180_000);
+
+  it('stops pruning a name the config retracts', async () => {
+    const root = buildFixtureTree();
+
+    // The catalog is the live authority, not a snapshot of it taken at import time: retracting the
+    // declaration has to put the tree back. `.aws-sam` is declared by a plugin rather than by the
+    // base table, so this exercises the whole channel — package.json declaration, merged catalog,
+    // installed table, walk.
+    const withRetraction = await snapshotOf(root, {
+      plugins: { ...defaultPluginsConfig(), retract: ['dir:.aws-sam'] },
+    });
+
+    const admitted = withRetraction.modules.map(mod => path.relative(root, mod.filePath));
+    const throughRetracted = admitted.filter(rel => rel.split(/[/\\]/).includes('.aws-sam'));
+    expect(throughRetracted.length).toBeGreaterThan(0);
+    expect((withRetraction.layoutSkipped ?? []).some(skip => skip.name === '.aws-sam')).toBe(false);
+
+    // Everything else stayed pruned: a retraction names one key, and a build that dropped the whole
+    // table would pass the assertion above for the wrong reason.
+    const otherPruned = admitted.filter(
+      rel => rel.split(/[/\\]/).some(segment => segment !== '.aws-sam' && new Set(PRUNED).has(segment)),
+    );
+    expect(otherPruned).toEqual([]);
   }, 180_000);
 });

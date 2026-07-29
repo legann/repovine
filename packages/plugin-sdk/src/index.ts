@@ -64,15 +64,17 @@ export { moduleCandidateSuffixes, resolveByCandidates } from './source-plugin/re
 
 /* ---- discovery walk: the traversal every producer runs, and where it stops ---- */
 export {
+  classifyDiscoveryDir,
   readDirSorted,
   shouldWalkDiscoveryDir,
   walkRepository,
 } from './source-plugin/discovery-walk.js';
-export type { WalkedFile, WalkRepositoryOptions } from './source-plugin/discovery-walk.js';
+export type { DirSkipReason, PrunedDir, WalkedFile, WalkRepositoryOptions } from './source-plugin/discovery-walk.js';
 export {
   BASE_DIR_LAYOUT,
   currentDirLayoutTable,
   installDirLayoutTable,
+  packageMarkersFor,
 } from './source-plugin/dir-layout.js';
 export type { DirLayoutTable } from './source-plugin/dir-layout.js';
 

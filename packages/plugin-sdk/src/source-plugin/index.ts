@@ -20,15 +20,17 @@ export type { HashWidth } from '../content-hash.js';
 
 /* ---- the mechanics a producer does not write: discovery walk, prune rule, path vocabulary ---- */
 export {
+  classifyDiscoveryDir,
   readDirSorted,
   shouldWalkDiscoveryDir,
   walkRepository,
 } from './discovery-walk.js';
-export type { WalkedFile, WalkRepositoryOptions } from './discovery-walk.js';
+export type { DirSkipReason, PrunedDir, WalkedFile, WalkRepositoryOptions } from './discovery-walk.js';
 export {
   BASE_DIR_LAYOUT,
   currentDirLayoutTable,
   installDirLayoutTable,
+  packageMarkersFor,
 } from './dir-layout.js';
 export type { DirLayoutTable } from './dir-layout.js';
 export { moduleCandidateSuffixes, resolveByCandidates } from './resolve-candidates.js';

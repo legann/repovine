@@ -34,7 +34,12 @@
         {
           "name": "env",
           "role": "dependencies",
-          "because": "a virtualenv named after the older convention"
+          "because": "a virtualenv named after the older convention",
+          "whenContains": [
+            "pyvenv.cfg",
+            "bin/activate",
+            "Scripts/activate"
+          ]
         },
         {
           "name": "site-packages",

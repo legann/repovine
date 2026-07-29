@@ -38,8 +38,13 @@ describe('core-laws plugin author surface (the SDK carries the mechanics)', () =
       // `walkRepository` (prunes and sorts) and `readDirSorted` (sorts, for a walker that asks about
       // directories rather than files and therefore prunes on its own).
       if (/\breaddirSync\b|\bopendirSync\b/.test(text)) offenders.push(`${where}: raw directory read`);
-      if (/\breadDirSorted\s*\(/.test(text) && !/\bshouldWalkDiscoveryDir\s*\(/.test(text)) {
-        offenders.push(`${where}: enumerates directories without shouldWalkDiscoveryDir`);
+      // Either spelling of the one rule counts: `shouldWalkDiscoveryDir` is the boolean and
+      // `classifyDiscoveryDir` is the record it is derived from, so a walker that reports WHY it
+      // stopped is asking the same question, not skipping it.
+      if (/\breadDirSorted\s*\(/.test(text)
+        && !/\bshouldWalkDiscoveryDir\s*\(/.test(text)
+        && !/\bclassifyDiscoveryDir\s*\(/.test(text)) {
+        offenders.push(`${where}: enumerates directories without the canonical prune rule`);
       }
     }
     expect(offenders).toEqual([]);

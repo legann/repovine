@@ -28,6 +28,13 @@
           "service": "lambda",
           "hasCodeHandler": true
         }
+      ],
+      "dirs": [
+        {
+          "name": ".terraform",
+          "role": "tool-output",
+          "because": "terraform init writes provider plugins and module sources here"
+        }
       ]
     }
   },

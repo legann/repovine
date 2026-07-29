@@ -7,6 +7,7 @@ import type {
   PluginValueDeclaration,
   ResourceKindDeclaration,
   RuntimeActionDeclaration,
+  SourcePlugin,
   StampedDeclarationCatalog,
   TriggerEntryKind,
   TriggerTypeDeclaration,
@@ -124,9 +125,18 @@ export function emptyDeclarationCatalog(): DeclarationCatalog {
 
 /* ---------------------------------- effects ---------------------------------- */
 
-/** What the host does with a claimed directory name. `because` is evidence, not effect. */
+/**
+ * What the host does with a claimed directory name. `because` is evidence, not effect.
+ *
+ * `whenContains` IS effect: two plugins claiming `env`, one unconditionally and one only inside a
+ * virtualenv, decide differently on the same tree, and that is a conflict rather than one fact
+ * stated twice.
+ */
 function dirEffect(declaration: EcosystemDirFact): Record<string, unknown> {
-  return { role: declaration.role };
+  return {
+    role: declaration.role,
+    whenContains: declaration.whenContains === undefined ? null : [...declaration.whenContains].sort(compareCodeUnits),
+  };
 }
 
 /** What a value declaration adds to an axis. `because` is evidence, not effect. */
@@ -418,16 +428,37 @@ export function catalogRuntimeActionNamespace(
  * ecosystems it enabled, and a plugin re-declaring a base name states the same thing twice rather
  * than contradicting it.
  */
-export function dirLayoutTableOf(catalog: DeclarationCatalog): DirLayoutTable {
+export function dirLayoutTableOf(
+  catalog: DeclarationCatalog,
+  sourcePlugins: readonly SourcePlugin[] = [],
+): DirLayoutTable {
   const pruned = new Set(BASE_DIR_LAYOUT.pruned);
   const testLayout = new Set(BASE_DIR_LAYOUT.testLayout);
+  const prunedWhenContains = new Map<string, readonly string[]>(BASE_DIR_LAYOUT.prunedWhenContains);
   for (const record of catalog.dirs) {
     const name = record.key.slice('dir:'.length);
     if (!name) continue;
-    if (record.effect.role === 'test-layout') testLayout.add(name);
-    else pruned.add(name);
+    if (record.effect.role === 'test-layout') {
+      testLayout.add(name);
+      continue;
+    }
+    pruned.add(name);
+    // A conditional claim is still a claim on the name: it lands in `pruned` beside the rest, and
+    // the condition beside it says the walk has to see the marker before it acts.
+    const whenContains = record.effect.whenContains;
+    if (Array.isArray(whenContains) && whenContains.length > 0) {
+      prunedWhenContains.set(name, whenContains as readonly string[]);
+    }
   }
-  return { pruned, testLayout };
+  // Package markers come from the runtime descriptor rather than the JSON catalog: a marker only
+  // means anything to the producer that discovers by it, and it reaches that producer back through
+  // this table.
+  const packageMarkers = new Map<string, readonly string[]>();
+  for (const plugin of sourcePlugins) {
+    const markers = plugin.packageMarkers ?? [];
+    if (markers.length > 0) packageMarkers.set(plugin.id, markers);
+  }
+  return { pruned, testLayout, prunedWhenContains, packageMarkers };
 }
 
 /**

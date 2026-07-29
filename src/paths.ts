@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { BASE_DIR_LAYOUT, currentDirLayoutTable } from '@repovine/plugin-sdk';
+import { BASE_DIR_LAYOUT, currentDirLayoutTable, packageMarkersFor } from '@repovine/plugin-sdk';
 
 function readPackageName(packageJsonPath: string): string | undefined {
   try {
@@ -109,12 +109,13 @@ export const DOMAINS_CONFIG_FILENAME = 'repovine.domains.json';
 export const ANNOTATIONS_FILENAME = 'repovine.annots.json';
 
 /**
- * Where this build's walk stops. Declared in the SDK beside the discovery walk that applies it: a
- * producer prunes by the same table the engine does, and re-exported here so engine callers read
- * the scan vocabulary from one module. `BASE_DIR_LAYOUT` is what every build shares; the installed
- * table adds what this build's plugins declared.
+ * Where this build's walk stops, and what it stops at. Declared in the SDK beside the discovery walk
+ * that applies it: a producer prunes by the same table the engine does, and re-exported here so
+ * engine callers read the scan vocabulary from one module. `BASE_DIR_LAYOUT` is what every build
+ * shares; the installed table adds what this build's plugins declared, including the package markers
+ * each source plugin discovers by.
  */
-export { BASE_DIR_LAYOUT, currentDirLayoutTable };
+export { BASE_DIR_LAYOUT, currentDirLayoutTable, packageMarkersFor };
 
 export function domainsConfigFilePath(repoRoot: string): string {
   return path.join(repoRoot, DOMAINS_CONFIG_FILENAME);

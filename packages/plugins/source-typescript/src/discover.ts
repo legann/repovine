@@ -38,6 +38,8 @@ interface DiscoveryContext {
   scanPatterns: CompiledScanPatterns;
   /** Host diagnostic sink. Absent when the host asked for no diagnostics from this pass. */
   log?(level: SourceDiscoveryLogLevel, message: string): void;
+  /** Host sink for where this producer's walk stopped. Absent when the host wants no report. */
+  onPruned?: SourceDiscoveryOptions['onPruned'];
 }
 
 /**
@@ -163,6 +165,7 @@ function discoverSfcFiles(
   // Starts inside the package, prunes by the path the graph knows — see the same split in the
   // Python file walk.
   walkRepository(pkgAbsPath, {
+    ...(ctx.onPruned === undefined ? {} : { onPruned: ctx.onPruned }),
     repoRoot,
     onFile: ({ absPath: full, relFromRoot, name }) => {
       // Asked of the file as well as the directory: the walk starts inside the package, so a
@@ -233,6 +236,7 @@ function discoverExplicitIncludeFiles(
   };
 
   walkRepository(repoRoot, {
+    ...(ctx.onPruned === undefined ? {} : { onPruned: ctx.onPruned }),
     onFile: ({ absPath, relFromRoot }) => visitFile(absPath, relFromRoot),
   });
   return added;
@@ -274,9 +278,10 @@ function discoverPendingModules(
  * threaded into extract().
  */
 export function discoverTypeScript(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {
-  const packages: PackageInfo[] = discoverPackages(repoRoot).map(p => ({ ...p, sourcePluginId: 'typescript' }));
+  const packages: PackageInfo[] = discoverPackages(repoRoot, options.packageMarkers, options.onPruned)
+    .map(p => ({ ...p, sourcePluginId: 'typescript' }));
   const scanPatterns = options.scanPatterns ?? compileScanPatterns([], []);
-  const ctx: DiscoveryContext = { repoRoot, scanPatterns, log: options.log };
+  const ctx: DiscoveryContext = { repoRoot, scanPatterns, log: options.log, onPruned: options.onPruned };
 
   const { pendingByPath, parsedOptionsByPkg } = discoverPendingModules(packages, repoRoot, ctx);
   for (const pending of pendingByPath.values()) pending.sourcePluginId = 'typescript';

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { compareCodeUnits } from '../ordering.js';
-import { normalizeRelPath, repoRelativePosix } from '../paths.js';
+import { lastPathSegment, normalizeRelPath, repoRelativePosix } from '../paths.js';
 import { toPosixPath } from './module-id.js';
 import { currentDirLayoutTable } from './dir-layout.js';
 
@@ -27,10 +27,18 @@ function prunedNames(): ReadonlySet<string> {
   return currentDirLayoutTable().pruned;
 }
 
-/** True when a repo-relative path names, or sits under, an engine-ignored directory. */
+/**
+ * True when a repo-relative path names, or sits under, an engine-ignored directory.
+ *
+ * Conditional names are absent from this answer on purpose: the condition is about what a directory
+ * CONTAINS, and a path carries no evidence of that. A conditional name is decided by
+ * {@link classifyDiscoveryDir}, at the directory a walk reached.
+ */
 export function matchesEngineIgnorePath(relPath: string): boolean {
   const norm = normalizeRelPath(relPath);
+  const conditional = currentDirLayoutTable().prunedWhenContains;
   for (const fragment of prunedNames()) {
+    if (conditional.has(fragment)) continue;
     const q = toPosixPath(fragment).replace(/^\//, '').replace(/\/$/, '');
     if (!q) continue;
     if (norm === q) return true;
@@ -52,9 +60,72 @@ function testLayoutNames(): ReadonlySet<string> {
 }
 
 /** True when any segment of the repo-relative path is a test-layout directory. */
-function hasTestLayoutSegment(relPath: string): boolean {
+export function hasTestLayoutSegment(relPath: string): boolean {
   const names = testLayoutNames();
   return normalizeRelPath(relPath).split('/').some(segment => names.has(segment));
+}
+
+/** Which half of the layout table kept a path out. */
+export type DirSkipReason = 'pruned' | 'test-layout';
+
+/** One directory a walk did not enter, and the table entry that decided it. */
+export interface PrunedDir {
+  /** The repo-relative directory the walk stopped at. */
+  relPath: string;
+  /** The single table entry that matched — a directory name, not a path. */
+  name: string;
+  reason: DirSkipReason;
+}
+
+/**
+ * Why the walk stops at this repo-relative directory, or `undefined` when it descends.
+ *
+ * One answer, named: `shouldWalkDiscoveryDir` is this function's boolean, and the report a producer
+ * publishes is this function's record, so what a build skipped and why cannot drift from what it
+ * actually skipped.
+ */
+export function classifyDiscoveryDir(relDirPath: string, absDirPath?: string): PrunedDir | undefined {
+  const norm = normalizeRelPath(relDirPath);
+  const pruned = prunedNames();
+  const testLayout = testLayoutNames();
+  const conditional = currentDirLayoutTable().prunedWhenContains;
+  // Segment order, outermost first: the entry that stopped the walk is the one nearest the root,
+  // because the walk never reached anything below it.
+  const segments = norm.split('/');
+  for (const [index, segment] of segments.entries()) {
+    if (!segment) continue;
+    const markers = conditional.get(segment);
+    if (markers) {
+      // Claimed only on evidence. Without an absolute path there is nothing to look in, and a name
+      // alone is what this condition exists to stop trusting — so the walk descends.
+      const dir = ancestorAbsPath(absDirPath, segments.length - 1 - index);
+      if (dir !== undefined && markers.some(marker => fs.existsSync(path.join(dir, ...marker.split('/'))))) {
+        return { relPath: norm, name: segment, reason: 'pruned' };
+      }
+      continue;
+    }
+    if (pruned.has(segment)) return { relPath: norm, name: segment, reason: 'pruned' };
+    if (testLayout.has(segment)) return { relPath: norm, name: segment, reason: 'test-layout' };
+  }
+  // A pruned entry spelled with a separator (`.repovine/`) is matched by path rather than by
+  // segment, so the segment loop above does not see it.
+  if (matchesEngineIgnorePath(norm)) {
+    return { relPath: norm, name: lastPathSegment(norm), reason: 'pruned' };
+  }
+  return undefined;
+}
+
+/**
+ * The absolute path of an ancestor `levels` above `absPath`, or `undefined` when there is no path.
+ *
+ * `path.dirname` rather than string surgery on the relative form: the two paths share a tail but are
+ * spelled with different separators on win32, and only the host's own function walks the host's.
+ */
+function ancestorAbsPath(absPath: string | undefined, levels: number): string | undefined {
+  if (absPath === undefined) return undefined;
+  let dir = absPath;
+  for (let i = 0; i < levels; i++) dir = path.dirname(dir);
+  return dir;
 }
 
 /**
@@ -62,10 +133,9 @@ function hasTestLayoutSegment(relPath: string): boolean {
  * engine-ignored tree nor a test-layout one. Every walker that mints repository content — packages,
  * modules, templates, infra files — asks this, so first-party producers agree on where the walk stops.
  *
- * Agreement holds for the walk, not for acceptance. The post-discovery filter asks only the engine
- * ignore list, so a producer that reports a file under a test-layout directory without consulting this
- * predicate keeps it: the composition net holds the walkers to the same answer, and the acceptance
- * filter is where the two lists still part ways.
+ * The post-discovery acceptance filter asks the same two lists, so a producer that reports a file
+ * under a name this predicate names does not get it into the graph by skipping the predicate. Where
+ * the walk stops and what the build accepts are one answer.
  *
  * The engine ignore list is the same one that rejects files, asked one level up: a directory the
  * list names holds nothing the graph wants, so pruning there and rejecting per file give the same
@@ -78,8 +148,8 @@ function hasTestLayoutSegment(relPath: string): boolean {
  * and a walker that stopped descending on it could not honour a more specific `scan.include`
  * underneath.
  */
-export function shouldWalkDiscoveryDir(relDirPath: string): boolean {
-  return !matchesEngineIgnorePath(relDirPath) && !hasTestLayoutSegment(relDirPath);
+export function shouldWalkDiscoveryDir(relDirPath: string, absDirPath?: string): boolean {
+  return classifyDiscoveryDir(relDirPath, absDirPath) === undefined;
 }
 
 /**
@@ -133,6 +203,15 @@ export interface WalkRepositoryOptions {
    * graph without changing which files are in it.
    */
   onFile: (file: WalkedFile) => void;
+  /**
+   * Called for every directory the walk declined to enter.
+   *
+   * Pruning decides which modules exist, and an unreported prune is indistinguishable from an empty
+   * tree on every surface. A producer forwards this to the host sink it was handed
+   * (`SourceDiscoveryOptions.onPruned`), which is where the build's `layoutSkipped` report comes
+   * from.
+   */
+  onPruned?: (pruned: PrunedDir) => void;
 }
 
 /**
@@ -146,7 +225,7 @@ export interface WalkRepositoryOptions {
  */
 export function walkRepository(startDir: string, options: WalkRepositoryOptions): void {
   const repoRoot = options.repoRoot ?? startDir;
-  const { onFile } = options;
+  const { onFile, onPruned } = options;
 
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
@@ -159,7 +238,11 @@ export function walkRepository(startDir: string, options: WalkRepositoryOptions)
       const absPath = path.join(dir, entry.name);
       const relFromRoot = repoRelativePosix(repoRoot, absPath);
       if (entry.isDirectory()) {
-        if (!shouldWalkDiscoveryDir(relFromRoot)) continue;
+        const pruned = classifyDiscoveryDir(relFromRoot, absPath);
+        if (pruned) {
+          onPruned?.(pruned);
+          continue;
+        }
         walk(absPath);
         continue;
       }

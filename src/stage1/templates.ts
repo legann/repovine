@@ -4,6 +4,7 @@ import type { TemplateFileInfo } from '../types.js';
 import { shouldScanSourcePath, type CompiledScanPatterns } from '../scan-filters.js';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { HASH_WIDTH, sha256Hex, walkRepository } from '@repovine/plugin-sdk';
+import type { PrunedDir } from '@repovine/plugin-sdk';
 import { templateNodeId } from '../graph/node-ids.js';
 
 /**
@@ -101,11 +102,14 @@ function readTemplateContent(filePath: string): string {
 export function collectTemplates(opts: {
   repoRoot: string;
   scanPatterns: CompiledScanPatterns;
+  /** Where this walk stopped, for the build's layout report. */
+  onPruned?: (pruned: PrunedDir) => void;
 }): TemplateFileInfo[] {
   const { repoRoot, scanPatterns } = opts;
   const out = new Map<string, TemplateFileInfo>();
 
   walkRepository(repoRoot, {
+    ...(opts.onPruned === undefined ? {} : { onPruned: opts.onPruned }),
     onFile: ({ absPath, relFromRoot: relPath, name }) => {
       const ext = path.extname(name).toLowerCase();
       if (!TEMPLATE_EXTENSIONS.has(ext)) return;

@@ -5,9 +5,8 @@ import * as os from 'node:os';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { walkRepository } from '@repovine/plugin-sdk';
-import { compareCodeUnits, compileScanPatterns, hostPathKey, readDirSorted, repoRelativePosix, shouldScanSourcePath, shouldWalkDiscoveryDir, toPosixPath } from '@repovine/plugin-sdk';
+import { classifyDiscoveryDir, compareCodeUnits, compileScanPatterns, hostPathKey, readDirSorted, repoRelativePosix, shouldScanSourcePath, toPosixPath } from '@repovine/plugin-sdk';
 import type { CompiledScanPatterns } from '@repovine/plugin-sdk';
-import { PYTHON_PACKAGE_MARKERS } from './extensions.js';
 
 /**
  * Python discovery (Pass 1). Finds Python packages (`pyproject.toml` / `setup.py`) and their
@@ -122,7 +121,18 @@ function pyPackageName(pkgDir: string, fallback: string): string {
   return fallback;
 }
 
-function discoverPythonPackages(repoRoot: string): PackageInfo[] {
+/**
+ * The Python packages of a repository: every directory holding one of the marker files the host
+ * resolved for this plugin.
+ *
+ * `markers` is not defaulted. What names a package root is declared once, and a caller that could
+ * omit it would discover by whatever this module happened to spell.
+ */
+function discoverPythonPackages(
+  repoRoot: string,
+  markers: readonly string[],
+  onPruned: SourceDiscoveryOptions['onPruned'],
+): PackageInfo[] {
   const packages: PackageInfo[] = [];
   const seen = new Set<string>();
   const walk = (dir: string): void => {
@@ -132,7 +142,7 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
     } catch {
       return;
     }
-    if (PYTHON_PACKAGE_MARKERS.some(m => fs.existsSync(path.join(dir, m)))) {
+    if (markers.some(m => fs.existsSync(path.join(dir, m)))) {
       // POSIX form: pkg.path is persisted identity; path.resolve
       // consumes forward slashes on every OS.
       // `'.'` names the repository root itself; the empty relative path is not a package path.
@@ -148,8 +158,13 @@ function discoverPythonPackages(repoRoot: string): PackageInfo[] {
     }
     for (const e of entries) {
       if (!e.isDirectory()) continue;
-      if (!shouldWalkDiscoveryDir(repoRelativePosix(repoRoot, path.join(dir, e.name)))) continue;
-      walk(path.join(dir, e.name));
+      const childAbs = path.join(dir, e.name);
+      const pruned = classifyDiscoveryDir(repoRelativePosix(repoRoot, childAbs), childAbs);
+      if (pruned) {
+        onPruned?.(pruned);
+        continue;
+      }
+      walk(childAbs);
     }
   };
   walk(repoRoot);
@@ -162,12 +177,14 @@ function discoverPyFiles(
   pkg: PackageInfo,
   scanPatterns: CompiledScanPatterns,
   pendingByPath: Map<string, PendingModuleDraft>,
+  onPruned: SourceDiscoveryOptions['onPruned'],
 ): void {
   // Starts inside the package, prunes by the path the graph knows: a package under a directory the
   // engine ignore list names is still walked when discovery reached it deliberately, while a
   // `node_modules` inside that package is not.
   walkRepository(pkgAbs, {
     repoRoot,
+    ...(onPruned === undefined ? {} : { onPruned }),
     onFile: ({ absPath, relFromRoot, name }) => {
       if (path.extname(name).toLowerCase() !== '.py') return;
       if (SKIP_FILE_RE.test(name)) return;
@@ -201,11 +218,11 @@ export function discoverPython(repoRoot: string, options: SourceDiscoveryOptions
   }
 
   const scanPatterns = options.scanPatterns ?? compileScanPatterns([], []);
-  const packages = discoverPythonPackages(repoRoot);
+  const packages = discoverPythonPackages(repoRoot, options.packageMarkers, options.onPruned);
   const pendingByPath = new Map<string, PendingModuleDraft>();
   for (const pkg of packages) {
     const pkgAbs = path.resolve(repoRoot, pkg.path);
-    discoverPyFiles(pkgAbs, repoRoot, pkg, scanPatterns, pendingByPath);
+    discoverPyFiles(pkgAbs, repoRoot, pkg, scanPatterns, pendingByPath, options.onPruned);
   }
   return { packages, pendingByPath, extractContext: { pythonBin } as PythonExtractContext };
 }

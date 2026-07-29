@@ -21,6 +21,24 @@ import type {
 import type { Refusal } from '../response/refusal.js';
 import type { DeclarationCatalog } from '../plugin-host/declaration-catalog.js';
 
+/** One directory name the layout table kept out of a build, and how often it decided. */
+export interface LayoutSkip {
+  /** The table entry that matched — a directory name, not a path. */
+  name: string;
+  /** Which half of the table it sits in. */
+  reason: 'pruned' | 'test-layout';
+  /**
+   * How many times a walk stopped at a directory because of this name.
+   *
+   * Counted per walk, not per directory: several producers walk one repository, and a directory all
+   * of them declined is one stop each. The number says how much this entry decided, and a reader
+   * after "which trees are missing" reads the name.
+   */
+  stops: number;
+  /** Plugins that declared the name, in id order. Absent for a base entry no plugin claimed. */
+  declaredBy?: string[];
+}
+
 // ── Symbol & Node taxonomy ──
 
 export const NODE_TYPES = [
@@ -95,6 +113,16 @@ export interface RepositoryFactsSnapshot {
    * Recomputed by every discovery pass, never reused from a cached snapshot.
    */
   buildRefusals?: Refusal[];
+  /**
+   * What the layout table kept out of this build: one entry per table name that actually decided,
+   * with how often it stopped a walk and which plugin declared it.
+   *
+   * Separate from `buildRefusals` because pruning is not a failure — `node_modules` is skipped by
+   * design and the refusal vocabulary has no reason for it. Without this the two are the same on
+   * every surface: a tree that was walked past and a tree that was never there both leave nothing
+   * behind. Absent when nothing was pruned.
+   */
+  layoutSkipped?: LayoutSkip[];
   /**
    * What this build's plugin set declares, merged into one per-run catalog.
    *

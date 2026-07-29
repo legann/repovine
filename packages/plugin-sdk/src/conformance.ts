@@ -3,7 +3,8 @@ import * as path from 'node:path';
 import { PLUGIN_API_VERSION } from './runtime.js';
 import { HASH_WIDTH, sha256Hex } from './content-hash.js';
 import { validateSemanticModuleDelta, validateSemanticInfraDelta } from './fact-schemas.js';
-import type { SourcePlugin, SourceExtractInput } from './source-plugin/types.js';
+import type { SourcePlugin, SourceDiscoveryOptions, SourceExtractInput } from './source-plugin/types.js';
+import { compileScanPatterns } from './source-plugin/scan-filters.js';
 import { mintModuleId } from './source-plugin/module-id.js';
 import type { PluginRuntimeDescriptor } from './plugin/descriptor.js';
 import type { PackageInfo, PendingModule, PendingModuleDraft, IaCParser } from './types.js';
@@ -76,9 +77,17 @@ export async function checkSourcePluginConformance(
   }
 
   // Behavioral: discover the sample repo and extract once (+ again for determinism).
+  //
+  // The options are the ones a build hands over, not an empty object: the host resolves this
+  // plugin's declared package markers and passes them back, and a kit that discovered with no
+  // markers would certify a plugin against a call production never makes.
+  const discoveryOptions: SourceDiscoveryOptions = {
+    packageMarkers: plugin.packageMarkers ?? [],
+    scanPatterns: compileScanPatterns([], []),
+  };
   let discovery: { packages: PackageInfo[]; pendingByPath: Map<string, PendingModuleDraft>; extractContext?: unknown };
   try {
-    discovery = plugin.discover(opts.sampleRepoRoot, {});
+    discovery = plugin.discover(opts.sampleRepoRoot, discoveryOptions);
   } catch (e) {
     checks.push(check('discover() does not throw', false, (e as Error).message));
     return reportOf(checks);

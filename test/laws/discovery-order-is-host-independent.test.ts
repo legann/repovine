@@ -7,6 +7,7 @@ import { compareCodeUnits } from '../../src/platform/ordering.js';
 import { collectTemplates } from '../../src/stage1/templates.js';
 import { discoverPackages } from '../../packages/plugins/source-typescript/src/packages.js';
 import { detectPython, discoverPython } from '../../packages/plugins/source-python/src/discover.js';
+import { packageMarkersFor } from '../../src/paths.js';
 
 /**
  * Graph node order follows discovery order, so an unsorted `readdirSync` makes the projection a
@@ -76,7 +77,7 @@ describe('law: discovery order does not depend on filesystem enumeration order',
       // comparator the engine sorts with moves whenever that comparator moves, and the two sides
       // agree again on the far side of the change. The literal is the order this law claims.
       const scanPatterns = compile([], []);
-      expect(discover(root).map(pkg => pkg.path)).toEqual(['alpha', 'zulu']);
+      expect(discover(root, packageMarkersFor('typescript')).map(pkg => pkg.path)).toEqual(['alpha', 'zulu']);
       expect(templates({ repoRoot: root, scanPatterns }).map(t => t.relPath))
         .toEqual(['templates/apple.html', 'templates/zebra.html']);
     } finally {
@@ -203,10 +204,12 @@ describe('law: discovery order does not depend on the runtime collation', () => 
   /** Every stage-1 order that becomes graph node insertion order. */
   function discoveryOrder(): Record<string, string[] | null> {
     const scanPatterns = compileScanPatterns([], []);
-    const python = PYTHON_AVAILABLE ? discoverPython(repoRoot, { scanPatterns }) : null;
+    const python = PYTHON_AVAILABLE
+      ? discoverPython(repoRoot, { scanPatterns, packageMarkers: packageMarkersFor('python') })
+      : null;
     return {
       templates: collectTemplates({ repoRoot, scanPatterns }).map(t => t.relPath),
-      tsPackages: discoverPackages(repoRoot).map(p => p.path),
+      tsPackages: discoverPackages(repoRoot, packageMarkersFor('typescript')).map(p => p.path),
       pythonPackages: python ? python.packages.map(p => p.path) : null,
       // Map insertion order is what stage 1 consumes downstream, so read it back as an order.
       pythonModules: python ? [...python.pendingByPath.values()].map(m => `${m.pkg.path}/${m.relPath}`) : null,

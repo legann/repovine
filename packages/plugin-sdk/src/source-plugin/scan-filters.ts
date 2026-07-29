@@ -1,6 +1,6 @@
 import { compileGlob } from '../glob.js';
 import { normalizeRelPath } from '../paths.js';
-import { matchesEngineIgnorePath } from './discovery-walk.js';
+import { hasTestLayoutSegment, matchesEngineIgnorePath } from './discovery-walk.js';
 import type { CompiledScanPattern, CompiledScanPatterns, ScanPatternInput, ScanScope } from './types.js';
 
 /**
@@ -72,10 +72,23 @@ export function isScanExcluded(
   return matchesAny(relPath, patterns.exclude, scope);
 }
 
+/**
+ * Whether the layout table admits a path at all, before any user pattern is consulted.
+ *
+ * The walk stops at both halves of the table, so acceptance answers by both halves too: a producer
+ * that reported a path without walking to it gets the same verdict as one that walked. Asked before
+ * `scan.include` for the same reason the ignore list always was — a directory the table names holds
+ * nothing the graph wants, and an include pattern pointing into it names files the walk never
+ * reached.
+ */
+function admittedByLayout(norm: string): boolean {
+  return !matchesEngineIgnorePath(norm) && !hasTestLayoutSegment(norm);
+}
+
 /** Infra file collection for a repo-relative path. */
 export function shouldScanInfraPath(relPath: string, patterns: CompiledScanPatterns): boolean {
   const norm = normalizeRelPath(relPath);
-  if (matchesEngineIgnorePath(norm)) return false;
+  if (!admittedByLayout(norm)) return false;
   if (isScanIncluded(norm, patterns, 'infra')) return true;
   if (isScanExcluded(norm, patterns, 'infra')) return false;
   return true;
@@ -87,7 +100,7 @@ export function shouldScanInfraPath(relPath: string, patterns: CompiledScanPatte
  */
 export function shouldScanSourcePath(relPath: string, patterns: CompiledScanPatterns): boolean {
   const norm = normalizeRelPath(relPath);
-  if (matchesEngineIgnorePath(norm)) return false;
+  if (!admittedByLayout(norm)) return false;
   if (isScanIncluded(norm, patterns, 'source')) return true;
   if (isScanExcluded(norm, patterns, 'source')) return false;
   if (norm.endsWith('.d.ts')) return false;

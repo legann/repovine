@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { discoverPackages } from '../../../packages/plugins/source-typescript/src/packages.js';
 import { collectRepositoryFactsAsync } from '../../../src/stage1/index.js';
+import { packageMarkersFor } from '../../../src/paths.js';
 
 function fixtureRoot(name: string): string {
   const candidates = [
@@ -45,7 +46,7 @@ describe('stage1 package discovery', () => {
     fs.writeFileSync(path.join(packageDir, 'src', 'index.ts'), 'export const source = true;\n');
     fs.writeFileSync(path.join(packageDir, 'test', 'helper.ts'), 'export const helper = true;\n');
 
-    const packages = discoverPackages(tmpDir);
+    const packages = discoverPackages(tmpDir, packageMarkersFor('typescript'));
     expect(packages.map(pkg => pkg.name)).toContain('repovine');
 
     const snapshot = await collectRepositoryFactsAsync(tmpDir);
@@ -66,7 +67,7 @@ describe('stage1 package discovery', () => {
       include: ['src/**/*.ts'],
     });
 
-    expect(discoverPackages(tmpDir).map(pkg => pkg.name)).not.toContain('fixture');
+    expect(discoverPackages(tmpDir, packageMarkersFor('typescript')).map(pkg => pkg.name)).not.toContain('fixture');
   });
 
   it('discovers a package when the scanned root lives under a test directory', async () => {
@@ -83,7 +84,7 @@ describe('stage1 package discovery', () => {
     });
     fs.writeFileSync(path.join(fixtureDir, 'src', 'app.ts'), 'export const app = true;\n');
 
-    expect(discoverPackages(fixtureDir).map(pkg => pkg.name)).toContain('vue-spa-fixture');
+    expect(discoverPackages(fixtureDir, packageMarkersFor('typescript')).map(pkg => pkg.name)).toContain('vue-spa-fixture');
 
     const snapshot = await collectRepositoryFactsAsync(fixtureDir);
     expect(snapshot.modules.length).toBeGreaterThan(0);

@@ -28,11 +28,13 @@ import {
 } from '../plugin-host/load.js';
 import { currentEngineBuildId, engineBuildMatches } from './engine-build-id.js';
 import { computeExtractionConfigFingerprint } from './extraction-config-fingerprint.js';
+import { LayoutSkipCollector } from './layout-skips.js';
 import { pluginRuntimeIdentity, type PluginRuntime } from '../plugin-host/runtime.js';
 import { rememberPluginRuntime } from '../plugin-host/runtime-store.js';
 import type { DeclarationCatalog } from '../plugin-host/declaration-catalog.js';
 import { getActiveIaCPluginIds } from '../plugin-host/iac-set.js';
 import type { ReadonlyFactRecord, SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
+import { packageMarkersFor } from '@repovine/plugin-sdk';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { repoRelativePosix } from '../platform/paths.js';
 import { packageNodeId } from '../graph/node-ids.js';
@@ -460,6 +462,7 @@ function buildSnapshot(
   buildRefusals: Refusal[],
   declarations: DeclarationCatalog,
   facts: readonly ReadonlyFactRecord[],
+  layoutSkips: LayoutSkipCollector,
   profiler: MemoryProfiler,
 ): RepositoryFactsSnapshot {
   const normalizedLinking = linkingOpt ? normalizeLinkingConfig(linkingOpt) : undefined;
@@ -478,6 +481,7 @@ function buildSnapshot(
   } = collectInfraModules({
     repoRoot,
     scanPatterns,
+    onPruned: layoutSkips.sink,
   });
   buildRefusals.push(...infraRefusals);
   // Source facts first, then infra, each already deterministic within itself: one view, two
@@ -493,10 +497,14 @@ function buildSnapshot(
 
   // Template artifacts are independent of source packages; a project can have template nodes even
   // when route extraction does not find matching render units.
-  const templates = collectTemplates({ repoRoot, scanPatterns });
+  const templates = collectTemplates({ repoRoot, scanPatterns, onPruned: layoutSkips.sink });
   if (templates.length > 0) {
     logPipeline(formatPipelineDetail(`  Templates: ${templates.length} template artifact(s)`));
   }
+
+  // Read after every walk of this build has run: source discovery, infra and templates all report
+  // into the same collector, so the report covers the build rather than one producer.
+  const layoutSkipped = layoutSkips.summary(declarations);
 
   profiler.setCounter('infraModules', infraModules.length);
   profiler.setCounter('templates', templates.length);
@@ -515,6 +523,7 @@ function buildSnapshot(
     modules: allModules,
     infraModules,
     ...(buildRefusals.length > 0 ? { buildRefusals } : {}),
+    ...(layoutSkipped.length > 0 ? { layoutSkipped } : {}),
     ...(hasDeclarations(declarations) ? { declarations } : {}),
     ...(publishedFacts.length > 0 ? { facts: publishedFacts } : {}),
     ...(templates.length > 0 ? { templates } : {}),
@@ -548,6 +557,8 @@ interface PreparedRun {
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined;
   /** What discovery refused, in the order the phases produced it. */
   buildRefusals: Refusal[];
+  /** Where every walk of this build stopped, gathered as it ran. */
+  layoutSkips: LayoutSkipCollector;
   profiler: MemoryProfiler;
 }
 
@@ -563,7 +574,14 @@ async function prepareRun(
     options?.scanInclude ?? [],
     options?.scanExclude ?? [],
   );
-  const discoveryOptions: SourceDiscoveryOptions = { scanPatterns };
+  // Options are built per plugin, not once: `packageMarkers` is the plugin's own declaration handed
+  // back to it, so one shared object would give every producer the first one's markers.
+  const layoutSkips = new LayoutSkipCollector();
+  const discoveryOptionsFor = (plugin: SourcePlugin): SourceDiscoveryOptions => ({
+    scanPatterns,
+    packageMarkers: packageMarkersFor(plugin.id),
+    onPruned: layoutSkips.sink,
+  });
 
   // Pass 1 — discovery, per source plugin. Each plugin returns its packages, candidate files
   // (keyed by absolute path), and an opaque extractContext threaded back into extract().
@@ -596,7 +614,7 @@ async function prepareRun(
       }
     }
     activeSourcePlugins.push(plugin);
-    const { packages: pkgs, pendingByPath, extractContext } = plugin.discover(repoRoot, discoveryOptions);
+    const { packages: pkgs, pendingByPath, extractContext } = plugin.discover(repoRoot, discoveryOptionsFor(plugin));
     for (const pkg of pkgs) {
       const key = packageJobKey(pkg);
       if (seenPackageKeys.has(key)) continue;
@@ -724,6 +742,7 @@ async function prepareRun(
     scanPatterns,
     linkingOpt: options?.linking,
     buildRefusals: refusals,
+    layoutSkips,
     profiler,
   };
 }
@@ -738,6 +757,7 @@ function finalize(
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
   buildRefusals: Refusal[],
   declarations: DeclarationCatalog,
+  layoutSkips: LayoutSkipCollector,
   profiler: MemoryProfiler,
 ): { snapshot: RepositoryFactsSnapshot; reused: number; rescanned: number } {
   const allModules: ModuleInfo[] = [];
@@ -769,6 +789,7 @@ function finalize(
     buildRefusals,
     declarations,
     facts,
+    layoutSkips,
     profiler,
   );
   return { snapshot, reused, rescanned };
@@ -925,6 +946,7 @@ export async function collectRepositoryFactsAsync(
       prep.linkingOpt,
       prep.buildRefusals,
       pluginRuntime.catalog,
+      prep.layoutSkips,
       prep.profiler,
     );
     snap = finalized.snapshot;

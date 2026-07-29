@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { getSourcePlugins } from '../../../../src/plugin-host/source-set.js';
 import { isExtractModuleLoaded } from '../../../../packages/plugins/source-typescript/src/lazy-extract.js';
 import { detectPython } from '../../../../packages/plugins/source-python/src/discover.js';
+import { packageMarkersFor } from '../../../../src/paths.js';
 
 function findFixture(): string {
   const candidates = [
@@ -25,7 +26,9 @@ d('python-only discovery does not load the TypeScript extract chunk', () => {
     const pendingByPath = new Map<string, import('../../../../src/types.js').PendingModuleDraft>();
 
     for (const plugin of getSourcePlugins()) {
-      const { packages: found, pendingByPath: pending } = plugin.discover(repoRoot, {});
+      const { packages: found, pendingByPath: pending } = plugin.discover(repoRoot, {
+        packageMarkers: packageMarkersFor(plugin.id),
+      });
       packages.push(...found);
       for (const [fp, pm] of pending) pendingByPath.set(fp, pm);
     }

@@ -38,6 +38,7 @@ import {
 import {
   buildClaudeHooksSettings,
   CLAUDE_MCP_JSON,
+  AGENTS_MD,
   CLAUDE_MD,
   CODEX_CONFIG_TOML,
   CURSOR_HOOKS_SETTINGS,
@@ -416,7 +417,10 @@ function renderClaudeBundle(bundleRoot: string, outRoot: string, version: string
   writeUtf8(path.join(bundleRoot, '.mcp.json'), pinMcpJson(CLAUDE_MCP_JSON, version), written);
   writeJson(path.join(bundleRoot, 'hooks', 'hooks.json'), buildClaudeHooksSettings('plugin'), written);
   writeUtf8(path.join(bundleRoot, 'hooks', CLIENT_DISPATCHER_FILENAME), readClientDispatcherSource(), written);
+  // Both files, because the first line of `CLAUDE.md` is `@AGENTS.md`: a bundle that shipped one of
+  // them points the client at a file that is not there, and the instructions it names never load.
   writeUtf8(path.join(bundleRoot, 'CLAUDE.md'), CLAUDE_MD, written);
+  writeUtf8(path.join(bundleRoot, 'AGENTS.md'), AGENTS_MD, written);
 
   writeRenderedAssets(bundleRoot, AGENTS, CLIENT_ASSET_TARGETS.claudePluginAgents, written);
   writeRenderedAssets(
@@ -454,6 +458,9 @@ function renderCodexBundle(bundleRoot: string, outRoot: string, version: string,
     written,
   );
   writeUtf8(path.join(bundleRoot, '.codex', 'hooks', CLIENT_DISPATCHER_FILENAME), readClientDispatcherSource(), written);
+  // Codex reads `AGENTS.md` and nothing else as its instruction surface, so the bundle carries the
+  // same file project setup writes.
+  writeUtf8(path.join(bundleRoot, 'AGENTS.md'), AGENTS_MD, written);
 
   writeRenderedAssets(bundleRoot, AGENTS, CLIENT_ASSET_TARGETS.codexAgents, written);
   writeRenderedAssets(

@@ -10,7 +10,7 @@ import {
   validatePublishedFact,
   walkRepository,
 } from '@repovine/plugin-sdk';
-import type { IaCParser, LoadedDocument, ReadonlyFactRecord } from '@repovine/plugin-sdk';
+import type { IaCParser, LoadedDocument, PrunedDir, ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import {
   getActiveIaCPlugins,
   getLoaderRegistrationConflicts,
@@ -38,6 +38,8 @@ export interface InfraScanOptions {
   packages?: PackageInfo[];
   /** Compiled `scan.include` / `scan.exclude` from repovine.config.json. */
   scanPatterns?: CompiledScanPatterns;
+  /** Where this walk stopped, for the build's layout report. */
+  onPruned?: (pruned: PrunedDir) => void;
 }
 
 /** What the scan found, and what it declined to read. A refused file is absent from `modules`. */
@@ -53,9 +55,15 @@ export interface InfraScanResult {
  * A file is a candidate if any registered parser claims it via its fileMatch (or if a parser
  * declared no fileMatch, in which case it sees everything).
  */
-function discoverInfraFiles(repoRoot: string, dir: string, out: { filePath: string; relPath: string }[]): void {
+function discoverInfraFiles(
+  repoRoot: string,
+  dir: string,
+  out: { filePath: string; relPath: string }[],
+  onPruned?: (pruned: PrunedDir) => void,
+): void {
   walkRepository(dir, {
     repoRoot,
+    ...(onPruned === undefined ? {} : { onPruned }),
     onFile: ({ absPath, relFromRoot, name }) => {
       const ext = path.extname(name).toLowerCase();
       if (!isInfraCandidate(name, ext)) return;
@@ -321,7 +329,7 @@ export function collectInfraModules(options: InfraScanOptions): InfraScanResult 
   }
 
   const candidates: { filePath: string; relPath: string }[] = [];
-  discoverInfraFiles(repoRoot, repoRoot, candidates);
+  discoverInfraFiles(repoRoot, repoRoot, candidates, options.onPruned);
   if (candidates.length === 0) return { modules: infraModules, refusals, facts };
 
   for (const { filePath, relPath } of candidates) {

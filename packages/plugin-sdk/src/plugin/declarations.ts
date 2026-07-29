@@ -43,6 +43,22 @@ export interface EcosystemDirFact {
   role: EcosystemDirRole;
   /** Why this ecosystem claims the name, in one line. */
   because: string;
+  /**
+   * Claim the name only when the directory contains one of these paths.
+   *
+   * A name whose meaning is decided by what sits next to it: `env` is a virtualenv in one repository
+   * and a React package in the next, and claiming it unconditionally deletes the second from the
+   * graph. The marker is what the ecosystem actually recognises — `pyvenv.cfg` for a virtualenv — so
+   * the claim states the evidence instead of betting on the name.
+   *
+   * Each entry is a relative path inside the directory; `bin/activate` is one entry, not two. Absent
+   * means the name is claimed wherever it appears, which is right for a name no other ecosystem uses
+   * (`node_modules`, `.venv`) and is one `stat` cheaper per match.
+   *
+   * Not accepted with role `test-layout`: that role is asked of every path segment by the acceptance
+   * filter as well as by the walk, and the filter sees a path with no directory to look inside.
+   */
+  whenContains?: readonly string[];
 }
 
 /**
@@ -150,7 +166,21 @@ const zEcosystemDirFact = z.strictObject({
   ),
   role: z.enum(ECOSYSTEM_DIR_ROLES),
   because: zBecause,
-});
+  // A relative path inside the claimed directory, so `/` is allowed here and an escape is not: a
+  // marker that could climb out would let a declaration read the tree above the directory it claims.
+  whenContains: z.array(
+    z.string().min(1).max(128).refine(
+      v => !v.startsWith('/')
+        && !/^[A-Za-z]:/.test(v)
+        && !v.split(/[/\\]/).includes('..'),
+      'must be a relative path inside the directory',
+    ),
+  ).min(1).max(8).optional(),
+}).refine(
+  fact => fact.whenContains === undefined || fact.role !== 'test-layout',
+  'whenContains is not accepted with role "test-layout": that role is decided by path segment, '
+  + 'where there is no directory to look inside',
+);
 
 const zPluginValueDeclaration = z.strictObject({
   axis: z.string().min(1).max(96).regex(

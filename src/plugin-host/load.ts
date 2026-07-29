@@ -27,7 +27,7 @@ import type {
   SourceExtractResult,
   StampedDeclarationCatalog,
 } from '@repovine/plugin-sdk';
-import { installSourcePlugins, getActiveSourcePluginIds } from './source-set.js';
+import { installSourcePlugins, getActiveSourcePluginIds, getSourcePlugins } from './source-set.js';
 import { installIaCPlugins, getActiveIaCPluginIds, type ActiveIaCPlugin } from './iac-set.js';
 import { buildPluginRuntime, type PluginRuntime } from './runtime.js';
 import { buildDeclarationCatalog, dirLayoutTableOf, type DeclarationCatalog } from './declaration-catalog.js';
@@ -470,9 +470,13 @@ export async function loadPluginSet(spec: PluginLoadSpec): Promise<PluginLoadRep
     plugins: [...candidates.values()],
     ...(config.retract === undefined ? {} : { retract: config.retract }),
   });
-  // Where the walk stops is decided by the set that was just installed, so the table is installed
-  // beside it: every producer of this build then prunes in the same places.
-  installDirLayoutTable(dirLayoutTableOf(report.runtime.catalog));
+  // Where the walk stops, and what it stops at, are decided by the set that was just installed, so
+  // the table is installed beside it: every producer of this build then prunes in the same places
+  // and looks for the same package markers. Read back from the installed set rather than from the
+  // array handed to the installer — a test that pinned its own producers has a set this build did
+  // not resolve, and a table describing plugins the isolate is not running would send discovery
+  // looking for the wrong markers.
+  installDirLayoutTable(dirLayoutTableOf(report.runtime.catalog, getSourcePlugins()));
   return report;
 }
 
