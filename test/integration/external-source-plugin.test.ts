@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
-import { applyPluginConfig } from '../../src/stage1/plugin-loader.js';
+import { loadPluginSet } from '../../src/plugins/load.js';
 
 // An external source plugin, installed in the analyzed repo and listed in config.plugins.add, flows
 // end-to-end through the WHOLE Stage-1 pipeline (loader → discovery → engine extraction boundary)
@@ -49,7 +49,7 @@ const source = {
 export default { id: 'foo-lang', capabilities: { source } };`;
 
   afterEach(async () => {
-    await applyPluginConfig({ repoRoot: process.cwd(), config: { defaults: true, add: [], disable: [] } });
+    await loadPluginSet({ repoRoot: process.cwd(), config: { defaults: true, add: [], disable: [] } });
     if (repoRoot) fs.rmSync(repoRoot, { recursive: true, force: true });
   });
 

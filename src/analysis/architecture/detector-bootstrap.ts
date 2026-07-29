@@ -20,7 +20,6 @@
  * consumers (annotations/module-kind, stage2/index, mcp/lib/entrypoints).
  */
 
-import '../../stage1/source/bootstrap.js';
 
 import { registerDetector } from './detector-registry.js';
 import type { ArchitectureDetector, DetectorPack } from './detector-types.js';

@@ -28,15 +28,12 @@ import {
 import { shortModuleLabel } from '../../stage2/module-label.js';
 // Side-effect imports: ensure built-in IaC + source plugin registries are populated before this
 // layer reads infra kind/resource/trigger metadata and known source extensions. Same rationale as
-// the imports stage2/index.ts used to carry for the inline passes.
-import '../../stage1/iac/bootstrap.js';
-import '../../stage1/source/bootstrap.js';
 import {
   getInfraKindDomain,
-} from '../../stage1/iac/registry.js';
-import { getKnownExtensions, getSourcePlugins } from '../../stage1/source/registry.js';
+} from '../../plugins/iac-set.js';
+import { getKnownExtensions, getSourcePlugins } from '../../plugins/source-set.js';
 import { resolveRelPath, toPosixPath } from '../../platform/paths.js';
-import { stripIndexBasename } from '../../stage1/source/registry.js';
+import { stripIndexBasename } from '../../plugins/source-set.js';
 import { infraNodeId } from '../../graph/node-ids.js';
 
 type RuntimeActionName = RuntimeAction['action'];

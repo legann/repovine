@@ -18,6 +18,15 @@ import type { PluginDeclarationCatalog } from './declarations.js';
 export const PLUGIN_MANIFEST_KIND = 'plugin' as const;
 export type PluginManifestKind = typeof PLUGIN_MANIFEST_KIND;
 
+/**
+ * A preset package names plugin packages and carries no implementation.
+ *
+ * `kind` is a literal on both schemas, so one package is readable as a plugin or as a preset and
+ * never as both. A preset that listed itself would be a plugin package with no entry.
+ */
+export const PRESET_MANIFEST_KIND = 'preset' as const;
+export type PresetManifestKind = typeof PRESET_MANIFEST_KIND;
+
 export interface PluginManifest {
   kind: PluginManifestKind;
   /** Stable plugin id. The runtime descriptor must repeat it; the host stamps it into provenance. */
@@ -87,4 +96,65 @@ export function validatePluginManifest(value: unknown): PluginManifestValidation
   const entry = parseEntryPath(parsed.data.entry);
   if (!entry.ok) return { ok: false, error: entry.error };
   return { ok: true, manifest, entrySegments: entry.segments };
+}
+
+/**
+ * A preset: an ordered list of plugin package names selected by default.
+ *
+ * The list is data, not code. A composition root that imported its members would put every
+ * implementation into the module graph of every isolate that reads the selection, and the host reads
+ * it in isolates that go on to load a different set.
+ */
+export interface PresetManifest {
+  kind: PresetManifestKind;
+  id: string;
+  apiVersion: typeof PLUGIN_API_VERSION;
+  /** npm package names, in the order the preset states them. */
+  plugins: string[];
+}
+
+export const zPresetManifest = z.strictObject({
+  kind: z.literal(PRESET_MANIFEST_KIND),
+  id: z.string(),
+  apiVersion: z.union([z.string(), z.number()]),
+  plugins: z.array(z.string().min(1)).min(1).max(256),
+});
+
+export type PresetManifestValidation =
+  | { ok: true; manifest: PresetManifest }
+  | { ok: false; error: string };
+
+/** Validate one `package.json#repovine` payload that claims to be a preset. */
+export function validatePresetManifest(value: unknown): PresetManifestValidation {
+  const parsed = zPresetManifest.safeParse(value);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const idProblem = pluginContractIdProblem(parsed.data.id, 'id');
+  if (idProblem) return { ok: false, error: idProblem };
+
+  const apiVersion = Number(parsed.data.apiVersion);
+  if (!Number.isInteger(apiVersion)) {
+    return { ok: false, error: `apiVersion "${String(parsed.data.apiVersion)}" is not an integer` };
+  }
+  if (apiVersion !== PLUGIN_API_VERSION) {
+    return { ok: false, error: `apiVersion ${apiVersion} is incompatible with SDK v${PLUGIN_API_VERSION}` };
+  }
+
+  // A duplicate name would load one package twice under one id; the second load is refused there,
+  // so the list is held to naming each member once here.
+  const seen = new Set<string>();
+  for (const name of parsed.data.plugins) {
+    if (seen.has(name)) return { ok: false, error: `plugins lists "${name}" twice` };
+    seen.add(name);
+  }
+
+  return {
+    ok: true,
+    manifest: {
+      kind: PRESET_MANIFEST_KIND,
+      id: parsed.data.id,
+      apiVersion: PLUGIN_API_VERSION,
+      plugins: [...parsed.data.plugins],
+    },
+  };
 }

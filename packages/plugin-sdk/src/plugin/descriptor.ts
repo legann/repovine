@@ -1,6 +1,6 @@
 import type { PluginRequirements, PluginAvailability } from '../runtime.js';
 import type { SourcePlugin } from '../source-plugin/types.js';
-import type { IaCParser } from '../types.js';
+import type { IaCParser, InfraKindDomain } from '../types.js';
 import type { DocumentLoader } from './document-loader.js';
 import type { ProjectionContributor } from './projection.js';
 import { pluginContractIdProblem } from './ids.js';
@@ -46,6 +46,14 @@ export type SourceRuntimeCapability = Omit<
 
 export interface IaCRuntimeCapability {
   parsers: readonly IaCParser[];
+  /**
+   * Graph domain each infra kind these parsers emit belongs to.
+   *
+   * Metadata about what the parsers beside it produce, so it sits with them rather than in the
+   * manifest: a kind with no parser to emit it names a domain nothing reaches. A kind with no entry
+   * here gets the host's derived `domain:infra-<kind>`.
+   */
+  kindDomains?: ReadonlyArray<{ kind: string; meta: InfraKindDomain }>;
 }
 
 /**
@@ -108,6 +116,23 @@ export function validatePluginRuntimeDescriptor(value: unknown): DescriptorValid
     }
     if (!parsers.every(parser => isFunction(parser.supports) && isFunction(parser.parse))) {
       return { ok: false, error: 'every capabilities.iac parser must provide supports() and parse()' };
+    }
+    const kindDomains = capabilities.iac.kindDomains;
+    if (kindDomains !== undefined) {
+      if (!Array.isArray(kindDomains)) {
+        return { ok: false, error: 'capabilities.iac.kindDomains must be an array when present' };
+      }
+      for (const entry of kindDomains) {
+        if (typeof entry?.kind !== 'string' || entry.kind.length === 0) {
+          return { ok: false, error: 'every capabilities.iac.kindDomains entry needs a non-empty kind' };
+        }
+        if (typeof entry.meta?.domainId !== 'string' || typeof entry.meta.label !== 'string') {
+          return {
+            ok: false,
+            error: `capabilities.iac.kindDomains entry "${entry.kind}" needs meta.domainId and meta.label`,
+          };
+        }
+      }
     }
     declared.push('iac');
   }

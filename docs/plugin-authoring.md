@@ -128,15 +128,42 @@ that spells its own `declaredBy` is refused.
 | Capability | Provides |
 |---|---|
 | `source` | `discover` / `extract` for one language or ecosystem |
-| `iac` | infrastructure `parsers` |
+| `iac` | infrastructure `parsers`, and the graph domain each kind they emit belongs to |
 | `loaders` | document decoding, by loader id |
 | `projectors` | contributions to the canonical graph |
+
+`capabilities.iac.kindDomains` sits with the parsers rather than in the manifest: it is metadata
+about the kinds those parsers emit, and a kind with no parser to emit it names a domain nothing
+reaches. A kind with no entry gets the host's derived `domain:infra-<kind>`.
 
 `requires` and `available` sit on the descriptor and cover every capability, so a missing toolchain
 produces one actionable message rather than a failure per file.
 
 Arbitrary npm is never auto-installed: the user installs your package and lists it in
 `config.plugins.add`, which is their trust decision.
+
+### How a package is loaded
+
+One path loads every plugin. The bundled defaults resolve from repovine's own installation and a
+package you installed resolves from the analyzed repository; everything after that — manifest schema,
+entry containment, descriptor validation, id agreement, provenance stamp — is the same code.
+
+```
+preset manifest / config.plugins.add
+        │  package name
+        ▼
+resolve package.json ──► validate manifest ──► import entry ──► validate descriptor ──► install
+```
+
+The default selection is itself a manifest: `@repovine/plugin-default-preset` carries
+`"kind": "preset"` and an ordered list of package names, and nothing imports its members. A preset is
+data, so the isolates that ask which packages are selected do not pull nine implementations into
+their module graph.
+
+Every isolate that runs plugin code loads the set itself from the same serialisable spec — the
+control plane from `config.plugins`, the Stage 1 pool from its worker data, the Stage 2 worker from
+the snapshot. Your `extract()` runs in a worker isolate and your projector composes off the control
+plane, exactly as a bundled plugin's does.
 
 Both examples are authored through the SDK, which is what a production package does: the manifest
 carries `apiVersion` so no descriptor holds a version number that goes stale, `walkRepository` is the

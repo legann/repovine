@@ -24,7 +24,6 @@
     { "path": "packages/plugins/iac-terraform" },
     { "path": "packages/plugins/iac-vercel" },
     { "path": "packages/plugins/iac-dockerfile" },
-    { "path": "packages/plugins/iac-docker-compose" },
-    { "path": "packages/plugins/default-preset" }
+    { "path": "packages/plugins/iac-docker-compose" }
   ]
 }

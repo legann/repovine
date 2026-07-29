@@ -27,9 +27,6 @@
     },
     {
       "path": "iac-docker-compose"
-    },
-    {
-      "path": "default-preset"
     }
   ]
 }

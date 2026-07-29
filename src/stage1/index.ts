@@ -18,18 +18,21 @@ import {
   loadCalibration,
   saveCalibration,
 } from './calibration.js';
-import { getSourcePlugin, getSourcePlugins } from './source/registry.js';
+import { getSourcePlugin, getSourcePlugins } from '../plugins/source-set.js';
 import { runSourceExtraction } from './source/extract-runner.js';
-import { applyPluginConfig, builtinPluginRuntime, type PluginsConfigInput } from './plugin-loader.js';
+import {
+  defaultPluginsConfig,
+  loadPluginSet,
+  type PluginLoadSpec,
+  type PluginsConfigInput,
+} from '../plugins/load.js';
 import { currentEngineBuildId, engineBuildMatches } from './engine-build-id.js';
 import { computeExtractionConfigFingerprint } from './extraction-config-fingerprint.js';
 import { pluginRuntimeIdentity, type PluginRuntime } from '../plugins/runtime.js';
 import { rememberPluginRuntime } from '../plugins/runtime-store.js';
 import type { DeclarationCatalog } from '../plugins/declaration-catalog.js';
-import { getRegisteredIaCPluginIds } from './iac/registry.js';
+import { getActiveIaCPluginIds } from '../plugins/iac-set.js';
 import type { ReadonlyFactRecord, SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
-// Side-effect: register built-in source plugins (typescript, …) before discovery runs.
-import './source/bootstrap.js';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { repoRelativePosix } from '../platform/paths.js';
 import { packageNodeId } from '../graph/node-ids.js';
@@ -312,6 +315,7 @@ async function runPooledExtraction(
   repoRoot: string,
   extractContextByPlugin: Map<string, unknown>,
   workerCount: number,
+  pluginSpec: PluginLoadSpec,
   profiler: MemoryProfiler,
   progress?: ExtractionProgressReporter,
   signal?: AbortSignal,
@@ -323,6 +327,7 @@ async function runPooledExtraction(
     repoRoot,
     extractContextByPlugin,
     analysisVersion: STAGE1_ANALYSIS_VERSION,
+    pluginSpec,
     soloThreshold: Number.MAX_SAFE_INTEGER,
   });
   const abort = abortSignalRejection(signal);
@@ -634,7 +639,7 @@ async function prepareRun(
     scanInclude: options?.scanInclude,
     scanExclude: options?.scanExclude,
     sourcePlugins: activeSourcePlugins,
-    iacPluginIds: getRegisteredIaCPluginIds(),
+    iacPluginIds: getActiveIaCPluginIds(),
     extractContextByPlugin,
     pluginRuntime: pluginRuntimeIdentity(pluginRuntime),
   });
@@ -781,9 +786,9 @@ export interface SnapshotOptions {
   shardTargetSize?: number;
   /** Progress callbacks for external consumers (e.g. lazy MCP build status). */
   progress?: ExtractionProgressReporter;
-  /** External plugin wiring (`config.plugins`). When present, the loader resolves/registers
-   *  third-party plugins from the analyzed repo and applies `{defaults, add, disable}` before
-   *  discovery. Absent ⇒ bundled preset only (the loader is not run — existing callers unchanged). */
+  /** Plugin wiring (`config.plugins`). Absent ⇒ the bundled preset with nothing added or disabled.
+   *  Either way the one loading path runs before discovery: the preset is loaded the same way a
+   *  package named in `add` is. */
   plugins?: PluginsConfigInput;
   /** Cooperative-cancel signal. When aborted, extraction stops at the next package/shard boundary
    *  (inline) or wins a race against worker completion (pooled), then the worker pool is torn down. */
@@ -819,28 +824,16 @@ export async function collectRepositoryFactsAsync(
 
   const t0 = Date.now();
 
-  // External plugins: resolve/register third-party plugins from the analyzed
-  // repo, applying config.plugins.{defaults,add,disable}, BEFORE discovery reads the registry. When
-  // any external SOURCE plugin is active, force inline extraction — worker isolates only carry the
-  // bundled preset, so an external source plugin's extract() must run on the main thread.
-  let forceInlineExtraction = false;
-  // Assembled fresh here every call: the runtime is what this build's plugin set declares and
-  // contributes, and it is handed on rather than left in module state. The bundled preset declares
-  // on every build, including one that names no plugins in config — its metadata is what its
-  // packages state, not what a process-global registry accumulated.
-  let pluginRuntime: PluginRuntime;
-  let unloadable: Array<{ name: string; reason: string }>;
-  if (resolvedOptions?.plugins) {
-    const report = await applyPluginConfig({ repoRoot, config: resolvedOptions.plugins });
-    forceInlineExtraction = report.externalSourceIds.size > 0;
-    pluginRuntime = report.runtime;
-    unloadable = report.refused;
-  } else {
-    const builtins = builtinPluginRuntime();
-    pluginRuntime = builtins.runtime;
-    unloadable = builtins.problems.map(p => ({ name: p.packageName, reason: p.reason }));
-  }
-  const pluginRefusals: Refusal[] = unloadable.map(({ name, reason }) => refusal(
+  // The one loading path, before discovery reads anything a plugin owns. Bundled and installed
+  // packages come through it alike, so a build that names no plugins in config still gets its
+  // defaults by loading them — nothing is registered by having been imported.
+  //
+  // The resolved spec rides on the snapshot: it is what the Stage 1 pool and the Stage 2 worker
+  // reconstruct their own set from, and it is small serialisable data where the set is code.
+  const pluginsConfig = resolvedOptions?.plugins ?? defaultPluginsConfig();
+  const pluginReport = await loadPluginSet({ repoRoot, config: pluginsConfig });
+  const pluginRuntime: PluginRuntime = pluginReport.runtime;
+  const pluginRefusals: Refusal[] = pluginReport.refused.map(({ name, reason }) => refusal(
     'unreadable',
     PLUGIN_UNLOADABLE_REFUSAL,
     `Plugin "${name}" could not be loaded: ${reason}. What it would have contributed is absent from the graph.`,
@@ -883,8 +876,7 @@ export async function collectRepositoryFactsAsync(
   // Pick the worker count, then never spin up more workers than there are jobs to
   // dispatch (small repos otherwise pay extra spawn overhead for idle workers).
   const requestedWorkerCount = advice?.workerCount ?? chooseWorkerCount(resolvedOptions?.maxPackageWorkers, cpus, effectiveTotalMemBytes());
-  // External source plugins are not registered in worker isolates → run extraction inline.
-  const workerCount = forceInlineExtraction ? 1 : Math.max(1, Math.min(requestedWorkerCount, jobs.length));
+  const workerCount = Math.max(1, Math.min(requestedWorkerCount, jobs.length));
 
   // Peak RSS tracker — sampled while extraction runs so calibration captures the real
   // process-wide footprint (not just heap).
@@ -909,6 +901,7 @@ export async function collectRepositoryFactsAsync(
         repoRoot,
         prep.extractContextByPlugin,
         workerCount,
+        { repoRoot, config: pluginsConfig },
         prep.profiler,
         resolvedOptions?.progress,
         signal,
@@ -928,8 +921,10 @@ export async function collectRepositoryFactsAsync(
       prep.profiler,
     );
     snap = finalized.snapshot;
-    // The declarations rode along on the snapshot; the loaded capability code cannot, so it is
-    // keyed to this snapshot object for whoever composes it in this isolate.
+    // The spec rides along so any isolate holding this snapshot can load the same set; the loaded
+    // capability code cannot travel, so it is keyed to this snapshot object for whoever composes it
+    // in this isolate.
+    snap.plugins = pluginsConfig;
     rememberPluginRuntime(snap, pluginRuntime);
     reuseStats = { reused: finalized.reused, rescanned: finalized.rescanned };
   } finally {

@@ -6,11 +6,12 @@
  * entrypoint; this file is for discoverability and publish-time subpath imports.
  */
 
-export { defineIaCParser, defineIaCPlugin } from '../factory.js';
+export { defineIaCParser } from '../factory.js';
+export { definePlugin } from '../plugin/descriptor.js';
 export { makeResourceId, parseResourceId, resourceIdentityProblem } from '../plugin/resource-identity.js';
 export type { ResourceIdentity } from '../plugin/resource-identity.js';
 export type { DocumentLoader, DocumentLoadInput, LoadedDocument } from '../plugin/document-loader.js';
-export type { IaCPluginDescriptor } from '../factory.js';
+export type { PluginRuntimeDescriptor, IaCRuntimeCapability } from '../plugin/descriptor.js';
 export { PLUGIN_API_VERSION } from '../runtime.js';
 export type { PluginApiVersion, PluginRequirements, PluginAvailability } from '../runtime.js';
 

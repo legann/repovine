@@ -2,11 +2,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, afterEach } from '@jest/globals';
-import { defineIaCParser, defineIaCPlugin } from '@repovine/plugin-sdk';
+import { defineIaCParser } from '@repovine/plugin-sdk';
 import type { DocumentLoader, IaCParser, SemanticInfraDelta } from '@repovine/plugin-sdk';
 import { collectInfraModules } from '../../src/stage1/infra.js';
-import { registerIaCPlugin, resolveLoaderForFile } from '../../src/stage1/iac/registry.js';
-import { resetToBuiltinIaCPlugins } from '../../src/stage1/iac/bootstrap.js';
+import { resolveLoaderForFile } from '../../src/plugins/iac-set.js';
+import { installOneMore, restoreBuiltinPlugins } from '../helpers/plugins.js';
 
 /**
  * Law: every decision the document scan cannot make is refused, not guessed.
@@ -55,22 +55,22 @@ describe('core-laws IaC document decisions are refusals, not registration order'
   const nullLoader: DocumentLoader = { id: 'probe-a', load: () => [{ documentKey: '0', value: {} }] };
   const otherLoader: DocumentLoader = { id: 'probe-b', load: () => [{ documentKey: '0', value: {} }] };
 
-  afterEach(() => {
-    resetToBuiltinIaCPlugins();
+  afterEach(async () => {
+    await restoreBuiltinPlugins();
     for (const dir of tmpDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it('refuses a file two equally specific parsers want decoded differently', () => {
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       loaders: [nullLoader],
       parsers: [parser({ kind: 'probe-a', loaderId: 'probe-a' })],
-    }));
-    registerIaCPlugin(defineIaCPlugin({
+    });
+    installOneMore({
       id: 'probe-b',
       loaders: [otherLoader],
       parsers: [parser({ kind: 'probe-b', loaderId: 'probe-b' })],
-    }));
+    });
 
     const { modules, refusals } = collectInfraModules({ repoRoot: repo({ 'x.probe': '{}\n' }) });
     expect(modules).toEqual([]);
@@ -82,12 +82,12 @@ describe('core-laws IaC document decisions are refusals, not registration order'
     // This is the `vercel.json` case: a CloudFormation parser accepts every `.json`, and the Vercel
     // parser accepts exactly `vercel.json`. Specificity settles it without consulting either
     // plugin's position in the registry.
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       loaders: [nullLoader],
       parsers: [parser({ kind: 'probe-a', loaderId: 'probe-a' })],
-    }));
-    registerIaCPlugin(defineIaCPlugin({
+    });
+    installOneMore({
       id: 'probe-b',
       loaders: [otherLoader],
       parsers: [parser({
@@ -95,7 +95,7 @@ describe('core-laws IaC document decisions are refusals, not registration order'
         loaderId: 'probe-b',
         fileMatch: { fileNames: ['named.probe'] },
       })],
-    }));
+    });
 
     expect(resolveLoaderForFile('named.probe', '.probe')).toMatchObject({
       status: 'resolved',
@@ -108,26 +108,26 @@ describe('core-laws IaC document decisions are refusals, not registration order'
   });
 
   it('refuses a loader id no plugin registered', () => {
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       parsers: [parser({ kind: 'probe-a', loaderId: 'nobody-provides-this' })],
-    }));
+    });
     const { modules, refusals } = collectInfraModules({ repoRoot: repo({ 'x.probe': '{}\n' }) });
     expect(modules).toEqual([]);
     expect(refusals.map(r => r.kind)).toEqual(['iac-loader-unknown']);
   });
 
   it('refuses a second plugin claiming a loader id the first provides', () => {
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       loaders: [nullLoader],
       parsers: [parser({ kind: 'probe-a', loaderId: 'probe-a' })],
-    }));
-    registerIaCPlugin(defineIaCPlugin({
+    });
+    installOneMore({
       id: 'probe-b',
       loaders: [{ id: 'probe-a', load: () => [] }],
       parsers: [parser({ kind: 'probe-b', loaderId: 'probe-a' })],
-    }));
+    });
     const { refusals } = collectInfraModules({ repoRoot: repo({ 'x.probe': '{}\n' }) });
     expect(refusals.map(r => r.kind)).toContain('iac-loader-claimed-twice');
     expect(refusals.find(r => r.kind === 'iac-loader-claimed-twice')?.details)
@@ -135,30 +135,30 @@ describe('core-laws IaC document decisions are refusals, not registration order'
   });
 
   it('lets two shared parsers both contribute from one document', () => {
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       loaders: [nullLoader],
       parsers: [parser({ kind: 'probe-a', loaderId: 'probe-a' })],
-    }));
-    registerIaCPlugin(defineIaCPlugin({
+    });
+    installOneMore({
       id: 'probe-b',
       parsers: [parser({ kind: 'probe-b', loaderId: 'probe-a' })],
-    }));
+    });
     const { modules, refusals } = collectInfraModules({ repoRoot: repo({ 'x.probe': '{}\n' }) });
     expect(refusals).toEqual([]);
     expect(modules.map(m => m.kind).sort()).toEqual(['probe-a', 'probe-b']);
   });
 
   it('refuses both readings when one parser claimed the document exclusively', () => {
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       loaders: [nullLoader],
       parsers: [parser({ kind: 'probe-a', loaderId: 'probe-a', claim: 'exclusive' })],
-    }));
-    registerIaCPlugin(defineIaCPlugin({
+    });
+    installOneMore({
       id: 'probe-b',
       parsers: [parser({ kind: 'probe-b', loaderId: 'probe-a' })],
-    }));
+    });
     const { modules, refusals } = collectInfraModules({ repoRoot: repo({ 'x.probe': '{}\n' }) });
     expect(modules).toEqual([]);
     expect(refusals.map(r => r.kind)).toEqual(['iac-document-claim-conflict']);
@@ -166,7 +166,7 @@ describe('core-laws IaC document decisions are refusals, not registration order'
   });
 
   it('a parser returning null leaves the others to read the document', () => {
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       loaders: [nullLoader],
       // Declaring the claim exclusive AND returning null: the old scan stopped at the first
@@ -179,11 +179,11 @@ describe('core-laws IaC document decisions are refusals, not registration order'
         supports: () => true,
         parse: () => null,
       })],
-    }));
-    registerIaCPlugin(defineIaCPlugin({
+    });
+    installOneMore({
       id: 'probe-b',
       parsers: [parser({ kind: 'probe-b', loaderId: 'probe-a' })],
-    }));
+    });
     const { modules, refusals } = collectInfraModules({ repoRoot: repo({ 'x.probe': '{}\n' }) });
     expect(refusals).toEqual([]);
     expect(modules.map(m => m.kind)).toEqual(['probe-b']);
@@ -198,7 +198,7 @@ describe('core-laws IaC document decisions are refusals, not registration order'
       contentHash: 'h',
       attributes,
     });
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'probe-a',
       loaders: [nullLoader],
       parsers: [defineIaCParser({
@@ -216,7 +216,7 @@ describe('core-laws IaC document decisions are refusals, not registration order'
           ],
         }),
       })],
-    }));
+    });
     const { modules, refusals } = collectInfraModules({ repoRoot: repo({ 'x.probe': '{}\n' }) });
     expect(modules.flatMap(m => m.resources).map(r => r.identity.localKey)).toEqual(['same']);
     expect(refusals.map(r => r.kind)).toEqual(['resource-identity-conflict']);

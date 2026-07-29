@@ -1,35 +1,44 @@
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 
 /**
- * Mutable registry of source plugins. Built-in plugins register themselves at bootstrap
- * (see ./bootstrap.ts). External callers register additional plugins via registerSourcePlugin().
+ * The source plugins active in this isolate, as the one loading path installed them.
  *
- * Registration order matters when two plugins could claim the same file: the orchestrator
- * resolves ownership "first registered wins". In practice extensions should not overlap
- * (`.ts` vs `.py`), so order is rarely load-bearing.
+ * Nothing registers itself here. `src/plugins/load.ts` resolves a build's plugin set — bundled and
+ * independently installed alike — and installs it whole; the next build replaces it whole. Every
+ * isolate that runs plugin code, including both worker pools, installs its own set from the same
+ * serialisable spec, so a build's active set is the same set wherever it is read.
+ *
+ * The set is ordered by the loading path (preset order, then config order). Order decides ownership
+ * only when two plugins claim one file, and the bundled set uses non-overlapping extensions
+ * (`.ts`/`.tsx` vs `.py`), so it is not load-bearing there.
+ *
+ * Language metadata is read from here outside a build too — module ids, domain labels and MCP scope
+ * resolution all reduce a path by what the owning ecosystem declared — which is why the set is
+ * ambient rather than threaded: a reader asks what is loaded, not who loaded it.
  */
-const plugins: SourcePlugin[] = [];
+let plugins: SourcePlugin[] = [];
 
-export function registerSourcePlugin(plugin: SourcePlugin): void {
-  plugins.push(plugin);
-}
+/**
+ * Set while a test pins the set to producers it constructed in process.
+ *
+ * A build installs its own set, which is the point: the set is what the config named. A test that
+ * exercises the engine against a hand-written producer has no package to name, so it pins the set
+ * and the build's install becomes a no-op until the pin is released. Nothing in `src/**` sets this.
+ */
+let pinned = false;
 
-/** Remove a registered source plugin by id (used by the external-plugin loader to apply
- *  `plugins.disable` and `plugins.defaults:false`). Returns true when one was removed. No-op when
- *  the id is not registered. */
-export function unregisterSourcePlugin(id: string): boolean {
-  const idx = plugins.findIndex(p => p.id === id);
-  if (idx === -1) return false;
-  plugins.splice(idx, 1);
-  return true;
+/** Install this build's source plugins, replacing whatever the previous build installed. */
+export function installSourcePlugins(next: readonly SourcePlugin[]): void {
+  if (pinned) return;
+  plugins = [...next];
 }
 
 export function getSourcePlugins(): readonly SourcePlugin[] {
   return plugins;
 }
 
-/** Ids of all currently-registered source plugins, in registration order. */
-export function getRegisteredSourcePluginIds(): string[] {
+/** Ids of the active source plugins, in installed order. */
+export function getActiveSourcePluginIds(): string[] {
   return plugins.map(p => p.id);
 }
 
@@ -37,11 +46,15 @@ export function getSourcePlugin(id: string): SourcePlugin | undefined {
   return plugins.find(p => p.id === id);
 }
 
-/** Test-only: replace all registered plugins. Returns a restore callback. */
+/** Test-only: pin the set to these producers. The returned callback restores and unpins. */
 export function setSourcePluginsForTest(next: SourcePlugin[]): () => void {
-  const prev = plugins.splice(0, plugins.length, ...next);
+  const prev = plugins;
+  const wasPinned = pinned;
+  plugins = [...next];
+  pinned = true;
   return () => {
-    plugins.splice(0, plugins.length, ...prev);
+    plugins = prev;
+    pinned = wasPinned;
   };
 }
 
@@ -66,8 +79,10 @@ export function pickSourcePluginIdForFile(base: string, ext: string): string | u
 
 /**
  * Capability aggregators — core asks these instead of hardcoding language ids/extensions.
- * Callers must ensure the registry is populated first (side-effect `import './bootstrap.js'`);
- * this module cannot import bootstrap itself without forming a registry↔bootstrap cycle.
+ *
+ * They answer over the installed set, so a caller that reads them before the loading path ran gets
+ * the empty answer: no extension is known and no suffix is stripped. Every entrypoint installs the
+ * set before it reads one (`src/plugins/load.ts`, `ensurePluginsLoaded`).
  */
 
 /** Union of `capabilities.extensions` across registered plugins. Capabilities-only on purpose:

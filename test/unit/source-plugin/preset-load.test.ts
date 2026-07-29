@@ -1,19 +1,24 @@
 import { describe, it, expect } from '@jest/globals';
-// Importing bootstrap triggers the side-effect registration once (mirrors IaC bootstrap).
-import { bootstrapInternalSourcePlugins } from '../../../src/stage1/source/bootstrap.js';
-import { getSourcePlugins, getSourcePlugin } from '../../../src/stage1/source/registry.js';
+import { getSourcePlugins, getSourcePlugin } from '../../../src/plugins/source-set.js';
+import { restoreBuiltinPlugins } from '../../helpers/plugins.js';
 
-describe('source plugin bootstrap', () => {
-  it('registers the built-in typescript source plugin', () => {
+/**
+ * The bundled preset's source half, as the one loading path installs it.
+ *
+ * Nothing here imports a plugin package: the set under test is whatever loading the preset produced,
+ * which is what a build reads.
+ */
+describe('bundled source plugins', () => {
+  it('installs the built-in typescript source plugin', () => {
     expect(getSourcePlugin('typescript')).toBeDefined();
     expect(getSourcePlugins().map(p => p.id)).toContain('typescript');
   });
 
-  it('is idempotent — repeated bootstrap does not double-register', () => {
-    const before = getSourcePlugins().length;
-    bootstrapInternalSourcePlugins();
-    bootstrapInternalSourcePlugins();
-    expect(getSourcePlugins().length).toBe(before);
+  it('is idempotent — loading the preset again installs the same set', async () => {
+    const before = getSourcePlugins().map(p => p.id);
+    await restoreBuiltinPlugins();
+    await restoreBuiltinPlugins();
+    expect(getSourcePlugins().map(p => p.id)).toEqual(before);
     expect(getSourcePlugins().filter(p => p.id === 'typescript')).toHaveLength(1);
   });
 
@@ -25,7 +30,7 @@ describe('source plugin bootstrap', () => {
     );
   });
 
-  it('registers the built-in python source plugin', () => {
+  it('installs the built-in python source plugin', () => {
     expect(getSourcePlugin('python')).toBeDefined();
     expect(getSourcePlugins().map(p => p.id)).toContain('python');
   });

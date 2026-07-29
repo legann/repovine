@@ -1,7 +1,7 @@
 import type { McpToolRuntime } from '../../types.js';
 import { modulePackageId, nodesOfType, packageModuleIds } from '../../../graph/index.js';
 import { isBarrelModule, isBarrelRelPath, moduleDirPath, moduleRelPath } from '../../../graph/module-files.js';
-import { stripModuleIdSuffix } from '../../../stage1/source/registry.js';
+import { stripModuleIdSuffix } from '../../../plugins/source-set.js';
 import { compareCodeUnits } from '../../../platform/ordering.js';
 import { paginateList } from '../../response/pagination.js';
 import { narrowTruncation, truncationMap } from '../../../response/truncation.js';

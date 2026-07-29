@@ -23,8 +23,7 @@ export { PLUGIN_API_VERSION } from './runtime.js';
 export type { PluginApiVersion, PluginRequirements, PluginAvailability } from './runtime.js';
 
 /* ---- authoring factories ---- */
-export { defineSourcePlugin, defineIaCParser, defineIaCPlugin } from './factory.js';
-export type { IaCPluginDescriptor } from './factory.js';
+export { defineSourcePlugin, defineIaCParser } from './factory.js';
 
 /* ---- source-plugin contract ---- */
 export type {

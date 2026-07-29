@@ -2,11 +2,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, afterEach } from '@jest/globals';
-import { defineIaCParser, defineIaCPlugin } from '@repovine/plugin-sdk';
+import { defineIaCParser } from '@repovine/plugin-sdk';
 import type { DocumentLoader, IaCParser, SemanticInfraDelta } from '@repovine/plugin-sdk';
 import { collectInfraModules } from '../../src/stage1/infra.js';
-import { registerIaCPlugin, resetIaCParsers } from '../../src/stage1/iac/registry.js';
-import { resetToBuiltinIaCPlugins } from '../../src/stage1/iac/bootstrap.js';
+import { installIaCPlugins, type ActiveIaCPlugin } from '../../src/plugins/iac-set.js';
+import { asActiveIaC, installOneMore, restoreBuiltinPlugins } from '../helpers/plugins.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import type { RepositoryFactsSnapshot } from '../../src/types.js';
 import { samIacPlugin } from '../../packages/plugins/iac-sam/src/index.js';
@@ -17,8 +17,8 @@ import { dockerfileIacPlugin } from '../../packages/plugins/iac-dockerfile/src/i
 import { terraformIacPlugin } from '../../packages/plugins/iac-terraform/src/index.js';
 import { vercelIacPlugin } from '../../packages/plugins/iac-vercel/src/index.js';
 
-/** The built-in set in bootstrap order, so a test can register it the other way round. */
-const BUILTIN_IAC_PLUGINS = [
+/** The built-in set in preset order, so a test can install it the other way round. */
+const BUILTIN_IAC_PLUGINS: ActiveIaCPlugin[] = [
   samIacPlugin,
   helmIacPlugin,
   kubernetesIacPlugin,
@@ -26,7 +26,7 @@ const BUILTIN_IAC_PLUGINS = [
   dockerfileIacPlugin,
   terraformIacPlugin,
   vercelIacPlugin,
-];
+].map(asActiveIaC);
 
 /**
  * Law: the IaC vertical is owned by plugins.
@@ -53,8 +53,8 @@ describe('core-laws the IaC vertical is plugin-owned', () => {
     return dir;
   }
 
-  afterEach(() => {
-    resetToBuiltinIaCPlugins();
+  afterEach(async () => {
+    await restoreBuiltinPlugins();
     for (const dir of tmpDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -113,7 +113,7 @@ describe('core-laws the IaC vertical is plugin-owned', () => {
   });
 
   it('carries a trigger type no engine table names', () => {
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'meshworks-triggers',
       parsers: [defineIaCParser({
         kind: 'mesh',
@@ -133,7 +133,7 @@ describe('core-laws the IaC vertical is plugin-owned', () => {
           }],
         }),
       })],
-    }));
+    });
     const root = repo({ 'router.trigger': 'x\n' });
     const { modules } = collectInfraModules({ repoRoot: root });
     const router = modules.flatMap(m => m.resources).find(r => r.id === 'router');
@@ -168,11 +168,11 @@ describe('core-laws the IaC vertical is plugin-owned', () => {
         })),
       }),
     });
-    registerIaCPlugin(defineIaCPlugin({
+    installOneMore({
       id: 'meshworks',
       parsers: [meshParser],
       loaders: [meshLoader],
-    }));
+    });
 
     const root = repo({ 'topology.mesh': 'alpha\nbeta\n' });
     expect(idsIn(root)).toEqual(['resource:meshworks:node/alpha', 'resource:meshworks:node/beta']);
@@ -217,8 +217,7 @@ describe('core-laws the IaC vertical is plugin-owned', () => {
     // The same built-ins, registered back to front. Under the old first-match-wins scan this was
     // precedence: SAM had to register before Kubernetes, or a CloudFormation document was offered
     // to the manifest parser first and the template was read as one.
-    resetIaCParsers();
-    for (const plugin of [...BUILTIN_IAC_PLUGINS].reverse()) registerIaCPlugin(plugin);
+    installIaCPlugins([...BUILTIN_IAC_PLUGINS].reverse());
     const reversed = idsIn(root);
 
     expect(reversed).toEqual(forward);

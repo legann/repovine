@@ -5,19 +5,26 @@
  * stdlib `ast` subprocess pass, the Python import resolver, and the web-framework route hints a
  * Python module yields. It compiles against `@repovine/plugin-sdk` alone.
  */
-import { PLUGIN_API_VERSION } from '@repovine/plugin-sdk';
+import { definePlugin } from '@repovine/plugin-sdk';
 import pythonSourcePlugin from './plugin.js';
 
 export { PYTHON_EXTENSIONS } from './extensions.js';
 export { pythonSourcePlugin };
 
-export const builtinPluginPackage = Object.freeze({
-  packageName: '@repovine/plugin-source-python',
-  pluginId: 'python',
-  capability: 'source',
-  apiVersion: PLUGIN_API_VERSION,
-  activation: 'source-plugin',
-  sourcePlugin: pythonSourcePlugin,
-} as const);
+/**
+ * The package's entry point, in the one shape the host loads.
+ *
+ * The interpreter prerequisite is lifted to the descriptor: `requires`/`available` are one lifecycle
+ * for every capability the package activates, so a missing Python interpreter produces one
+ * actionable message rather than a failure per file.
+ */
+const available = pythonSourcePlugin.available?.bind(pythonSourcePlugin);
 
-export default builtinPluginPackage;
+export const plugin = definePlugin({
+  id: pythonSourcePlugin.id,
+  ...(pythonSourcePlugin.requires === undefined ? {} : { requires: pythonSourcePlugin.requires }),
+  ...(available === undefined ? {} : { available }),
+  capabilities: { source: pythonSourcePlugin },
+});
+
+export default plugin;

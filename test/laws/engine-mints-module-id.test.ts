@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
-import { setSourcePluginsForTest } from '../../src/stage1/source/registry.js';
+import { setSourcePluginsForTest } from '../../src/plugins/source-set.js';
 import type { SourcePlugin, PendingModule, PendingModuleDraft } from '@repovine/plugin-sdk';
 
 // The identity invariant: `mod:<pkg>/<path>` is load-bearing for scope resolution, annotation keys,

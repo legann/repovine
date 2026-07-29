@@ -1,4 +1,5 @@
 import { setPipelineLogSink } from '../src/cli/ui.js';
+import { defaultPluginsConfig, loadPluginSet } from '../src/plugins/load.js';
 
 setPipelineLogSink('silent');
 
@@ -24,3 +25,11 @@ if (process.env.REPOVINE_MAX_PACKAGE_WORKERS === undefined) {
 if (process.env.REPOVINE_STAGE2_INLINE === undefined) {
   process.env.REPOVINE_STAGE2_INLINE = '1';
 }
+
+// The plugin set is loaded, not registered by import. A test process is an isolate like any other,
+// so it installs the bundled preset the same way every entrypoint does — otherwise a module id, a
+// domain label or an MCP scope reduces by an empty set of known extensions.
+//
+// Top-level await: `setupFiles` are ESM here, and a test body that ran before the set was installed
+// would read the empty answer.
+await loadPluginSet({ repoRoot: process.cwd(), config: defaultPluginsConfig() });

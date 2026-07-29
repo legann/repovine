@@ -1,5 +1,5 @@
 import type { ModuleInfo } from '../../../types.js';
-import { pluginHasUiSurfaces } from '../../../stage1/source/registry.js';
+import { pluginHasUiSurfaces } from '../../../plugins/source-set.js';
 
 /**
  * Shared frontend-class applicability predicate.

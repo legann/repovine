@@ -437,10 +437,12 @@ describe('refusal form: guarded roots are real', () => {
     // the SDK still fails here.
     const guarded = guardedRoots().map(r => toPosixPath(path.relative(repoRoot(), r.dir)));
     expect(guarded.slice(0, 2)).toEqual(['src', 'packages/plugin-sdk/src']);
+    // A package with no `src` carries no code to guard — the preset is names in a manifest.
     const pluginPackageRoots = fs
       .readdirSync(path.join(repoRoot(), 'packages', 'plugins'), { withFileTypes: true })
       .filter(entry => entry.isDirectory())
       .map(entry => `packages/plugins/${entry.name}/src`)
+      .filter(rel => fs.existsSync(path.join(repoRoot(), rel)))
       .sort();
     expect(guarded.slice(2).sort()).toEqual(pluginPackageRoots);
     expect(fs.existsSync(SRC)).toBe(true);

@@ -105,6 +105,20 @@ export interface RepositoryFactsSnapshot {
    */
   declarations?: DeclarationCatalog;
   /**
+   * The plugin config this build resolved, as the spec an isolate reconstructs the set from.
+   *
+   * Declarations are the data half of a plugin and travel above; parsers, extractors, loaders and
+   * projectors are code and travel nowhere. What crosses a worker boundary or a cache round-trip is
+   * this: the small serialisable statement of which packages were selected, from which both worker
+   * pools load the same set through the same path.
+   */
+  plugins?: {
+    defaults: boolean;
+    add: string[];
+    disable: string[];
+    retract?: string[];
+  };
+  /**
    * What this build's Stage 1 producers published under their own schemas.
    *
    * The one channel from a producer to a Stage 2 projector, and data for the same reason the

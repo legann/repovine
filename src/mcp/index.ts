@@ -15,6 +15,7 @@ import {
   runStatusCli,
 } from '../cli/health.js';
 import { promptLineSync } from '../cli/prompt.js';
+import { ensurePluginsLoaded } from '../plugins/load.js';
 import { disposeEmbedderPipelines } from '../semantic/embedder.js';
 import { cli, logCli, logPipeline, formatPipelineMuted, setPipelineLogSink, setProgressInPlace } from '../cli/ui.js';
 
@@ -55,7 +56,19 @@ if (command === '--version' || command === '-v') {
   await exitAfterFlush(0);
 }
 
+/**
+ * The plugin set for a command that reads what the ecosystems declare without building a graph.
+ *
+ * `doctor` lists each plugin's interpreter prerequisite; `setup` writes an initial scan config from
+ * the extensions the loaded plugins own. Both are entrypoints, and an entrypoint that skipped the
+ * loading path would read an empty set and report a repository with no languages in it.
+ */
+async function loadPluginsForCli(): Promise<void> {
+  await ensurePluginsLoaded({ repoRoot, config: loadConfig(repoRoot).plugins });
+}
+
 if (command === 'setup') {
+  await loadPluginsForCli();
   const setupArgs = args.slice(1);
   const allowedSetupFlags = new Set(['--force', '--replace-mcp', '--no-build', '--published', '--interactive', '-i', '--help', '-h']);
   const unknownSetupFlags = setupArgs.filter(flag => flag.startsWith('-') && !allowedSetupFlags.has(flag));
@@ -159,6 +172,7 @@ if (command === 'status') {
 }
 
 if (command === 'doctor') {
+  await loadPluginsForCli();
   const exitCode = await runDoctorCli(args.slice(1), { repoRoot, artifactsDir });
   await exitAfterFlush(exitCode);
 }
@@ -320,7 +334,7 @@ import type { McpToolRuntime } from './types.js';
 import { envelopeError, type ToolResponse } from './response/envelope.js';
 import { nextCall } from '../response/next-call.js';
 import { IndexBuildController } from './build-controller.js';
-import { getSourcePlugins } from '../stage1/source/registry.js';
+import { getSourcePlugins } from '../plugins/source-set.js';
 import { loadConfig, type ResolvedConfig } from '../config.js';
 import { ContextSessionStore, bootstrapContextSessionsOnMcpStart } from '../context-quality/session-store.js';
 import {

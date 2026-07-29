@@ -18,6 +18,7 @@ import {
   resourceIdentityProblem,
   resourceKindMetaKey,
   stampDeclarationCatalog,
+  validatePresetManifest,
   validateProjectionBatch,
   validatePluginManifest,
   validatePluginRuntimeDescriptor,
@@ -478,5 +479,84 @@ describe('conformance kit', () => {
     });
     expect(report.passed).toBe(false);
     expect(report.checks.find(c => !c.ok)?.name).toMatch(/deterministic/);
+  });
+});
+
+describe('preset manifest', () => {
+  const PRESET = {
+    kind: 'preset',
+    id: 'default',
+    apiVersion: 1,
+    plugins: ['@repovine/plugin-source-typescript', '@repovine/plugin-iac-sam'],
+  };
+
+  it('accepts a preset that names its packages', () => {
+    const validated = validatePresetManifest(PRESET);
+    expect(validated.ok && validated.manifest.plugins).toEqual(PRESET.plugins);
+  });
+
+  it('refuses a plugin manifest read as a preset', () => {
+    // Both schemas pin `kind` to a literal, so one package is readable as one transport and never
+    // as both. Without that, a plugin package with a stray `plugins` array would be selected as a
+    // preset and its own capabilities would never load.
+    const validated = validatePresetManifest({
+      kind: PLUGIN_MANIFEST_KIND,
+      id: 'typescript',
+      apiVersion: 1,
+      plugins: ['@repovine/plugin-source-typescript'],
+    });
+    expect(validated.ok).toBe(false);
+  });
+
+  it('refuses a preset that names one package twice', () => {
+    const validated = validatePresetManifest({ ...PRESET, plugins: [PRESET.plugins[0], PRESET.plugins[0]] });
+    expect(validated.ok ? '' : validated.error).toMatch(/twice/);
+  });
+
+  it('refuses a preset on another api version', () => {
+    const validated = validatePresetManifest({ ...PRESET, apiVersion: 2 });
+    expect(validated.ok).toBe(false);
+  });
+});
+
+describe('iac capability metadata', () => {
+  const parser = { kind: 'brick', loaderId: 'yaml', supports: () => false, parse: () => null };
+
+  it('accepts kind domains beside the parsers that emit those kinds', () => {
+    const validated = validatePluginRuntimeDescriptor(definePlugin({
+      id: 'brick',
+      capabilities: {
+        iac: {
+          parsers: [parser],
+          kindDomains: [{ kind: 'brick', meta: { domainId: 'domain:infra-brick', label: 'infra-brick', description: 'x' } }],
+        },
+      },
+    }));
+    expect(validated.ok && validated.declared).toEqual(['iac']);
+  });
+
+  it('refuses a kind domain with no domain id', () => {
+    // The entry becomes a graph domain node. One with an undefined id mints a node nothing can
+    // reference, which reads downstream as a domain that lost its members.
+    const validated = validatePluginRuntimeDescriptor({
+      id: 'brick',
+      capabilities: {
+        iac: { parsers: [parser], kindDomains: [{ kind: 'brick', meta: { label: 'infra-brick' } }] },
+      },
+    });
+    expect(validated.ok ? '' : validated.error).toMatch(/domainId/);
+  });
+
+  it('refuses a kind domain with no kind', () => {
+    const validated = validatePluginRuntimeDescriptor({
+      id: 'brick',
+      capabilities: {
+        iac: {
+          parsers: [parser],
+          kindDomains: [{ meta: { domainId: 'domain:infra-brick', label: 'infra-brick' } }],
+        },
+      },
+    });
+    expect(validated.ok ? '' : validated.error).toMatch(/kind/);
   });
 });

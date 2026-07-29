@@ -1,6 +1,5 @@
 import * as fs from 'node:fs';
-import { getSourcePlugins } from '../../../src/stage1/source/registry.js';
-import '../../../src/stage1/source/bootstrap.js';
+import { getSourcePlugins } from '../../../src/plugins/source-set.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { spawnSync } from 'node:child_process';

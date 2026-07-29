@@ -12,9 +12,7 @@ import { isNodeType } from '../../graph/index.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { serializeSideEffect } from '../../annotations/side-effect-vocab.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-// registry which extensions to strip, so a responsibility key never carries one.
-import '../../stage1/source/bootstrap.js';
-import { getKnownExtensions, getSourceIndexBasenames, stripSourceExtension } from '../../stage1/source/registry.js';
+import { getKnownExtensions, getSourceIndexBasenames, stripSourceExtension } from '../../plugins/source-set.js';
 import { lastPathSegment, pathMatchKey, toPosixPath } from '../../platform/paths.js';
 import { UI_COMPONENT_EXTENSIONS_RE } from '../../annotations/module-kind.js';
 import { splitCamelCase } from '../../platform/text.js';

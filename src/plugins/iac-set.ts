@@ -1,45 +1,47 @@
-import type { IaCParser } from '../../types.js';
+import type { IaCParser } from '../types.js';
 import type {
   DocumentLoader,
-  IaCPluginDescriptor,
   TriggerEntryKind,
 } from '@repovine/plugin-sdk';
 import { compareCodeUnits } from '@repovine/plugin-sdk';
-import { domainNodeId } from '../../graph/node-ids.js';
-import { domainLabelSlug } from '../../stage2/domain-slug.js';
-import { HOST_DOCUMENT_LOADERS } from './document-loaders.js';
+import { domainNodeId } from '../graph/node-ids.js';
+import { domainLabelSlug } from '../stage2/domain-slug.js';
+import { HOST_DOCUMENT_LOADERS } from '../stage1/iac/document-loaders.js';
 
 /**
- * Mutable registry of IaC parsers and the document loaders that decode their files.
+ * The IaC parsers, document loaders and kind→domain metadata active in this isolate.
  *
- * Registration order is an inventory, not a precedence: a document is offered to every parser whose
- * `fileMatch` and `supports()` claim it, and a disagreement is reported rather than settled by
- * whoever registered first.
+ * The one loading path installs the whole set and the next build replaces it whole; nothing
+ * registers itself here. Installed order is an inventory, not a precedence: a document is offered to
+ * every parser whose `fileMatch` and `supports()` claim it, and a disagreement is reported rather
+ * than settled by whoever came first.
  */
-const parsers: IaCParser[] = [];
-
-export function registerParser(parser: IaCParser): void {
-  parsers.push(parser);
-}
+let parsers: IaCParser[] = [];
 
 export function getParsers(): readonly IaCParser[] {
   return parsers;
 }
 
-/** Parsers registered by each IaC plugin id, so the loader can remove a plugin's parsers on
- *  `plugins.disable` / `plugins.defaults:false`. Kind→domain registrations are left in place: they
- *  are additive and inert when no parser emits the matching kind. */
-const parsersByPluginId = new Map<string, IaCParser[]>();
+/** One plugin's IaC capability as the active set holds it. */
+export interface ActiveIaCPlugin {
+  id: string;
+  parsers: readonly IaCParser[];
+  kindDomains?: ReadonlyArray<{ kind: string; meta: InfraKindDomain }>;
+  /** Document loaders this plugin brings, beyond the `yaml`/`json`/`text` the host provides. */
+  loaders?: readonly DocumentLoader[];
+}
+
+let activePlugins: ActiveIaCPlugin[] = [];
 
 /**
- * Document loaders by id: the three the host provides, plus whatever plugins registered.
+ * Document loaders by id: the three the host provides, plus whatever the installed plugins bring.
  *
  * A loader id is a shared name — a parser names one to say how its files decode — so two plugins
- * claiming one id is a conflict. The first registration stands and the second is refused, because
- * silently replacing a decoder would change how every other plugin's files are read.
+ * claiming one id is a conflict. The first stands and the second is refused, because silently
+ * replacing a decoder would change how every other plugin's files are read.
  */
-const documentLoaders = new Map<string, { loader: DocumentLoader; ownerPluginId: string }>();
-const loaderRegistrationConflicts: LoaderRegistrationConflict[] = [];
+let documentLoaders = new Map<string, { loader: DocumentLoader; ownerPluginId: string }>();
+let loaderRegistrationConflicts: LoaderRegistrationConflict[] = [];
 
 export interface LoaderRegistrationConflict {
   loaderId: string;
@@ -48,15 +50,15 @@ export interface LoaderRegistrationConflict {
   refused: string;
 }
 
-function resetDocumentLoaders(): void {
-  documentLoaders.clear();
-  loaderRegistrationConflicts.splice(0, loaderRegistrationConflicts.length);
+function hostDocumentLoaders(): Map<string, { loader: DocumentLoader; ownerPluginId: string }> {
+  const out = new Map<string, { loader: DocumentLoader; ownerPluginId: string }>();
   for (const loader of HOST_DOCUMENT_LOADERS) {
-    documentLoaders.set(loader.id, { loader, ownerPluginId: '<host>' });
+    out.set(loader.id, { loader, ownerPluginId: '<host>' });
   }
+  return out;
 }
 
-resetDocumentLoaders();
+documentLoaders = hostDocumentLoaders();
 
 export function getDocumentLoader(id: string): DocumentLoader | undefined {
   return documentLoaders.get(id)?.loader;
@@ -68,66 +70,63 @@ export function getLoaderRegistrationConflicts(): readonly LoaderRegistrationCon
 }
 
 /**
- * Register a declarative IaC plugin descriptor (from `defineIaCPlugin`) as a unit: its loaders, its
- * parsers, then its kind→domain registrations. This is the engine-side counterpart to the
- * authoring factory — built-in bootstrap and the external loader both go through here, so a plugin
- * author never calls the individual `register*` functions directly (keeps the SDK boundary clean).
+ * Install this build's IaC plugins, replacing whatever the previous build installed.
+ *
+ * Everything an IaC plugin contributes is replaced together — parsers, loaders and kind→domain
+ * metadata — so a plugin dropped from the config takes all three with it. A build that keeps
+ * metadata from a plugin it no longer loads is the accumulation this replacement exists to prevent.
  */
-export function registerIaCPlugin(descriptor: IaCPluginDescriptor): void {
-  for (const loader of descriptor.loaders ?? []) {
-    const held = documentLoaders.get(loader.id);
-    if (held) {
-      loaderRegistrationConflicts.push({
-        loaderId: loader.id,
-        heldBy: held.ownerPluginId,
-        refused: descriptor.id,
-      });
-      continue;
+export function installIaCPlugins(next: readonly ActiveIaCPlugin[]): void {
+  if (pinnedParsers) return;
+  parsers = [];
+  activePlugins = [...next];
+  documentLoaders = hostDocumentLoaders();
+  loaderRegistrationConflicts = [];
+  kindDomains = new Map<string, InfraKindDomain>();
+
+  for (const plugin of next) {
+    for (const loader of plugin.loaders ?? []) {
+      const held = documentLoaders.get(loader.id);
+      if (held) {
+        loaderRegistrationConflicts.push({
+          loaderId: loader.id,
+          heldBy: held.ownerPluginId,
+          refused: plugin.id,
+        });
+        continue;
+      }
+      documentLoaders.set(loader.id, { loader, ownerPluginId: plugin.id });
     }
-    documentLoaders.set(loader.id, { loader, ownerPluginId: descriptor.id });
+    for (const parser of plugin.parsers) parsers.push(parser);
+    for (const { kind, meta } of plugin.kindDomains ?? []) kindDomains.set(kind, meta);
   }
-  const owned = parsersByPluginId.get(descriptor.id) ?? [];
-  for (const parser of descriptor.parsers) {
-    registerParser(parser);
-    owned.push(parser);
-  }
-  parsersByPluginId.set(descriptor.id, owned);
-  for (const { kind, meta } of descriptor.kindDomains ?? []) registerInfraKindDomain(kind, meta);
 }
 
-/** Remove all parsers registered by an IaC plugin id (loader: disable / defaults:false). Returns
- *  true when the plugin had registered parsers. Metadata is intentionally not removed (see above). */
-export function unregisterIaCPlugin(id: string): boolean {
-  const owned = parsersByPluginId.get(id);
-  if (!owned || owned.length === 0) return false;
-  for (const parser of owned) {
-    const idx = parsers.indexOf(parser);
-    if (idx !== -1) parsers.splice(idx, 1);
-  }
-  parsersByPluginId.delete(id);
-  return true;
+/** Ids of IaC plugins that contributed parsers to the active set, in installed order. */
+export function getActiveIaCPluginIds(): string[] {
+  return activePlugins.filter(plugin => plugin.parsers.length > 0).map(plugin => plugin.id);
 }
 
-/** Ids of IaC plugins that currently have registered parsers, in first-registration order. */
-export function getRegisteredIaCPluginIds(): string[] {
-  return [...parsersByPluginId.keys()];
+/** The installed set, so a caller can install it again with one member added or removed. */
+export function getActiveIaCPlugins(): readonly ActiveIaCPlugin[] {
+  return activePlugins;
 }
 
-/** Clear all registered parsers, per-plugin tracking and plugin-registered loaders (kind→domain
- *  registrations stay — they are additive/inert). The loader uses this via the IaC bootstrap to
- *  rebuild a clean built-in baseline before applying `plugins.{defaults,add,disable}` on each
- *  build. */
-export function resetIaCParsers(): void {
-  parsers.splice(0, parsers.length);
-  parsersByPluginId.clear();
-  resetDocumentLoaders();
-}
+/**
+ * Set while a test pins the parser list to parsers it constructed in process. See the source set's
+ * note: a build installs its own set, and a producer with no package to name needs the pin.
+ */
+let pinnedParsers = false;
 
-/** Test-only: replace all registered parsers. Returns a restore callback. */
+/** Test-only: pin the parsers to this list. The returned callback restores and unpins. */
 export function setParsersForTest(next: IaCParser[]): () => void {
-  const prev = parsers.splice(0, parsers.length, ...next);
+  const prev = parsers;
+  const wasPinned = pinnedParsers;
+  parsers = [...next];
+  pinnedParsers = true;
   return () => {
-    parsers.splice(0, parsers.length, ...prev);
+    parsers = prev;
+    pinnedParsers = wasPinned;
   };
 }
 
@@ -222,11 +221,7 @@ export interface InfraKindDomain {
   description: string;
 }
 
-const kindDomains = new Map<string, InfraKindDomain>();
-
-export function registerInfraKindDomain(kind: string, meta: InfraKindDomain): void {
-  kindDomains.set(kind, meta);
-}
+let kindDomains = new Map<string, InfraKindDomain>();
 
 /**
  * Resolve a kind to a graph domain. Unknown kinds are mapped to a conventional
@@ -244,8 +239,8 @@ export function getInfraKindDomain(kind: string): InfraKindDomain {
   };
 }
 
-/** All explicitly registered (kind, domain) pairs — used to seed graph domain nodes. */
-export function getAllRegisteredKindDomains(): Array<{ kind: string; meta: InfraKindDomain }> {
+/** Every (kind, domain) pair the installed plugins declared — used to seed graph domain nodes. */
+export function getActiveKindDomains(): Array<{ kind: string; meta: InfraKindDomain }> {
   return [...kindDomains.entries()].map(([kind, meta]) => ({ kind, meta }));
 }
 

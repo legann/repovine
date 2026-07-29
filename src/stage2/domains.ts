@@ -4,9 +4,7 @@ import { loadDomainsConfig, type DomainsConfig } from './domains-schema.js';
 import { domainLabelFromId } from '../graph/node-ids.js';
 import { importerCount } from '../graph/index.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-// registry which extensions to strip, so a Python path reduces the same way a TypeScript one does.
-import '../stage1/source/bootstrap.js';
-import { stripSourceExtension } from '../stage1/source/registry.js';
+import { stripSourceExtension } from '../plugins/source-set.js';
 import { domainLabelSlug, domainSlug } from './domain-slug.js';
 import { lastPathSegment, toPosixPath } from '../platform/paths.js';
 

@@ -38,9 +38,7 @@ import { CLIENT_CAPABILITIES, type ClientId } from './client-capabilities.js';
 import { CLIENT_DISPATCHER_FILENAME, readClientDispatcherSource } from './dispatcher/index.js';
 import { shouldWalkDiscoveryDir } from '../scan-filters.js';
 // Side-effect import: the built-in source plugins must be registered before the preflight asks
-// the registry which extensions signal a project.
-import '../stage1/source/bootstrap.js';
-import { getKnownExtensions } from '../stage1/source/registry.js';
+import { getKnownExtensions } from '../plugins/source-set.js';
 import { normalizeRelPath } from '../platform/paths.js';
 import {
   isManagedClaudeHook,

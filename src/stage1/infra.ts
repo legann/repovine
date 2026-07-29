@@ -10,15 +10,13 @@ import {
   walkRepository,
 } from '@repovine/plugin-sdk';
 import type { IaCParser, LoadedDocument } from '@repovine/plugin-sdk';
-// Side-effect import: registers all built-in IaC parsers in the shared registry.
-import './iac/bootstrap.js';
 import {
   getLoaderRegistrationConflicts,
   getParsers,
   isInfraCandidate,
   parserMatchesFile,
   resolveLoaderForFile,
-} from './iac/registry.js';
+} from '../plugins/iac-set.js';
 import type { CompiledScanPatterns } from '../scan-filters.js';
 import { shouldScanInfraPath } from '../scan-filters.js';
 import { infraNodeId } from '../graph/node-ids.js';

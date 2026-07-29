@@ -5,7 +5,7 @@ import { HASH_WIDTH, sha256Hex } from './content-hash.js';
 import { validateSemanticModuleDelta, validateSemanticInfraDelta } from './fact-schemas.js';
 import type { SourcePlugin, SourceExtractInput } from './source-plugin/types.js';
 import { mintModuleId } from './source-plugin/module-id.js';
-import type { IaCPluginDescriptor } from './factory.js';
+import type { PluginRuntimeDescriptor } from './plugin/descriptor.js';
 import type { PackageInfo, PendingModule, PendingModuleDraft, IaCParser } from './types.js';
 
 /**
@@ -163,22 +163,26 @@ function iacParserMatchesFile(parser: IaCParser, filePath: string): boolean {
   return false;
 }
 
-/** Run conformance checks against an IaC plugin descriptor over a set of sample documents. */
+/**
+ * Run conformance checks against a plugin's IaC capability over a set of sample documents.
+ *
+ * The argument is the package's own default export, so the kit reads what the host reads: a
+ * descriptor whose `capabilities.iac` is absent fails the first check rather than being silently
+ * skipped.
+ */
 export function checkIaCPluginConformance(
-  descriptor: IaCPluginDescriptor,
+  descriptor: PluginRuntimeDescriptor,
   opts: { samples: Array<{ filePath: string; relPath: string; doc: unknown }> },
 ): ConformanceReport {
   const checks: ConformanceCheck[] = [];
+  const parsers: readonly IaCParser[] = descriptor.capabilities?.iac?.parsers ?? [];
 
   checks.push(check('has string id', typeof descriptor.id === 'string' && descriptor.id.length > 0));
-  checks.push(check(
-    'apiVersion matches SDK major',
-    descriptor.apiVersion === undefined || descriptor.apiVersion === PLUGIN_API_VERSION,
-  ));
-  checks.push(check('has at least one parser', Array.isArray(descriptor.parsers) && descriptor.parsers.length > 0));
+  checks.push(check('declares an iac capability', descriptor.capabilities?.iac !== undefined));
+  checks.push(check('has at least one parser', parsers.length > 0));
   checks.push(check(
     'every parser has supports()/parse()',
-    descriptor.parsers.every(p => typeof p.supports === 'function' && typeof p.parse === 'function'),
+    parsers.every(p => typeof p.supports === 'function' && typeof p.parse === 'function'),
   ));
 
   const SEMANTIC_KEYS = ['kind', 'resources'];
@@ -188,7 +192,7 @@ export function checkIaCPluginConformance(
   // sample (the old kit) would false-pass or false-fail parsers that legitimately assume
   // supports()/first-match pre-filtering.
   for (const sample of opts.samples) {
-    for (const parser of descriptor.parsers) {
+    for (const parser of parsers) {
       if (!iacParserMatchesFile(parser, sample.filePath)) continue;
 
       let claims: boolean;

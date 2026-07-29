@@ -128,14 +128,30 @@ function scanPluginWorkspace(root: string): string[] {
     if (manifest.name !== expectedName) violations.push(`${dirName}: package name is ${String(manifest.name)}`);
     if (manifest.version !== '0.1.0') violations.push(`${dirName}: version is ${String(manifest.version)}`);
     if (manifest.private !== true) violations.push(`${dirName}: package is not private`);
-    const rootExport = manifest.exports?.['.'];
-    if (!rootExport || typeof rootExport !== 'object') {
-      violations.push(`${dirName}: root package export is missing`);
-    } else {
-      const conditions = rootExport as Record<string, unknown>;
-      if (conditions.import !== './dist/index.js' || conditions.default !== './dist/index.js') {
-        violations.push(`${dirName}: root package export must support import and anchored resolution`);
+    // The preset carries no code: its manifest names the packages and there is nothing to export.
+    if (dirName === DEFAULT_PRESET_DIR) {
+      if (manifest.exports !== undefined) violations.push(`${dirName}: a preset package exports nothing`);
+      const preset = (manifest as { repovine?: { kind?: string; plugins?: string[] } }).repovine;
+      if (preset?.kind !== 'preset') violations.push(`${dirName}: manifest kind is ${String(preset?.kind)}`);
+      const named = [...(preset?.plugins ?? [])].sort();
+      if (JSON.stringify(named) !== JSON.stringify([...BUILTIN_NAMES].sort())) {
+        violations.push(`${dirName}: preset names ${named.join(', ')}`);
       }
+    } else {
+      const rootExport = manifest.exports?.['.'];
+      if (!rootExport || typeof rootExport !== 'object') {
+        violations.push(`${dirName}: root package export is missing`);
+      } else {
+        const conditions = rootExport as Record<string, unknown>;
+        if (conditions.import !== './dist/index.js' || conditions.default !== './dist/index.js') {
+          violations.push(`${dirName}: root package export must support import and anchored resolution`);
+        }
+      }
+      // A bundled package is loaded exactly the way an installed one is, so it carries the same
+      // manifest the loader reads before importing anything.
+      const plugin = (manifest as { repovine?: { kind?: string; id?: string; apiVersion?: number } }).repovine;
+      if (plugin?.kind !== 'plugin') violations.push(`${dirName}: manifest kind is ${String(plugin?.kind)}`);
+      if (plugin?.apiVersion !== 1) violations.push(`${dirName}: manifest apiVersion is ${String(plugin?.apiVersion)}`);
     }
 
     // A built-in peer-depends on the SDK, and on the language toolchain it owns once it carries a
@@ -173,6 +189,7 @@ function scanPluginWorkspace(root: string): string[] {
     }
 
     const srcDir = path.join(packageDir, 'src');
+    if (!fs.existsSync(srcDir)) continue;
     for (const file of walkTypeScript(srcDir)) {
       for (const spec of moduleSpecifiers(file)) {
         const label = `${relativePosix(pluginsRoot, file)} -> ${spec}`;
@@ -211,31 +228,13 @@ function scanPluginWorkspace(root: string): string[] {
 }
 
 /**
- * The one core file allowed to name a built-in package, and what it may name.
+ * No core or SDK file may name a product package. The map is empty and stays empty.
  *
- * A built-in that ships as its own package has to reach production from somewhere until config-driven
- * loading replaces the pre-boundary path. Naming that file here keeps the permission a single
- * reviewed location rather than a hole: any other core or SDK module importing a product package is
- * still a violation, and so is this file importing one that is not a built-in.
+ * Built-ins reach production the way an installed plugin does: the preset's manifest names them, the
+ * loader resolves each by name and imports its entry. Nothing in `src/**` mentions one, so a
+ * permission here would be a hole rather than a reviewed exception.
  */
-const PRE_BOUNDARY_COMPOSITION_ROOTS = new Map<string, ReadonlySet<string>>([
-  [
-    ['src', 'stage1', 'source', 'bootstrap.ts'].join('/'),
-    new Set(['@repovine/plugin-source-typescript', '@repovine/plugin-source-python']),
-  ],
-  [
-    ['src', 'stage1', 'iac', 'bootstrap.ts'].join('/'),
-    new Set([
-      '@repovine/plugin-iac-docker-compose',
-      '@repovine/plugin-iac-dockerfile',
-      '@repovine/plugin-iac-helm',
-      '@repovine/plugin-iac-kubernetes',
-      '@repovine/plugin-iac-sam',
-      '@repovine/plugin-iac-terraform',
-      '@repovine/plugin-iac-vercel',
-    ]),
-  ],
-]);
+const PRE_BOUNDARY_COMPOSITION_ROOTS = new Map<string, ReadonlySet<string>>();
 
 function scanCoreProductImports(root: string): string[] {
   const violations: string[] = [];
@@ -292,9 +291,12 @@ describe('core-laws physical plugin workspace boundary', () => {
     const rootTsconfig = readJson<{ references: Array<{ path: string }> }>(
       path.join(repoRoot(), 'tsconfig.json'),
     );
+    // Every package that carries code is a project reference. The preset carries none, so it is
+    // not one — a reference to a directory with no `tsconfig.json` fails the build outright.
     const references = new Set(rootTsconfig.references.map(ref => ref.path.replaceAll('\\', '/')));
     for (const dirName of ALL_PACKAGE_DIRS) {
-      expect(references.has(`packages/plugins/${dirName}`)).toBe(true);
+      expect({ dirName, referenced: references.has(`packages/plugins/${dirName}`) })
+        .toEqual({ dirName, referenced: dirName !== DEFAULT_PRESET_DIR });
     }
   });
 
@@ -347,25 +349,30 @@ describe('core-laws physical plugin workspace boundary', () => {
     }
   });
 
-  it('names every built-in only from the pre-boundary composition roots', () => {
-    const sourceBootstrap = fs.readFileSync(
-      path.join(repoRoot(), 'src', 'stage1', 'source', 'bootstrap.ts'),
-      'utf8',
+  it('reaches every built-in through the preset manifest, and none by name', () => {
+    // The preset is the only place the nine packages are enumerated, and it enumerates them as
+    // data. A composition root that imported them would be back in the engine's module graph.
+    const preset = readJson<{ repovine?: { plugins?: string[] } }>(
+      path.join(repoRoot(), 'packages', 'plugins', DEFAULT_PRESET_DIR, 'package.json'),
     );
-    const iacBootstrap = fs.readFileSync(
-      path.join(repoRoot(), 'src', 'stage1', 'iac', 'bootstrap.ts'),
-      'utf8',
-    );
-    // Both verticals ship from their packages, and each bootstrap names only its own half.
-    expect(sourceBootstrap).toContain("from '@repovine/plugin-source-typescript'");
-    expect(sourceBootstrap).toContain("from '@repovine/plugin-source-python'");
-    expect(iacBootstrap).toContain("from '@repovine/plugin-iac-sam'");
-    expect(iacBootstrap).toContain("from '@repovine/plugin-iac-kubernetes'");
-    // The declarative preset is still not what core loads: config-driven loading replaces these
-    // roots, and until then core reaches the packages one by one.
-    expect(sourceBootstrap + iacBootstrap).not.toContain('@repovine/plugin-default-preset');
-    // Neither vertical left an implementation behind in the engine tree.
-    expect(fs.existsSync(path.join(repoRoot(), 'src', 'source-plugins'))).toBe(false);
-    expect(fs.existsSync(path.join(repoRoot(), 'src', 'iac-plugins'))).toBe(false);
+    expect([...(preset.repovine?.plugins ?? [])].sort()).toEqual([...BUILTIN_NAMES].sort());
+
+    // The loader names the preset package and nothing under it.
+    const loader = fs.readFileSync(path.join(repoRoot(), 'src', 'plugins', 'load.ts'), 'utf8');
+    expect(loader).toContain('@repovine/plugin-default-preset');
+    for (const name of BUILTIN_NAMES) expect(loader).not.toContain(`'${name}'`);
+
+    // The pre-boundary composition roots are gone, along with both implementation trees.
+    for (const gone of [
+      ['src', 'stage1', 'source', 'bootstrap.ts'],
+      ['src', 'stage1', 'iac', 'bootstrap.ts'],
+      ['src', 'stage1', 'source', 'registry.ts'],
+      ['src', 'stage1', 'iac', 'registry.ts'],
+      ['src', 'source-plugins'],
+      ['src', 'iac-plugins'],
+    ]) {
+      expect({ path: gone.join('/'), exists: fs.existsSync(path.join(repoRoot(), ...gone)) })
+        .toEqual({ path: gone.join('/'), exists: false });
+    }
   });
 });

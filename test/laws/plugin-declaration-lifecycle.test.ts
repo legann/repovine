@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { applyPluginConfig } from '../../src/stage1/plugin-loader.js';
+import { loadPluginSet } from '../../src/plugins/load.js';
 import {
   buildDeclarationCatalog,
   catalogResourceKindMeta,
@@ -12,8 +12,6 @@ import {
 } from '../../src/plugins/declaration-catalog.js';
 import { pluginRuntimeIdentity } from '../../src/plugins/runtime.js';
 import type { StampedDeclarationCatalog } from '@repovine/plugin-sdk';
-import '../../src/stage1/source/bootstrap.js';
-import '../../src/stage1/iac/bootstrap.js';
 
 /**
  * Law: a build's declarations are that build's, and a conflict is refused rather than resolved.
@@ -87,16 +85,16 @@ describe('core-laws plugin declaration lifecycle (per-run catalog, no last-write
     tmpRoots.push(bare);
 
     // Cold default build, before any external plugin was ever loaded in this process.
-    const cold = await applyPluginConfig({ repoRoot: bare, config: { defaults: true, add: [], disable: [] } });
+    const cold = await loadPluginSet({ repoRoot: bare, config: { defaults: true, add: [], disable: [] } });
 
-    const external = await applyPluginConfig({
+    const external = await loadPluginSet({
       repoRoot, config: { defaults: true, add: ['repovine-plugin-edge'], disable: [] },
     });
     expect(external.refused).toEqual([]);
     expect(catalogResourceKindMeta(external.runtime.catalog, EDGE_FN)).toEqual({ hasCodeHandler: true });
 
     // Default build again, in the same process, right after the external one.
-    const after = await applyPluginConfig({ repoRoot: bare, config: { defaults: true, add: [], disable: [] } });
+    const after = await loadPluginSet({ repoRoot: bare, config: { defaults: true, add: [], disable: [] } });
 
     expect(declarationCatalogIdentity(after.runtime.catalog))
       .toEqual(declarationCatalogIdentity(cold.runtime.catalog));
@@ -221,7 +219,7 @@ describe('core-laws plugin declaration lifecycle (per-run catalog, no last-write
     const repoRoot = makeRepoWithPlugin('repovine-plugin-edge', EDGE_MANIFEST, IAC_PLUGIN_JS);
 
     // The parser capability is off; the pruning and metadata facts it shipped stay in force.
-    const disabledParser = await applyPluginConfig({
+    const disabledParser = await loadPluginSet({
       repoRoot,
       config: { defaults: false, add: ['repovine-plugin-edge'], disable: [] },
     });
@@ -229,7 +227,7 @@ describe('core-laws plugin declaration lifecycle (per-run catalog, no last-write
     expect(catalogResourceKindMeta(disabledParser.runtime.catalog, EDGE_FN)).toEqual({ hasCodeHandler: true });
 
     // An explicit retraction is the way to drop one, and it names what it removed.
-    const retracted = await applyPluginConfig({
+    const retracted = await loadPluginSet({
       repoRoot,
       config: {
         defaults: true,

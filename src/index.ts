@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { collectRepositoryFactsAsync } from './stage1/index.js';
+import { loadConfig } from './config.js';
 import { composeRepositoryGraph } from './stage2/index.js';
 import { graphStats, pathFromRoot, getImpact, domainMembers, nodesOfType } from './graph/index.js';
 import { repoRoot, cacheDir } from './paths.js';
@@ -11,7 +12,9 @@ async function main(): Promise<void> {
   // ── Stage 1 ──
 
   console.log('Stage 1: Collecting repository facts snapshot...\n');
-  const snapshot = await collectRepositoryFactsAsync(repoRoot);
+  // The workspace config names this build's plugins; dump and the embedded API load the same
+  // set the MCP server and `repovine build` do.
+  const snapshot = await collectRepositoryFactsAsync(repoRoot, { plugins: loadConfig(repoRoot).plugins });
 
   const totalImports = snapshot.modules.reduce((s, m) => s + m.imports.length, 0);
   const resolvedImports = snapshot.modules.reduce(

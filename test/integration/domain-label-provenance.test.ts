@@ -14,10 +14,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph, CONTENT_DOMAIN_IDS } from '../../src/stage2/index.js';
-import { stripSourceExtension } from '../../src/stage1/source/registry.js';
-import { getAllRegisteredKindDomains } from '../../src/stage1/iac/registry.js';
-import '../../src/stage1/iac/bootstrap.js';
-import '../../src/stage1/source/bootstrap.js';
+import { stripSourceExtension } from '../../src/plugins/source-set.js';
+import { getActiveKindDomains } from '../../src/plugins/iac-set.js';
 import type { RepositoryGraph } from '../../src/types.js';
 
 const FIXTURES_ROOT = [
@@ -72,7 +70,7 @@ function collectTreeNames(root: string, packageNames: readonly string[]): Set<st
 }
 
 function declaredDomainIds(): Set<string> {
-  return new Set([...getAllRegisteredKindDomains().map(({ meta }) => meta.domainId), ...CONTENT_DOMAIN_IDS]);
+  return new Set([...getActiveKindDomains().map(({ meta }) => meta.domainId), ...CONTENT_DOMAIN_IDS]);
 }
 
 function emittedDomainLabels(graph: RepositoryGraph): Array<{ id: string; label: string }> {

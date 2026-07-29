@@ -313,6 +313,7 @@ function poolOptions(size = 2): PackageWorkerPoolOptions {
     absPathToId: new Map(),
     repoRoot: '/repo',
     extractContextByPlugin: new Map(),
+    pluginSpec: { repoRoot: '/repo', config: { defaults: true, add: [], disable: [] } },
     analysisVersion: 1,
     soloThreshold: 1,
   };

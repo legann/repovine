@@ -1,8 +1,6 @@
 import type { RepositoryGraph } from '../types.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-// registry which basenames mark a package's entry file.
-import '../stage1/source/bootstrap.js';
-import { getSourceIndexBasenames, stripIndexBasename, stripModuleIdSuffix } from '../stage1/source/registry.js';
+import { getSourceIndexBasenames, stripIndexBasename, stripModuleIdSuffix } from '../plugins/source-set.js';
 import { lastPathSegment } from '../platform/paths.js';
 
 /**

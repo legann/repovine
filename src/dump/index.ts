@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import yaml from 'js-yaml';
 import { collectRepositoryFactsAsync } from '../stage1/index.js';
+import { loadConfig } from '../config.js';
 import { composeRepositoryGraph, getComposedRefusals } from '../stage2/index.js';
 import { getGraphExtensions } from '../graph/build-artifact.js';
 import type { ExtensionRecord } from '@repovine/plugin-sdk';
@@ -196,7 +197,9 @@ const wantJson = args.length === 0 || args.includes('--json');
 console.log(`Building repovine context for: ${repoRoot}`);
 
 console.log('Stage 1: Repository facts snapshot...');
-const snapshot = await collectRepositoryFactsAsync(repoRoot);
+// The workspace config names this build's plugins; dump and the embedded API load the same
+// set the MCP server and `repovine build` do.
+const snapshot = await collectRepositoryFactsAsync(repoRoot, { plugins: loadConfig(repoRoot).plugins });
 
 console.log('Stage 2: repovine repository graph...');
 const graph = composeRepositoryGraph(snapshot);

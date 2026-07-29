@@ -27,15 +27,15 @@ const MIN_TOOLS = 18;
 // still waiting for its migration exports only its identity. The distinction is asserted per package
 // so a package that quietly stopped carrying its implementation is caught by name.
 const BUNDLED_PLUGIN_PACKAGES = {
-  '@repovine/plugin-source-typescript': ['typescript', 'source-plugin'],
-  '@repovine/plugin-source-python': ['python', 'source-plugin'],
-  '@repovine/plugin-iac-sam': ['sam', 'iac-plugin'],
-  '@repovine/plugin-iac-kubernetes': ['kubernetes', 'iac-plugin'],
-  '@repovine/plugin-iac-helm': ['helm', 'iac-plugin'],
-  '@repovine/plugin-iac-terraform': ['terraform', 'iac-plugin'],
-  '@repovine/plugin-iac-vercel': ['vercel', 'iac-plugin'],
-  '@repovine/plugin-iac-dockerfile': ['dockerfile', 'iac-plugin'],
-  '@repovine/plugin-iac-docker-compose': ['docker-compose', 'iac-plugin'],
+  '@repovine/plugin-source-typescript': ['typescript', 'source'],
+  '@repovine/plugin-source-python': ['python', 'source'],
+  '@repovine/plugin-iac-sam': ['sam', 'iac'],
+  '@repovine/plugin-iac-kubernetes': ['kubernetes', 'iac'],
+  '@repovine/plugin-iac-helm': ['helm', 'iac'],
+  '@repovine/plugin-iac-terraform': ['terraform', 'iac'],
+  '@repovine/plugin-iac-vercel': ['vercel', 'iac'],
+  '@repovine/plugin-iac-dockerfile': ['dockerfile', 'iac'],
+  '@repovine/plugin-iac-docker-compose': ['docker-compose', 'iac'],
 };
 const DEFAULT_PRESET_PACKAGE = '@repovine/plugin-default-preset';
 const EXPECTED_BUNDLED_PACKAGES = [
@@ -86,8 +86,8 @@ function probeInstalledPluginPackages(installed) {
         }
         packages[name] = {
           resolved,
-          pluginId: mod.default?.pluginId,
-          activation: mod.default?.activation,
+          pluginId: mod.default?.id,
+          capabilities: Object.keys(mod.default?.capabilities ?? {}).sort(),
           expectedPluginId: pluginId,
           manifest,
         };
@@ -95,17 +95,18 @@ function probeInstalledPluginPackages(installed) {
         packages[name] = { error: error?.code ?? error?.message ?? String(error) };
       }
     }
+    // The preset is data: names, not code. It is read from its package.json the way the engine
+    // reads it, so a preset that lost a member is caught by the list, not by an import.
     let preset;
     try {
-      const resolved = anchoredRequire.resolve(process.env.REPOVINE_SMOKE_PRESET);
-      const mod = await import(pathToFileURL(resolved).href);
-      const value = mod.default;
+      const { readFileSync } = await import('node:fs');
+      const manifestPath = anchoredRequire.resolve(process.env.REPOVINE_SMOKE_PRESET + '/package.json');
+      const pkg = JSON.parse(readFileSync(manifestPath, 'utf-8'));
       preset = {
-        resolved,
-        activation: value?.activation,
-        pluginCount: Array.isArray(value?.plugins) ? value.plugins.length : -1,
-        sameInstances: Array.isArray(value?.plugins)
-          && value.plugins.every(plugin => direct.get(plugin.packageName) === plugin),
+        resolved: manifestPath,
+        kind: pkg.repovine?.kind,
+        plugins: pkg.repovine?.plugins ?? [],
+        allResolvable: (pkg.repovine?.plugins ?? []).every(name => direct.has(name)),
       };
     } catch (error) {
       preset = { error: error?.code ?? error?.message ?? String(error) };
@@ -217,35 +218,33 @@ try {
     const rel = path.relative(installedTree, resolved);
     return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
   };
-  for (const [packageName, [pluginId, activation]] of Object.entries(BUNDLED_PLUGIN_PACKAGES)) {
+  for (const [packageName, [pluginId, capability]] of Object.entries(BUNDLED_PLUGIN_PACKAGES)) {
     const result = pluginProbe.packages[packageName];
     check(
       resolvesInsideInstalledTree(result?.resolved),
       `${packageName} resolves from installed repovine/package.json`,
     );
     check(
-      result?.pluginId === pluginId && result?.activation === activation,
-      `${packageName} public entrypoint imports from the installed tarball (${activation})`,
+      result?.pluginId === pluginId && (result?.capabilities ?? []).includes(capability),
+      `${packageName} default-exports a ${capability} descriptor from the installed tarball`,
     );
-    if (activation === 'iac-plugin') {
-      check(
-        result?.manifest?.id === pluginId && result?.manifest?.apiVersion === 1,
-        `${packageName} declares its manifest where the engine reads it (package.json#repovine)`,
-      );
-    }
+    check(
+      result?.manifest?.id === pluginId && result?.manifest?.apiVersion === 1,
+      `${packageName} declares its manifest where the engine reads it (package.json#repovine)`,
+    );
   }
   check(
     resolvesInsideInstalledTree(pluginProbe.preset?.resolved),
     `${DEFAULT_PRESET_PACKAGE} resolves from installed repovine/package.json`,
   );
   check(
-    pluginProbe.preset?.activation === 'scaffold-only'
-      && pluginProbe.preset?.pluginCount === Object.keys(BUNDLED_PLUGIN_PACKAGES).length,
-    'default preset imports all nine bundled public entrypoints',
+    pluginProbe.preset?.kind === 'preset'
+      && pluginProbe.preset?.plugins?.length === Object.keys(BUNDLED_PLUGIN_PACKAGES).length,
+    'default preset names all nine bundled packages in its manifest',
   );
   check(
-    pluginProbe.preset?.sameInstances === true,
-    'default preset and direct imports resolve the same bundled module instances',
+    pluginProbe.preset?.allResolvable === true,
+    'every package the preset names resolves from the installed tarball',
   );
   check(
     existsSync(path.join(consumer, 'node_modules', 'typescript')),

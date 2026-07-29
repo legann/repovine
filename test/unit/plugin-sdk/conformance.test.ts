@@ -10,7 +10,7 @@ import {
   type SourceExtractInput,
   type PendingModule,
   type IaCParser,
-  type IaCPluginDescriptor,
+  type PluginRuntimeDescriptor,
 } from '@repovine/plugin-sdk';
 import { dockerfileIacPlugin } from '../../../packages/plugins/iac-dockerfile/src/index.js';
 
@@ -117,7 +117,10 @@ describe('plugin-sdk conformance kit', () => {
       supports: (_f, doc) => !!doc && typeof doc === 'object' && 'apiVersion' in (doc as object),
       parse: () => ({ kind: 'kubernetes', resources: [] }),
     };
-    const descriptor: IaCPluginDescriptor = { id: 'dispatch-fidelity', parsers: [guarded, claiming] };
+    const descriptor: PluginRuntimeDescriptor = {
+      id: 'dispatch-fidelity',
+      capabilities: { iac: { parsers: [guarded, claiming] } },
+    };
 
     const report = checkIaCPluginConformance(descriptor, {
       samples: [{ filePath: '/repo/svc.yaml', relPath: 'svc.yaml', doc: { apiVersion: 'v1', kind: 'Service' } }],

@@ -276,7 +276,14 @@ try {
     extensions: (run.resource?.result?.extensions ?? []).map(e => [e.pluginId, e.schema, e.localKey]).sort(),
     contributors: (run.status?.result?.projection?.contributors ?? []).map(c => [c.pluginId, c.contributorId, c.status]).sort(),
   });
-  check(shape(first) === shape(second), 'reversing the plugin order changes nothing a reader can see');
+  const firstShape = shape(first);
+  const secondShape = shape(second);
+  if (firstShape !== secondShape) {
+    // The whole point of the check is that nothing a reader sees moved, so name what did.
+    console.log(`    first:  ${firstShape}`);
+    console.log(`    second: ${secondShape}`);
+  }
+  check(firstShape === secondShape, 'reversing the plugin order changes nothing a reader can see');
 } finally {
   if (keep) console.log(`\nKept: ${workRoot}`);
   else rmSync(workRoot, { recursive: true, force: true });

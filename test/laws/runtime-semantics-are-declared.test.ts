@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { buildDeclarationCatalog } from '../../src/plugins/declaration-catalog.js';
-import { builtinPluginRuntime } from '../../src/stage1/plugin-loader.js';
+import { presetDeclarationCatalog } from '../../src/plugins/load.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { projectRuntimeTopology } from '../../src/mcp/lib/topology.js';
 import { ALL_SCOPE } from '../../src/scope/resolved.js';
@@ -202,22 +202,21 @@ describe('core-laws runtime resource semantics come from declarations', () => {
   it('carries the bundled preset declarations on a build that names no plugins', () => {
     // The gate for the whole channel: a default build's catalog is what the shipped packages
     // declare. When it is empty, every pass above silently links nothing.
-    const { runtime, problems } = builtinPluginRuntime();
+    const { catalog, problems } = presetDeclarationCatalog();
     expect(problems).toEqual([]);
-    expect(runtime.refusals).toEqual([]);
 
-    const keys = runtime.catalog.resourceKinds.map(record => record.key);
+    const keys = catalog.resourceKinds.map(record => record.key);
     expect(keys).toContain('resource-kind:aws-lambda/aws/lambda');
     expect(keys).toContain('resource-kind:terraform/terraform/lambda');
     expect(keys).toContain('resource-kind:vercel/vercel/vercel-function');
     // Every declaration is stamped from its own package, so a reader can name who declared it.
-    for (const record of runtime.catalog.resourceKinds) {
+    for (const record of catalog.resourceKinds) {
       for (const declaration of record.declarations) {
         expect(declaration.declaredBy.packageName).toMatch(/^@repovine\/plugin-iac-/);
         expect(declaration.declaredBy.packageVersion).toMatch(/^\d+\.\d+\.\d+/);
       }
     }
-    expect(runtime.catalog.runtimeActions.map(record => record.key))
+    expect(catalog.runtimeActions.map(record => record.key))
       .toEqual(['runtime-action:lambda.invoke', 'runtime-action:sns.publish', 'runtime-action:sqs.sendMessage']);
   });
 });

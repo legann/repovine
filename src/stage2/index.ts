@@ -54,7 +54,7 @@ export function rememberComposedRefusals(graph: RepositoryGraph, refusals: Refus
   composedRefusals.set(graph, refusals);
 }
 import { domainSlug } from './domain-slug.js';
-import { getSourceIndexBasenames, stripSourceExtension } from '../stage1/source/registry.js';
+import { getSourceIndexBasenames, stripSourceExtension } from '../plugins/source-set.js';
 
 const STRUCTURAL_DIRS_REF = STRUCTURAL_DIRS;
 
@@ -214,15 +214,6 @@ export async function composeRepositoryGraphAsync(
     signal?.throwIfAborted(); // honor cancel on the inline path too
     return composeRepositoryGraph(snapshot, modulesById);
   }
-  // Projectors are code. A function survives neither structured clone nor the worker's own module
-  // graph, which carries the bundled preset only — so a build with projectors composes where they
-  // were loaded rather than in an isolate that would silently project nothing. Same reason external
-  // source plugins force inline extraction in Stage 1, and stage 7 retires both by giving the worker
-  // the one plugin-loading path.
-  if (getPluginRuntime(snapshot).contributors.length > 0) {
-    signal?.throwIfAborted();
-    return composeRepositoryGraph(snapshot, modulesById);
-  }
   try {
     return await runStage2InWorker(snapshot, signal);
   } catch (e) {
@@ -241,9 +232,10 @@ export async function composeRepositoryGraphAsync(
 /**
  * Run this build's projectors against the graph as it stands.
  *
- * The contributors come from the runtime keyed to this snapshot. Inside a worker isolate, or
- * against a snapshot restored from cache, there are none — which is why a build with projectors
- * composes inline (see `composeRepositoryGraphAsync`) rather than silently projecting nothing.
+ * The contributors come from the runtime keyed to this snapshot. Every isolate that composes loads
+ * the set itself from `snapshot.plugins`, so the Stage 2 worker holds the same contributors the
+ * control plane did. A snapshot that names no plugin config has none, and none is then the honest
+ * answer rather than a silently empty projection.
  */
 function composeProjectionsFor(
   graph: RepositoryGraph,

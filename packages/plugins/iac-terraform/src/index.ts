@@ -1,4 +1,4 @@
-import { PLUGIN_API_VERSION, defineIaCPlugin } from '@repovine/plugin-sdk';
+import { definePlugin } from '@repovine/plugin-sdk';
 import { terraformParser } from './parser.js';
 
 /**
@@ -12,35 +12,23 @@ import { terraformParser } from './parser.js';
  * `package.json#repovine.declarations` — a repo using only Terraform still gets handler→code
  * linking, and the declaration does not collide with the SAM plugin's.
  */
-export const terraformIacPlugin = defineIaCPlugin({
+export const terraformIacPlugin = definePlugin({
   id: 'terraform',
-  parsers: [terraformParser],
-  kindDomains: [
-    {
-      kind: 'terraform',
-      meta: {
-        domainId: 'domain:infra-terraform',
-        label: 'infra-terraform',
-        description: 'Domain: infra-terraform (HCL modules and resources)',
-      },
+  capabilities: {
+    iac: {
+      parsers: [terraformParser],
+      kindDomains: [
+        {
+          kind: 'terraform',
+          meta: {
+            domainId: 'domain:infra-terraform',
+            label: 'infra-terraform',
+            description: 'Domain: infra-terraform (HCL modules and resources)',
+          },
+        },
+      ],
     },
-  ],
+  },
 });
 
-/**
- * What this package activates, in the shape every bundled plugin package publishes.
- *
- * An installed tarball is probed through this object: the package name it claims, the plugin id it
- * carries and the capability it activates. A package that stopped carrying its implementation is
- * caught by name rather than by a graph that quietly lost a resource kind.
- */
-export const builtinPluginPackage = Object.freeze({
-  packageName: '@repovine/plugin-iac-terraform',
-  pluginId: 'terraform',
-  capability: 'iac',
-  apiVersion: PLUGIN_API_VERSION,
-  activation: 'iac-plugin',
-  iacPlugin: terraformIacPlugin,
-} as const);
-
-export default builtinPluginPackage;
+export default terraformIacPlugin;

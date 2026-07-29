@@ -1,7 +1,5 @@
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-// registry which suffixes the id drops.
-import '../stage1/source/bootstrap.js';
-import { stripModuleIdSuffix } from '../stage1/source/registry.js';
+import { stripModuleIdSuffix } from '../plugins/source-set.js';
 
 /**
  * Short two-segment label for module and infra-module nodes. Neutral helper shared by the

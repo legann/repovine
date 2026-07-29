@@ -10,8 +10,19 @@
  * validators report what they refuse.
  */
 
-export { PLUGIN_MANIFEST_KIND, validatePluginManifest } from './manifest.js';
-export type { PluginManifest, PluginManifestKind, PluginManifestValidation } from './manifest.js';
+export {
+  PLUGIN_MANIFEST_KIND,
+  validatePluginManifest,
+  validatePresetManifest,
+} from './manifest.js';
+export type {
+  PluginManifest,
+  PluginManifestKind,
+  PluginManifestValidation,
+  PresetManifest,
+  PresetManifestKind,
+  PresetManifestValidation,
+} from './manifest.js';
 
 export {
   PLUGIN_CAPABILITY_NAMES,

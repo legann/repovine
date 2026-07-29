@@ -252,20 +252,10 @@ export class RepovineRuntime {
       maxPackageWorkers: this.scanConfig.maxPackageWorkers,
       progress,
       signal: this.activeSignal(suppressBuildHooks),
-      // Only run the external-plugin loader when the config asks for something non-default
-      // (added/disabled plugins, or the preset turned off). The bundled-only common case keeps the
-      // existing fast path — the registry already holds the preset via bootstrap.
-      plugins: this.pluginsHaveWork() ? this.pluginsConfig : undefined,
+      // Always the resolved config, never a fast path around it: the preset is loaded the same way
+      // an added package is, and a build that skipped the loader would have no plugins at all.
+      plugins: this.pluginsConfig,
     };
-  }
-
-  /** True when `config.plugins` requires the loader (third-party adds, disables, or preset off). */
-  private pluginsHaveWork(): boolean {
-    return (
-      this.pluginsConfig.defaults === false ||
-      this.pluginsConfig.add.length > 0 ||
-      this.pluginsConfig.disable.length > 0
-    );
   }
 
   private async collectSnapshotAndGraphAsync(suppressBuildHooks: boolean) {

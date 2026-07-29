@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
 import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import { packageJobKey } from './utils.js';
+import type { PluginLoadSpec } from '../plugins/load.js';
 
 /** Grace period for a worker to kill+reap its in-flight subprocesses and exit on its own after a
  * shutdown message, before the pool force-terminates it. Force-termination races the shutdown and
@@ -52,6 +53,9 @@ export interface PackageWorkerPoolOptions {
   extractContextByPlugin: Map<string, unknown>;
   /** STAGE1_ANALYSIS_VERSION of the current run, forwarded to plugin extract(). */
   analysisVersion: number;
+  /** The plugin set this build resolved. Each worker loads it through the one loading path before
+   *  it takes a job, so an isolate runs the same extractors the control plane loaded. */
+  pluginSpec: PluginLoadSpec;
   /** Packages with >= this many pending modules consume a solo slot (no concurrency). */
   soloThreshold: number;
   /** Grace period (ms) a worker gets to exit on its own after a shutdown message before the pool
@@ -110,6 +114,7 @@ export class PackageWorkerPool {
           repoRoot: opts.repoRoot,
           extractContextEntries,
           analysisVersion: opts.analysisVersion,
+          pluginSpec: opts.pluginSpec,
         },
       });
       const slot: WorkerSlot = { worker, busy: false, runningSolo: false, dead: false, currentJobId: undefined };

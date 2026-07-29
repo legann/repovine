@@ -13,6 +13,15 @@
     },
     "./package.json": "./package.json"
   },
+  "repovine": {
+    "kind": "plugin",
+    "id": "python",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "python"
+    }
+  },
   "files": [
     "dist"
   ],

@@ -2,13 +2,11 @@ import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { applyPluginConfig, getActivePluginIds } from '../../src/stage1/plugin-loader.js';
-import { getSourcePlugin } from '../../src/stage1/source/registry.js';
-import { getParsers } from '../../src/stage1/iac/registry.js';
+import { loadPluginSet, getActivePluginIds } from '../../src/plugins/load.js';
+import { getSourcePlugin } from '../../src/plugins/source-set.js';
+import { getParsers } from '../../src/plugins/iac-set.js';
 import { catalogTriggerTypeMeta } from '../../src/plugins/declaration-catalog.js';
 import type { SourceExtractInput } from '@repovine/plugin-sdk';
-import '../../src/stage1/source/bootstrap.js';
-import '../../src/stage1/iac/bootstrap.js';
 
 // The plugin loader resolves plugins from the ANALYZED repo, validates `package.json#repovine`
 // against the SDK manifest schema, checks that the descriptor claims the same id, stamps ownership
@@ -115,23 +113,25 @@ describe('plugin-loader', () => {
 
   afterEach(async () => {
     // Restore the built-in baseline so later suites see an un-polluted registry.
-    await applyPluginConfig({ repoRoot: process.cwd(), config: { defaults: true, add: [], disable: [] } });
+    await loadPluginSet({ repoRoot: process.cwd(), config: { defaults: true, add: [], disable: [] } });
     for (const root of tmpRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
   });
 
   it('resolves + registers a source capability from the analyzed repo', async () => {
     const repoRoot = makeRepoWithPlugin({ name: 'repovine-plugin-foo', manifest: sourceManifest('foo-lang'), indexJs: SOURCE_PLUGIN_JS });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-foo'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: true, add: ['repovine-plugin-foo'], disable: [] } });
 
     expect(report.refused).toEqual([]);
-    expect(report.loaded).toHaveLength(1);
-    expect(report.loaded[0]).toMatchObject({
+    // The report lists every plugin this build loaded, bundled and installed alike; the assertion
+    // is about the one the config added.
+    const external = report.loaded.filter(entry => entry.name === 'repovine-plugin-foo');
+    expect(external).toHaveLength(1);
+    expect(external[0]).toMatchObject({
       name: 'repovine-plugin-foo',
       version: '2.3.4',
       id: 'foo-lang',
       capabilities: ['source'],
     });
-    expect(report.externalSourceIds.has('foo-lang')).toBe(true);
     expect(getActivePluginIds().source).toContain('foo-lang');
     // Bundled preset is still present alongside the external plugin.
     expect(getActivePluginIds().source).toContain('typescript');
@@ -139,13 +139,13 @@ describe('plugin-loader', () => {
 
   it('registers an IaC capability', async () => {
     const repoRoot = makeRepoWithPlugin({ name: 'repovine-plugin-iac', manifest: sourceManifest('foo-iac'), indexJs: IAC_PLUGIN_JS });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-iac'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: true, add: ['repovine-plugin-iac'], disable: [] } });
 
-    expect(report.loaded.map(l => l.id)).toEqual(['foo-iac']);
-    expect(report.loaded[0]!.capabilities).toEqual(['iac']);
+    const external = report.loaded.filter(entry => entry.name === 'repovine-plugin-iac');
+    expect(external.map(l => l.id)).toEqual(['foo-iac']);
+    expect(external[0]!.capabilities).toEqual(['iac']);
     expect(getActivePluginIds().iac).toContain('foo-iac');
-    // An IaC capability is not a source capability → it does not force inline extraction.
-    expect(report.externalSourceIds.size).toBe(0);
+    expect(getActivePluginIds().source).not.toContain('foo-iac');
   });
 
   it('reports every capability one descriptor declares', async () => {
@@ -165,7 +165,7 @@ describe('plugin-loader', () => {
         },
       };`,
     });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-wide'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-wide'], disable: [] } });
 
     expect(report.refused).toEqual([]);
     expect(report.loaded[0]!.capabilities).toEqual(['source', 'iac', 'loaders', 'projectors']);
@@ -187,7 +187,7 @@ describe('plugin-loader', () => {
       },
       indexJs: IAC_PLUGIN_JS.replace("'foo-iac'", "'declaring'").replace('foo-infra', 'edge-infra'),
     });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-declaring'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-declaring'], disable: [] } });
 
     expect(report.refused).toEqual([]);
     const declarations = report.loaded[0]!.declarations;
@@ -222,7 +222,7 @@ describe('plugin-loader', () => {
       },
       indexJs: SOURCE_PLUGIN_JS.replace("'foo-lang'", "'forger'"),
     });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-forger'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-forger'], disable: [] } });
 
     expect(report.loaded).toEqual([]);
     expect(report.refused[0]!.reason).toMatch(/declaredBy/);
@@ -230,7 +230,7 @@ describe('plugin-loader', () => {
 
   it('refuses a plugin whose apiVersion is incompatible with the SDK major', async () => {
     const repoRoot = makeRepoWithPlugin({ name: 'repovine-plugin-future', manifest: sourceManifest('foo-lang', '2'), indexJs: SOURCE_PLUGIN_JS });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-future'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-future'], disable: [] } });
 
     expect(report.loaded).toEqual([]);
     expect(report.refused).toHaveLength(1);
@@ -244,7 +244,7 @@ describe('plugin-loader', () => {
       manifest: { kind: 'source-plugin', id: 'foo-lang', apiVersion: 1, entry: 'index.js' },
       indexJs: SOURCE_PLUGIN_JS,
     });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-oldkind'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-oldkind'], disable: [] } });
 
     expect(report.loaded).toEqual([]);
     expect(report.refused[0]!.reason).toMatch(/kind/);
@@ -256,7 +256,7 @@ describe('plugin-loader', () => {
       manifest: sourceManifest('declared-id'),
       indexJs: SOURCE_PLUGIN_JS,
     });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-liar'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-liar'], disable: [] } });
 
     expect(report.loaded).toEqual([]);
     expect(report.refused[0]!.reason).toMatch(/does not match manifest id/);
@@ -272,7 +272,7 @@ describe('plugin-loader', () => {
     fs.mkdirSync(path.join(repoRoot, 'node_modules', 'outside'), { recursive: true });
     fs.writeFileSync(path.join(repoRoot, 'node_modules', 'outside', 'index.js'), SOURCE_PLUGIN_JS);
 
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-escape'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-escape'], disable: [] } });
     expect(report.loaded).toEqual([]);
     expect(report.refused[0]!.reason).toMatch(/".." segment/);
   });
@@ -291,7 +291,7 @@ describe('plugin-loader', () => {
     fs.mkdirSync(path.join(repoRoot, 'node_modules', 'outside'), { recursive: true });
     fs.writeFileSync(path.join(repoRoot, 'node_modules', 'outside', 'index.js'), SOURCE_PLUGIN_JS);
 
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-main-escape'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-main-escape'], disable: [] } });
     expect(report.loaded).toEqual([]);
     expect(report.refused[0]!.reason).toMatch(/outside the plugin package directory/);
   });
@@ -303,7 +303,7 @@ describe('plugin-loader', () => {
       indexJs: SOURCE_PLUGIN_JS,
       extraFiles: { 'lib/index.js': SOURCE_PLUGIN_JS },
     });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-winpath'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-winpath'], disable: [] } });
     expect(report.loaded).toEqual([]);
     expect(report.refused[0]!.reason).toMatch(/POSIX path/);
   });
@@ -314,7 +314,7 @@ describe('plugin-loader', () => {
       manifest: sourceManifest('empty'),
       indexJs: `export default { id: 'empty', capabilities: {} };`,
     });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-empty'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-empty'], disable: [] } });
     expect(report.loaded).toEqual([]);
     expect(report.refused[0]!.reason).toMatch(/no capability/);
   });
@@ -322,13 +322,13 @@ describe('plugin-loader', () => {
   it('records a refusal (not a throw) when the named package is not installed', async () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-plugin-test-'));
     tmpRoots.push(repoRoot);
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-missing'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-missing'], disable: [] } });
     expect(report.loaded).toEqual([]);
     expect(report.refused).toHaveLength(1);
   });
 
   it('disable removes a bundled plugin by id', async () => {
-    const report = await applyPluginConfig({ repoRoot: process.cwd(), config: { defaults: true, add: [], disable: ['python'] } });
+    const report = await loadPluginSet({ repoRoot: process.cwd(), config: { defaults: true, add: [], disable: ['python'] } });
     expect(report.disabled).toContain('python');
     expect(getActivePluginIds().source).not.toContain('python');
     expect(getActivePluginIds().source).toContain('typescript');
@@ -336,7 +336,7 @@ describe('plugin-loader', () => {
 
   it('defaults:false drops the entire bundled preset, leaving only added externals', async () => {
     const repoRoot = makeRepoWithPlugin({ name: 'repovine-plugin-foo', manifest: sourceManifest('foo-lang'), indexJs: SOURCE_PLUGIN_JS });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: false, add: ['repovine-plugin-foo'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-foo'], disable: [] } });
 
     expect(report.defaultsOff).toBe(true);
     expect(getActivePluginIds().source).toEqual(['foo-lang']);
@@ -345,7 +345,7 @@ describe('plugin-loader', () => {
 
   it('drops a structurally-broken module delta emitted by an untrusted source capability', async () => {
     const repoRoot = makeRepoWithPlugin({ name: 'repovine-plugin-mixed', manifest: sourceManifest('mixed-lang'), indexJs: MIXED_DELTA_SOURCE_JS });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-mixed'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-mixed'], disable: [] } });
     expect(report.loaded.map(l => l.id)).toEqual(['mixed-lang']);
 
     // The registered plugin is the Zod-wrapped one. Run its extract and confirm only the valid
@@ -358,7 +358,7 @@ describe('plugin-loader', () => {
 
   it('drops (→ null) a structurally-broken infra delta emitted by an untrusted IaC parser', async () => {
     const repoRoot = makeRepoWithPlugin({ name: 'repovine-plugin-broken-iac', manifest: sourceManifest('broken-iac'), indexJs: BROKEN_PARSER_IAC_JS });
-    const report = await applyPluginConfig({ repoRoot, config: { defaults: true, add: ['repovine-plugin-broken-iac'], disable: [] } });
+    const report = await loadPluginSet({ repoRoot, config: { defaults: false, add: ['repovine-plugin-broken-iac'], disable: [] } });
     expect(report.loaded.map(l => l.id)).toEqual(['broken-iac']);
 
     // The registered parser is the Zod-wrapped one. Its parse returns a non-null broken delta; the
@@ -372,8 +372,8 @@ describe('plugin-loader', () => {
   it('is idempotent — applying the same config twice does not double-register', async () => {
     const repoRoot = makeRepoWithPlugin({ name: 'repovine-plugin-foo', manifest: sourceManifest('foo-lang'), indexJs: SOURCE_PLUGIN_JS });
     const cfg = { defaults: true, add: ['repovine-plugin-foo'], disable: [] };
-    await applyPluginConfig({ repoRoot, config: cfg });
-    await applyPluginConfig({ repoRoot, config: cfg });
+    await loadPluginSet({ repoRoot, config: cfg });
+    await loadPluginSet({ repoRoot, config: cfg });
     const fooCount = getActivePluginIds().source.filter(id => id === 'foo-lang').length;
     expect(fooCount).toBe(1);
   });

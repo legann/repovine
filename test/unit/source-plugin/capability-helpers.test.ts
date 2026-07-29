@@ -1,12 +1,10 @@
 import { describe, it, expect, afterEach } from '@jest/globals';
-// Side-effect import registers the built-in source plugins once (mirrors bootstrap.test.ts).
-import '../../../src/stage1/source/bootstrap.js';
 import {
   getKnownExtensions,
   pluginHasUiSurfaces,
   pluginUsesLooseNameSeparators,
   setSourcePluginsForTest,
-} from '../../../src/stage1/source/registry.js';
+} from '../../../src/plugins/source-set.js';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 
 /** Minimal SourcePlugin stub — the capability helpers only read `id` and `capabilities`. */

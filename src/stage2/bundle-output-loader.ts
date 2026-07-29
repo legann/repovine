@@ -2,9 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { isPathInsideRepo } from '../fs/containment.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-// registry which extensions it owns, so every ecosystem reduces by its own declaration.
-import '../stage1/source/bootstrap.js';
-import { stripSourceExtension } from '../stage1/source/registry.js';
+import { stripSourceExtension } from '../plugins/source-set.js';
 import { toPosixPath } from '../platform/paths.js';
 
 /**

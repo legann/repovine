@@ -1,4 +1,4 @@
-import { builtinPluginRuntime } from '../../src/stage1/plugin-loader.js';
+import { presetDeclarationCatalog } from '../../src/plugins/load.js';
 import type { DeclarationCatalog } from '../../src/plugins/declaration-catalog.js';
 
 /**
@@ -10,5 +10,5 @@ import type { DeclarationCatalog } from '../../src/plugins/declaration-catalog.j
  * Stage 1 does on every build.
  */
 export function builtinDeclarationCatalog(): DeclarationCatalog {
-  return builtinPluginRuntime().runtime.catalog;
+  return presetDeclarationCatalog().catalog;
 }

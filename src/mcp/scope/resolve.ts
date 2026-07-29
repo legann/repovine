@@ -9,9 +9,7 @@ import type { McpToolRuntime } from '../types.js';
 // relaxation can ask the owning plugin's capability instead of comparing against 'python'.
 
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-// registry which extensions it owns, so every ecosystem reduces by its own declaration.
-import '../../stage1/source/bootstrap.js';
-import { getKnownExtensions, pluginUsesLooseNameSeparators, stripIndexBasename, stripModuleIdSuffix } from '../../stage1/source/registry.js';
+import { getKnownExtensions, pluginUsesLooseNameSeparators, stripIndexBasename, stripModuleIdSuffix } from '../../plugins/source-set.js';
 import { resolveNodeIdByShape } from '../../graph/module-files.js';
 import { toPosixPath } from '../../platform/paths.js';
 

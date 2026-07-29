@@ -3,9 +3,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { PLUGIN_API_VERSION } from '@repovine/plugin-sdk';
-import typescriptPlugin from '../../packages/plugins/source-typescript/src/plugin.js';
-import pythonPlugin from '../../packages/plugins/source-python/src/plugin.js';
+import { PLUGIN_API_VERSION, validatePluginRuntimeDescriptor } from '@repovine/plugin-sdk';
+import typescriptPlugin from '../../packages/plugins/source-typescript/src/index.js';
+import pythonPlugin from '../../packages/plugins/source-python/src/index.js';
 import { samIacPlugin } from '../../packages/plugins/iac-sam/src/index.js';
 import { helmIacPlugin } from '../../packages/plugins/iac-helm/src/index.js';
 import { kubernetesIacPlugin } from '../../packages/plugins/iac-kubernetes/src/index.js';
@@ -54,9 +54,10 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
     expect(producerTrees).toEqual([]);
   });
 
-  it('every built-in plugin was authored through a define* factory (stamped apiVersion)', () => {
-    const sourcePlugins = [typescriptPlugin, pythonPlugin];
-    const iacPlugins = [
+  it('every built-in package publishes a valid runtime descriptor', () => {
+    const descriptors = [
+      typescriptPlugin,
+      pythonPlugin,
       samIacPlugin,
       helmIacPlugin,
       kubernetesIacPlugin,
@@ -65,9 +66,14 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
       terraformIacPlugin,
       vercelIacPlugin,
     ];
-    for (const plugin of [...sourcePlugins, ...iacPlugins]) {
-      expect(plugin.apiVersion).toBe(PLUGIN_API_VERSION);
+    for (const descriptor of descriptors) {
+      const validated = validatePluginRuntimeDescriptor(descriptor);
+      expect(validated.ok ? validated.declared : validated.error).not.toHaveLength(0);
+      expect(validated.ok).toBe(true);
     }
+    // The API version is the manifest's, not a field a descriptor stamps: one number per package,
+    // read before any of this code runs.
+    expect(PLUGIN_API_VERSION).toBe(1);
   });
 
   it('the SDK facade never re-exports the ontology (layer-2/3 stays core-only)', () => {
