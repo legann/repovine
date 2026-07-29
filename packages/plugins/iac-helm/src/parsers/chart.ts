@@ -1,12 +1,12 @@
 import * as path from 'node:path';
 import type { IaCParser, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
+import { hashResourcePayload } from '@repovine/plugin-sdk';
 import { shortenText } from '@repovine/plugin-sdk';
-import { hashResourcePayload } from '../../../stage1/iac/utils.js';
 
 export const helmChartParser: IaCParser = {
   kind: 'helm',
   fileMatch: { fileNames: ['Chart.yaml', 'Chart.yml'] },
-  docFormat: 'yaml',
+  loaderId: 'yaml',
 
   supports(_filePath, doc): boolean {
     if (!doc || typeof doc !== 'object') return false;
@@ -30,6 +30,7 @@ export const helmChartParser: IaCParser = {
       id: name,
       kind: 'helm-release',
       provider: 'generic',
+      identity: { namespace: 'generic', localKey: name },
       contentHash: hashResourcePayload(helmResourceBody),
       attributes: {
         ...(d.version ? { version: String(d.version) } : {}),

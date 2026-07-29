@@ -6,19 +6,18 @@ import { spawnSync } from 'node:child_process';
 import { PLUGIN_API_VERSION } from '@repovine/plugin-sdk';
 import typescriptPlugin from '../../packages/plugins/source-typescript/src/plugin.js';
 import pythonPlugin from '../../packages/plugins/source-python/src/plugin.js';
-import samIacPlugin from '../../src/iac-plugins/sam/index.js';
-import helmIacPlugin from '../../src/iac-plugins/helm/index.js';
-import kubernetesIacPlugin from '../../src/iac-plugins/kubernetes/index.js';
-import dockerComposeIacPlugin from '../../src/iac-plugins/docker-compose/index.js';
-import dockerfileIacPlugin from '../../src/iac-plugins/dockerfile/index.js';
-import terraformIacPlugin from '../../src/iac-plugins/terraform/index.js';
-import vercelIacPlugin from '../../src/iac-plugins/vercel/index.js';
+import { samIacPlugin } from '../../packages/plugins/iac-sam/src/index.js';
+import { helmIacPlugin } from '../../packages/plugins/iac-helm/src/index.js';
+import { kubernetesIacPlugin } from '../../packages/plugins/iac-kubernetes/src/index.js';
+import { dockerComposeIacPlugin } from '../../packages/plugins/iac-docker-compose/src/index.js';
+import { dockerfileIacPlugin } from '../../packages/plugins/iac-dockerfile/src/index.js';
+import { terraformIacPlugin } from '../../packages/plugins/iac-terraform/src/index.js';
+import { vercelIacPlugin } from '../../packages/plugins/iac-vercel/src/index.js';
 
 // The SDK boundary is cut at the FACT layer. Built-in plugins are the dogfood: they are authored
 // against the public `@repovine/plugin-sdk` package exactly as a third-party plugin would be. This law cements
 // three consequences ts-jest's transpile-only mode cannot (no compile guard fires in test/):
-//   - a plugin never imports the core types/ontology/projection layers directly — only `@repovine/plugin-sdk`
-//     plus a small allowlist of mechanical engine utilities.
+//   - no producer implementation is left inside the engine tree.
 //   - every built-in plugin went through a `define*` factory (carries the stamped apiVersion).
 //   - the SDK facade does not re-export the ontology (GraphDelta/NodeType/EdgeKind/Interpreter).
 describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
@@ -32,91 +31,27 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
     return root;
   }
 
-  function* walkTsFiles(dir: string): Generator<string> {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        yield* walkTsFiles(full);
-        continue;
-      }
-      if (entry.isFile() && full.endsWith('.ts')) yield full;
-    }
-  }
-
-  // Mechanical engine utilities a producer legitimately shares (hashing, scan filters, id/path
-  // helpers, logging). These are plumbing, not the contract/ontology, so they stay allowlisted —
-  // relocating them into the published SDK package is a packaging concern, not a boundary
-  // violation today. This Set is the ONLY core surface a plugin may reach by relative import; the
-  // check below is a strict allowlist, not a denylist, so a NEW core module is forbidden by default
-  // (no need to enumerate every layer — anything not listed here that resolves into core src/ fails).
-  // What is left of the allowlist, and for whom.
-  //
-  // A plugin that still lives inside the engine tree reaches a small set of mechanical utilities by
-  // relative import. The source vertical no longer does: it ships as its own packages, where a
-  // relative escape cannot even resolve, and every one of these utilities reached it through the
-  // published SDK instead. The remainder belongs to the IaC vertical until it moves too, and the
-  // check stays a strict allowlist, so a NEW core module is forbidden by default.
-  const ALLOWED_ENGINE_UTILS = new Set(
-    [
-      'stage1/utils.ts',
-      'stage1/iac/utils.ts',
-      'stage1/k8s-workload.ts',
-      'scan-filters.ts',
-      'cli/ui.ts',
-      'platform/paths.ts',
-      'platform/ordering.ts',
-      'fs/read-dir-sorted.ts',
-    ].map(rel => rel.replace(/\//g, path.sep)),
-  );
-
-  it('the migrated source vertical is gone from the engine tree', () => {
-    // The allowlist above exists for plugins inside `src/`. A source implementation left there would
-    // keep using it, and the law below would report a clean sweep while the coupling stayed.
-    expect(fs.existsSync(path.join(findSrcRoot(), 'source-plugins'))).toBe(false);
-  });
-
-  it('plugins import only the SDK + allowlisted engine utils, never any other core module', () => {
+  /**
+   * The allowlist of mechanical engine utilities is gone, and so is the scan that consulted it.
+   *
+   * It existed for producers that lived inside `src/`: they reached hashing, scan filters, id/path
+   * helpers and logging by relative import, and the allowlist recorded which of those reaches were
+   * sanctioned. Both verticals now ship as their own packages, and inside a package a relative
+   * escape does not resolve at all — `plugin-workspace-boundary` reads every specifier in
+   * `packages/plugins/**` and reports one that leaves its package. Keeping a second scan here over
+   * an empty allowlist and a directory that no longer exists would report a clean sweep of nothing.
+   *
+   * What remains here is the premise that retirement rests on: no producer tree in `src/`. A
+   * producer put back would be outside `packages/plugins/**`, so the workspace law would not see it
+   * either, and this is where that reappearance is caught.
+   */
+  it('no producer implementation is left in the engine tree', () => {
     const srcRoot = findSrcRoot();
-    const pluginRoots = [path.join(srcRoot, 'iac-plugins')];
-    const importRe = /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]/g;
-    // A `from` clause is not the only way into a module. Side-effect imports (`import '…'`),
-    // dynamic `import(…)`, and `require(…)` each reach a target with no `from`, so the primary
-    // regex above misses them entirely. Scan those three no-`from` forms too, over source text, so
-    // a plugin cannot smuggle a core-module reference past this law by dropping the `from` clause.
-    const sideEffectImportRe = /(?:^|\n)\s*import\s*['"]([^'"]+)['"]/g;
-    const dynamicImportRe = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-    const requireRe = /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-    const offenders: string[] = [];
-
-    for (const pluginRoot of pluginRoots) {
-      for (const file of walkTsFiles(pluginRoot)) {
-        const text = fs.readFileSync(file, 'utf8');
-        const specs: string[] = [];
-        for (const re of [importRe, sideEffectImportRe, dynamicImportRe, requireRe]) {
-          for (const m of text.matchAll(re)) specs.push(m[1]!);
-        }
-        for (const spec of specs) {
-          // Bare specifiers are the SDK contract (`@repovine/plugin-sdk`), node builtins, and
-          // language tooling (typescript / ts-morph / vue) — none is the core-boundary concern.
-          if (!spec.startsWith('.')) continue;
-          // Resolve to an absolute .ts path (specifiers use the .js extension at runtime).
-          const absJs = path.resolve(path.dirname(file), spec);
-          const absTs = absJs.replace(/\.js$/, '.ts');
-          const rel = path.relative(srcRoot, absTs);
-          // Intra-plugin imports stay within the producer's own tree.
-          if (rel.startsWith('iac-plugins' + path.sep)) continue;
-          // Allowlist: every relative import that escapes the plugin tree must land on a sanctioned
-          // mechanical engine util. Anything else resolving into core src/ — ontology (`types`),
-          // projection (`graph`), interpreters, MCP, analysis, OR any not-yet-classified core module
-          // — is a boundary violation and is reported.
-          if (ALLOWED_ENGINE_UTILS.has(rel)) continue;
-          offenders.push(`${path.relative(srcRoot, file)} → ${spec}`);
-        }
-      }
-    }
-    // A new core import from a plugin is exactly the coupling this law forbids. Route the fact type
-    // through `@repovine/plugin-sdk`, or move the dependency into the engine.
-    expect(offenders).toEqual([]);
+    const producerTrees = fs.readdirSync(srcRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && /-plugins$/.test(entry.name))
+      .map(entry => entry.name)
+      .sort();
+    expect(producerTrees).toEqual([]);
   });
 
   it('every built-in plugin was authored through a define* factory (stamped apiVersion)', () => {

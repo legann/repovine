@@ -1,3 +1,5 @@
+import type { ResourceIdentity } from './plugin/resource-identity.js';
+
 export type SymbolKind =
   | 'function' | 'class' | 'interface' | 'type'
   | 'const' | 'enum' | 'component' | 'unknown';
@@ -195,7 +197,14 @@ export interface RuntimeAction {
   lineRange?: { start: number; end: number };
 }
 
-export type UiFramework =
+/**
+ * The UI framework a producer recognised in a module.
+ *
+ * Open: the listed names are what the built-in JavaScript producer detects, and a producer for a
+ * framework nobody here has heard of spells its own. The host stores the string and shows it; no
+ * behaviour is keyed on which one it is.
+ */
+export type KnownUiFramework =
   | 'react'
   | 'next'
   | 'vue'
@@ -203,19 +212,27 @@ export type UiFramework =
   | 'angular'
   | 'svelte'
   | 'unknown';
+export type UiFramework = KnownUiFramework | (string & {});
 
 export interface UiSignalBase {
   lineRange?: { start: number; end: number };
 }
 
+/**
+ * The lifecycle mechanism a producer recognised. Open for the same reason as `UiFramework`: the
+ * names carry the framework that owns the mechanism, and a producer for another one spells its own.
+ */
+export type KnownUiLifecycleEffectKind =
+  | 'react-effect'
+  | 'vue-watch'
+  | 'vue-lifecycle'
+  | 'svelte-lifecycle'
+  | 'angular-lifecycle'
+  | 'generic-effect';
+export type UiLifecycleEffectKind = KnownUiLifecycleEffectKind | (string & {});
+
 export interface UiLifecycleEffect extends UiSignalBase {
-  kind:
-    | 'react-effect'
-    | 'vue-watch'
-    | 'vue-lifecycle'
-    | 'svelte-lifecycle'
-    | 'angular-lifecycle'
-    | 'generic-effect';
+  kind: UiLifecycleEffectKind;
   name: string;
   dataAccessCount?: number;
   navigationCount?: number;
@@ -252,18 +269,22 @@ export interface UiSubscriptionAction extends UiSignalBase {
   callee: string;
 }
 
+/** The state mechanism a producer recognised. Open, like the lifecycle axis beside it. */
+export type KnownUiStateSignalKind =
+  | 'react-state'
+  | 'react-reducer'
+  | 'react-context'
+  | 'vue-ref'
+  | 'vue-reactive'
+  | 'vue-provide'
+  | 'svelte-store'
+  | 'angular-service-state'
+  | 'rxjs-state'
+  | 'generic-state';
+export type UiStateSignalKind = KnownUiStateSignalKind | (string & {});
+
 export interface UiStateSignal extends UiSignalBase {
-  kind:
-    | 'react-state'
-    | 'react-reducer'
-    | 'react-context'
-    | 'vue-ref'
-    | 'vue-reactive'
-    | 'vue-provide'
-    | 'svelte-store'
-    | 'angular-service-state'
-    | 'rxjs-state'
-    | 'generic-state';
+  kind: UiStateSignalKind;
   name?: string;
 }
 
@@ -493,10 +514,28 @@ export interface InfraEnvRef {
   access?: InfraAccessMode;
 }
 
+/**
+ * Ecosystem label a plugin puts on the resources it emits.
+ *
+ * Open, like `InfraKind`: the listed members are what the built-ins use, and a plugin adds its own
+ * by spelling it. The host stores and compares the string and never branches on its value — what a
+ * provider means is said in declarations, not read from the name.
+ */
+export type KnownInfraProvider = 'aws' | 'k8s' | 'generic' | 'terraform' | 'vercel';
+export type InfraProvider = KnownInfraProvider | (string & {});
+
 export interface InfraResource {
   id: string;
   kind: InfraResourceKind;
-  provider: 'aws' | 'k8s' | 'generic' | 'terraform' | 'vercel';
+  provider: InfraProvider;
+  /**
+   * Identity of this resource, computed by the plugin that emitted it.
+   *
+   * The plugin knows what makes one of its resources distinct; the host does not. `namespace` is the
+   * stable identity domain (`aws-lambda`, `k8s`, `vercel`), `localKey` is opaque within it, and the
+   * host mints the graph id from the pair with `makeResourceId`.
+   */
+  identity: ResourceIdentity;
   /** Fingerprint of this resource's IaC fragment only (not the whole template file). Used for runtime-resource annotation freshness. */
   contentHash: string;
   attributes: Record<string, string>;
@@ -529,13 +568,14 @@ export interface SemanticInfraDelta {
   resources: InfraResource[];
 }
 
-/** How a candidate file is loaded before being passed to supports()/parse(). */
-export type IaCDocFormat = 'yaml' | 'json' | 'hcl' | 'dockerfile' | 'raw';
-
 /**
  * Declarative file selectors. The scanner first computes the union of all registered parsers'
  * fileMatch entries to decide which files are infra candidates at all. Then, per file, only
  * parsers whose fileMatch includes it (or which declare no fileMatch) get to run supports().
+ *
+ * A selector is also how specific the claim is. `fileNames` and `fileNamePatterns` name the file;
+ * `extensions` names the format it is written in. When two parsers ask for different loaders on one
+ * file, the one that named the file decides, and two claims of equal specificity are a refusal.
  */
 export interface IaCFileMatch {
   /** Lowercased extensions including the leading dot, e.g. ['.yaml', '.yml']. */
@@ -546,6 +586,16 @@ export interface IaCFileMatch {
   fileNamePatterns?: RegExp[];
 }
 
+/**
+ * Whether another parser may contribute from the same document.
+ *
+ * `shared` is the default: every parser that supports a document contributes, and the results merge.
+ * `exclusive` says the document has one reading, so a second contribution beside it is a conflict
+ * the build reports rather than a race the registration order settles.
+ */
+export const DOCUMENT_CLAIMS = ['shared', 'exclusive'] as const;
+export type DocumentClaim = typeof DOCUMENT_CLAIMS[number];
+
 export interface IaCParser {
   kind: InfraKind;
   /**
@@ -554,14 +604,16 @@ export interface IaCParser {
    */
   fileMatch?: IaCFileMatch;
   /**
-   * How the file should be loaded before being handed to supports()/parse(). The first parser
-   * that claims a file via fileMatch determines the format for that file. Inferred from the
-   * legacy extension/name table when no parser declares a format.
+   * Id of the document loader that decodes a claimed file before `supports`/`parse` see it. The
+   * host provides `yaml`, `json` and `text`; a plugin registers further loaders with its descriptor.
    */
-  docFormat?: IaCDocFormat;
+  loaderId: string;
+  /** Whether a second parser may contribute from the same document. Defaults to `shared`. */
+  claim?: DocumentClaim;
   supports(filePath: string, doc: unknown): boolean;
   /** Emit infra semantics (kind + resources) for one document. The engine assembles the full
-   * `InfraModuleInfo` (id/filePath/relativeFilePath/module contentHash) at the Stage-1 boundary. */
+   * `InfraModuleInfo` (id/filePath/relativeFilePath/module contentHash) at the Stage-1 boundary.
+   * Returning `null` means this parser has nothing to say, and never silences the others. */
   parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null;
 }
 

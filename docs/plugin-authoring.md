@@ -380,6 +380,6 @@ new slots are additive, not breaking.
 
 Package: [`packages/plugin-sdk/`](https://github.com/legann/repovine/blob/main/packages/plugin-sdk/) (`@repovine/plugin-sdk`).
 
-Built-in producers (Path A reference): `src/source-plugins/`, `src/iac-plugins/`.
+Built-in producers (Path A reference): `packages/plugins/`.
 
 Integration test (minimal external plugin E2E): `test/integration/external-source-plugin.test.ts`.

@@ -488,7 +488,7 @@ ship as the default preset inside the `repovine` package.
 | Family | Public? | Contract package | Built-in location | Registry/bootstrap |
 |---|---:|---|---|---|
 | Source producers | Yes | `@repovine/plugin-sdk`, scoped as `@repovine/plugin-sdk/source-plugin` | `src/source-plugins/<name>/` | `src/stage1/source/` |
-| IaC producers | Yes | `@repovine/plugin-sdk`, scoped as `@repovine/plugin-sdk/iac-plugin` | `src/iac-plugins/<name>/` | `src/stage1/iac/` |
+| IaC producers | Yes | `@repovine/plugin-sdk`, scoped as `@repovine/plugin-sdk/iac-plugin` | `packages/plugins/iac-<name>/src/` | `src/stage1/iac/` |
 | Template discovery | No | core-only `TemplateFileInfo` contract | `src/stage1/templates.ts` | direct Stage 1 pass |
 | Interpreters | No | core-only TypeScript contract | `src/interpreters/<name>/` plus shared `src/interpreter/` types | `src/stage2/interpreter/` |
 | Detector packs | No | core-only detector contract | `src/analysis/architecture-detectors/<pack>/` | `src/analysis/architecture/` |

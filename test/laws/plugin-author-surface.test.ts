@@ -17,7 +17,7 @@ import { codeFiles, repoRoot } from './graph-law-helpers.js';
  * published surface with no demonstrated use.
  */
 describe('core-laws plugin author surface (the SDK carries the mechanics)', () => {
-  const PLUGIN_ROOTS = ['packages/plugins/', 'src/iac-plugins/'];
+  const PLUGIN_ROOTS = ['packages/plugins/'];
 
   it('no producer walks the filesystem without the canonical prune rule', () => {
     const files = codeFiles([]).filter(f => PLUGIN_ROOTS.some(root => f.where.startsWith(root)));

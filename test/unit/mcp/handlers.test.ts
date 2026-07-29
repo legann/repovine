@@ -852,6 +852,7 @@ describe('inspect_node runtime-resource freshness', () => {
       id: 'Gateway',
       kind: 'lambda',
       provider: 'aws',
+      identity: { namespace: 'aws-lambda', localKey: 'Gateway' },
       contentHash: resourceHash,
       attributes: { handler: 'src/gateway.handler' },
     }],

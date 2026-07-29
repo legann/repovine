@@ -1,8 +1,20 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { IaCParser, InfraEnvRef, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
-import { hashResourcePayload, isRecord } from '../../../stage1/iac/utils.js';
-import { pathMatchKey } from '../../../platform/paths.js';
+import type { ResourceIdentity } from '@repovine/plugin-sdk';
+import { hashResourcePayload, isRecord, pathMatchKey } from '@repovine/plugin-sdk';
+
+/**
+ * Identity of one Helm values resource.
+ *
+ * These resources are not addressed by any cloud API — they exist in the repository, and the id the
+ * parser already mints is unique within the file that declares them. `generic` is the namespace for
+ * exactly that: infrastructure described in a repo rather than provisioned in an account.
+ */
+function genericIdentity(id: string): ResourceIdentity {
+  return { namespace: 'generic', localKey: id };
+}
+
 
 export interface HelmImageRef {
   key: string;
@@ -86,7 +98,7 @@ function isUnderHelmChart(filePath: string): boolean {
 export const helmValuesParser: IaCParser = {
   kind: 'helm',
   fileMatch: { fileNamePatterns: [/^values(-[\w.-]+)?\.ya?ml$/i] },
-  docFormat: 'yaml',
+  loaderId: 'yaml',
 
   supports(filePath: string, doc: unknown): boolean {
     if (!isRecord(doc)) return false;
@@ -117,6 +129,7 @@ export const helmValuesParser: IaCParser = {
         id,
         kind: 'other',
         provider: 'generic',
+        identity: genericIdentity(id),
         contentHash: hashResourcePayload(body),
         attributes: {
           role: 'container-image',
@@ -137,6 +150,7 @@ export const helmValuesParser: IaCParser = {
         id,
         kind: 'secret',
         provider: 'generic',
+        identity: genericIdentity(id),
         contentHash: hashResourcePayload({ kind: 'helm-secret', secretName: ref.secretName }),
         attributes: { external: 'true', source: 'helm-values', secretName: ref.secretName, helmValuesKey: ref.key },
       });

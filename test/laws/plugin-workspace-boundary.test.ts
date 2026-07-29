@@ -223,6 +223,18 @@ const PRE_BOUNDARY_COMPOSITION_ROOTS = new Map<string, ReadonlySet<string>>([
     ['src', 'stage1', 'source', 'bootstrap.ts'].join('/'),
     new Set(['@repovine/plugin-source-typescript', '@repovine/plugin-source-python']),
   ],
+  [
+    ['src', 'stage1', 'iac', 'bootstrap.ts'].join('/'),
+    new Set([
+      '@repovine/plugin-iac-docker-compose',
+      '@repovine/plugin-iac-dockerfile',
+      '@repovine/plugin-iac-helm',
+      '@repovine/plugin-iac-kubernetes',
+      '@repovine/plugin-iac-sam',
+      '@repovine/plugin-iac-terraform',
+      '@repovine/plugin-iac-vercel',
+    ]),
+  ],
 ]);
 
 function scanCoreProductImports(root: string): string[] {
@@ -344,15 +356,16 @@ describe('core-laws physical plugin workspace boundary', () => {
       path.join(repoRoot(), 'src', 'stage1', 'iac', 'bootstrap.ts'),
       'utf8',
     );
-    // The source vertical ships from its packages; the IaC vertical has not moved yet, so its
-    // bootstrap still names the pre-boundary implementations in `src/`.
+    // Both verticals ship from their packages, and each bootstrap names only its own half.
     expect(sourceBootstrap).toContain("from '@repovine/plugin-source-typescript'");
     expect(sourceBootstrap).toContain("from '@repovine/plugin-source-python'");
-    expect(iacBootstrap).toContain('../../iac-plugins/sam/index.js');
+    expect(iacBootstrap).toContain("from '@repovine/plugin-iac-sam'");
+    expect(iacBootstrap).toContain("from '@repovine/plugin-iac-kubernetes'");
     // The declarative preset is still not what core loads: config-driven loading replaces these
     // roots, and until then core reaches the packages one by one.
     expect(sourceBootstrap + iacBootstrap).not.toContain('@repovine/plugin-default-preset');
-    // No source implementation is left behind in the engine tree.
+    // Neither vertical left an implementation behind in the engine tree.
     expect(fs.existsSync(path.join(repoRoot(), 'src', 'source-plugins'))).toBe(false);
+    expect(fs.existsSync(path.join(repoRoot(), 'src', 'iac-plugins'))).toBe(false);
   });
 });

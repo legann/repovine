@@ -6,7 +6,7 @@ import type {
   InfraResource,
   InfraResourceKind,
 } from '@repovine/plugin-sdk';
-import { hashResourcePayload } from '../../stage1/iac/utils.js';
+import { hashResourcePayload } from '@repovine/plugin-sdk';
 
 const TERRAFORM_TYPE_TO_KIND: Record<string, InfraResourceKind> = {
   aws_lambda_function: 'lambda',
@@ -250,7 +250,7 @@ function extractTerraformEnv(body: string): { envVars: string[]; envRefs: InfraE
 export const terraformParser: IaCParser = {
   kind: 'terraform',
   fileMatch: { extensions: ['.tf'] },
-  docFormat: 'hcl',
+  loaderId: 'text',
 
   supports(filePath: string, doc: unknown): boolean {
     if (path.extname(filePath).toLowerCase() !== '.tf') return false;
@@ -293,6 +293,7 @@ export const terraformParser: IaCParser = {
         id,
         kind: resKind,
         provider: 'terraform',
+        identity: { namespace: 'terraform', localKey: id },
         contentHash: hashResourcePayload(tfBlockBody),
         attributes: {
           terraformBlockType: blk.blockType,

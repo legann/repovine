@@ -38,3 +38,18 @@ export const DECLARATION_AMBIGUOUS_REFUSAL = 'declaration-ambiguous';
 
 /** A Stage 1 producer published a fact the boundary would not take. Names the plugin and the cause. */
 export const PLUGIN_FACT_REJECTED_REFUSAL = 'plugin-fact-rejected';
+
+/** Two equally specific parser claims asked for different loaders, so the file was not decoded. */
+export const IAC_LOADER_AMBIGUOUS_REFUSAL = 'iac-loader-ambiguous';
+
+/** A parser named a document loader no plugin registered. Carries the id and who asked for it. */
+export const IAC_LOADER_UNKNOWN_REFUSAL = 'iac-loader-unknown';
+
+/** Two plugins registered one loader id; the second is refused rather than replacing the first. */
+export const IAC_LOADER_CLAIMED_TWICE_REFUSAL = 'iac-loader-claimed-twice';
+
+/** A parser claimed a document exclusively and another parser contributed from it as well. */
+export const IAC_DOCUMENT_CLAIM_CONFLICT_REFUSAL = 'iac-document-claim-conflict';
+
+/** One file emitted two resources under one identity with different content. Neither is kept. */
+export const RESOURCE_IDENTITY_CONFLICT_REFUSAL = 'resource-identity-conflict';

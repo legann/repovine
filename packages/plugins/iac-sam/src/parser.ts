@@ -7,11 +7,38 @@ import type {
   InfraResource,
   InfraResourceKind,
   InfraTrigger,
+  ResourceIdentity,
 } from '@repovine/plugin-sdk';
-import { hashResourcePayload } from '../../stage1/iac/utils.js';
-import { compareCodeUnits } from '../../platform/ordering.js';
+import { compareCodeUnits, hashResourcePayload } from '@repovine/plugin-sdk';
 
-const samResourceKindMap: Record<string, InfraResourceKind> = {
+/**
+ * The identity namespace each AWS resource kind lives in.
+ *
+ * An AWS account holds one Lambda and one queue that may share a name, so the service is part of
+ * what makes a resource distinct. A kind absent from this table falls back to the account-wide
+ * `aws` namespace: the resource is still identified, and adding its service here is a plugin
+ * change rather than an engine one.
+ */
+export const AWS_KIND_NAMESPACES: Record<string, string> = {
+  lambda: 'aws-lambda',
+  queue: 'aws-sqs',
+  topic: 'aws-sns',
+  table: 'aws-dynamodb',
+  api: 'aws-api',
+  bucket: 'aws-s3',
+};
+
+const AWS_ACCOUNT_NAMESPACE = 'aws';
+
+/** Identity of one AWS resource: the service namespace it lives in, keyed by its logical id. */
+function awsIdentity(kind: InfraResourceKind, logicalId: string): ResourceIdentity {
+  return {
+    namespace: AWS_KIND_NAMESPACES[kind] ?? AWS_ACCOUNT_NAMESPACE,
+    localKey: logicalId,
+  };
+}
+
+export const SAM_RESOURCE_KINDS: Record<string, InfraResourceKind> = {
   'AWS::Serverless::Function': 'lambda',
   'AWS::Lambda::Function': 'lambda',
   'AWS::SQS::Queue': 'queue',
@@ -29,7 +56,7 @@ function resolveResourceKind(type: string, props: Record<string, unknown>): Infr
   if (type === 'AWS::SSM::Parameter') {
     return props.Type === 'SecureString' ? 'secret' : 'other';
   }
-  return samResourceKindMap[type] ?? 'other';
+  return SAM_RESOURCE_KINDS[type] ?? 'other';
 }
 
 interface SamParameterInfo {
@@ -107,6 +134,7 @@ function ensureSyntheticSecretResource(
       id,
       kind: 'secret',
       provider: 'aws',
+      identity: awsIdentity('secret', id),
       contentHash: hashResourcePayload({ id, kind: 'secret', provider: 'aws', attributes }),
       attributes,
     });
@@ -229,10 +257,12 @@ function extractSecretRef(
  * Resource types an IAM policy grants access to and this parser models as a runtime resource.
  * Roles, APIs and functions are excluded: a grant names them as the subject, not the target.
  *
- * `AWS::KMS::Key` is absent because `samResourceKindMap` does not model KMS, so `kmsdecryptpolicy`
- * stays unreachable until a KMS key becomes a resource node.
+ * `AWS::KMS::Key` is absent because `SAM_RESOURCE_KINDS` does not model KMS, so `kmsdecryptpolicy`
+ * stays unreachable until a KMS key becomes a resource node. `AWS::SSM::Parameter` sits the other
+ * way round: it is a target here and is not modelled as a resource, so a grant naming a Parameter is
+ * read and resolves to no node. Both gaps are named by the plugin's totality law.
  */
-const GRANT_TARGET_RESOURCE_TYPES = new Set([
+export const GRANT_TARGET_RESOURCE_TYPES = new Set([
   'AWS::DynamoDB::Table',
   'AWS::S3::Bucket',
   'AWS::SQS::Queue',
@@ -251,7 +281,7 @@ function looksLikeResourceReferenceAlias(logicalId: string): boolean {
 }
 
 /**
- * Logical ids a scalar can name. `CLOUDFORMATION_SAFE_SCHEMA` collapses CFN short tags to their
+ * Logical ids a scalar can name. The tag-tolerant YAML loader collapses CFN short tags to their
  * payload, so `!GetAtt Table.Arn` arrives as `"Table.Arn"` and `!Sub "${Table.Arn}"` as the body.
  */
 function logicalIdCandidatesFromString(value: string): string[] {
@@ -299,7 +329,7 @@ function collectGrantTargetsInValue(
  * `DynamoDBReadPolicy` grant is reported as read even though the expanded actions never appear in
  * the template file.
  */
-const SAM_POLICY_TEMPLATE_ACCESS: Record<string, InfraAccessMode> = {
+export const SAM_POLICY_TEMPLATE_ACCESS: Record<string, InfraAccessMode> = {
   dynamodbreadpolicy: 'read',
   dynamodbstreamreadpolicy: 'read',
   dynamodbwritepolicy: 'write',
@@ -720,7 +750,7 @@ function parseSamEvent(
 export const samParser: IaCParser = {
   kind: 'aws-sam',
   fileMatch: { extensions: ['.yaml', '.yml', '.json'] },
-  docFormat: 'yaml',
+  loaderId: 'yaml',
 
   supports(_filePath, doc): boolean {
     if (!doc || typeof doc !== 'object') return false;
@@ -826,6 +856,7 @@ export const samParser: IaCParser = {
           id: logicalId,
           kind,
           provider: 'aws',
+          identity: awsIdentity(kind, logicalId),
           contentHash: resourceContentHash,
           attributes,
           envVars: envVars.length > 0 ? envVars : undefined,

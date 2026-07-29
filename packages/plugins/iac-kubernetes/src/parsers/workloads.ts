@@ -5,8 +5,9 @@ import type {
   InfraResource,
   InfraResourceKind,
 } from '@repovine/plugin-sdk';
-import { enrichK8sResourceAttributes } from '../../../stage1/k8s-workload.js';
-import { hashResourcePayload } from '../../../stage1/iac/utils.js';
+import type { ResourceIdentity } from '@repovine/plugin-sdk';
+import { hashResourcePayload } from '@repovine/plugin-sdk';
+import { enrichK8sResourceAttributes } from '../k8s-workload.js';
 
 const k8sKindMap: Record<string, InfraResourceKind> = {
   Deployment: 'k8s-deployment',
@@ -22,10 +23,31 @@ const k8sKindMap: Record<string, InfraResourceKind> = {
   Ingress: 'k8s-service',
 };
 
+/** The namespace stand-in for an object whose manifest names none. Cluster scope is still a scope. */
+const K8S_CLUSTER_SCOPE = '_';
+
+/**
+ * Identity of one Kubernetes object.
+ *
+ * A name is unique per `(namespace, kind)` and nowhere wider, so both belong in the key. The
+ * manifest's own `kind` spelling is used rather than the coarse resource kind the graph shows: two
+ * objects the graph both calls a service are still a Service and an Ingress to the cluster.
+ */
+export function k8sIdentity(
+  namespace: string | undefined,
+  manifestKind: string,
+  name: string,
+): ResourceIdentity {
+  return {
+    namespace: 'k8s',
+    localKey: `${namespace ?? K8S_CLUSTER_SCOPE}/${manifestKind}/${name}`,
+  };
+}
+
 export const kubernetesParser: IaCParser = {
   kind: 'kubernetes',
   fileMatch: { extensions: ['.yaml', '.yml'] },
-  docFormat: 'yaml',
+  loaderId: 'yaml',
 
   supports(_filePath, doc): boolean {
     if (!doc || typeof doc !== 'object') return false;
@@ -58,6 +80,7 @@ export const kubernetesParser: IaCParser = {
       id: name,
       kind: resKind,
       provider: 'k8s',
+      identity: k8sIdentity(d.metadata?.namespace, kindStr, name),
       contentHash: hashResourcePayload(k8sResourceBody),
       attributes,
       envRefs: envRefs.length > 0 ? envRefs : undefined,

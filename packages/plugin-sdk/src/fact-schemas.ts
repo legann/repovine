@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { zSemanticHints } from './source-plugin/semantic-hints-schema.js';
+import { resourceIdentityProblem } from './plugin/resource-identity.js';
 import type { SemanticModuleDelta, SemanticInfraDelta } from './types.js';
 
 /**
@@ -62,11 +63,26 @@ export const zSemanticModuleDelta = z
   })
   .passthrough();
 
+/**
+ * Resource identity as it arrives from an untrusted parser.
+ *
+ * Checked with the same predicate the minter uses, so a delta that passes validation is a delta the
+ * host can mint an id from — the two cannot drift into a state where a resource validates here and
+ * throws there.
+ */
+const zResourceIdentity = z
+  .object({ namespace: z.string(), localKey: z.string() })
+  .superRefine((identity, ctx) => {
+    const problem = resourceIdentityProblem(identity);
+    if (problem) ctx.addIssue({ code: 'custom', message: problem });
+  });
+
 const zInfraResource = z
   .object({
     id: z.string(),
     kind: z.string(),
     provider: z.string(),
+    identity: zResourceIdentity,
     contentHash: z.string(),
     attributes: z.record(z.string(), z.string()),
     envVars: z.array(z.string()).optional(),

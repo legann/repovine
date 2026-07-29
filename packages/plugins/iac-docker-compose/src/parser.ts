@@ -1,12 +1,25 @@
 import * as path from 'node:path';
 import type { IaCParser, InfraEnvRef, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
+import type { ResourceIdentity } from '@repovine/plugin-sdk';
 import {
   addAttr,
   attrValue,
   hashResourcePayload,
   isRecord,
-  pathBasedDomainsFromRelPath,
-} from '../../stage1/iac/utils.js';
+  pathGroupingLabel,
+} from '@repovine/plugin-sdk';
+
+/**
+ * Identity of one Compose service or secret.
+ *
+ * These resources are not addressed by any cloud API — they exist in the repository, and the id the
+ * parser already mints is unique within the file that declares them. `generic` is the namespace for
+ * exactly that: infrastructure described in a repo rather than provisioned in an account.
+ */
+function genericIdentity(id: string): ResourceIdentity {
+  return { namespace: 'generic', localKey: id };
+}
+
 
 function isDockerComposeFileName(base: string): boolean {
   return /^(docker-compose(\.[\w.-]+)?|compose(\.[\w.-]+)?)\.ya?ml$/i.test(base);
@@ -28,6 +41,7 @@ function collectComposeSecrets(root: Record<string, unknown>): Map<string, Infra
       id: name,
       kind: 'secret',
       provider: 'generic',
+      identity: genericIdentity(name),
       contentHash: hashResourcePayload({ kind: 'docker-compose-secret', name, def }),
       attributes,
     });
@@ -100,6 +114,7 @@ function composeServiceSecretRefs(
       id,
       kind: 'secret',
       provider: 'generic',
+      identity: genericIdentity(id),
       contentHash: hashResourcePayload({ kind: 'docker-compose-secret', id, attrs }),
       attributes: attrs,
     });
@@ -166,7 +181,7 @@ function dockerComposeServiceAttributes(
 export const dockerComposeParser: IaCParser = {
   kind: 'docker-compose',
   fileMatch: { fileNamePatterns: [/^(docker-compose(\.[\w.-]+)?|compose(\.[\w.-]+)?)\.ya?ml$/i] },
-  docFormat: 'yaml',
+  loaderId: 'yaml',
 
   supports(filePath: string, doc: unknown): boolean {
     const base = path.basename(filePath);
@@ -180,7 +195,7 @@ export const dockerComposeParser: IaCParser = {
     const root = doc;
     const services = root.services as Record<string, unknown>;
 
-    const domainPath = pathBasedDomainsFromRelPath(relPath);
+    const domainPath = pathGroupingLabel(relPath);
 
     const secrets = collectComposeSecrets(root);
     const resources: InfraResource[] = [];
@@ -192,6 +207,7 @@ export const dockerComposeParser: IaCParser = {
         id: serviceName,
         kind: 'other',
         provider: 'generic',
+        identity: genericIdentity(serviceName),
         contentHash: hashResourcePayload({ kind: 'docker-compose-service', serviceName, service: serviceVal }),
         attributes: attrs,
         envRefs: envRefs.length > 0 ? envRefs : undefined,

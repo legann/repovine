@@ -1,4 +1,4 @@
-import { enrichK8sResourceAttributes } from '../../../src/stage1/k8s-workload.js';
+import { enrichK8sResourceAttributes } from '../../packages/plugins/iac-kubernetes/src/k8s-workload.js';
 
 describe('enrichK8sResourceAttributes workload extraction', () => {
   it('extracts container images and env image refs from Deployment', () => {

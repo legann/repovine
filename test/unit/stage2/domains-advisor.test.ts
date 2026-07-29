@@ -49,6 +49,7 @@ function makeInfraModule(relativeFilePath: string, resourceIds: string[]): Infra
       id,
       kind: 'other',
       provider: 'aws',
+      identity: { namespace: 'aws', localKey: id },
       contentHash: id,
       attributes: {},
     })),

@@ -47,13 +47,13 @@ import {
   SOURCE_PLUGIN_UNAVAILABLE_REFUSAL,
 } from './refusal-kinds.js';
 
-/** Schema version of the Stage 1 facts snapshot; a mismatch invalidates the on-disk cache.
- *  2: `ExportInfo.defaultLocalName` — a cached module extracted before it would still project no
- *  node for a named default export, so the shape change has to force a re-extract. The same bump
- *  covers the hint corrections that ship with it: `ssr.qwikServer`, `ui.framework` and
- *  `serviceWrapper.delegateCallCount` are now decided from the syntax tree, and `ui.framework`
- *  no longer infers Angular from a filename suffix. A module cached under version 1 can carry any
- *  of those set from prose or from its name alone. */
+/**
+ * Schema version of the Stage 1 facts snapshot; a mismatch invalidates the on-disk cache.
+ *
+ * Version 1 is the shape `repovine@0.1.0` ships. Nothing has been released, so no cache written by
+ * another version exists to be told apart from this one, and the snapshot shape is free to change
+ * up to the tag. The number starts counting at the first release.
+ */
 export const STAGE1_ANALYSIS_VERSION = 1;
 
 interface PackageJobInputs {
@@ -470,10 +470,11 @@ function buildSnapshot(
 
   // Infra scan is independent of source packages: an infra-only repo (Terraform/k8s with no
   // tsconfig/pyproject) still gets its infra modules.
-  const infraModules = collectInfraModules({
+  const { modules: infraModules, refusals: infraRefusals } = collectInfraModules({
     repoRoot,
     scanPatterns,
   });
+  buildRefusals.push(...infraRefusals);
   if (packages.length === 0 && infraModules.length === 0) {
     logPipelineWarn('  No source packages or infra files found.');
   }

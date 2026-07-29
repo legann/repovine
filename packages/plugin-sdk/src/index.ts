@@ -100,11 +100,17 @@ export type { FactValidationResult } from './fact-schemas.js';
 export { checkSourcePluginConformance, checkIaCPluginConformance } from './conformance.js';
 export type { ConformanceCheck, ConformanceReport } from './conformance.js';
 
+/* ---- folding a document value into the flat attribute map the IaC contract accepts ---- */
+export { addAttr, attrValue, isRecord, pathGroupingLabel } from './iac-plugin/attributes.js';
+
 /* ---- IaC-parser contract + registry metadata ---- */
+export { DOCUMENT_CLAIMS } from './types.js';
 export type {
   IaCParser,
-  IaCDocFormat,
+  DocumentClaim,
   IaCFileMatch,
+  InfraProvider,
+  KnownInfraProvider,
   InfraAccessMode,
   InfraEnvRef,
   InfraKind,
@@ -164,12 +170,17 @@ export type {
   UiComponentLocalSignals,
   UiComponentPropHint,
   UiDataAccess,
+  KnownUiFramework,
+  KnownUiLifecycleEffectKind,
+  KnownUiStateSignalKind,
   UiFramework,
   UiLifecycleEffect,
+  UiLifecycleEffectKind,
   UiNavigationAction,
   UiServiceWrapperHint,
   UiSignalBase,
   UiStateSignal,
+  UiStateSignalKind,
   UiSubscriptionAction,
   UiTimerAction,
 } from './types.js';

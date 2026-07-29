@@ -9,6 +9,7 @@
 
 import type { SourcePlugin } from './source-plugin/types.js';
 import type { IaCParser, InfraKindDomain, ResourceKindMeta, TriggerTypeMeta } from './types.js';
+import type { DocumentLoader } from './plugin/document-loader.js';
 import { PLUGIN_API_VERSION } from './runtime.js';
 import type { PluginRequirements, PluginAvailability } from './runtime.js';
 
@@ -42,9 +43,12 @@ export interface IaCPluginDescriptor {
   apiVersion?: number;
   requires?: PluginRequirements;
   available?(): PluginAvailability | Promise<PluginAvailability>;
-  /** Parsers registered in array order. Intra-plugin precedence is load-bearing (e.g. Helm
-   *  registers its values parser before its chart parser). */
+  /** Parsers this plugin contributes. Every parser that supports a document is offered it, so the
+   *  array is an inventory rather than a precedence list. */
   parsers: IaCParser[];
+  /** Document loaders this plugin brings, beyond the `yaml`/`json`/`text` the host provides. Two
+   *  plugins registering one loader id is a conflict, not an overwrite. */
+  loaders?: DocumentLoader[];
   /** InfraKind → graph-domain registrations this plugin owns. */
   kindDomains?: Array<{ kind: string; meta: InfraKindDomain }>;
   /** InfraResourceKind → metadata (e.g. lambda hasCodeHandler) this plugin contributes. */

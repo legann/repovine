@@ -1,9 +1,9 @@
 # Plugin boundary migration inventory
 
-Status: Stage 1 inventory, recorded 2026-07-29. The private packages under
-`packages/plugins/*` are compile/package scaffolds only. Production still uses
-the legacy paths below; this is intentional until the contract and migrations
-in later stages are complete.
+Status: recorded 2026-07-29, after stage 6. Both producer verticals ship as
+workspace packages under `packages/plugins/*`. What remains is the loading path:
+core reaches those packages through two named bootstrap files instead of
+config-driven plugin loading.
 
 This file is a removal checklist for Stage 8. A path leaves the list only when
 its replacement is active through the common plugin loading path and the
@@ -11,31 +11,32 @@ baseline fixtures remain unchanged.
 
 ## Built-in implementation homes
 
-- `src/source-plugins/typescript/**`
-- `src/source-plugins/python/**`
-- `src/iac-plugins/sam/**`
-- `src/iac-plugins/kubernetes/**`
-- `src/iac-plugins/helm/**`
-- `src/iac-plugins/terraform/**`
-- `src/iac-plugins/vercel/**`
-- `src/iac-plugins/dockerfile/**`
-- `src/iac-plugins/docker-compose/**`
+Nothing is left. `src/source-plugins/**` moved in stage 5 and
+`src/iac-plugins/**` in stage 6; both trees are gone, and two laws assert their
+absence rather than the emptiness of a scan over them.
 
-These trees continue to contain the production implementations in Stage 1.
-The workspace packages do not re-export them through relative/private paths.
+| Vertical | Home | Moved in |
+|---|---|---|
+| TypeScript, Python | `packages/plugins/source-*/src` | stage 5 |
+| SAM, Kubernetes, Helm, Terraform, Vercel, Dockerfile, Compose | `packages/plugins/iac-*/src` | stage 6 |
 
 ## Composition and process-global registration
 
 | Path | Legacy responsibility |
 |---|---|
-| `src/stage1/source/bootstrap.ts` | Imports the two source implementations by relative core path, owns `INTERNAL_SOURCE_PLUGINS`, registers them as an import side effect, and resets the global source registry. |
-| `src/stage1/iac/bootstrap.ts` | Imports the seven IaC implementations by relative core path, owns `INTERNAL_IAC_PLUGINS` and parser precedence, registers them as an import side effect, and rebuilds the global IaC registry. |
+| `src/stage1/source/bootstrap.ts` | Names the two source packages, owns `INTERNAL_SOURCE_PLUGINS`, registers them as an import side effect, and resets the global source registry. |
+| `src/stage1/iac/bootstrap.ts` | Names the seven IaC packages, owns `INTERNAL_IAC_PLUGINS`, registers them as an import side effect, and rebuilds the global IaC registry. |
 | `src/stage1/source/registry.ts` | Holds the process-global ordered source-plugin array and first-registered-wins file routing. |
-| `src/stage1/iac/registry.ts` | Holds the process-global parser array, plugin ownership map, and kind/resource/trigger metadata maps. |
-| `src/stage1/plugin-loader.ts` | Owns the pre-public `source-plugin` / `iac-plugin` manifest, resets both registries to the built-in arrays, and adds external packages to those global registries. |
+| `src/stage1/iac/registry.ts` | Holds the process-global parser array, plugin ownership map, document-loader table, and kind/resource/trigger metadata maps. |
+| `src/stage1/plugin-loader.ts` | Resets both registries to the built-in arrays and adds external packages to those global registries. |
 
-The new `@repovine/plugin-default-preset` package is deliberately not imported
-by these files in Stage 1.
+Both bootstrap files are named in `PRE_BOUNDARY_COMPOSITION_ROOTS` in
+`test/laws/plugin-workspace-boundary.test.ts`, with the exact package set each
+may import. Any other core or SDK file importing a product package is a
+violation.
+
+The `@repovine/plugin-default-preset` package is deliberately not imported by
+these files: config-driven loading is stage 7.
 
 ## Runtime consumers that trigger or depend on the legacy registries
 
@@ -43,7 +44,7 @@ by these files in Stage 1.
 |---|---|
 | `src/stage1/index.ts` | Side-effect imports the source bootstrap, reads the source registry, and conditionally invokes the legacy external loader. |
 | `src/stage1/worker.ts` | Side-effect imports the source bootstrap inside worker isolates and reads the source registry. |
-| `src/stage1/infra.ts` | Side-effect imports the IaC bootstrap and routes documents through the global parser registry. |
+| `src/stage1/infra.ts` | Side-effect imports the IaC bootstrap and routes documents through the global parser and loader registry. |
 | `src/agents/validation.ts` | Imports the source bootstrap and uses registry-derived index and module-name normalization during validation. |
 | `src/analysis/architecture/detector-bootstrap.ts` | Imports the source bootstrap before composing architecture detectors. |
 | `src/analysis/architecture/heuristics.ts` | Imports the source bootstrap and reads source suffix/index metadata from the registry. |
@@ -58,23 +59,25 @@ by these files in Stage 1.
 | `src/stage2/index.ts` | Reads registry-owned source index-basename and suffix normalization during Stage 2 projection. |
 | `src/stage2/module-label.ts` | Imports the source bootstrap and strips module-id suffixes through the registry. |
 | `src/stage2/runtime/trigger-entry-kind.ts` | Imports the IaC bootstrap and reads trigger-type metadata from the IaC registry. |
+| `src/stage2/runtime/declared-meta.ts` | Reads the per-run catalog first and the process-global registry second, for built-ins that register metadata rather than declaring it. |
 | `src/mcp/scope/resolve.ts` | Side-effect imports the source bootstrap before using registry-derived suffix and naming rules. |
 | `src/mcp/index.ts` | Reads source-plugin lifecycle hooks from the global registry during shutdown. |
 | `src/mcp/lib/dependencies/package-boundaries.ts` | Reads source normalization from the global registry. |
 
+## Ecosystem knowledge still in core
+
+These are not loading paths; they are the semantics stage 6 did not move.
+
+| Path | What it still knows |
+|---|---|
+| `src/stage2/runtime-links.ts` | Kubernetes Ingress-to-Service routing, including the namespace prefix an id shares. |
+| `src/interpreters/infra-runtime-links/graph.ts` | `kind === 'lambda'` gates on trigger, env and publish linking; AWS service prefixes behind `RuntimeAction`. |
+| `src/mcp/lib/topology.ts` | AWS service prefixes behind the published `type` of a runtime resource. |
+| `src/graph/resolve-infra-ref.ts` | A Kubernetes namespace comparison when resolving an infra scope. |
+| `src/analysis/architecture/detectors.ts` | One `kind === 'lambda'` detector branch. |
+
 ## Direct core-to-implementation imports
 
-These are not bootstrap sites, but they also cross the target physical
-boundary and must be removed or inverted before the final gate:
-
-- `src/cli/health.ts` imports Python detection directly from
-  `src/source-plugins/python/discover.ts`.
-- `src/mcp/lib/dependencies/impact.ts` imports TypeScript call-graph policy
-  directly from `src/source-plugins/typescript/call-graph.ts`.
-
-## Stage 1 invariant
-
-All paths above remain active and behavior-compatible with the Stage 0
-baseline. The new packages are present in the installed `repovine` tarball but
-carry `activation: "scaffold-only"` and do not change discovery, parsing,
-projection, ids, worker behavior, CLI, MCP, cache, or annotations.
+None. The two named in the stage-1 inventory were resolved in stage 5: the
+call-index budget is published by the SDK, and the doctor asks the plugin
+registry instead of importing one ecosystem's probe.

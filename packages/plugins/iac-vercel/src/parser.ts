@@ -1,6 +1,18 @@
 import * as path from 'node:path';
 import type { IaCParser, InfraEnvRef, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
-import { addAttr, attrValue, hashResourcePayload, isRecord } from '../../stage1/iac/utils.js';
+import type { ResourceIdentity } from '@repovine/plugin-sdk';
+import { addAttr, attrValue, hashResourcePayload, isRecord } from '@repovine/plugin-sdk';
+
+/**
+ * Identity of one Vercel resource.
+ *
+ * A `vercel.json` describes one project, so the resource's own id — `project`, `function:<pattern>`,
+ * `cron:<path>` — is already unique within it. The kind prefix inside that id is what separates a
+ * function from a cron of the same name, which is why the key carries it rather than the namespace.
+ */
+function vercelIdentity(id: string): ResourceIdentity {
+  return { namespace: 'vercel', localKey: id };
+}
 
 function vercelEnvVarNames(root: Record<string, unknown>): string[] {
   const out = new Set<string>();
@@ -34,6 +46,7 @@ function vercelSecretRefs(root: Record<string, unknown>): { secrets: InfraResour
           id,
           kind: 'secret',
           provider: 'vercel',
+          identity: vercelIdentity(id),
           contentHash: hashResourcePayload({ kind: 'vercel-secret', name }),
           attributes: { external: 'true', source: 'vercel-secret', secretName: name },
         });
@@ -93,6 +106,7 @@ function addVercelRuleResources(
       id: `${type}:${source}`,
       kind: 'vercel-route',
       provider: 'vercel',
+      identity: vercelIdentity(`${type}:${source}`),
       contentHash: hashResourcePayload({ type, rule }),
       attributes: attrs,
     });
@@ -102,7 +116,7 @@ function addVercelRuleResources(
 export const vercelParser: IaCParser = {
   kind: 'vercel',
   fileMatch: { fileNames: ['vercel.json'] },
-  docFormat: 'json',
+  loaderId: 'json',
 
   supports(filePath: string, doc: unknown): boolean {
     if (path.basename(filePath) !== 'vercel.json') return false;
@@ -124,6 +138,7 @@ export const vercelParser: IaCParser = {
         id: 'project',
         kind: 'other',
         provider: 'vercel',
+        identity: vercelIdentity('project'),
         contentHash: hashResourcePayload({ projectAttrs, envVars }),
         attributes: projectAttrs,
         envVars: envVars.length > 0 ? envVars : undefined,
@@ -139,6 +154,7 @@ export const vercelParser: IaCParser = {
           id: `function:${pattern}`,
           kind: 'vercel-function',
           provider: 'vercel',
+          identity: vercelIdentity(`function:${pattern}`),
           contentHash: hashResourcePayload({ pattern, config }),
           attributes: attrs,
         });
@@ -157,6 +173,7 @@ export const vercelParser: IaCParser = {
           id: `cron:${cronPath}`,
           kind: 'vercel-cron',
           provider: 'vercel',
+          identity: vercelIdentity(`cron:${cronPath}`),
           contentHash: hashResourcePayload({ cron }),
           attributes: attrs,
           triggers: [{

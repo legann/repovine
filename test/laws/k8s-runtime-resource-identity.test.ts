@@ -18,6 +18,9 @@ function k8sResource(
     id: name,
     kind,
     provider: 'k8s',
+    // Spelled out rather than taken from the plugin's minter: this law's subject is the id, and an
+    // identity computed by the code under test would agree with itself no matter what it produced.
+    identity: { namespace: 'k8s', localKey: `${namespace ?? '_'}/${originalKind}/${name}` },
     contentHash: `${namespace ?? '_'}:${originalKind}:${name}`,
     attributes: {
       kind: originalKind,

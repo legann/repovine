@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { helmValuesParser } from '../../src/iac-plugins/helm/parsers/values.js';
+import { helmValuesParser } from '../../packages/plugins/iac-helm/src/parsers/values.js';
 
 const tempDirs: string[] = [];
 

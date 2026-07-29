@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { terraformParser } from '../../src/iac-plugins/terraform/parser.js';
+import { terraformParser } from '../../packages/plugins/iac-terraform/src/parser.js';
 
 describe('terraformParser structural scanning', () => {
   it('ignores braces in heredocs and after escaped quotes', () => {

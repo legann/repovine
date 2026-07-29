@@ -7,6 +7,9 @@
  */
 
 export { defineIaCParser, defineIaCPlugin } from '../factory.js';
+export { makeResourceId, parseResourceId, resourceIdentityProblem } from '../plugin/resource-identity.js';
+export type { ResourceIdentity } from '../plugin/resource-identity.js';
+export type { DocumentLoader, DocumentLoadInput, LoadedDocument } from '../plugin/document-loader.js';
 export type { IaCPluginDescriptor } from '../factory.js';
 export { PLUGIN_API_VERSION } from '../runtime.js';
 export type { PluginApiVersion, PluginRequirements, PluginAvailability } from '../runtime.js';
@@ -21,13 +24,19 @@ export type { HashWidth } from '../content-hash.js';
 export { lastPathSegment, normalizeRelPath, repoRelativePosix } from '../paths.js';
 export { toPosixPath } from '../source-plugin/module-id.js';
 
+/* ---- folding a document value into the flat attribute map the contract accepts ---- */
+export { addAttr, attrValue, isRecord, pathGroupingLabel } from './attributes.js';
+
 export { checkIaCPluginConformance } from '../conformance.js';
 export type { ConformanceCheck, ConformanceReport } from '../conformance.js';
 
+export { DOCUMENT_CLAIMS } from '../types.js';
 export type {
   IaCParser,
-  IaCDocFormat,
+  DocumentClaim,
   IaCFileMatch,
+  InfraProvider,
+  KnownInfraProvider,
   InfraEnvRef,
   InfraKind,
   InfraKindDomain,

@@ -33,7 +33,7 @@ metadata:
   name: api-secret
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const k8s = modules.find(m => m.kind === 'kubernetes');
     expect(k8s?.resources.map(r => r.kind).sort()).toEqual(['k8s-deployment', 'k8s-service', 'secret']);
   });
@@ -49,7 +49,7 @@ Resources:
       Handler: handlers/user.main
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'UserFunction');
     expect(fn?.attributes).toMatchObject({ codeUri: 'apps/api/src', handler: 'handlers/user.main' });
   });
@@ -75,7 +75,7 @@ Resources:
           SSM_TOKEN: '{{resolve:ssm-secure:/demo/token:1}}'
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const resources = modules.flatMap(m => m.resources);
     const byId = Object.fromEntries(resources.map(r => [r.id, r]));
     const fn = byId.UserFunction;
@@ -138,7 +138,7 @@ resource "google_secret_manager_secret" "gcp_key" {
 }
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const byId = Object.fromEntries(modules.flatMap(m => m.resources).map(r => [r.id, r]));
 
     // Pattern A: declared secrets classified by kind across providers; SecureString gates SSM.
@@ -177,7 +177,7 @@ services:
       - .env.production
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const byId = Object.fromEntries(modules.flatMap(m => m.resources).map(r => [r.id, r]));
 
     expect(byId.db_password).toMatchObject({
@@ -202,7 +202,7 @@ services:
       build: { env: { BUILD_TOKEN: '@build-token' } },
     }));
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const byId = Object.fromEntries(modules.flatMap(m => m.resources).map(r => [r.id, r]));
 
     expect(byId['secret:database-url']).toMatchObject({
@@ -228,7 +228,7 @@ app:
   existingSecret: app-db-credentials
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const byId = Object.fromEntries(modules.flatMap(m => m.resources).map(r => [r.id, r]));
 
     expect(byId['secret:app-db-credentials']).toMatchObject({
@@ -256,7 +256,7 @@ Resources:
       QueueName: jobs
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const cfn = modules.find(m => m.kind === 'cloudformation');
     expect(cfn).toMatchObject({
       id: 'infra:cloudformation:sam.modules.yml',
@@ -290,7 +290,7 @@ Resources:
     fs.writeFileSync(path.join(ignoredDir, 'template.yaml'), template.replace('UserFunction', 'IgnoredFunction'));
     fs.writeFileSync(path.join(keptDir, 'template.yaml'), template.replace('UserFunction', 'KeptFunction'));
 
-    const modules = collectInfraModules({
+    const { modules } = collectInfraModules({
       repoRoot: tmpDir,
       packages: [],
       scanPatterns: compileScanPatterns([], ['generated/fixture-app/**']),
@@ -324,7 +324,7 @@ Resources:
       ],
     }, null, 2));
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const vercel = modules.find(m => m.kind === 'vercel');
     expect(vercel).toMatchObject({
       id: 'infra:vercel:vercel.json',
@@ -380,7 +380,7 @@ Resources:
           Id: PollerTarget
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'PollerFunction');
     expect(fn?.triggers).toEqual([
       expect.objectContaining({
@@ -411,7 +411,7 @@ Resources:
           Id: AlarmTarget
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'AlarmHandlerFunction');
     expect(fn?.triggers).toEqual([
       expect.objectContaining({ type: 'event-bus', name: 'AlarmTarget', queueRef: 'AlarmRule' }),
@@ -436,7 +436,7 @@ Resources:
       BatchSize: 10
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'WorkerFunction');
     expect(fn?.triggers).toEqual([
       expect.objectContaining({ type: 'sqs', name: 'WorkerSourceMapping', queueRef: 'WorkQueue' }),
@@ -463,7 +463,7 @@ Resources:
       StartingPosition: LATEST
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'EventsStreamConsumer');
     expect(fn?.triggers).toEqual([
       expect.objectContaining({ type: 'dynamodb-stream', queueRef: 'EventsTable' }),
@@ -504,7 +504,7 @@ Resources:
       Target: !Sub 'integrations/\${WsConnectIntegration}'
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'WsFunction');
     expect(fn?.triggers).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -570,7 +570,7 @@ Resources:
               Resource: DataTable
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const resources = modules.flatMap(m => m.resources);
     const byId = Object.fromEntries(resources.map(r => [r.id, r]));
     const fn = byId.ApiFunction;
@@ -633,7 +633,7 @@ Resources:
             Target: !Ref OpaqueTable
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'ReaderFunction');
     const accessByTarget = Object.fromEntries(
       (fn?.envRefs ?? []).map(ref => [ref.targetLogicalId, ref.access]),
@@ -671,7 +671,7 @@ Resources:
               Resource: !GetAtt AuditTable.Arn
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'AuditFunction');
 
     // One ref, not two: the env var and the grant name the same table.
@@ -731,7 +731,7 @@ Resources:
               Resource: !GetAtt WorkerRole.Arn
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const fn = modules.flatMap(m => m.resources).find(r => r.id === 'Worker');
     const accessByTarget = Object.fromEntries(
       (fn?.envRefs ?? []).map(ref => [ref.targetLogicalId, ref.access]),
@@ -788,7 +788,7 @@ services:
       - postgres
 `);
 
-    const modules = collectInfraModules({ repoRoot: tmpDir, packages: [] });
+    const { modules } = collectInfraModules({ repoRoot: tmpDir, packages: [] });
     const compose = modules.find(m => m.kind === 'docker-compose');
     expect(compose).toMatchObject({
       id: 'infra:docker-compose:docker-compose.repovine-test.yml',

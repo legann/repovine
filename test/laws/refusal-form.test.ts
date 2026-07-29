@@ -31,7 +31,7 @@ import type { ModuleInfo, RepositoryFactsSnapshot } from '../../src/types.js';
  *
  * SCOPE OF THIS LAW. Stage 11 converted the engine perimeter a refusal reaches a reader through —
  * `src/response`, `src/mcp`, `src/stage1`, `src/stage2`, `src/context-quality` — and the guards are
- * aimed there. `src/cli`, `src/agents`, `src/annotations`, `src/source-plugins` and `src/iac-plugins`
+ * aimed there. `src/cli`, `src/agents` and `src/annotations`
  * still spell expected failures their own way; each exemption below says which one and what has to
  * be true before it comes off.
  */

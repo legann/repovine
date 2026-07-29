@@ -29,13 +29,13 @@ const MIN_TOOLS = 18;
 const BUNDLED_PLUGIN_PACKAGES = {
   '@repovine/plugin-source-typescript': ['typescript', 'source-plugin'],
   '@repovine/plugin-source-python': ['python', 'source-plugin'],
-  '@repovine/plugin-iac-sam': ['sam', 'scaffold-only'],
-  '@repovine/plugin-iac-kubernetes': ['kubernetes', 'scaffold-only'],
-  '@repovine/plugin-iac-helm': ['helm', 'scaffold-only'],
-  '@repovine/plugin-iac-terraform': ['terraform', 'scaffold-only'],
-  '@repovine/plugin-iac-vercel': ['vercel', 'scaffold-only'],
-  '@repovine/plugin-iac-dockerfile': ['dockerfile', 'scaffold-only'],
-  '@repovine/plugin-iac-docker-compose': ['docker-compose', 'scaffold-only'],
+  '@repovine/plugin-iac-sam': ['sam', 'iac-plugin'],
+  '@repovine/plugin-iac-kubernetes': ['kubernetes', 'iac-plugin'],
+  '@repovine/plugin-iac-helm': ['helm', 'iac-plugin'],
+  '@repovine/plugin-iac-terraform': ['terraform', 'iac-plugin'],
+  '@repovine/plugin-iac-vercel': ['vercel', 'iac-plugin'],
+  '@repovine/plugin-iac-dockerfile': ['dockerfile', 'iac-plugin'],
+  '@repovine/plugin-iac-docker-compose': ['docker-compose', 'iac-plugin'],
 };
 const DEFAULT_PRESET_PACKAGE = '@repovine/plugin-default-preset';
 const EXPECTED_BUNDLED_PACKAGES = [

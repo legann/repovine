@@ -3,23 +3,25 @@ import { importDeclarationSpecifier } from './module-specifier.js';
 import { compareCodeUnits, lastPathSegment, pathMatchKey, toPosixPath } from '@repovine/plugin-sdk';
 import { JSX_EXT_SUFFIX_RE, SFC_EXT_SUFFIX_RE, SFC_VIRTUAL_TS_SUFFIX_RE, SOURCE_EXT_SUFFIX_RE } from './extensions.js';
 import type {
+  ConditionalRender,
+  KnownUiFramework,
+  RouteDeclarationSite,
+  RouteInfo,
+  RuntimeAction,
+  SecuritySignal,
   SemanticHints,
+  SsrMarkers,
   UiChildComponentHint,
   UiComponentHint,
   UiComponentPropHint,
   UiDataAccess,
+  UiFramework,
   UiHints,
   UiLifecycleEffect,
   UiNavigationAction,
   UiStateSignal,
   UiSubscriptionAction,
   UiTimerAction,
-  RouteInfo,
-  RouteDeclarationSite,
-  ConditionalRender,
-  SsrMarkers,
-  RuntimeAction,
-  SecuritySignal,
 } from '@repovine/plugin-sdk';
 import { shortenText } from '@repovine/plugin-sdk';
 
@@ -1270,16 +1272,30 @@ interface UiSignalBuckets {
   state: UiStateSignal[];
 }
 
+/**
+ * Whether the detected framework is one of the named ones.
+ *
+ * `UiFramework` is an open string, so `===` against a literal no longer narrows: a producer for a
+ * framework this one has no collector for is a legal value of the type. The predicate does the
+ * narrowing, and the collectors keep their exact literal parameters.
+ */
+function frameworkIs<T extends KnownUiFramework>(
+  framework: UiFramework | undefined,
+  ...names: readonly T[]
+): framework is T {
+  return typeof framework === 'string' && (names as readonly string[]).includes(framework);
+}
+
 function collectComponentHints(
   sf: SourceFile,
   framework: UiHints['framework'],
   imports: string[],
   signals: UiSignalBuckets,
 ): UiComponentHint[] {
-  if (framework === 'react' || framework === 'next') return collectReactComponentHints(sf, framework, imports, signals);
-  if (framework === 'vue' || framework === 'nuxt') return collectVueComponentHints(sf, framework, imports, signals);
-  if (framework === 'svelte') return collectSvelteComponentHints(sf, framework, imports, signals);
-  if (framework === 'angular') return collectAngularComponentHints(sf, framework, imports, signals);
+  if (frameworkIs(framework, 'react', 'next')) return collectReactComponentHints(sf, framework, imports, signals);
+  if (frameworkIs(framework, 'vue', 'nuxt')) return collectVueComponentHints(sf, framework, imports, signals);
+  if (frameworkIs(framework, 'svelte')) return collectSvelteComponentHints(sf, framework, imports, signals);
+  if (frameworkIs(framework, 'angular')) return collectAngularComponentHints(sf, framework, imports, signals);
   return [];
 }
 

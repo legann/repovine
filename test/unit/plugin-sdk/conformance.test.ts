@@ -12,7 +12,7 @@ import {
   type IaCParser,
   type IaCPluginDescriptor,
 } from '@repovine/plugin-sdk';
-import dockerfileIacPlugin from '../../../src/iac-plugins/dockerfile/index.js';
+import { dockerfileIacPlugin } from '../../../packages/plugins/iac-dockerfile/src/index.js';
 
 // The conformance kit is the objective bar a plugin self-certifies against. Bundled plugins pass it
 // (dogfood); a plugin that leaks mechanics or is non-deterministic fails the matching check.
@@ -105,12 +105,14 @@ describe('plugin-sdk conformance kit', () => {
     let guardedParsed = false;
     const guarded: IaCParser = {
       kind: 'helm',
+      loaderId: 'yaml',
       fileMatch: { extensions: ['.yaml'] },
       supports: () => false,
       parse: () => { guardedParsed = true; throw new Error('parse() ran on an unclaimed doc'); },
     };
     const claiming: IaCParser = {
       kind: 'kubernetes',
+      loaderId: 'yaml',
       fileMatch: { extensions: ['.yaml'] },
       supports: (_f, doc) => !!doc && typeof doc === 'object' && 'apiVersion' in (doc as object),
       parse: () => ({ kind: 'kubernetes', resources: [] }),

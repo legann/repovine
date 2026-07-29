@@ -124,6 +124,7 @@ function buildFreshnessFixture(): { graph: RepositoryGraph; snapshot: Repository
         id: 'Worker',
         kind: 'lambda',
         provider: 'aws',
+        identity: { namespace: 'aws-lambda', localKey: 'Worker' },
         contentHash: HASH.resource,
         attributes: {},
       }],

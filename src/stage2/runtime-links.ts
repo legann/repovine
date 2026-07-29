@@ -1,6 +1,6 @@
 import type { InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
 import { addEdge, hasEdge, nodesOfType } from '../graph/index.js';
-import { k8sNamespacePrefix, makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
+import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 import { normalizeLinkingConfig } from '../stage1/linking-config.js';
 import { lastPathSegment, pathMatchKey, resolveRelPath, toPosixPath } from '../platform/paths.js';
 
@@ -165,6 +165,18 @@ function shouldLinkResource(res: InfraResource): boolean {
   if (res.kind === 'k8s-deployment' || res.kind === 'k8s-service') return true;
   if (res.attributes.role === 'container-image') return true;
   return Boolean(res.attributes.containerImages || res.attributes.containerImage0);
+}
+
+/**
+ * The id prefix every Kubernetes runtime-resource in one namespace shares.
+ *
+ * Spelled here, beside the ingress lookup that is its only reader, rather than in the id minter.
+ * The minter is generic: it encodes the identity a plugin computed and knows nothing about
+ * namespaces. This is the remaining Kubernetes knowledge in core, and it leaves with the ingress
+ * relation when that becomes a plugin projection.
+ */
+function k8sNamespacePrefix(namespace: string | undefined): string {
+  return `resource:k8s:${namespace ?? '_'}/`;
 }
 
 function findK8sIngressBackendServiceId(

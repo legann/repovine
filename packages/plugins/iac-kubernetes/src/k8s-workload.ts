@@ -1,6 +1,6 @@
 /** Extract runtime-link attributes from Kubernetes workload manifests. */
 
-import type { InfraEnvRef } from '../types.js';
+import type { InfraEnvRef } from '@repovine/plugin-sdk';
 
 const WORKLOAD_KINDS = new Set([
   'Deployment',

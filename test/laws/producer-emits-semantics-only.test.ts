@@ -2,9 +2,9 @@ import { describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
-import { dockerfileParser } from '../../src/iac-plugins/dockerfile/parser.js';
-import { kubernetesParser } from '../../src/iac-plugins/kubernetes/parsers/workloads.js';
-import { terraformParser } from '../../src/iac-plugins/terraform/parser.js';
+import { dockerfileParser } from '../../packages/plugins/iac-dockerfile/src/parser.js';
+import { kubernetesParser } from '../../packages/plugins/iac-kubernetes/src/parsers/workloads.js';
+import { terraformParser } from '../../packages/plugins/iac-terraform/src/parser.js';
 import { findFixturesRoot } from './graph-law-helpers.js';
 
 // The "leveling" invariant:

@@ -97,6 +97,7 @@ const INFRA: InfraModuleInfo = {
     id: 'Worker',
     kind: 'lambda',
     provider: 'aws',
+    identity: { namespace: 'aws-lambda', localKey: 'Worker' },
     contentHash: 'worker-h1',
     attributes: {},
   }],

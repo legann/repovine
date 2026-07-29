@@ -162,7 +162,7 @@ describe('runtime descriptor', () => {
           discover: () => ({ packages: [], pendingByPath: new Map() }),
           extract: () => ({ deltas: [], reused: 0, rescanned: 0 }),
         },
-        iac: { parsers: [{ kind: 'demo', supports: () => false, parse: () => null }] },
+        iac: { parsers: [{ kind: 'demo', loaderId: 'demo-json', supports: () => false, parse: () => null }] },
         loaders: [{ id: 'demo-json', load: () => [] }],
         projectors: [projectorOf([])],
       },

@@ -67,47 +67,6 @@ const EXEMPT = new Map<string, ExemptionRecord>([
     reason: 'The public fact type mirrors the closed AWS-specific runtime-action schema.',
     retirement: 'Remove with the schema exemption when runtime action kinds become open.',
   }],
-  ['types.ts::IaCDocFormat', {
-    members: members('dockerfile'),
-    reason: 'This legacy loader axis mixes neutral serialisation formats with one product file format.',
-    retirement: 'Remove when document loading is declared by parser capability instead of this union.',
-  }],
-  ['types.ts::InfraResource.provider', {
-    members: members('aws', 'k8s', 'terraform', 'vercel'),
-    reason: 'The legacy provider field closes infrastructure facts over four named ecosystems.',
-    retirement: 'Remove when provider becomes an open plugin-declared string like InfraKind.',
-  }],
-  ['types.ts::UiFramework', {
-    members: members('react', 'next', 'vue', 'nuxt', 'angular', 'svelte'),
-    reason: 'The legacy UI detail slot closes framework identity over built-in JavaScript producers.',
-    retirement: 'Remove when UiFramework becomes an open producer-declared framework string.',
-  }],
-  ['types.ts::UiLifecycleEffect.kind', {
-    members: members(
-      'react-effect',
-      'vue-watch',
-      'vue-lifecycle',
-      'svelte-lifecycle',
-      'angular-lifecycle',
-    ),
-    reason: 'The legacy UI lifecycle axis embeds framework names into otherwise generic effect facts.',
-    retirement: 'Remove when lifecycle mechanism and framework identity become separate open fields.',
-  }],
-  ['types.ts::UiStateSignal.kind', {
-    members: members(
-      'react-state',
-      'react-reducer',
-      'react-context',
-      'vue-ref',
-      'vue-reactive',
-      'vue-provide',
-      'svelte-store',
-      'angular-service-state',
-      'rxjs-state',
-    ),
-    reason: 'The legacy UI state axis embeds framework and library names in its state mechanism.',
-    retirement: 'Remove when state mechanism and framework identity become separate open fields.',
-  }],
 ]);
 
 /**
@@ -136,6 +95,10 @@ const NOT_AN_AXIS = new Map<string, ReviewRecord>([
   ['source-plugin/handler-resolver.ts::COMMON_BUILD_OUTPUT_ROOTS', {
     reason: 'Directory spellings searched while resolving built handler artifacts, not axis values.',
     retirement: 'Remove when build-output roots become producer-declared handler resolver input.',
+  }],
+  ['iac-plugin/attributes.ts::CONTAINER_PATH_SEGMENTS', {
+    reason: 'Directory spellings a grouping label drops; members classify paths rather than name a value.',
+    retirement: 'Remove when container segments come from the per-run ecosystem dir table.',
   }],
 ]);
 
@@ -181,10 +144,6 @@ const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
     members('markup', 'table', 'decorator', 'call')],
   ['types.ts::RouteInfo.kind',
     members('frontend', 'api')],
-  ['types.ts::UiFramework',
-    members('unknown')],
-  ['types.ts::UiLifecycleEffect.kind',
-    members('generic-effect')],
   ['types.ts::UiDataAccess.kind',
     members('fetch', 'http-client', 'query', 'mutation', 'graphql', 'storage', 'api-client')],
   ['types.ts::UiNavigationAction.kind',
@@ -193,8 +152,6 @@ const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
     members('timeout', 'interval', 'animation-frame')],
   ['types.ts::UiSubscriptionAction.kind',
     members('event-listener', 'observable', 'websocket', 'realtime')],
-  ['types.ts::UiStateSignal.kind',
-    members('generic-state')],
   ['types.ts::UiServiceWrapperHint.role',
     members('service', 'client', 'api', 'adapter', 'manager', 'provider')],
   ['types.ts::UiComponentPropHint.kind',
@@ -218,10 +175,8 @@ const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
     members('read', 'write', 'read-write')],
   ['types.ts::InfraEnvRef.refType',
     members('ref', 'getatt', 'sub', 'literal')],
-  ['types.ts::InfraResource.provider',
-    members('generic')],
-  ['types.ts::IaCDocFormat',
-    members('yaml', 'json', 'hcl', 'raw')],
+  ['types.ts::DOCUMENT_CLAIMS',
+    members('shared', 'exclusive')],
   ['types.ts::TRIGGER_ENTRY_KINDS',
     members('api', 'schedule', 'websocket', 'webhook', 'queue-consumer', 'unknown')],
   ['plugin/declarations.ts::ECOSYSTEM_DIR_ROLES',
@@ -534,9 +489,12 @@ describe('core-laws every closed SDK literal axis is owner-reviewed', () => {
     ]);
     expect(inventory.some(enumeration => enumeration.scope === 'exported-declaration')).toBe(true);
     expect(inventory.some(enumeration => enumeration.scope === 'local-declaration')).toBe(true);
+    // `InfraResource.provider` used to stand here as the property-union witness. It is an open
+    // `Known… | (string & {})` now, so it proves nothing about closed-axis coverage; the witness
+    // moved to a property union that is still closed.
     expect(inventory.some(enumeration => (
       enumeration.where === 'types.ts'
-      && enumeration.owner === 'InfraResource.provider'
+      && enumeration.owner === 'InfraEnvRef.refType'
       && enumeration.kind === 'property-union'
     ))).toBe(true);
     expect(inventory.some(enumeration => (

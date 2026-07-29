@@ -105,7 +105,7 @@ change, not an addition. Contract and current mechanics:
 | Area | Path |
 |---|---|
 | Source producers (plugins) | `src/source-plugins/<name>/` |
-| IaC producers (plugins) | `src/iac-plugins/<name>/` |
+| IaC producers (plugins) | `packages/plugins/iac-<name>/src/` |
 | Interpreters — Stage 2 projection (internal) | `src/interpreter/`, `src/interpreters/`, `src/stage2/` |
 | Detector packs (internal) | `src/analysis/architecture/`, `src/analysis/architecture-detectors/` |
 | Mechanics (internal) | `src/mechanics/` |

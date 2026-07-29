@@ -28,12 +28,50 @@ describe('plugin-sdk fact schemas (untrusted-output boundary)', () => {
     const good = validateSemanticInfraDelta({
       kind: 'foo-infra',
       resources: [
-        { id: 'r1', kind: 'queue', provider: 'aws', contentHash: 'abc', attributes: { Name: 'q' } },
+        {
+          id: 'r1',
+          kind: 'queue',
+          provider: 'aws',
+          identity: { namespace: 'aws-sqs', localKey: 'r1' },
+          contentHash: 'abc',
+          attributes: { Name: 'q' },
+        },
       ],
     });
     expect(good.ok).toBe(true);
 
     const bad = validateSemanticInfraDelta({ kind: 'foo-infra', resources: [{ id: 'r1' }] });
     expect(bad.ok).toBe(false);
+  });
+
+  it('rejects an identity the host could not mint an id from', () => {
+    // The boundary is where a namespace with a `:` has to stop: the id encoding splits on the first
+    // two colons, so accepting one here would hand the graph an id that parses back as another
+    // resource. A missing local key is the same class of unusable.
+    const colonNamespace = validateSemanticInfraDelta({
+      kind: 'foo-infra',
+      resources: [{
+        id: 'r1',
+        kind: 'queue',
+        provider: 'aws',
+        identity: { namespace: 'aws:sqs', localKey: 'r1' },
+        contentHash: 'abc',
+        attributes: {},
+      }],
+    });
+    expect(colonNamespace.ok).toBe(false);
+
+    const emptyKey = validateSemanticInfraDelta({
+      kind: 'foo-infra',
+      resources: [{
+        id: 'r1',
+        kind: 'queue',
+        provider: 'aws',
+        identity: { namespace: 'aws-sqs', localKey: '' },
+        contentHash: 'abc',
+        attributes: {},
+      }],
+    });
+    expect(emptyKey.ok).toBe(false);
   });
 });
