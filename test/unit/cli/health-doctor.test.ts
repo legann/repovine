@@ -1,4 +1,6 @@
 import * as fs from 'node:fs';
+import { getSourcePlugins } from '../../../src/stage1/source/registry.js';
+import '../../../src/stage1/source/bootstrap.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -54,7 +56,13 @@ describe('runDoctorCli client scope', () => {
       execPath: string;
       entrypoint: string | null;
       git: { version: string | null };
-      python: { interpreter: string | null; version: string | null };
+      pluginRuntimes: Array<{
+        pluginId: string;
+        runtime: string;
+        available: boolean;
+        detail: string | null;
+        version: string | null;
+      }>;
       fsCase: string;
       embedder: {
         enabled: boolean;
@@ -230,7 +238,23 @@ describe('runDoctorCli client scope', () => {
     // git is present on every CI runner; python may legitimately be absent.
     // string on any machine with git (all CI runners); null tolerated on a dev box without it
     expect(typeof platform.git.version === 'string' || platform.git.version === null).toBe(true);
-    expect(typeof platform.python.interpreter === 'string' || platform.python.interpreter === null).toBe(true);
+    // The doctor reports what the registered plugins declare they need, so the row for a language
+    // exists because its plugin is registered — never because the report names that language. The
+    // expectation is derived from the registry rather than spelled out: an empty report would
+    // otherwise satisfy every shape assertion below without reporting anything.
+    const declaringPlugins = getSourcePlugins()
+      .filter(plugin => plugin.requires?.runtime !== undefined)
+      .map(plugin => plugin.id)
+      .sort();
+    expect(declaringPlugins.length).toBeGreaterThan(0);
+    expect(platform.pluginRuntimes.map(entry => entry.pluginId).sort()).toEqual(declaringPlugins);
+    for (const entry of platform.pluginRuntimes) {
+      expect(typeof entry.pluginId).toBe('string');
+      expect(typeof entry.runtime).toBe('string');
+      expect(typeof entry.available).toBe('boolean');
+      expect(typeof entry.detail === 'string' || entry.detail === null).toBe(true);
+      expect(typeof entry.version === 'string' || entry.version === null).toBe(true);
+    }
     expect(platform.embedder.model).toBe('Xenova/all-MiniLM-L6-v2');
     expect(typeof platform.embedder.transformers.resolved).toBe('boolean');
     expect(typeof platform.embedder.modelCacheDir).toBe('string');

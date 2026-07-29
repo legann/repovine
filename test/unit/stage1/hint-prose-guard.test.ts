@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { Project } from 'ts-morph';
-import { collectSemanticHints } from '../../../src/source-plugins/typescript/semantic-hints.js';
+import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
 
 /**
  * Two hint detectors used to key on raw file text with no position check, so a module could be

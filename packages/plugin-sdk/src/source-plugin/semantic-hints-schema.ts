@@ -29,7 +29,8 @@ const zRouteInfo = z
   .object({
     path: z.string(),
     component: z.string(),
-    source: z.enum(['jsx', 'config', 'file', 'decorator', 'ast']).optional(),
+    declaredIn: z.enum(['code', 'layout']).optional(),
+    syntax: z.enum(['markup', 'table', 'decorator', 'call']).optional(),
     kind: z.enum(['frontend', 'api']).optional(),
     method: z.string().optional(),
     framework: z.string().optional(),

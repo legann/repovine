@@ -196,7 +196,7 @@ describe('inferModuleKind', () => {
       relativeFilePath: 'src/routes/chat.ts',
       semanticHints: {
         hasRoutes: true,
-        routes: [{ path: '/chat', component: '(file-route)', source: 'file', kind: 'api' }],
+        routes: [{ path: '/chat', component: '(file-route)', declaredIn: 'layout', kind: 'api' }],
       },
     });
     expect(inferModuleKind({ mod })).toBe('api-handler');

@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { runPythonAst, __PY_AST_TIMEOUT_MS_FOR_TEST } from '../../../../src/source-plugins/python/extract.js';
+import { runPythonAst, __PY_AST_TIMEOUT_MS_FOR_TEST } from '../../../../packages/plugins/source-python/src/extract.js';
 
 // The runaway-parse backstop is a manual unref'd timer cleared on 'close' — not spawn's `timeout`
 // option, whose internal timer is ref'd and stays armed for the full 10 min after an early spawn

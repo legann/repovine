@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { RepositoryFactsSnapshot } from '../../../src/types.js';
 import { collectRepositoryFactsAsync } from '../../../src/stage1/index.js';
-import { listTsConfigSourceFiles } from '../../../src/source-plugins/typescript/list-tsconfig-files.js';
+import { listTsConfigSourceFiles } from '../../../packages/plugins/source-typescript/src/list-tsconfig-files.js';
 
 // fs.symlinkSync needs SeCreateSymbolicLinkPrivilege on Windows, where a committed symlink is also
 // only materialised as a link under git core.symlinks=true.

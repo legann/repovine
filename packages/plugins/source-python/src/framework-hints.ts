@@ -1,6 +1,5 @@
 import type { SemanticHints, RouteInfo } from '@repovine/plugin-sdk';
-import { compareCodeUnits } from '../../platform/ordering.js';
-
+import { compareCodeUnits } from '@repovine/plugin-sdk';
 /** Raw route row emitted by the stdlib `ast` subprocess (see `extract.ts` PY_AST_SCRIPT). */
 export interface RawFrameworkRoute {
   path: string;
@@ -33,7 +32,8 @@ export function frameworkHintsFromRaw(input: {
   const routes: RouteInfo[] = rawRoutes.map(r => ({
     path: normalizeApiPath(r.path, framework),
     component: r.component,
-    source: framework === 'fastapi' || framework === 'flask' ? 'decorator' : 'ast',
+    declaredIn: 'code',
+    syntax: framework === 'fastapi' || framework === 'flask' ? 'decorator' : 'call',
     kind: 'api',
     ...(r.method ? { method: r.method.toUpperCase() } : {}),
     ...(r.rendersTemplate && r.rendersTemplate.length > 0 ? { rendersTemplate: r.rendersTemplate } : {}),

@@ -9,7 +9,7 @@ import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { CONFIG_DEFAULTS } from '../../src/config.js';
 import { collectEntrypoints } from '../../src/mcp/lib/entrypoints.js';
-import { detectPython } from '../../src/source-plugins/python/discover.js';
+import { detectPython } from '../../packages/plugins/source-python/src/discover.js';
 import type { AnnotationStore } from '../../src/annotations/store.js';
 import type { RefactoringThresholds } from '../../src/analysis/architecture/config.js';
 import type { ModuleInfo, RepositoryGraph, RepositoryFactsSnapshot } from '../../src/types.js';
@@ -38,7 +38,7 @@ interface ExpectedPolyglot {
     moduleId: string;
     path: string;
     method?: string;
-    source?: 'decorator' | 'ast';
+    syntax?: 'decorator' | 'call';
   }>;
   entrypoints?: Array<{
     moduleId: string;
@@ -176,7 +176,7 @@ d('Root TS+Python fixtures — colliding package name at repo root', () => {
               (expectedRoute.method ? r.method === expectedRoute.method : true),
           );
           expect(found).toBeDefined();
-          if (expectedRoute.source) expect(found?.source).toBe(expectedRoute.source);
+          if (expectedRoute.syntax) expect(found?.syntax).toBe(expectedRoute.syntax);
         }
       });
     }

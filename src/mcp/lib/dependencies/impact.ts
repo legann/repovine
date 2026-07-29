@@ -1,7 +1,7 @@
 import { getImpact, getParent, nodeLabel } from '../../../graph/index.js';
 import type { McpToolRuntime } from '../../types.js';
 import { paginateList } from '../../response/pagination.js';
-import { PER_BUCKET_CAP } from '../../../source-plugins/typescript/call-graph.js';
+import { CALL_INDEX_PER_DECLARATION_CAP } from '@repovine/plugin-sdk';
 import { getCallersByName } from './reverse-calls.js';
 import { truncationMap } from '../../../response/truncation.js';
 import { provenance } from '../../../response/provenance.js';
@@ -108,5 +108,5 @@ export function analyzeImpact(ctx: McpToolRuntime, args: Record<string, unknown>
  * bitten on this query at all: counting what a rebuild would add is not possible from here.
  */
 export function nameMatchGap(): string {
-  return `Name-matched callers come from a call index capped at ${PER_BUCKET_CAP} distinct call names per declaration while extracting; callers in declarations above the cap are not represented.`;
+  return `Name-matched callers come from a call index capped at ${CALL_INDEX_PER_DECLARATION_CAP} distinct call names per declaration while extracting; callers in declarations above the cap are not represented.`;
 }

@@ -51,23 +51,23 @@ describe('collectEntrypoints layer parity', () => {
     const modules = [
       mod('mod:app/jsx', {
         hasRoutes: true,
-        routes: [{ path: '/jsx', component: 'JsxPage', source: 'jsx', kind: 'frontend' }],
+        routes: [{ path: '/jsx', component: 'JsxPage', declaredIn: 'code', syntax: 'markup', kind: 'frontend' }],
       }),
       mod('mod:py/api', {
         webFramework: 'fastapi',
         hasRoutes: true,
-        routes: [{ path: '/py', component: 'read_py', source: 'decorator', kind: 'api' }],
+        routes: [{ path: '/py', component: 'read_py', declaredIn: 'code', syntax: 'decorator', kind: 'api' }],
       }, 'python'),
       mod('mod:app/conditional', {
         conditionalRenders: [{ component: 'MaybeAdmin', condition: 'isAdmin', renderedIn: 'App', lineRange: { start: 5, end: 7 } }],
       }),
       mod('mod:app/page', {
         hasRoutes: true,
-        routes: [{ path: '/page', component: '(file-route)', source: 'file', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }],
+        routes: [{ path: '/page', component: '(file-route)', declaredIn: 'layout', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }],
       }),
       mod('mod:app/api', {
         hasRoutes: true,
-        routes: [{ path: '/api/items', component: '(file-route)', source: 'file', kind: 'api', method: 'POST', framework: 'nextjs-app', fileType: 'route' }],
+        routes: [{ path: '/api/items', component: '(file-route)', declaredIn: 'layout', kind: 'api', method: 'POST', framework: 'nextjs-app', fileType: 'route' }],
       }),
     ];
     const snapshot: RepositoryFactsSnapshot = {

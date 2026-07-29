@@ -1,6 +1,5 @@
 import type { ImportInfo } from '@repovine/plugin-sdk';
-import { compareCodeUnits } from '../../platform/ordering.js';
-
+import { compareCodeUnits } from '@repovine/plugin-sdk';
 /**
  * Conservative import → side-effect-kind mapping for Python modules.
  *

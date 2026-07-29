@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { createEmptyGraph, emptyGraphDelta } from '../../../../src/graph/index.js';
 import type { Interpreter } from '../../../../src/interpreter/types.js';
 import { composeInterpreters } from '../../../../src/stage2/interpreter/composer.js';
-import type { ModuleInfo, RepositoryFactsSnapshot } from '../../../../src/types.js';
+import type { ModuleInfo, RepositoryFactsSnapshot, TemplateFileInfo } from '../../../../src/types.js';
 
 function moduleInfo(
   id: string,
@@ -22,12 +22,13 @@ function moduleInfo(
   };
 }
 
-function snapshot(modules: ModuleInfo[]): RepositoryFactsSnapshot {
+function snapshot(modules: ModuleInfo[], templates?: TemplateFileInfo[]): RepositoryFactsSnapshot {
   return {
     repoRoot: '/repo',
     timestamp: '2026-06-13T00:00:00.000Z',
     packages: [{ name: 'pkg', path: '.', sourcePluginId: modules[0]?.sourcePluginId }],
     modules,
+    ...(templates ? { templates } : {}),
   };
 }
 
@@ -35,8 +36,9 @@ function runInterpreters(
   interpreters: Interpreter[],
   modules: ModuleInfo[] = [moduleInfo('a', 'typescript')],
   warnings: string[] = [],
+  templates?: TemplateFileInfo[],
 ) {
-  const snap = snapshot(modules);
+  const snap = snapshot(modules, templates);
   return composeInterpreters({
     graph: createEmptyGraph(),
     snapshot: snap,
@@ -49,79 +51,67 @@ function runInterpreters(
 }
 
 describe('stage2 interpreter composer', () => {
-  it('topo-sorts enabled interpreters by requiresInterpreters[]', () => {
+  it('applies the node phase before the link phase, whatever the input order', () => {
     const ran: string[] = [];
-    const a: Interpreter = {
-      id: 'a',
-      sourceAdapterIds: '*',
-      contributeGraph: () => { ran.push('a'); return emptyGraphDelta(); },
+    const nodes: Interpreter = {
+      id: 'nodes',
+      phase: 'nodes',
+      contributeGraph: () => { ran.push('nodes'); return emptyGraphDelta(); },
     };
-    const b: Interpreter = {
-      id: 'b',
-      sourceAdapterIds: '*',
-      requiresInterpreters: ['a'],
-      contributeGraph: () => { ran.push('b'); return emptyGraphDelta(); },
+    const links: Interpreter = {
+      id: 'links',
+      phase: 'links',
+      contributeGraph: () => { ran.push('links'); return emptyGraphDelta(); },
     };
 
-    const result = runInterpreters([b, a]);
+    const result = runInterpreters([links, nodes]);
 
-    expect(result.appliedInterpreterIds).toEqual(['a', 'b']);
-    expect(ran).toEqual(['a', 'b']);
+    expect(result.appliedInterpreterIds).toEqual(['nodes', 'links']);
+    expect(ran).toEqual(['nodes', 'links']);
   });
 
-  it('throws a clear error for requiresInterpreters[] cycles', () => {
-    const a: Interpreter = { id: 'a', sourceAdapterIds: '*', requiresInterpreters: ['b'] };
-    const b: Interpreter = { id: 'b', sourceAdapterIds: '*', requiresInterpreters: ['a'] };
+  it('rejects a duplicate interpreter id', () => {
+    const first: Interpreter = { id: 'same', phase: 'nodes', contributeGraph: () => emptyGraphDelta() };
+    const second: Interpreter = { id: 'same', phase: 'links', contributeGraph: () => emptyGraphDelta() };
 
-    expect(() => runInterpreters([a, b])).toThrow(/cycle/i);
-  });
-
-  it('throws for a missing requiresInterpreters[] dependency', () => {
-    const layer: Interpreter = {
-      id: 'needs-missing',
-      sourceAdapterIds: '*',
-      requiresInterpreters: ['missing-interpreter'],
-      contributeGraph: () => emptyGraphDelta(),
-    };
-
-    expect(() => runInterpreters([layer])).toThrow(/missing-interpreter/);
+    expect(() => runInterpreters([first, second])).toThrow(/Duplicate interpreter id "same"/);
   });
 
   it('propagates a contributeGraph() failure (interpreters are first-party, not swallowed)', () => {
     const layer: Interpreter = {
       id: 'boom',
-      sourceAdapterIds: '*',
+      phase: 'nodes',
       contributeGraph: () => { throw new Error('contributeGraph boom'); },
     };
 
     expect(() => runInterpreters([layer])).toThrow(/contributeGraph boom/);
   });
 
-  it('filters interpreters by sourceAdapterIds sourcePluginId', () => {
+  it('gates on the fact, not on the producer that published it', () => {
     const ran: string[] = [];
-    const ts: Interpreter = {
-      id: 'ts',
-      sourceAdapterIds: ['typescript'],
-      contributeGraph: () => { ran.push('ts'); return emptyGraphDelta(); },
+    const routesLayer: Interpreter = {
+      id: 'routes',
+      phase: 'links',
+      requiresSemanticHints: ['routes'],
+      contributeGraph: () => { ran.push('routes'); return emptyGraphDelta(); },
     };
-    const py: Interpreter = {
-      id: 'py',
-      sourceAdapterIds: ['python'],
-      contributeGraph: () => { ran.push('py'); return emptyGraphDelta(); },
-    };
+    const hints: ModuleInfo['semanticHints'] = { routes: [] };
 
-    const result = runInterpreters([ts, py], [moduleInfo('a', 'typescript')]);
-
-    expect(result.appliedInterpreterIds).toEqual(['ts']);
-    expect(result.skippedInterpreterIds).toEqual(['py']);
-    expect(ran).toEqual(['ts']);
+    // The same normalized hint under three different producer ids — including one the engine has
+    // never heard of — enables the interpreter identically.
+    for (const producer of ['typescript', 'python', 'not-a-built-in']) {
+      const applied = runInterpreters([routesLayer], [moduleInfo('a', producer, hints)]);
+      expect(applied.appliedInterpreterIds).toEqual(['routes']);
+      expect(applied.skippedInterpreterIds).toEqual([]);
+    }
+    expect(ran).toEqual(['routes', 'routes', 'routes']);
   });
 
   it('short-circuits requiresSemanticHints when no module has a requested semanticHints key', () => {
     const ran: string[] = [];
     const routesLayer: Interpreter = {
       id: 'routes',
-      sourceAdapterIds: '*',
+      phase: 'links',
       requiresSemanticHints: ['routes'],
       contributeGraph: () => { ran.push('routes'); return emptyGraphDelta(); },
     };
@@ -135,21 +125,42 @@ describe('stage2 interpreter composer', () => {
     expect(ran).toEqual(['routes']);
   });
 
-  it('merges collectEntrypoints fragments in stable topo order', () => {
-    const a: Interpreter = {
-      id: 'a',
-      sourceAdapterIds: '*',
+  it('short-circuits requiresSnapshotFacts when the declared slot is empty', () => {
+    const ran: string[] = [];
+    const templatesLayer: Interpreter = {
+      id: 'templates',
+      phase: 'links',
+      requiresSnapshotFacts: ['templates'],
+      contributeGraph: () => { ran.push('templates'); return emptyGraphDelta(); },
+    };
+    const template: TemplateFileInfo = {
+      id: 'template:index.html',
+      relPath: 'index.html',
+      contentHash: 'deadbeef',
+    };
+
+    const skipped = runInterpreters([templatesLayer]);
+    const applied = runInterpreters([templatesLayer], undefined, undefined, [template]);
+
+    expect(skipped.skippedInterpreterIds).toEqual(['templates']);
+    expect(applied.appliedInterpreterIds).toEqual(['templates']);
+    expect(ran).toEqual(['templates']);
+  });
+
+  it('merges collectEntrypoints fragments in stable phase order', () => {
+    const nodes: Interpreter = {
+      id: 'nodes',
+      phase: 'nodes',
       collectEntrypoints: () => [{ kind: 'api', id: 'a' }],
     };
-    const b: Interpreter = {
-      id: 'b',
-      sourceAdapterIds: '*',
-      requiresInterpreters: ['a'],
+    const links: Interpreter = {
+      id: 'links',
+      phase: 'links',
       collectEntrypoints: () => [{ kind: 'api', id: 'b' }],
     };
 
-    const first = runInterpreters([b, a]).entrypoints;
-    const second = runInterpreters([b, a]).entrypoints;
+    const first = runInterpreters([links, nodes]).entrypoints;
+    const second = runInterpreters([links, nodes]).entrypoints;
 
     expect(first).toEqual([{ kind: 'api', id: 'a' }, { kind: 'api', id: 'b' }]);
     expect(second).toEqual(first);

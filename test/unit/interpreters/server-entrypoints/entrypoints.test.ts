@@ -43,13 +43,13 @@ describe('backend-routes layer entrypoints', () => {
       mod('mod:py/api', 'python', {
         webFramework: 'fastapi',
         hasRoutes: true,
-        routes: [{ path: '/users', component: 'list_users', source: 'decorator', kind: 'api' }],
+        routes: [{ path: '/users', component: 'list_users', declaredIn: 'code', syntax: 'decorator', kind: 'api' }],
       }),
     ]));
 
     expect(entries).toEqual([
       {
-        [LAYER_ENTRYPOINT_SLOT_KEY]: 'python-api',
+        [LAYER_ENTRYPOINT_SLOT_KEY]: 'api-route',
         id: 'entrypoint:api:mod:py/api:/users:GET',
         kind: 'api',
         layer: 'backend',
@@ -63,7 +63,7 @@ describe('backend-routes layer entrypoints', () => {
     ]);
   });
 
-  it('marks server-rendered routes with surface:server-page and rendersTemplate, keeping the python-api slot', () => {
+  it('marks server-rendered routes with surface:server-page and rendersTemplate, keeping the api-route slot', () => {
     const entries = collectBackendRouteEntrypoints(ctx([
       mod('mod:py/views', 'python', {
         webFramework: 'django',
@@ -71,7 +71,7 @@ describe('backend-routes layer entrypoints', () => {
         routes: [{
           path: '/profile/',
           component: 'profile_view',
-          source: 'ast',
+          declaredIn: 'code', syntax: 'call',
           kind: 'api',
           method: 'GET',
           rendersTemplate: ['accounts/profile.html'],
@@ -81,7 +81,7 @@ describe('backend-routes layer entrypoints', () => {
 
     expect(entries).toEqual([
       expect.objectContaining({
-        [LAYER_ENTRYPOINT_SLOT_KEY]: 'python-api',
+        [LAYER_ENTRYPOINT_SLOT_KEY]: 'api-route',
         id: 'entrypoint:api:mod:py/views:/profile/:GET',
         surface: 'server-page',
         rendersTemplate: ['accounts/profile.html'],
@@ -95,7 +95,7 @@ describe('backend-routes layer entrypoints', () => {
       mod('mod:py/api', 'python', {
         webFramework: 'fastapi',
         hasRoutes: true,
-        routes: [{ path: '/users', component: 'list_users', source: 'decorator', kind: 'api' }],
+        routes: [{ path: '/users', component: 'list_users', declaredIn: 'code', syntax: 'decorator', kind: 'api' }],
       }),
     ]));
     expect(entry).not.toHaveProperty('surface');
@@ -107,13 +107,13 @@ describe('backend-routes layer entrypoints', () => {
       mod('mod:py/urls', 'python', {
         webFramework: 'drf',
         hasRoutes: true,
-        routes: [{ path: '/users/', component: 'UserViewSet', source: 'ast', kind: 'api', method: 'POST' }],
+        routes: [{ path: '/users/', component: 'UserViewSet', declaredIn: 'code', syntax: 'call', kind: 'api', method: 'POST' }],
       }),
     ]));
 
     expect(entries).toEqual([
       expect.objectContaining({
-        [LAYER_ENTRYPOINT_SLOT_KEY]: 'python-api',
+        [LAYER_ENTRYPOINT_SLOT_KEY]: 'api-route',
         id: 'entrypoint:api:mod:py/urls:/users/:POST',
         method: 'POST',
         source: 'django-urlpatterns',
@@ -131,14 +131,14 @@ describe('backend-routes layer entrypoints', () => {
           {
             path: '/api/environments',
             component: 'fastify.get',
-            source: 'ast',
+            declaredIn: 'code', syntax: 'call',
             kind: 'api',
             method: 'GET',
           },
           {
             path: '/api/environments',
             component: 'fastify.post',
-            source: 'ast',
+            declaredIn: 'code', syntax: 'call',
             kind: 'api',
             method: 'POST',
           },
@@ -148,7 +148,7 @@ describe('backend-routes layer entrypoints', () => {
 
     expect(entries).toEqual([
       expect.objectContaining({
-        [LAYER_ENTRYPOINT_SLOT_KEY]: 'python-api',
+        [LAYER_ENTRYPOINT_SLOT_KEY]: 'api-route',
         id: 'entrypoint:api:mod:ts/routes/environment:/api/environments:GET',
         kind: 'api',
         layer: 'backend',
@@ -169,23 +169,23 @@ describe('backend-routes layer entrypoints', () => {
     const entries = collectBackendRouteEntrypoints(ctx([
       mod('mod:next/route', 'typescript', {
         hasRoutes: true,
-        routes: [{ path: '/api/users', component: '(file-route)', source: 'file', kind: 'api', method: 'GET', framework: 'nextjs-app', fileType: 'route' }],
+        routes: [{ path: '/api/users', component: '(file-route)', declaredIn: 'layout', kind: 'api', method: 'GET', framework: 'nextjs-app', fileType: 'route' }],
       }),
       mod('mod:pages/api', 'typescript', {
         hasRoutes: true,
-        routes: [{ path: '/api/hello', component: '(file-route)', source: 'file', kind: 'api', framework: 'nextjs-pages', fileType: 'api' }],
+        routes: [{ path: '/api/hello', component: '(file-route)', declaredIn: 'layout', kind: 'api', framework: 'nextjs-pages', fileType: 'api' }],
       }),
       mod('mod:sk/server', 'typescript', {
         hasRoutes: true,
-        routes: [{ path: '/api/users', component: '(file-route)', source: 'file', kind: 'api', framework: 'sveltekit', fileType: 'server' }],
+        routes: [{ path: '/api/users', component: '(file-route)', declaredIn: 'layout', kind: 'api', framework: 'sveltekit', fileType: 'server' }],
       }),
       mod('mod:nuxt/server-api', 'typescript', {
         hasRoutes: true,
-        routes: [{ path: '/api/products', component: '(file-route)', source: 'file', kind: 'api', framework: 'nuxt', fileType: 'server-api' }],
+        routes: [{ path: '/api/products', component: '(file-route)', declaredIn: 'layout', kind: 'api', framework: 'nuxt', fileType: 'server-api' }],
       }),
       mod('mod:page', 'typescript', {
         hasRoutes: true,
-        routes: [{ path: '/users', component: '(file-route)', source: 'file', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }],
+        routes: [{ path: '/users', component: '(file-route)', declaredIn: 'layout', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }],
       }),
     ]));
 
@@ -225,7 +225,7 @@ describe('backend-routes layer entrypoints', () => {
     const [entry] = collectBackendRouteEntrypoints(ctx([
       mod('mod:py/deco', 'python', {
         hasRoutes: true,
-        routes: [{ path: '/ping', component: 'ping', source: 'decorator', kind: 'api' }],
+        routes: [{ path: '/ping', component: 'ping', declaredIn: 'code', syntax: 'decorator', kind: 'api' }],
       }),
     ]));
     expect(entry.source).toBe('decorator-route');
@@ -235,7 +235,7 @@ describe('backend-routes layer entrypoints', () => {
     const [entry] = collectBackendRouteEntrypoints(ctx([
       mod('mod:py/ast', 'python', {
         hasRoutes: true,
-        routes: [{ path: '/status', component: 'status', source: 'ast', kind: 'api' }],
+        routes: [{ path: '/status', component: 'status', declaredIn: 'code', syntax: 'call', kind: 'api' }],
       }),
     ]));
     expect(entry.source).toBe('ast-route');
@@ -246,7 +246,7 @@ describe('backend-routes layer entrypoints', () => {
       mod('mod:py/flask', 'python', {
         webFramework: 'flask',
         hasRoutes: true,
-        routes: [{ path: '/items', component: 'items', source: 'ast', kind: 'api' }],
+        routes: [{ path: '/items', component: 'items', declaredIn: 'code', syntax: 'call', kind: 'api' }],
       }),
     ]));
     expect(entry.source).toBe('flask-ast');

@@ -57,16 +57,6 @@ function members(...values: string[]): ReadonlySet<string> {
  * without sharing an exemption.
  */
 const EXEMPT = new Map<string, ExemptionRecord>([
-  ['source-plugin/semantic-hints-schema.ts::zRouteInfo.source', {
-    members: members('jsx'),
-    reason: 'The source field mixes syntax, filesystem convention and parse method on one legacy axis.',
-    retirement: 'Remove when RouteInfo.source is split into named, ecosystem-neutral dimensions.',
-  }],
-  ['types.ts::RouteInfo.source', {
-    members: members('jsx'),
-    reason: 'The public type mirrors the versioned zRouteInfo.source schema and carries the same debt.',
-    retirement: 'Remove with the schema exemption when RouteInfo.source is split into neutral dimensions.',
-  }],
   ['source-plugin/semantic-hints-schema.ts::zRuntimeAction.action', {
     members: members('sqs.sendMessage', 'sns.publish', 'eventbridge.putEvents', 'lambda.invoke'),
     reason: 'The versioned schema still exposes a closed set of AWS-specific runtime actions.',
@@ -154,8 +144,10 @@ const NOT_AN_AXIS = new Map<string, ReviewRecord>([
  * meaning from silently authorising the same spelling on an unrelated axis.
  */
 const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
-  ['source-plugin/semantic-hints-schema.ts::zRouteInfo.source',
-    members('config', 'file', 'decorator', 'ast')],
+  ['source-plugin/semantic-hints-schema.ts::zRouteInfo.declaredIn',
+    members('code', 'layout')],
+  ['source-plugin/semantic-hints-schema.ts::zRouteInfo.syntax',
+    members('markup', 'table', 'decorator', 'call')],
   ['source-plugin/semantic-hints-schema.ts::zRouteInfo.kind',
     members('frontend', 'api')],
   ['source-plugin/semantic-hints-schema.ts::zSecuritySignal.kind',
@@ -173,6 +165,8 @@ const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
     members('server', 'client')],
   ['source-plugin/types.ts::ScanScope',
     members('all', 'source', 'infra')],
+  ['source-plugin/types.ts::SourceDiscoveryLogLevel',
+    members('debug', 'warn', 'error')],
   ['types.ts::SymbolKind',
     members('function', 'class', 'interface', 'type', 'const', 'enum', 'component', 'unknown')],
   ['types.ts::MemberInfo.kind',
@@ -181,8 +175,10 @@ const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
     members('private', 'protected', 'public')],
   ['types.ts::InternalInfo.kind',
     members('function', 'variable', 'destructuring')],
-  ['types.ts::RouteInfo.source',
-    members('config', 'file', 'decorator', 'ast')],
+  ['types.ts::RouteDeclarationSite',
+    members('code', 'layout')],
+  ['types.ts::RouteDeclarationSyntax',
+    members('markup', 'table', 'decorator', 'call')],
   ['types.ts::RouteInfo.kind',
     members('frontend', 'api')],
   ['types.ts::UiFramework',
@@ -550,7 +546,7 @@ describe('core-laws every closed SDK literal axis is owner-reviewed', () => {
     ))).toBe(true);
     expect(inventory.some(enumeration => (
       enumeration.where === 'source-plugin/semantic-hints-schema.ts'
-      && enumeration.owner === 'zRouteInfo.source'
+      && enumeration.owner === 'zRouteInfo.syntax'
       && enumeration.scope === 'local-declaration'
       && enumeration.kind === 'zod-enum'
     ))).toBe(true);

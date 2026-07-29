@@ -60,3 +60,19 @@ export function packageNodeId(packageName: string): string {
 export function packageNameFromId(idOrName: string): string {
   return idOrName.startsWith('pkg:') ? idOrName.slice('pkg:'.length) : idOrName;
 }
+
+/**
+ * The package name at the head of a slash-separated name (`@scope/pkg/sub` → `@scope/pkg`).
+ *
+ * Ships beside the id mint because that mint embeds the package name in `mod:<pkg>/<path>`: reading
+ * the package back out of an id is this function, and a producer resolving a scoped import
+ * specifier to a package node asks the same question of the same spelling. A scope prefix keeps two
+ * segments; everything else keeps one.
+ */
+export function extractPackageName(specifier: string): string {
+  if (specifier.startsWith('@')) {
+    const parts = specifier.split('/');
+    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : specifier;
+  }
+  return specifier.split('/')[0];
+}

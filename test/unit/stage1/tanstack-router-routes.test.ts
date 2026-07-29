@@ -5,7 +5,7 @@ import { Project, ScriptTarget } from 'ts-morph';
 import { createEmptyGraph } from '../../../src/graph/index.js';
 import { collectUiRouteEntrypoints } from '../../../src/interpreters/ui-entrypoints/entrypoints.js';
 import type { InterpreterEntrypointContext } from '../../../src/interpreter/types.js';
-import { collectSemanticHints } from '../../../src/source-plugins/typescript/semantic-hints.js';
+import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
 import type { ModuleInfo, RepositoryFactsSnapshot } from '../../../src/types.js';
 
 const FIXTURE_ROOT = join(process.cwd(), 'test/fixtures/tanstack-router');
@@ -63,7 +63,7 @@ describe('TanStack Router routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/admin/users',
       component: 'AdminUsersPage',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'frontend',
       framework: 'tanstack-router',
       fileType: 'page',
@@ -79,7 +79,7 @@ describe('TanStack Router routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/posts/$postId',
       component: 'PostDetailPage',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'frontend',
       framework: 'tanstack-router',
       fileType: 'page',
@@ -94,7 +94,7 @@ describe('TanStack Router routes', () => {
       {
         path: '/settings',
         component: 'SettingsPage',
-        source: 'ast',
+        declaredIn: 'code', syntax: 'call',
         kind: 'frontend',
         framework: 'tanstack-router',
       },
@@ -121,7 +121,7 @@ describe('TanStack Router routes', () => {
     const h = collectSemanticHints(sf, 'src/AppRoutes.tsx');
     expect(h?.webFramework).toBe('react-router');
     expect(h?.routes ?? []).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: '/profile', source: 'jsx', framework: 'react-router' }),
+      expect.objectContaining({ path: '/profile', declaredIn: 'code', syntax: 'markup', framework: 'react-router' }),
     ]));
     expect(h?.routes ?? []).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ framework: 'tanstack-router' }),

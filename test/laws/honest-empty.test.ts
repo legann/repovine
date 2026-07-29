@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { inferFileBasedRoutes } from '../../src/mcp/lib/entrypoints.js';
-import { detectPython } from '../../src/source-plugins/python/discover.js';
+import { detectPython } from '../../packages/plugins/source-python/src/discover.js';
 import { frontendHintLeaks, phantomFrontendHints } from '../helpers/semantic-hints-tiers.js';
 import { findFixturesRoot } from './graph-law-helpers.js';
 

@@ -1,11 +1,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import type { PackageInfo } from '@repovine/plugin-sdk';
-import { readDirSorted } from '../../fs/read-dir-sorted.js';
-import { compareCodeUnits } from '../../platform/ordering.js';
-import { repoRelativePosix } from '../../platform/paths.js';
-import { shouldWalkDiscoveryDir } from '../../scan-filters.js';
-
+import { compareCodeUnits, readDirSorted, repoRelativePosix, shouldWalkDiscoveryDir } from '@repovine/plugin-sdk';
 export function discoverPackages(repoRoot: string): PackageInfo[] {
   const tsconfigDirs = findAllTsconfigDirs(repoRoot);
   const packages: PackageInfo[] = [];

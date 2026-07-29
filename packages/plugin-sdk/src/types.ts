@@ -161,7 +161,18 @@ export interface SemanticModuleDelta {
 export interface RouteInfo {
   path: string;
   component: string;
-  source?: 'jsx' | 'config' | 'file' | 'decorator' | 'ast';
+  /**
+   * Where the route's existence is stated: written in code, or implied by the file's place in the
+   * tree. The two are different questions from {@link RouteInfo.syntax}, which says what code form
+   * carried a `code` declaration and has no answer for a `layout` one.
+   */
+  declaredIn?: RouteDeclarationSite;
+  /**
+   * The code form that carried the declaration. Absent when `declaredIn` is `layout`, because there
+   * is no declaration to have a form. Named by shape, so an ecosystem whose routes arrive as markup
+   * reports `markup` whatever its markup dialect is called.
+   */
+  syntax?: RouteDeclarationSyntax;
   kind?: 'frontend' | 'api';
   method?: string;
   /** File-route framework token used by MCP entrypoint output, e.g. nextjs-app, sveltekit. */
@@ -171,6 +182,12 @@ export interface RouteInfo {
   /** Template names this route's handler/render unit renders, when statically known. */
   rendersTemplate?: string[];
 }
+
+/** Where a route declaration lives. */
+export type RouteDeclarationSite = 'code' | 'layout';
+
+/** The code form a route declaration takes: markup element, table entry, decorator, or call. */
+export type RouteDeclarationSyntax = 'markup' | 'table' | 'decorator' | 'call';
 
 export interface RuntimeAction {
   action: 'sqs.sendMessage' | 'sns.publish' | 'eventbridge.putEvents' | 'lambda.invoke';

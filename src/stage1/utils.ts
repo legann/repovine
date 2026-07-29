@@ -1,4 +1,3 @@
-import * as path from 'node:path';
 import type { PackageInfo } from '../types.js';
 
 /**
@@ -12,18 +11,13 @@ import type { PackageInfo } from '../types.js';
  *  produce identical ids for the same file. */
 export { mintModuleId as makeModuleId } from '@repovine/plugin-sdk';
 
+/** Engine-side name for the SDK reader: the package name at the head of a `mod:` id tail, and the
+ *  same reading a producer applies to a scoped import specifier. */
+export { extractPackageName } from '@repovine/plugin-sdk';
+
 /** Unique identity for a discovered package entry across source plugins. */
 export function packageJobKey(pkg: Pick<PackageInfo, 'name' | 'path' | 'sourcePluginId'>): string {
   return `${pkg.sourcePluginId ?? ''}\u0000${pkg.name}\u0000${pkg.path}`;
-}
-
-/** Length of pkgPath as prefix of relFromRoot (for dedup: prefer package that owns the file). */
-export function pathPrefixLength(pkgPath: string, relFromRoot: string): number {
-  const norm = path.normalize(relFromRoot);
-  const prefix = path.normalize(pkgPath);
-  if (prefix === '.' || prefix === '') return 0;
-  if (norm === prefix || norm.startsWith(prefix + path.sep)) return prefix.length;
-  return 0;
 }
 
 /**
@@ -63,13 +57,4 @@ export function modulePathResolverPriority(filePath: string): number {
   const baseRank = isIndex ? 1000 : 0;
   const extRank = MODULE_PATH_EXT_PRIORITY.indexOf(ext);
   return baseRank + (extRank >= 0 ? extRank : 100);
-}
-
-/** Extract the package name from a module specifier (`@scope/pkg/sub` → `@scope/pkg`). */
-export function extractPackageName(specifier: string): string {
-  if (specifier.startsWith('@')) {
-    const parts = specifier.split('/');
-    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : specifier;
-  }
-  return specifier.split('/')[0];
 }

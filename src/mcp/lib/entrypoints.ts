@@ -64,26 +64,26 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
   };
 
   // Replay layer-owned entrypoints in the legacy global order. The MCP shell stays the ordering
-  // authority (per-module jsx/python-api/conditional, then file-based, then service triggers);
+  // authority (per-module jsx/api-route/conditional, then file-based, then service triggers);
   // each entry is now built by its owning layer (frontend-routes / backend-routes / infra-link)
   // and looked up here by slot key, then stripped of its hidden slot before output.
   for (const mod of snapshot.modules) {
     for (const route of mod.semanticHints?.routes ?? []) {
-      if (route.source === 'jsx' || route.source === 'config') {
+      if (route.syntax === 'markup' || route.syntax === 'table') {
         pushInterpreterEntry(interpreterEntrypoints.get(jsxRouteLayerKey(mod.id, route.path)));
         continue;
       }
-      if (route.source === 'ast' && route.framework === 'tanstack-router' && route.kind === 'frontend') {
+      if (route.syntax === 'call' && route.framework === 'tanstack-router' && route.kind === 'frontend') {
         pushInterpreterEntry(interpreterEntrypoints.get(tanstackRouteLayerKey(mod.id, route.path)));
         continue;
       }
-      if (route.source === 'ast' && route.framework === 'angular' && route.kind === 'frontend') {
+      if (route.syntax === 'call' && route.framework === 'angular' && route.kind === 'frontend') {
         pushInterpreterEntry(interpreterEntrypoints.get(angularRouteLayerKey(mod.id, route.path)));
         continue;
       }
-      if ((route.source === 'decorator' || route.source === 'ast') && route.kind === 'api') {
+      if ((route.syntax === 'decorator' || route.syntax === 'call') && route.kind === 'api') {
         const method = route.method ?? 'GET';
-        pushInterpreterEntry(interpreterEntrypoints.get(pythonApiLayerKey(mod.id, route.path, method)));
+        pushInterpreterEntry(interpreterEntrypoints.get(apiRouteLayerKey(mod.id, route.path, method)));
       }
     }
     for (const cr of mod.semanticHints?.conditionalRenders ?? []) {
@@ -131,7 +131,7 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
 }
 
 const REPLAYED_SLOTS = new Set<EntrypointSlot>([
-  'python-api',
+  'api-route',
   'file-api',
   'jsx-route',
   'tanstack-route',
@@ -185,8 +185,8 @@ function conditionalLayerKey(moduleId: string, component: string): string {
   return `conditional:entrypoint:conditional:${moduleId}:${component}`;
 }
 
-function pythonApiLayerKey(moduleId: string, path: string, method: string): string {
-  return `python-api:entrypoint:api:${moduleId}:${path}:${method}`;
+function apiRouteLayerKey(moduleId: string, path: string, method: string): string {
+  return `api-route:entrypoint:api:${moduleId}:${path}:${method}`;
 }
 
 function fileApiLayerKey(route: FileBasedRoute): string {

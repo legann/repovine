@@ -39,4 +39,10 @@ export interface PluginAvailability {
   ok: boolean;
   /** Human-readable reason when `ok` is false, e.g. 'python3 not found on PATH'. */
   reason?: string;
+  /**
+   * What the probe found, when `ok` is true — an interpreter path, a toolchain root, a version
+   * string. The host reports it and does not parse it: a diagnostic that named the prerequisite by
+   * ecosystem would put one language's spelling in the host's own report.
+   */
+  detail?: string;
 }

@@ -2,8 +2,8 @@
  * Tests for SSR markers detection in semantic-hints.
  */
 import { Project, ScriptTarget } from 'ts-morph';
-import { collectSemanticHints } from '../../../src/source-plugins/typescript/semantic-hints.js';
-import { extractTypeScriptFromSfc } from '../../../src/source-plugins/typescript/sfc-extractor.js';
+import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
+import { extractTypeScriptFromSfc } from '../../../packages/plugins/source-typescript/src/sfc-extractor.js';
 
 function makeSf(source: string, fileName = '/virtual/file.tsx') {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ScriptTarget.ES2022, jsx: 2 } });
@@ -105,7 +105,7 @@ describe('file-based routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/users/[id]',
       component: '(file-route)',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'frontend',
       framework: 'nextjs-app',
       fileType: 'page',
@@ -118,7 +118,7 @@ describe('file-based routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/agents',
       component: '(file-route)',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'frontend',
       framework: 'nextjs-app',
       fileType: 'page',
@@ -135,7 +135,7 @@ describe('file-based routes', () => {
       {
         path: '/api/users',
         component: '(file-route)',
-        source: 'file',
+        declaredIn: 'layout',
         kind: 'api',
         method: 'GET',
         framework: 'nextjs-app',
@@ -144,7 +144,7 @@ describe('file-based routes', () => {
       {
         path: '/api/users',
         component: '(file-route)',
-        source: 'file',
+        declaredIn: 'layout',
         kind: 'api',
         method: 'POST',
         framework: 'nextjs-app',
@@ -165,7 +165,7 @@ describe('file-based routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/dashboard',
       component: '(file-route)',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'frontend',
       framework: 'nextjs-app',
       fileType: 'page',
@@ -203,7 +203,7 @@ describe('file-based routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/',
       component: 'div',
-      source: 'jsx',
+      declaredIn: 'code', syntax: 'markup',
       kind: 'frontend',
       framework: 'react-router',
     });
@@ -243,7 +243,7 @@ describe('file-based routes', () => {
       {
         path: 'auth-v2/',
         component: '(route-config)',
-        source: 'config',
+        declaredIn: 'code', syntax: 'table',
         kind: 'frontend',
         framework: 'react-router',
         fileType: 'route',
@@ -251,7 +251,7 @@ describe('file-based routes', () => {
       {
         path: '/',
         component: 'make',
-        source: 'config',
+        declaredIn: 'code', syntax: 'table',
         kind: 'frontend',
         framework: 'react-router',
         fileType: 'index',
@@ -259,7 +259,7 @@ describe('file-based routes', () => {
       {
         path: '/accept/:orgId/:memberId/:token/',
         component: 'make',
-        source: 'config',
+        declaredIn: 'code', syntax: 'table',
         kind: 'frontend',
         framework: 'react-router',
         fileType: 'route',
@@ -267,7 +267,7 @@ describe('file-based routes', () => {
       {
         path: '/account/',
         component: '(redirect)',
-        source: 'config',
+        declaredIn: 'code', syntax: 'table',
         kind: 'frontend',
         framework: 'react-router',
         fileType: 'route',
@@ -287,7 +287,7 @@ describe('file-based routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/api/users',
       component: '(file-route)',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'api',
       method: 'GET',
       framework: 'sveltekit',
@@ -307,7 +307,7 @@ describe('file-based routes', () => {
     expect(page?.routes).toEqual([{
       path: '/dashboard',
       component: '(file-route)',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'frontend',
       framework: 'sveltekit',
       fileType: 'page',
@@ -323,7 +323,7 @@ describe('file-based routes', () => {
     expect(h?.routes).toEqual([{
       path: '/api/users/[id]',
       component: '(file-route)',
-      source: 'file',
+      declaredIn: 'layout',
       kind: 'api',
       method: 'GET',
       framework: 'nuxt',
@@ -355,7 +355,7 @@ describe('file-based routes', () => {
     expect(h?.routes).toEqual([{
       path: '/settings',
       component: 'SettingsPage',
-      source: 'ast',
+      declaredIn: 'code', syntax: 'call',
       kind: 'frontend',
       framework: 'tanstack-router',
     }]);
@@ -380,28 +380,28 @@ describe('framework API routes', () => {
       {
         path: '/api/environments',
         component: 'fastify.get',
-        source: 'ast',
+        declaredIn: 'code', syntax: 'call',
         kind: 'api',
         method: 'GET',
       },
       {
         path: '/api/environments',
         component: 'fastify.post',
-        source: 'ast',
+        declaredIn: 'code', syntax: 'call',
         kind: 'api',
         method: 'POST',
       },
       {
         path: '/api/environments/:id',
         component: 'fastify.patch',
-        source: 'ast',
+        declaredIn: 'code', syntax: 'call',
         kind: 'api',
         method: 'PATCH',
       },
       {
         path: '/api/environments/:id',
         component: 'fastify.delete',
-        source: 'ast',
+        declaredIn: 'code', syntax: 'call',
         kind: 'api',
         method: 'DELETE',
       },
@@ -424,7 +424,7 @@ describe('framework API routes', () => {
     expect(h?.routes).toContainEqual({
       path: '/api/tasks',
       component: 'app.route',
-      source: 'ast',
+      declaredIn: 'code', syntax: 'call',
       kind: 'api',
       method: 'POST',
     });

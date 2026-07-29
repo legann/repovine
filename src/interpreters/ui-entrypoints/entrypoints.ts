@@ -23,7 +23,7 @@ export function collectUiRouteEntrypoints(ctx: InterpreterEntrypointContext): Sl
   for (const mod of ctx.snapshot.modules) {
     for (const route of mod.semanticHints?.routes ?? []) {
       if (
-        route.source === 'ast'
+        route.syntax === 'call'
         && route.framework === 'tanstack-router'
         && route.kind === 'frontend'
       ) {
@@ -41,7 +41,7 @@ export function collectUiRouteEntrypoints(ctx: InterpreterEntrypointContext): Sl
         continue;
       }
       if (
-        route.source === 'ast'
+        route.syntax === 'call'
         && route.framework === 'angular'
         && route.kind === 'frontend'
       ) {
@@ -58,11 +58,11 @@ export function collectUiRouteEntrypoints(ctx: InterpreterEntrypointContext): Sl
         });
         continue;
       }
-      if (route.source !== 'jsx' && route.source !== 'config') continue;
+      if (route.syntax !== 'markup' && route.syntax !== 'table') continue;
       const webFramework = route.framework ?? mod.semanticHints?.webFramework;
       const kind = route.kind === 'api'
         ? 'api'
-        : (route.source === 'config' && route.fileType === 'index' ? 'page' : 'route');
+        : (route.syntax === 'table' && route.fileType === 'index' ? 'page' : 'route');
       out.push({
         [LAYER_ENTRYPOINT_SLOT_KEY]: 'jsx-route',
         id: `entrypoint:route:${mod.id}:${route.path}`,
@@ -71,7 +71,7 @@ export function collectUiRouteEntrypoints(ctx: InterpreterEntrypointContext): Sl
         path: route.path,
         component: route.component,
         moduleId: mod.id,
-        source: webFramework === 'react-router' || route.source === 'config' ? 'react-router' : 'jsx-route',
+        source: webFramework === 'react-router' || route.syntax === 'table' ? 'react-router' : 'jsx-route',
         ...(webFramework ? { webFramework } : {}),
       });
     }

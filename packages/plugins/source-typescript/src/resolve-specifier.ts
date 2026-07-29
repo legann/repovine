@@ -6,8 +6,7 @@ import {
   resolveByCandidates,
   type PackageInfo,
 } from '@repovine/plugin-sdk';
-import { extractPackageName } from '../../stage1/utils.js';
-import { hostKeyedView, hostPathKey } from '../../platform/paths.js';
+import { extractPackageName, hostKeyedView, hostPathKey } from '@repovine/plugin-sdk';
 import {
   DECLARATION_EXT_SUFFIX_RE,
   SOURCE_EXT_SUFFIX_RE,

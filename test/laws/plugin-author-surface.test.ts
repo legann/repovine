@@ -2,8 +2,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import typescriptPlugin from '../../src/source-plugins/typescript/index.js';
-import pythonPlugin from '../../src/source-plugins/python/index.js';
+import typescriptPlugin from '../../packages/plugins/source-typescript/src/plugin.js';
+import pythonPlugin from '../../packages/plugins/source-python/src/plugin.js';
 import { codeFiles, repoRoot } from './graph-law-helpers.js';
 
 /**
@@ -17,7 +17,7 @@ import { codeFiles, repoRoot } from './graph-law-helpers.js';
  * published surface with no demonstrated use.
  */
 describe('core-laws plugin author surface (the SDK carries the mechanics)', () => {
-  const PLUGIN_ROOTS = ['src/source-plugins/', 'src/iac-plugins/'];
+  const PLUGIN_ROOTS = ['packages/plugins/', 'src/iac-plugins/'];
 
   it('no producer walks the filesystem without the canonical prune rule', () => {
     const files = codeFiles([]).filter(f => PLUGIN_ROOTS.some(root => f.where.startsWith(root)));
@@ -99,15 +99,15 @@ describe('core-laws plugin author surface (the SDK carries the mechanics)', () =
 
   it('a resolver spells no suffix or index basename its descriptor already declares', () => {
     const RESOLVERS = [
-      { plugin: typescriptPlugin, where: 'src/source-plugins/typescript/resolve-specifier.ts' },
-      { plugin: pythonPlugin, where: 'src/source-plugins/python/resolve-import.ts' },
+      { plugin: typescriptPlugin, where: 'packages/plugins/source-typescript/src/resolve-specifier.ts' },
+      { plugin: pythonPlugin, where: 'packages/plugins/source-python/src/resolve-import.ts' },
     ];
     // Every built-in source plugin is covered. Asked of the tree rather than of the list above:
     // comparing the list to a literal spelling of itself would pass whatever the tree contains.
     const pluginDirs = fs
-      .readdirSync(path.join(repoRoot(), 'src', 'source-plugins'), { withFileTypes: true })
-      .filter(entry => entry.isDirectory())
-      .map(entry => entry.name)
+      .readdirSync(path.join(repoRoot(), 'packages', 'plugins'), { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && entry.name.startsWith('source-'))
+      .map(entry => entry.name.slice('source-'.length))
       .sort();
     expect(RESOLVERS.map(r => r.plugin.id).sort()).toEqual(pluginDirs);
 
@@ -294,7 +294,12 @@ describe('core-laws plugin author surface (the SDK carries the mechanics)', () =
         else if (entry.isFile() && CODE_EXT.test(entry.name)) outsideBarrel.push(fs.readFileSync(full, 'utf8'));
       }
     };
-    for (const dir of ['test', 'examples']) readTree(path.join(repoRoot(), dir));
+    // The built-in plugin packages are the dogfood this surface exists for: each is authored against
+    // the published barrel exactly as a third party would be, so a name only they reach is used, not
+    // orphaned. They are not part of the SDK, so counting them is not an export vouching for itself.
+    for (const dir of ['test', 'examples', path.join('packages', 'plugins')]) {
+      readTree(path.join(repoRoot(), dir));
+    }
     const consumerText = outsideBarrel.join('\n');
 
     // A surface with no reader is a surface added and forgotten; at the tag it freezes with the

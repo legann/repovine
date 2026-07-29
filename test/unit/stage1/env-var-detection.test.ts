@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { Project } from 'ts-morph';
-import { collectSemanticHints } from '../../../src/source-plugins/typescript/semantic-hints.js';
+import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
 
 /**
  * Env vars used to be scanned out of the raw file text by `/process\.env\.([A-Z][A-Z0-9_]+)/` plus a

@@ -6,9 +6,10 @@ import { toPosixPath } from './source-plugin/module-id.js';
  *
  * A plugin reports paths the engine compares as bytes, and looks paths up in maps the engine built,
  * so the spelling has to be one function on both sides. {@link toPosixPath} already ships beside the
- * module-id mint; these five are its neighbours — the repo-relative form that becomes identity, the
- * normalized form patterns match against, the last segment of a POSIX path, the key an absolute-path
- * map is read by, and the folded view of such a map.
+ * module-id mint; these six are its neighbours — the repo-relative form that becomes identity, the
+ * normalized form patterns match against, the last segment of a POSIX path, the folded form a name
+ * vocabulary is matched by, the key an absolute-path map is read by, and the folded view of such a
+ * map.
  */
 
 /**
@@ -46,6 +47,20 @@ export function normalizeRelPath(value: string): string {
  */
 export function lastPathSegment(relPath: string): string {
   return relPath.slice(relPath.lastIndexOf('/') + 1);
+}
+
+/**
+ * Case-folded POSIX form, for matching a path against a vocabulary of names.
+ *
+ * A match key, never an identity: `pathMatchKey` folds case on every platform, so two files that
+ * differ only by case answer the same key and neither key names either file. Heuristics that ask
+ * "does this path look like a test / a controller / build output" compare against lowercase
+ * vocabularies and want that. Anything that ends up in a node id, an annotation key, or a hash
+ * takes {@link repoRelativePosix} instead. {@link hostPathKey} is the third neighbour: it folds
+ * case only on win32, because there the filesystem does.
+ */
+export function pathMatchKey(value: string): string {
+  return toPosixPath(value).toLowerCase();
 }
 
 /**

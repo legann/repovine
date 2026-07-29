@@ -432,8 +432,17 @@ describe('refusal form: guarded roots are real', () => {
   it('reads the engine and the SDK, so an empty sweep cannot pass', () => {
     // Both roots by name: a relocated SDK would make every text guard in this law stop reading it
     // with nothing turning red, which is the failure mode this check exists for.
-    expect(guardedRoots().map(r => toPosixPath(path.relative(repoRoot(), r.dir))))
-      .toEqual(['src', 'packages/plugin-sdk/src']);
+    // The engine and the SDK are named; the plugin packages are read from the tree, so a package
+    // added tomorrow joins the sweep without editing this list, and a sweep that lost the engine or
+    // the SDK still fails here.
+    const guarded = guardedRoots().map(r => toPosixPath(path.relative(repoRoot(), r.dir)));
+    expect(guarded.slice(0, 2)).toEqual(['src', 'packages/plugin-sdk/src']);
+    const pluginPackageRoots = fs
+      .readdirSync(path.join(repoRoot(), 'packages', 'plugins'), { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => `packages/plugins/${entry.name}/src`)
+      .sort();
+    expect(guarded.slice(2).sort()).toEqual(pluginPackageRoots);
     expect(fs.existsSync(SRC)).toBe(true);
     expect(codeLines([]).length).toBeGreaterThan(10_000);
     expect(codeFiles([]).length).toBeGreaterThan(200);

@@ -1,17 +1,21 @@
-// Shell-neutral build-asset copy: non-TS runtime files ship in dist/ byte-identical
-// (the bundled Python AST script and the client hook dispatcher).
+// Shell-neutral build-asset copy: non-TS runtime files ship beside their compiled output
+// byte-identical (the client hook dispatcher, and the Python AST script the Python plugin runs).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const rels = [
-  path.join('source-plugins', 'python', 'route-ast-script.py'),
-  path.join('cli', 'dispatcher', 'repovine-client-dispatcher.mjs'),
+const assets = [
+  { from: path.join('src', 'cli', 'dispatcher'), to: path.join('dist', 'cli', 'dispatcher'), file: 'repovine-client-dispatcher.mjs' },
+  {
+    from: path.join('packages', 'plugins', 'source-python', 'src'),
+    to: path.join('packages', 'plugins', 'source-python', 'dist'),
+    file: 'route-ast-script.py',
+  },
 ];
-for (const rel of rels) {
-  const src = path.join(root, 'src', rel);
-  const dest = path.join(root, 'dist', rel);
+for (const asset of assets) {
+  const src = path.join(root, asset.from, asset.file);
+  const dest = path.join(root, asset.to, asset.file);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.copyFileSync(src, dest);
 }

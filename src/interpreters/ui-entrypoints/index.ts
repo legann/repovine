@@ -4,6 +4,8 @@ import { collectUiRouteEntrypoints, UI_ENTRYPOINTS_INTERPRETER_ID } from './entr
 /** Builtin UI entrypoint interpreter (JSX routes, conditional renders, file pages). */
 export const uiEntrypointsInterpreter: Interpreter = {
   id: UI_ENTRYPOINTS_INTERPRETER_ID,
-  sourceAdapterIds: ['typescript'],
+  phase: 'links',
+  // The two hint slots a UI surface arrives in. Whoever produced them, this reads the same facts.
+  requiresSemanticHints: ['routes', 'conditionalRenders'],
   collectEntrypoints: collectUiRouteEntrypoints,
 };

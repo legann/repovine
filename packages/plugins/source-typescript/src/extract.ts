@@ -7,8 +7,7 @@ import { isNodeModulesPath, resolveSpecifierFromMap, type PathsContext } from '.
 import { collectExports } from './exports.js';
 import { collectSemanticHints } from './semantic-hints.js';
 import { extractTypeScriptFromSfc } from './sfc-extractor.js';
-import { toPosixPath } from '../../platform/paths.js';
-
+import { toPosixPath } from '@repovine/plugin-sdk';
 export interface ExtractPackageInput {
   pkg: PackageInfo;
   pkgModules: PendingModule[];

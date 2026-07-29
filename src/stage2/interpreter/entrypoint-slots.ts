@@ -10,7 +10,7 @@ import type { EntrypointFragment } from '../../interpreter/types.js';
 export const LAYER_ENTRYPOINT_SLOT_KEY = '__repovineSlot';
 
 export type EntrypointSlot =
-  | 'python-api'
+  | 'api-route'
   | 'file-api'
   | 'jsx-route'
   | 'tanstack-route'

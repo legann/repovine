@@ -1,10 +1,11 @@
 import { applyValidated, emptyGraphDelta } from '../../graph/index.js';
-import type {
-  Interpreter,
-  EntrypointFragment,
-  InterpreterEntrypointContext,
-  InterpreterGraphContext,
-  InterpreterLogLevel,
+import {
+  INTERPRETER_PHASES,
+  type Interpreter,
+  type EntrypointFragment,
+  type InterpreterEntrypointContext,
+  type InterpreterGraphContext,
+  type InterpreterLogLevel,
 } from '../../interpreter/types.js';
 import type { GraphDelta, ModuleInfo, RepositoryGraph, RepositoryFactsSnapshot } from '../../types.js';
 import type { DomainsConfig } from '../domains.js';
@@ -35,18 +36,20 @@ export function composeInterpreters(options: ComposeInterpretersOptions): Interp
   const sourcePluginIds = collectSourcePluginIds(options.snapshot);
   const skippedInterpreterIds: string[] = [];
   const enabled = interpreters.filter(interpreter => {
-    if (!appliesToSourceAdapter(interpreter, sourcePluginIds)) {
+    // Gated on the facts a repository carries, never on who produced them: a normalized route hint
+    // enables the same interpreter whether TypeScript, Python or a third-party plugin published it.
+    if (!hasAnyRequiredHint(interpreter, options.snapshot)) {
       skippedInterpreterIds.push(interpreter.id);
       return false;
     }
-    if (!hasAnyRequiredHint(interpreter, options.snapshot)) {
+    if (!hasRequiredSnapshotFacts(interpreter, options.snapshot)) {
       skippedInterpreterIds.push(interpreter.id);
       return false;
     }
     return true;
   });
   const log = options.logger ?? defaultLogger;
-  const ordered = topoSortInterpreters(enabled);
+  const ordered = orderByPhase(enabled);
   const baseContext = {
     graph: options.graph,
     snapshot: options.snapshot,
@@ -85,16 +88,17 @@ function collectSourcePluginIds(snapshot: RepositoryFactsSnapshot): readonly str
   return [...ids].sort();
 }
 
-function appliesToSourceAdapter(interpreter: Interpreter, sourcePluginIds: readonly string[]): boolean {
-  if (interpreter.sourceAdapterIds === '*') return true;
-  return interpreter.sourceAdapterIds.some(id => sourcePluginIds.includes(id));
-}
-
 function hasAnyRequiredHint(interpreter: Interpreter, snapshot: RepositoryFactsSnapshot): boolean {
   if (!interpreter.requiresSemanticHints || interpreter.requiresSemanticHints.length === 0) return true;
   return snapshot.modules.some(mod =>
     interpreter.requiresSemanticHints!.some(key => hasHintKey(mod.semanticHints, key)),
   );
+}
+
+function hasRequiredSnapshotFacts(interpreter: Interpreter, snapshot: RepositoryFactsSnapshot): boolean {
+  const slots = interpreter.requiresSnapshotFacts;
+  if (!slots || slots.length === 0) return true;
+  return slots.every(slot => (snapshot[slot]?.length ?? 0) > 0);
 }
 
 function hasHintKey(hints: unknown, key: string): boolean {
@@ -108,44 +112,19 @@ function hasHintKey(hints: unknown, key: string): boolean {
 }
 
 /**
- * Topo-sort interpreters by their `requiresInterpreters[]` edges within the deterministic base order. All
- * interpreters are first-party, so a duplicate id, a missing requirement, or a cycle is a
- * programmer error and throws.
+ * Interpreters in composition-phase order, stable within a phase.
+ *
+ * The phase is declared, so nothing here reads one interpreter's output to decide when another
+ * runs. Within a phase the input order is preserved and carries no meaning: two `links`
+ * contributions read the same node set whichever of them the composer reaches first.
  */
-function topoSortInterpreters(interpreters: readonly Interpreter[]): Interpreter[] {
-  const byId = new Map<string, Interpreter>();
+function orderByPhase(interpreters: readonly Interpreter[]): Interpreter[] {
+  const byId = new Set<string>();
   for (const interpreter of interpreters) {
     if (byId.has(interpreter.id)) throw new Error(`Duplicate interpreter id "${interpreter.id}"`);
-    byId.set(interpreter.id, interpreter);
+    byId.add(interpreter.id);
   }
-
-  const out: Interpreter[] = [];
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-
-  function visit(interpreter: Interpreter, path: string[]): void {
-    const { id } = interpreter;
-    if (visited.has(id)) return;
-    if (visiting.has(id)) {
-      const cycleStart = path.indexOf(id);
-      const cycle = [...path.slice(cycleStart), id].join(' -> ');
-      throw new Error(`Interpreter requires cycle detected: ${cycle}`);
-    }
-    visiting.add(id);
-    for (const requiredId of interpreter.requiresInterpreters ?? []) {
-      const required = byId.get(requiredId);
-      if (!required) {
-        throw new Error(`Interpreter "${id}" requires missing interpreter "${requiredId}"`);
-      }
-      visit(required, [...path, id]);
-    }
-    visiting.delete(id);
-    visited.add(id);
-    out.push(interpreter);
-  }
-
-  for (const interpreter of interpreters) visit(interpreter, []);
-  return out;
+  return INTERPRETER_PHASES.flatMap(phase => interpreters.filter(entry => entry.phase === phase));
 }
 
 function normalizeDelta(delta: GraphDelta | undefined, interpreterId: string): GraphDelta {

@@ -34,6 +34,7 @@ export type {
   SourceFileText,
   HandlerResolveContext,
   HandlerResolver,
+  SourceDiscoveryLogLevel,
   SourceDiscoveryOptions,
   SourceDiscoveryResult,
   SourceExtractInput,
@@ -42,11 +43,22 @@ export type {
 } from './source-plugin/types.js';
 
 export { resolveDottedPathHandlerToModule } from './source-plugin/handler-resolver.js';
-export { mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './source-plugin/module-id.js';
+export { extractPackageName, mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './source-plugin/module-id.js';
 
 /* ---- the path vocabulary a producer shares with the engine ---- */
-export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, repoRelativePosix } from './paths.js';
+export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, pathMatchKey, repoRelativePosix } from './paths.js';
 export { compareCodeUnits } from './ordering.js';
+
+/* ---- build.scan: the glob dialect and the include/exclude verdict, one per side of the boundary ---- */
+export { compileGlob } from './glob.js';
+export type { GlobMatcher } from './glob.js';
+export {
+  compileScanPatterns,
+  isScanExcluded,
+  isScanIncluded,
+  shouldScanInfraPath,
+  shouldScanSourcePath,
+} from './source-plugin/scan-filters.js';
 
 /* ---- import resolution: the map key convention, and the ladder built from declared facts ---- */
 export { moduleCandidateSuffixes, resolveByCandidates } from './source-plugin/resolve-candidates.js';
@@ -54,12 +66,14 @@ export { moduleCandidateSuffixes, resolveByCandidates } from './source-plugin/re
 /* ---- discovery walk: the traversal every producer runs, and where it stops ---- */
 export {
   REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
-  matchesEngineIgnorePath,
   readDirSorted,
   shouldWalkDiscoveryDir,
   walkRepository,
 } from './source-plugin/discovery-walk.js';
 export type { WalkedFile, WalkRepositoryOptions } from './source-plugin/discovery-walk.js';
+
+/* ---- budgets a producer slices to and the host cites ---- */
+export { CALL_INDEX_PER_DECLARATION_CAP } from './source-plugin/budgets.js';
 
 /* ---- content hashing (the width a producer's contentHash must carry) ---- */
 export { HASH_WIDTH, sha256Hex } from './content-hash.js';
@@ -137,6 +151,8 @@ export type {
   WebFramework,
   SsrMarkers,
   RouteInfo,
+  RouteDeclarationSite,
+  RouteDeclarationSyntax,
   ConditionalRender,
   RuntimeAction,
   SecuritySignal,

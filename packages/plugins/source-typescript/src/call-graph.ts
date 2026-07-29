@@ -1,4 +1,5 @@
 import { Node, ts, type CallExpression, type SourceFile } from 'ts-morph';
+import { CALL_INDEX_PER_DECLARATION_CAP } from '@repovine/plugin-sdk';
 
 const IGNORED_CALLS = new Set([
   'console.log', 'console.warn', 'console.error', 'console.info', 'console.debug',
@@ -12,8 +13,10 @@ const IGNORED_CALLS = new Set([
   'require', 'Map', 'Set', 'Error', 'TypeError', 'RegExp',
 ]);
 
-/** Max call names kept per bucket (per exported declaration, and the module bucket). */
-export const PER_BUCKET_CAP = 50;
+/** Max call names kept per bucket (per exported declaration, and the module bucket). The number is
+ *  a contract term: the host cites the same budget when it reports what a name-matched answer may be
+ *  missing, so it is read from the SDK rather than declared beside the slice. */
+const PER_BUCKET_CAP = CALL_INDEX_PER_DECLARATION_CAP;
 
 /** Attribution of a module's forward calls. Calls inside an exported declaration are keyed by that
  * declaration's compiler node; everything else (top-level statements, non-exported helpers) lands in

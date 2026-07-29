@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import * as path from 'node:path';
-import { resolvePythonImport } from '../../../../src/source-plugins/python/resolve-import.js';
+import { resolvePythonImport } from '../../../../packages/plugins/source-python/src/resolve-import.js';
 import type { PackageInfo } from '../../../../src/types.js';
 
 const REPO = '/repo';

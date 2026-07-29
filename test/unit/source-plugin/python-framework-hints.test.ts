@@ -2,7 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import {
   frameworkHintsFromRaw,
   normalizeApiPath,
-} from '../../../src/source-plugins/python/framework-hints.js';
+} from '../../../packages/plugins/source-python/src/framework-hints.js';
 
 describe('normalizeApiPath', () => {
   it('prefixes Django relative paths', () => {
@@ -32,7 +32,7 @@ describe('frameworkHintsFromRaw', () => {
           path: '/api/items',
           method: 'POST',
           component: 'create_item',
-          source: 'decorator',
+          declaredIn: 'code', syntax: 'decorator',
           kind: 'api',
         },
       ],
@@ -48,7 +48,7 @@ describe('frameworkHintsFromRaw', () => {
       path: '/profile',
       method: 'GET',
       component: 'profile',
-      source: 'decorator',
+      declaredIn: 'code', syntax: 'decorator',
       kind: 'api',
       rendersTemplate: ['profile.html'],
     });
@@ -71,7 +71,7 @@ describe('frameworkHintsFromRaw', () => {
       path: '/users/',
       method: 'GET',
       component: '(django-view)',
-      source: 'ast',
+      declaredIn: 'code', syntax: 'call',
       kind: 'api',
     });
   });
@@ -86,7 +86,7 @@ describe('frameworkHintsFromRaw', () => {
       path: '/dashboard',
       method: 'GET',
       component: 'dashboard',
-      source: 'decorator',
+      declaredIn: 'code', syntax: 'decorator',
       kind: 'api',
       rendersTemplate: ['dashboard.html'],
     });
@@ -102,7 +102,7 @@ describe('frameworkHintsFromRaw', () => {
       path: '/api/users/',
       method: 'GET',
       component: 'UserViewSet',
-      source: 'ast',
+      declaredIn: 'code', syntax: 'call',
       kind: 'api',
     });
   });

@@ -1,5 +1,4 @@
 import type { Interpreter } from '../../interpreter/types.js';
-import { CODE_STRUCTURE_INTERPRETER_ID } from '../code-structure/index.js';
 import { SERVER_TEMPLATES_INTERPRETER_ID, contributeServerTemplates } from './templates.js';
 
 /**
@@ -9,7 +8,9 @@ import { SERVER_TEMPLATES_INTERPRETER_ID, contributeServerTemplates } from './te
  */
 export const serverTemplatesInterpreter: Interpreter = {
   id: SERVER_TEMPLATES_INTERPRETER_ID,
-  sourceAdapterIds: ['python'],
-  requiresInterpreters: [CODE_STRUCTURE_INTERPRETER_ID],
+  // Draws `renders` edges from render units to template nodes, so it reads the finished node set.
+  phase: 'links',
+  // Runs for whichever producer discovered templates, and not at all when none did.
+  requiresSnapshotFacts: ['templates'],
   contributeGraph: contributeServerTemplates,
 };

@@ -13,10 +13,10 @@ afterAll(() => {
 describe('Python AST script loading and packaging', () => {
   it('builds the script beside the compiled extractor byte-for-byte', () => {
     const source = actualFs.readFileSync(
-      path.join(process.cwd(), 'src', 'source-plugins', 'python', 'route-ast-script.py'),
+      path.join(process.cwd(), 'packages', 'plugins', 'source-python', 'src', 'route-ast-script.py'),
     );
     const packaged = actualFs.readFileSync(
-      path.join(process.cwd(), 'dist', 'source-plugins', 'python', 'route-ast-script.py'),
+      path.join(process.cwd(), 'packages', 'plugins', 'source-python', 'dist', 'route-ast-script.py'),
     );
     expect(packaged.equals(source)).toBe(true);
   });
@@ -29,7 +29,7 @@ describe('Python AST script loading and packaging', () => {
     const accessSync = jest.fn(() => { throw missing; });
     jest.unstable_mockModule('node:fs', () => ({ ...actualFs, accessSync }));
 
-    const imported = await import('../../../src/source-plugins/python/extract.js');
+    const imported = await import('../../../packages/plugins/source-python/src/extract.js');
     expect(accessSync).not.toHaveBeenCalled();
 
     const pkg: PackageInfo = { name: 'py-pkg', path: '.', sourcePluginId: 'python' };

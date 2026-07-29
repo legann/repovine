@@ -1,7 +1,6 @@
 import { Node, SyntaxKind, type BindingElement, type SourceFile } from 'ts-morph';
 import { importDeclarationSpecifier } from './module-specifier.js';
-import { compareCodeUnits } from '../../platform/ordering.js';
-import { lastPathSegment, pathMatchKey, toPosixPath } from '../../platform/paths.js';
+import { compareCodeUnits, lastPathSegment, pathMatchKey, toPosixPath } from '@repovine/plugin-sdk';
 import { JSX_EXT_SUFFIX_RE, SFC_EXT_SUFFIX_RE, SFC_VIRTUAL_TS_SUFFIX_RE, SOURCE_EXT_SUFFIX_RE } from './extensions.js';
 import type {
   SemanticHints,
@@ -16,6 +15,7 @@ import type {
   UiSubscriptionAction,
   UiTimerAction,
   RouteInfo,
+  RouteDeclarationSite,
   ConditionalRender,
   SsrMarkers,
   RuntimeAction,
@@ -466,15 +466,16 @@ function collectTanStackRoutes(sf: SourceFile): RouteInfo[] {
   const routes: RouteInfo[] = [];
   const seen = new Set<string>();
 
-  const push = (path: string, component: string, source: 'file' | 'ast', fileType?: string) => {
+  const push = (path: string, component: string, declaredIn: RouteDeclarationSite, fileType?: string) => {
     const normalized = normalizeTanStackPath(path);
-    const key = `${source}:${normalized}:${component}`;
+    const key = `${declaredIn}:${normalized}:${component}`;
     if (seen.has(key)) return;
     seen.add(key);
     routes.push({
       path: normalized,
       component,
-      source,
+      declaredIn,
+      ...(declaredIn === 'code' ? { syntax: 'call' as const } : {}),
       kind: 'frontend',
       framework: 'tanstack-router',
       ...(fileType ? { fileType } : {}),
@@ -495,7 +496,7 @@ function collectTanStackRoutes(sf: SourceFile): RouteInfo[] {
         const component = opts && Node.isObjectLiteralExpression(opts)
           ? componentFromTanStackOptions(opts)
           : '(route)';
-        push(path, component, 'file', 'page');
+        push(path, component, 'layout', 'page');
         return;
       }
     }
@@ -516,7 +517,7 @@ function collectTanStackRoutes(sf: SourceFile): RouteInfo[] {
       : undefined;
     if (!path) return;
 
-    push(path, componentFromTanStackOptions(arg), 'ast');
+    push(path, componentFromTanStackOptions(arg), 'code');
   });
 
   return routes;
@@ -561,9 +562,9 @@ function collectRoutes(sf: SourceFile, reactRouter = false): RouteInfo[] {
     }
 
     if (pathValue && component) {
-      routes.push({ path: pathValue, component, source: 'jsx', kind: 'frontend', framework: jsxFramework });
+      routes.push({ path: pathValue, component, declaredIn: 'code', syntax: 'markup', kind: 'frontend', framework: jsxFramework });
     } else if (pathValue) {
-      routes.push({ path: pathValue, component: '(wrapper)', source: 'jsx', kind: 'frontend', framework: jsxFramework });
+      routes.push({ path: pathValue, component: '(wrapper)', declaredIn: 'code', syntax: 'markup', kind: 'frontend', framework: jsxFramework });
     }
   });
 
@@ -640,7 +641,8 @@ function collectReactRouterConfigRoutes(sf: SourceFile): RouteInfo[] {
     routes.push({
       path,
       component: componentFromReactRouterConfig(node),
-      source: 'config',
+      declaredIn: 'code',
+      syntax: 'table',
       kind: 'frontend',
       framework: 'react-router',
       fileType: isIndex ? 'index' : 'route',
@@ -668,7 +670,8 @@ function collectFastifyRoutes(sf: SourceFile): RouteInfo[] {
       routes.push({
         path,
         component: expr.getText(),
-        source: 'ast',
+        declaredIn: 'code',
+        syntax: 'call',
         kind: 'api',
         method: lowerMethod.toUpperCase(),
       });
@@ -684,7 +687,8 @@ function collectFastifyRoutes(sf: SourceFile): RouteInfo[] {
     routes.push({
       path,
       component: expr.getText(),
-      source: 'ast',
+      declaredIn: 'code',
+      syntax: 'call',
       kind: 'api',
       method,
     });
@@ -767,7 +771,7 @@ function collectAngularRouteObject(
     const key = `${normalized}|${component}`;
     if (!seen.has(key)) {
       seen.add(key);
-      out.push({ path: normalized, component, source: 'ast', kind: 'frontend', framework: 'angular' });
+      out.push({ path: normalized, component, declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' });
     }
   }
 
@@ -864,7 +868,8 @@ function collectNestRoutes(sf: SourceFile): RouteInfo[] {
         out.push({
           path,
           component: `${className}.${method.getName()}`,
-          source: 'decorator',
+          declaredIn: 'code',
+          syntax: 'decorator',
           kind: 'api',
           method: decName.toUpperCase(),
           framework: 'nestjs',
@@ -994,7 +999,7 @@ function fileRoute(
   return {
     path,
     component: '(file-route)',
-    source: 'file',
+    declaredIn: 'layout',
     kind,
     framework,
     fileType,

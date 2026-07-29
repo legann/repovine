@@ -4,7 +4,7 @@ import { createEmptyGraph } from '../../../src/graph/index.js';
 import { collectUiRouteEntrypoints } from '../../../src/interpreters/ui-entrypoints/entrypoints.js';
 import { collectBackendRouteEntrypoints } from '../../../src/interpreters/server-entrypoints/entrypoints.js';
 import type { InterpreterEntrypointContext } from '../../../src/interpreter/types.js';
-import { collectSemanticHints } from '../../../src/source-plugins/typescript/semantic-hints.js';
+import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
 import type { ModuleInfo, RepositoryFactsSnapshot } from '../../../src/types.js';
 
 function makeSf(source: string, fileName: string) {
@@ -67,11 +67,11 @@ describe('Angular RouterModule routes', () => {
 
     const h = collectSemanticHints(sf, 'src/app/app-routing.module.ts');
     expect(h?.routes).toEqual([
-      { path: '/', component: 'HomeComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
-      { path: '/users', component: 'UserListComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
-      { path: '/users/:id', component: 'UserDetailComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
-      { path: '/admin', component: '(lazy)', source: 'ast', kind: 'frontend', framework: 'angular' },
-      { path: '/**', component: 'NotFoundComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
+      { path: '/', component: 'HomeComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
+      { path: '/users', component: 'UserListComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
+      { path: '/users/:id', component: 'UserDetailComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
+      { path: '/admin', component: '(lazy)', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
+      { path: '/**', component: 'NotFoundComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
     ]);
     // Angular never claims the module-level webFramework slot (see collectSemanticHints).
     expect(h?.webFramework).toBeUndefined();
@@ -88,8 +88,8 @@ describe('Angular RouterModule routes', () => {
     `, '/virtual/src/app/dash.routes.ts');
     const h = collectSemanticHints(sf, 'src/app/dash.routes.ts');
     expect(h?.routes).toEqual([
-      { path: '/dash', component: 'DashLayoutComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
-      { path: '/dash/stats', component: 'StatsComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
+      { path: '/dash', component: 'DashLayoutComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
+      { path: '/dash/stats', component: 'StatsComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
     ]);
   });
 
@@ -101,7 +101,7 @@ describe('Angular RouterModule routes', () => {
     `, '/virtual/src/app/app.module.ts');
     const h = collectSemanticHints(sf, 'src/app/app.module.ts');
     expect(h?.routes).toEqual([
-      { path: '/login', component: 'LoginComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
+      { path: '/login', component: 'LoginComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
     ]);
   });
 
@@ -114,7 +114,7 @@ describe('Angular RouterModule routes', () => {
     `, '/virtual/src/app/feature/feature.module.ts');
     const h = collectSemanticHints(sf, 'src/app/feature/feature.module.ts');
     expect(h?.routes).toEqual([
-      { path: '/feature', component: 'FeatureComponent', source: 'ast', kind: 'frontend', framework: 'angular' },
+      { path: '/feature', component: 'FeatureComponent', declaredIn: 'code', syntax: 'call', kind: 'frontend', framework: 'angular' },
     ]);
   });
 
@@ -170,10 +170,10 @@ describe('NestJS @Controller routes', () => {
     const h = collectSemanticHints(sf, 'src/users/users.controller.ts');
     expect(h?.webFramework).toBe('nestjs');
     expect(h?.routes).toEqual([
-      { path: '/users', component: 'UsersController.findAll', source: 'decorator', kind: 'api', method: 'GET', framework: 'nestjs' },
-      { path: '/users/:id', component: 'UsersController.findOne', source: 'decorator', kind: 'api', method: 'GET', framework: 'nestjs' },
-      { path: '/users', component: 'UsersController.create', source: 'decorator', kind: 'api', method: 'POST', framework: 'nestjs' },
-      { path: '/users/:id', component: 'UsersController.update', source: 'decorator', kind: 'api', method: 'PATCH', framework: 'nestjs' },
+      { path: '/users', component: 'UsersController.findAll', declaredIn: 'code', syntax: 'decorator', kind: 'api', method: 'GET', framework: 'nestjs' },
+      { path: '/users/:id', component: 'UsersController.findOne', declaredIn: 'code', syntax: 'decorator', kind: 'api', method: 'GET', framework: 'nestjs' },
+      { path: '/users', component: 'UsersController.create', declaredIn: 'code', syntax: 'decorator', kind: 'api', method: 'POST', framework: 'nestjs' },
+      { path: '/users/:id', component: 'UsersController.update', declaredIn: 'code', syntax: 'decorator', kind: 'api', method: 'PATCH', framework: 'nestjs' },
     ]);
   });
 
@@ -187,7 +187,7 @@ describe('NestJS @Controller routes', () => {
       }
     `, '/virtual/src/app.controller.ts');
     expect(collectSemanticHints(sfEmpty, 'src/app.controller.ts')?.routes).toEqual([
-      { path: '/health', component: 'AppController.health', source: 'decorator', kind: 'api', method: 'GET', framework: 'nestjs' },
+      { path: '/health', component: 'AppController.health', declaredIn: 'code', syntax: 'decorator', kind: 'api', method: 'GET', framework: 'nestjs' },
     ]);
 
     const sfObj = makeSf(`
@@ -199,7 +199,7 @@ describe('NestJS @Controller routes', () => {
       }
     `, '/virtual/src/billing/billing.controller.ts');
     expect(collectSemanticHints(sfObj, 'src/billing/billing.controller.ts')?.routes).toEqual([
-      { path: '/billing/:id', component: 'BillingController.remove', source: 'decorator', kind: 'api', method: 'DELETE', framework: 'nestjs' },
+      { path: '/billing/:id', component: 'BillingController.remove', declaredIn: 'code', syntax: 'decorator', kind: 'api', method: 'DELETE', framework: 'nestjs' },
     ]);
   });
 
@@ -228,7 +228,7 @@ describe('NestJS @Controller routes', () => {
     const entries = collectBackendRouteEntrypoints(ctxFor([mod('src/auth/auth.controller', hints)]));
     expect(entries).toEqual([
       {
-        __repovineSlot: 'python-api',
+        __repovineSlot: 'api-route',
         id: 'entrypoint:api:src/auth/auth.controller:/auth/login:POST',
         kind: 'api',
         layer: 'backend',

@@ -19,7 +19,7 @@ export function inferFileBasedRoutes(snapshot: Pick<RepositoryFactsSnapshot, 'mo
 
   for (const mod of snapshot.modules) {
     for (const route of mod.semanticHints?.routes ?? []) {
-      if (route.source !== 'file' || !route.framework || !route.fileType) continue;
+      if (route.declaredIn !== 'layout' || !route.framework || !route.fileType) continue;
       out.push({
         path: route.path,
         framework: route.framework,

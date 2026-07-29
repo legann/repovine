@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { discoverPackages } from '../../../src/source-plugins/typescript/packages.js';
+import { discoverPackages } from '../../../packages/plugins/source-typescript/src/packages.js';
 import { collectRepositoryFactsAsync } from '../../../src/stage1/index.js';
 
 function fixtureRoot(name: string): string {

@@ -1,22 +1,20 @@
 /**
- * Internal source-plugin bootstrap.
+ * Temporary pre-boundary composition root for built-in source plugins.
  *
- * Every built-in source plugin lives in `src/source-plugins/<lang>/` and default-exports a
- * `SourcePlugin`. This file holds the explicit list and registers each directly into the source
- * registry — no manifest/setup ceremony.
- *
- * To add a new built-in language: create `src/source-plugins/<name>/index.ts` that default-exports
- * a `SourcePlugin`, then add it to `INTERNAL_SOURCE_PLUGINS` below. Core code
- * (orchestrator/registry) does not need to change — mirror of `stage1/iac/bootstrap.ts`.
+ * Every built-in source plugin lives in its own workspace package under `packages/plugins/` and
+ * compiles against the public SDK alone. This file names those packages and registers what they
+ * export directly into the source registry — the last place in the engine that knows a built-in by
+ * name. Config-driven loading through the public plugin loader replaces it; until then this is the
+ * one core file permitted to import a product package, and the workspace-boundary law says so by
+ * naming it.
  *
  * Side-effect: bootstrapInternalSourcePlugins() is invoked once on first import.
  */
 
 import type { SourcePlugin } from '@repovine/plugin-sdk';
+import { typescriptSourcePlugin } from '@repovine/plugin-source-typescript';
+import { pythonSourcePlugin } from '@repovine/plugin-source-python';
 import { registerSourcePlugin, setSourcePluginsForTest } from './registry.js';
-
-import typescriptPlugin from '../../source-plugins/typescript/index.js';
-import pythonPlugin from '../../source-plugins/python/index.js';
 
 /**
  * Order matters only when two plugins could claim the same file (first registered wins). The
@@ -24,8 +22,8 @@ import pythonPlugin from '../../source-plugins/python/index.js';
  * load-bearing today.
  */
 const INTERNAL_SOURCE_PLUGINS: SourcePlugin[] = [
-  typescriptPlugin,
-  pythonPlugin,
+  typescriptSourcePlugin,
+  pythonSourcePlugin,
 ];
 
 let bootstrapped = false;

@@ -4,7 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { DEFAULT_EMBEDDING_MODEL, loadConfig } from '../config.js';
 import { describeTransformersInstall, resolveModelCacheDir } from '../semantic/embedder.js';
-import { detectPython } from '../source-plugins/python/discover.js';
+import { getSourcePlugins } from '../stage1/source/registry.js';
+import '../stage1/source/bootstrap.js';
+import { compareCodeUnits } from '../platform/ordering.js';
 import { countNodesOfType, graphStats } from '../graph/index.js';
 import {
   publishedCoverageBucket,
@@ -128,13 +130,31 @@ function gitVersion(): string | null {
   return cachedGitVersion;
 }
 
-/** Plain descriptor so a later change of detectPython's shape touches only this mapping. */
-function pythonDescriptor(): { interpreter: string | null; version: string | null } {
-  const interpreter = detectPython();
-  if (interpreter === null) return { interpreter: null, version: null };
-  const out = probeVersion(interpreter, ['--version']);
-  const version = out === null ? null : (/(\d+\.\d+\.\d+)/.exec(out)?.[1] ?? null);
-  return { interpreter, version };
+/**
+ * External toolchains the registered source plugins need, as those plugins report them.
+ *
+ * The doctor asks the registry, so a language the engine has never heard of shows up the moment its
+ * plugin is registered. The plugin names its prerequisite (`requires.runtime`) and probes for it
+ * (`available()`); `detail` is what the probe found, and the doctor only prints it and asks it for a
+ * version. A plugin that declares no runtime prerequisite is not a row here.
+ */
+async function pluginRuntimeReports(): Promise<PluginRuntimeReport[]> {
+  const reports: PluginRuntimeReport[] = [];
+  for (const plugin of getSourcePlugins()) {
+    const runtime = plugin.requires?.runtime;
+    if (runtime === undefined) continue;
+    const availability = (await plugin.available?.()) ?? { ok: true };
+    const detail = availability.ok ? (availability.detail ?? null) : null;
+    const probed = detail === null ? null : probeVersion(detail, ['--version']);
+    reports.push({
+      pluginId: plugin.id,
+      runtime,
+      available: availability.ok,
+      detail,
+      version: probed === null ? null : (/(\d+\.\d+\.\d+)/.exec(probed)?.[1] ?? null),
+    });
+  }
+  return reports.sort((a, b) => compareCodeUnits(a.pluginId, b.pluginId));
 }
 
 function inspectJsonMcpConfig(client: 'Cursor' | 'Claude', filePath: string): McpConfigCheck {
@@ -745,6 +765,15 @@ function compactCoverage(stats: BacklogCoverage): AnnotationCoverageSummary {
   };
 }
 
+/** One external toolchain a registered source plugin declares, and what its own probe found. */
+export interface PluginRuntimeReport {
+  pluginId: string;
+  runtime: string;
+  available: boolean;
+  detail: string | null;
+  version: string | null;
+}
+
 export interface PlatformReport {
   os: NodeJS.Platform;
   arch: string;
@@ -752,7 +781,7 @@ export interface PlatformReport {
   execPath: string;
   entrypoint: string | null;
   git: { version: string | null };
-  python: { interpreter: string | null; version: string | null };
+  pluginRuntimes: PluginRuntimeReport[];
   fsCase: 'known-sensitive' | 'known-insensitive' | 'unknown';
   longPaths: LongPathsVerdict | null;
   embedder: {
@@ -787,7 +816,7 @@ export function darwinTransformersFloorWarning(platform: NodeJS.Platform, versio
 
 /** Local paths, version strings, and enums only — never secret-bearing env values
  * (the resolved model-cache path may originate from REPOVINE_MODEL_CACHE). */
-function buildPlatformReport(env: HealthCliEnv): PlatformReport {
+async function buildPlatformReport(env: HealthCliEnv): Promise<PlatformReport> {
   let enabled = true;
   try {
     enabled = loadConfig(env.repoRoot).semanticSearchEmbeddings;
@@ -808,7 +837,7 @@ function buildPlatformReport(env: HealthCliEnv): PlatformReport {
     execPath: process.execPath,
     entrypoint: process.argv[1] ?? null,
     git: { version: gitVersion() },
-    python: pythonDescriptor(),
+    pluginRuntimes: await pluginRuntimeReports(),
     fsCase: detectFsCase(env.repoRoot),
     longPaths: detectLongPaths(),
     embedder: {
@@ -829,16 +858,18 @@ function buildPlatformReport(env: HealthCliEnv): PlatformReport {
   };
 }
 
-// Never 'error' severity here: a missing git/python must not flip doctor's ok/exit code.
+// Never 'error' severity here: a missing git or plugin toolchain must not flip doctor's ok/exit code.
 function platformFindings(report: PlatformReport): HealthFinding[] {
   const gitPart = report.git.version === null ? 'git missing' : `git ${report.git.version}`;
-  const pythonPart = report.python.interpreter === null
-    ? 'python missing'
-    : `python ${report.python.interpreter}${report.python.version === null ? '' : ` ${report.python.version}`}`;
+  const runtimeParts = report.pluginRuntimes.map(entry => (
+    entry.available
+      ? `${entry.runtime} ${entry.detail ?? 'found'}${entry.version === null ? '' : ` ${entry.version}`}`
+      : `${entry.runtime} missing`
+  ));
   const findings: HealthFinding[] = [{
     area: 'platform',
     severity: 'ok',
-    message: `${report.os} ${report.arch}, node ${report.node}, ${gitPart}, ${pythonPart}, `
+    message: `${report.os} ${report.arch}, node ${report.node}, ${gitPart}, ${runtimeParts.join(', ')}, `
       + `fs case ${report.fsCase} — support matrix: ${report.supportDoc}`,
   }];
   if (report.git.version === null) {
@@ -910,7 +941,7 @@ export async function runDoctorCli(argv: string[], env: HealthCliEnv): Promise<n
   const checks = inspectMcpConfigs(env);
 
   const globalChecks = inspectGlobalMcpConfigs(clientScope.clients);
-  const platformReport = buildPlatformReport(env);
+  const platformReport = await buildPlatformReport(env);
   const findings = [
     clientScopeFinding(clientScope),
     ...mcpConfigFindings(env, checks, clientScope.clients),

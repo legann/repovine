@@ -11,22 +11,33 @@ export { PLUGIN_API_VERSION } from '../runtime.js';
 export type { PluginApiVersion, PluginRequirements, PluginAvailability } from '../runtime.js';
 
 export { resolveDottedPathHandlerToModule } from './handler-resolver.js';
-export { mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './module-id.js';
+export { extractPackageName, mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './module-id.js';
+/* ---- budgets a producer slices to and the host cites ---- */
+export { CALL_INDEX_PER_DECLARATION_CAP } from './budgets.js';
+
 export { HASH_WIDTH, sha256Hex } from '../content-hash.js';
 export type { HashWidth } from '../content-hash.js';
 
 /* ---- the mechanics a producer does not write: discovery walk, prune rule, path vocabulary ---- */
 export {
   REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
-  matchesEngineIgnorePath,
   readDirSorted,
   shouldWalkDiscoveryDir,
   walkRepository,
 } from './discovery-walk.js';
 export type { WalkedFile, WalkRepositoryOptions } from './discovery-walk.js';
 export { moduleCandidateSuffixes, resolveByCandidates } from './resolve-candidates.js';
-export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, repoRelativePosix } from '../paths.js';
+export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, pathMatchKey, repoRelativePosix } from '../paths.js';
 export { compareCodeUnits } from '../ordering.js';
+export { compileGlob } from '../glob.js';
+export type { GlobMatcher } from '../glob.js';
+export {
+  compileScanPatterns,
+  isScanExcluded,
+  isScanIncluded,
+  shouldScanInfraPath,
+  shouldScanSourcePath,
+} from './scan-filters.js';
 
 export { SEMANTIC_HINTS_VERSION, zSemanticHints, validateSemanticHints } from './semantic-hints-schema.js';
 export type { SemanticHintsVersion, SemanticHintsValidationResult, ZSemanticHints } from './semantic-hints-schema.js';
@@ -44,6 +55,7 @@ export type {
   SourceFileText,
   HandlerResolveContext,
   HandlerResolver,
+  SourceDiscoveryLogLevel,
   SourceDiscoveryOptions,
   SourceDiscoveryResult,
   SourceExtractInput,
@@ -71,6 +83,8 @@ export type {
   WebFramework,
   SsrMarkers,
   RouteInfo,
+  RouteDeclarationSite,
+  RouteDeclarationSyntax,
   ConditionalRender,
   RuntimeAction,
   SecuritySignal,

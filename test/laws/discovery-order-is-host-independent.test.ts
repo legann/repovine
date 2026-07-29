@@ -5,8 +5,8 @@ import * as path from 'node:path';
 import { compileScanPatterns } from '../../src/scan-filters.js';
 import { compareCodeUnits } from '../../src/platform/ordering.js';
 import { collectTemplates } from '../../src/stage1/templates.js';
-import { discoverPackages } from '../../src/source-plugins/typescript/packages.js';
-import { detectPython, discoverPython } from '../../src/source-plugins/python/discover.js';
+import { discoverPackages } from '../../packages/plugins/source-typescript/src/packages.js';
+import { detectPython, discoverPython } from '../../packages/plugins/source-python/src/discover.js';
 
 /**
  * Graph node order follows discovery order, so an unsorted `readdirSync` makes the projection a
@@ -66,7 +66,7 @@ describe('law: discovery order does not depend on filesystem enumeration order',
       // Imported under the mock on purpose: the statically imported copies at the top of this file
       // hold the real `node:fs`, so calling those would answer the wrong question.
       // Sequentially: linking these in parallel under a fresh module registry races in the ESM loader.
-      const { discoverPackages: discover } = await import('../../src/source-plugins/typescript/packages.js');
+      const { discoverPackages: discover } = await import('../../packages/plugins/source-typescript/src/packages.js');
       const { collectTemplates: templates } = await import('../../src/stage1/templates.js');
       const { compileScanPatterns: compile } = await import('../../src/scan-filters.js');
 

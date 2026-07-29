@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import * as path from 'node:path';
-import { resolveSpecifierFromMap, isNodeModulesPath } from '../../../src/source-plugins/typescript/resolve-specifier.js';
+import { resolveSpecifierFromMap, isNodeModulesPath } from '../../../packages/plugins/source-typescript/src/resolve-specifier.js';
 import type { PackageInfo } from '../../../src/types.js';
 
 const REPO = '/repo';

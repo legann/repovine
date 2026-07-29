@@ -12,7 +12,7 @@ import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { CONFIG_DEFAULTS } from '../../src/config.js';
 import { collectEntrypoints, inferFileBasedRoutes } from '../../src/mcp/lib/entrypoints.js';
-import { detectPython } from '../../src/source-plugins/python/discover.js';
+import { detectPython } from '../../packages/plugins/source-python/src/discover.js';
 import { inferredHintLeaks } from '../helpers/semantic-hints-tiers.js';
 import type { AnnotationStore } from '../../src/annotations/store.js';
 import type { RefactoringThresholds } from '../../src/analysis/architecture/config.js';
@@ -60,7 +60,7 @@ interface ExpectedPython {
     path: string;
     method?: string;
     component?: string;
-    source?: 'decorator' | 'ast';
+    syntax?: 'decorator' | 'call';
   }>;
   entrypoints?: Array<{
     moduleId: string;
@@ -270,7 +270,7 @@ d('Python source plugin — fixture suite', () => {
               (expectedRoute.component ? r.component === expectedRoute.component : true),
           );
           expect(found).toBeDefined();
-          if (expectedRoute.source) expect(found?.source).toBe(expectedRoute.source);
+          if (expectedRoute.syntax) expect(found?.syntax).toBe(expectedRoute.syntax);
           expect(found?.kind).toBe('api');
         }
       });

@@ -1,4 +1,4 @@
-import { extractTypeScriptFromSfc, isSfcFile } from '../../../src/source-plugins/typescript/sfc-extractor.js';
+import { extractTypeScriptFromSfc, isSfcFile } from '../../../packages/plugins/source-typescript/src/sfc-extractor.js';
 
 describe('isSfcFile', () => {
   it('recognizes Vue / Svelte extensions', () => {

@@ -23,16 +23,19 @@ const keep = process.argv.includes('--keep');
 
 /** Tools the MCP server publishes; a short install that starts but exposes nothing is a failure. */
 const MIN_TOOLS = 18;
+// Plugin id and what the package activates: a migrated vertical exports a working plugin, a package
+// still waiting for its migration exports only its identity. The distinction is asserted per package
+// so a package that quietly stopped carrying its implementation is caught by name.
 const BUNDLED_PLUGIN_PACKAGES = {
-  '@repovine/plugin-source-typescript': 'typescript',
-  '@repovine/plugin-source-python': 'python',
-  '@repovine/plugin-iac-sam': 'sam',
-  '@repovine/plugin-iac-kubernetes': 'kubernetes',
-  '@repovine/plugin-iac-helm': 'helm',
-  '@repovine/plugin-iac-terraform': 'terraform',
-  '@repovine/plugin-iac-vercel': 'vercel',
-  '@repovine/plugin-iac-dockerfile': 'dockerfile',
-  '@repovine/plugin-iac-docker-compose': 'docker-compose',
+  '@repovine/plugin-source-typescript': ['typescript', 'source-plugin'],
+  '@repovine/plugin-source-python': ['python', 'source-plugin'],
+  '@repovine/plugin-iac-sam': ['sam', 'scaffold-only'],
+  '@repovine/plugin-iac-kubernetes': ['kubernetes', 'scaffold-only'],
+  '@repovine/plugin-iac-helm': ['helm', 'scaffold-only'],
+  '@repovine/plugin-iac-terraform': ['terraform', 'scaffold-only'],
+  '@repovine/plugin-iac-vercel': ['vercel', 'scaffold-only'],
+  '@repovine/plugin-iac-dockerfile': ['dockerfile', 'scaffold-only'],
+  '@repovine/plugin-iac-docker-compose': ['docker-compose', 'scaffold-only'],
 };
 const DEFAULT_PRESET_PACKAGE = '@repovine/plugin-default-preset';
 const EXPECTED_BUNDLED_PACKAGES = [
@@ -65,7 +68,7 @@ function probeInstalledPluginPackages(installed) {
     const anchoredRequire = createRequire(process.env.REPOVINE_SMOKE_ENGINE_MANIFEST);
     const direct = new Map();
     const packages = {};
-    for (const [name, pluginId] of Object.entries(expected)) {
+    for (const [name, [pluginId]] of Object.entries(expected)) {
       try {
         const resolved = anchoredRequire.resolve(name);
         const mod = await import(pathToFileURL(resolved).href);
@@ -202,15 +205,15 @@ try {
     const rel = path.relative(installedTree, resolved);
     return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
   };
-  for (const [packageName, pluginId] of Object.entries(BUNDLED_PLUGIN_PACKAGES)) {
+  for (const [packageName, [pluginId, activation]] of Object.entries(BUNDLED_PLUGIN_PACKAGES)) {
     const result = pluginProbe.packages[packageName];
     check(
       resolvesInsideInstalledTree(result?.resolved),
       `${packageName} resolves from installed repovine/package.json`,
     );
     check(
-      result?.pluginId === pluginId && result?.activation === 'scaffold-only',
-      `${packageName} public entrypoint imports from the installed tarball`,
+      result?.pluginId === pluginId && result?.activation === activation,
+      `${packageName} public entrypoint imports from the installed tarball (${activation})`,
     );
   }
   check(
@@ -231,15 +234,24 @@ try {
     'typescript resolves at runtime (declared as a dependency, not a devDependency)',
   );
   check(
+    existsSync(path.join(consumer, 'node_modules', 'ts-morph')),
+    'ts-morph resolves at runtime for the bundled TypeScript plugin (peer, not a second copy)',
+  );
+  check(
     !existsSync(path.join(consumer, 'node_modules', '@huggingface')),
     '@huggingface/transformers stays opt-in (an install does not pull ~700MB of ONNX runtime)',
   );
   for (const doc of ['docs/agent-protocol.md', 'docs/context-quality.md']) {
     check(existsSync(path.join(installed, doc)), `${doc} ships in the package (AGENTS.md points agents at it)`);
   }
+  // The Python plugin runs this script as a subprocess and resolves it beside its own compiled
+  // entry, so the asset is asserted where that resolution lands rather than at a path the engine
+  // tarball happens to have used before the vertical moved into its own package.
+  const pythonPackageEntry = pluginProbe.packages['@repovine/plugin-source-python']?.resolved;
   check(
-    existsSync(path.join(installed, 'dist', 'source-plugins', 'python', 'route-ast-script.py')),
-    'bundled Python AST asset ships in dist',
+    typeof pythonPackageEntry === 'string'
+      && existsSync(path.join(path.dirname(pythonPackageEntry), 'route-ast-script.py')),
+    'bundled Python AST asset ships beside the compiled Python plugin',
   );
 
   const bin = path.join(installed, 'dist', 'mcp', 'index.js');

@@ -5,10 +5,10 @@ import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../../src/stage1/index.js';
 import { composeRepositoryGraph } from '../../../src/stage2/index.js';
 import { inferFileBasedRoutes } from '../../../src/mcp/lib/entrypoints.js';
-import { detectPython } from '../../../src/source-plugins/python/discover.js';
-import pythonSourcePlugin from '../../../src/source-plugins/python/index.js';
+import { detectPython } from '../../../packages/plugins/source-python/src/discover.js';
+import pythonSourcePlugin from '../../../packages/plugins/source-python/src/plugin.js';
 import { runSourceExtraction } from '../../../src/stage1/source/extract-runner.js';
-import { effectImportsFromPythonImports } from '../../../src/source-plugins/python/effect-imports.js';
+import { effectImportsFromPythonImports } from '../../../packages/plugins/source-python/src/effect-imports.js';
 import type { ImportInfo, ModuleInfo, PackageInfo, PendingModule, RepositoryFactsSnapshot } from '../../../src/types.js';
 
 const PYTHON_AVAILABLE = detectPython() !== null;
@@ -27,7 +27,7 @@ describe('inferFileBasedRoutes language gate (no Python interpreter needed)', ()
           routes: [{
             path: '/',
             component: '(file-route)',
-            source: 'file',
+            declaredIn: 'layout',
             kind: 'frontend',
             framework: 'nextjs-pages',
             fileType: 'page',

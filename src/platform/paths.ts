@@ -1,4 +1,4 @@
-import { toPosixPath, hostPathKey, repoRelativePosix, normalizeRelPath, lastPathSegment } from '@repovine/plugin-sdk';
+import { toPosixPath, hostPathKey, repoRelativePosix, normalizeRelPath, lastPathSegment, pathMatchKey } from '@repovine/plugin-sdk';
 
 /**
  * The path vocabulary, read from one module.
@@ -14,21 +14,7 @@ import { toPosixPath, hostPathKey, repoRelativePosix, normalizeRelPath, lastPath
  * form. A path outside the root answers `repoRelativePosix` with the `..` segments `path.relative`
  * produces; containment is the caller's question, and `src/fs/containment.ts` is where it is asked.
  */
-export { toPosixPath, hostPathKey, repoRelativePosix, normalizeRelPath, lastPathSegment };
-
-/**
- * Case-folded POSIX form, for matching a path against a vocabulary of names.
- *
- * A match key, never an identity: `pathMatchKey` folds case on every platform, so two files that
- * differ only by case answer the same key and neither key names either file. Heuristics that ask
- * "does this path look like a test / a controller / build output" compare against lowercase
- * vocabularies and want that. Anything that ends up in a node id, an annotation key, or a hash
- * takes {@link repoRelativePosix} instead. {@link hostPathKey} is the third neighbour: it folds
- * case only on win32, because there the filesystem does.
- */
-export function pathMatchKey(value: string): string {
-  return toPosixPath(value).toLowerCase();
-}
+export { toPosixPath, hostPathKey, repoRelativePosix, normalizeRelPath, lastPathSegment, pathMatchKey };
 
 /**
  * {@link normalizeRelPath} with `.` dropped and `..` resolved against the segments before it.

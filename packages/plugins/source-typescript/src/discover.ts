@@ -4,10 +4,9 @@ import type ts from 'typescript';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { walkRepository } from '@repovine/plugin-sdk';
-import { compileScanPatterns, shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../../scan-filters.js';
-import { hostPathKey, repoRelativePosix, toPosixPath } from '../../platform/paths.js';
-import { logPipelineWarn } from '../../cli/ui.js';
-import { pathPrefixLength } from '../../stage1/utils.js';
+import { compileScanPatterns, hostPathKey, repoRelativePosix, shouldScanSourcePath, shouldWalkDiscoveryDir, toPosixPath } from '@repovine/plugin-sdk';
+import type { CompiledScanPatterns } from '@repovine/plugin-sdk';
+import type { SourceDiscoveryLogLevel } from '@repovine/plugin-sdk';
 import { discoverPackages } from './packages.js';
 import { parsePackageTsConfig } from './list-tsconfig-files.js';
 import { extractTypeScriptFromSfc, SFC_EXTENSIONS } from './sfc-extractor.js';
@@ -37,6 +36,22 @@ const SUPPORTED_EXTENSIONS = new Set(TYPESCRIPT_SOURCE_EXTENSIONS);
 interface DiscoveryContext {
   repoRoot: string;
   scanPatterns: CompiledScanPatterns;
+  /** Host diagnostic sink. Absent when the host asked for no diagnostics from this pass. */
+  log?(level: SourceDiscoveryLogLevel, message: string): void;
+}
+
+/**
+ * Length of `pkgPath` as a prefix of `relFromRoot`, in characters; 0 when it is not one.
+ *
+ * A file inside two nested tsconfig packages is claimed by the deeper one, and "deeper" is the
+ * longer matching prefix. Segment-anchored: `srv` does not count as a prefix of `srvc/a.ts`.
+ */
+function pathPrefixLength(pkgPath: string, relFromRoot: string): number {
+  const norm = path.normalize(relFromRoot);
+  const prefix = path.normalize(pkgPath);
+  if (prefix === '.' || prefix === '') return 0;
+  if (norm === prefix || norm.startsWith(prefix + path.sep)) return prefix.length;
+  return 0;
 }
 
 interface DiscoveryResult {
@@ -240,7 +255,7 @@ function discoverPendingModules(
     try {
       parsed = parsePackageTsConfig(pkgAbsPath);
     } catch (e) {
-      logPipelineWarn(`  ⚠ Skipping ${pkg.name}: ${(e as Error).message}`);
+      ctx.log?.('warn', `  ⚠ Skipping ${pkg.name}: ${(e as Error).message}`);
       continue;
     }
     parsedOptionsByPkg.set(pkg.name, parsed.compilerOptions);
@@ -261,7 +276,7 @@ function discoverPendingModules(
 export function discoverTypeScript(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {
   const packages: PackageInfo[] = discoverPackages(repoRoot).map(p => ({ ...p, sourcePluginId: 'typescript' }));
   const scanPatterns = options.scanPatterns ?? compileScanPatterns([], []);
-  const ctx: DiscoveryContext = { repoRoot, scanPatterns };
+  const ctx: DiscoveryContext = { repoRoot, scanPatterns, log: options.log };
 
   const { pendingByPath, parsedOptionsByPkg } = discoverPendingModules(packages, repoRoot, ctx);
   for (const pending of pendingByPath.values()) pending.sourcePluginId = 'typescript';

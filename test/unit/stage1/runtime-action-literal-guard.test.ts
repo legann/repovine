@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { Project } from 'ts-morph';
-import { collectSemanticHints } from '../../../src/source-plugins/typescript/semantic-hints.js';
+import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
 
 /**
  * Runtime-action patterns are bare identifier regexes (`/\b(?:InvokeCommand|invoke)\b/`), so a

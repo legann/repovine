@@ -7,7 +7,8 @@ export const CODE_STRUCTURE_INTERPRETER_ID = 'code-structure';
 /** Builtin code-structure interpreter: root/packages/modules/import edges/export symbols. */
 export const codeStructureInterpreter: Interpreter = {
   id: CODE_STRUCTURE_INTERPRETER_ID,
-  sourceAdapterIds: '*',
+  // The node set itself: packages, modules, export symbols and import edges between them.
+  phase: 'nodes',
   contributeGraph: (ctx) => {
     contributeStructural(ctx.graph, ctx.snapshot);
     return emptyGraphDelta();

@@ -26,8 +26,9 @@ const pythonSourcePlugin = defineSourcePlugin({
   // Declarative prerequisite: an interpreter that can `import ast`. `available()` is the real probe.
   requires: { runtime: 'python3' },
   available(): PluginAvailability {
-    return detectPython()
-      ? { ok: true }
+    const interpreter = detectPython();
+    return interpreter
+      ? { ok: true, detail: interpreter }
       : { ok: false, reason: 'Python interpreter (python3/python) not found on PATH' };
   },
   packageMarkers: PYTHON_PACKAGE_MARKERS,

@@ -51,7 +51,7 @@ function pyModule(id: string, opts: { route?: { component: string; rendersTempla
       ? {
           semanticHints: {
             hasRoutes: true,
-            routes: [{ path: '/home', component: opts.route.component, source: 'decorator', kind: 'api', rendersTemplate: opts.route.rendersTemplate }],
+            routes: [{ path: '/home', component: opts.route.component, declaredIn: 'code', syntax: 'decorator', kind: 'api', rendersTemplate: opts.route.rendersTemplate }],
           },
         }
       : {}),

@@ -5,16 +5,16 @@ import {
   isExtractModuleLoaded,
   loadExtractModule,
   resetExtractModuleCache,
-} from '../../../../src/source-plugins/typescript/lazy-extract.js';
+} from '../../../../packages/plugins/source-typescript/src/lazy-extract.js';
+
+const PLUGIN_ENTRY = path.join('packages', 'plugins', 'source-typescript', 'src', 'plugin.ts');
 
 function resolveEngineRoot(): string {
   const candidates = [
     process.cwd(),
     path.resolve(process.cwd(), 'repovine'),
   ];
-  const found = candidates.find((root) =>
-    fs.existsSync(path.join(root, 'src', 'source-plugins', 'typescript', 'index.ts')),
-  );
+  const found = candidates.find((root) => fs.existsSync(path.join(root, PLUGIN_ENTRY)));
   if (!found) throw new Error('repovine engine root not found from test cwd');
   return found;
 }
@@ -40,9 +40,9 @@ describe('typescript lazy-extract', () => {
   });
 });
 
-describe('typescript index — no static extract import', () => {
-  it('index.ts does not statically import ./extract.js', async () => {
-    const indexPath = path.join(resolveEngineRoot(), 'src', 'source-plugins', 'typescript', 'index.ts');
+describe('typescript plugin entry — no static extract import', () => {
+  it('plugin.ts does not statically import ./extract.js', async () => {
+    const indexPath = path.join(resolveEngineRoot(), PLUGIN_ENTRY);
     const source = await fs.promises.readFile(indexPath, 'utf-8');
     expect(source).not.toMatch(/from\s+['"]\.\/extract\.js['"]/);
     expect(source).toMatch(/loadExtractModule/);

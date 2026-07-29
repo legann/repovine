@@ -326,7 +326,7 @@ function makeCtx(overrides?: Partial<RepovineState>): McpToolRuntime {
   };
 
   // Mirror composeRepositoryGraph's composer step: populate the layer entrypoint store so the MCP
-  // shell can replay layer-owned entrypoints (jsx/file-page/python-api/file-api/service triggers).
+  // shell can replay layer-owned entrypoints (jsx/file-page/api-route/file-api/service triggers).
   const layerCtx: InterpreterEntrypointContext = {
     graph: state.graph,
     snapshot: state.snapshot,
@@ -1178,7 +1178,7 @@ describe('public v1 context tools', () => {
     navbar.packageName = '@acme/client-ui';
     navbar.relativeFilePath = 'src/components/Navbar.tsx';
     page.semanticHints = {
-      routes: [{ path: '/TickPricingPage', component: '(file-route)', source: 'jsx', kind: 'frontend' }],
+      routes: [{ path: '/TickPricingPage', component: '(file-route)', declaredIn: 'code', syntax: 'markup', kind: 'frontend' }],
       hasRoutes: true,
     };
     modulesById.set(page.id, page);
@@ -1449,7 +1449,7 @@ describe('public v1 context tools', () => {
       '/repo/alpha.ts',
     );
     page.semanticHints = {
-      routes: [{ path: '/alpha', component: '(file-route)', source: 'jsx', kind: 'frontend' }],
+      routes: [{ path: '/alpha', component: '(file-route)', declaredIn: 'code', syntax: 'markup', kind: 'frontend' }],
       hasRoutes: true,
     };
     modulesById.set(page.id, page);
@@ -2104,7 +2104,7 @@ describe('public v1 context tools', () => {
     const { graph, modulesById } = buildFixtureGraph();
     const alpha = modulesById.get('mod:test/alpha')!;
     alpha.semanticHints = {
-      routes: [{ path: '/alpha', component: 'AlphaPage', source: 'jsx', kind: 'frontend' }],
+      routes: [{ path: '/alpha', component: 'AlphaPage', declaredIn: 'code', syntax: 'markup', kind: 'frontend' }],
       hasRoutes: true,
     };
     const ctx = makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -2738,14 +2738,14 @@ describe('get_refactoring_report', () => {
     const routeA = addMod('mod:app/src/routes/create-order', 'src/routes/create-order.tsx', [componentExport('CreateOrderRoute')]);
     routeA.semanticHints = {
       hasRoutes: true,
-      routes: [{ path: '/orders/create', component: '(file-route)', source: 'file', kind: 'frontend' }],
+      routes: [{ path: '/orders/create', component: '(file-route)', declaredIn: 'layout', kind: 'frontend' }],
     };
     routeA.imports = [{ moduleSpecifier: '../features/orders/order-mutations', resolvedModuleId: orderMutation.id, importedNames: ['submitOrder'], isTypeOnly: false, isExternal: false }];
     addEdge(g, routeA.id, orderMutation.id, 'imports');
     const routeB = addMod('mod:app/src/routes/import-order', 'src/routes/import-order.tsx', [componentExport('ImportOrderRoute')]);
     routeB.semanticHints = {
       hasRoutes: true,
-      routes: [{ path: '/orders/import', component: '(file-route)', source: 'file', kind: 'frontend' }],
+      routes: [{ path: '/orders/import', component: '(file-route)', declaredIn: 'layout', kind: 'frontend' }],
     };
     routeB.imports = [{ moduleSpecifier: '../features/orders/order-mutations', resolvedModuleId: orderMutation.id, importedNames: ['submitOrder'], isTypeOnly: false, isExternal: false }];
     addEdge(g, routeB.id, orderMutation.id, 'imports');
@@ -5550,7 +5550,7 @@ describe('inferFileBasedRoutes — file-based routes across frameworks', () => {
         routes: [{
           path: route.path,
           component: '(file-route)',
-          source: 'file',
+          declaredIn: 'layout',
           kind: route.kind ?? (['api', 'server', 'server-api', 'route'].includes(route.fileType) ? 'api' : 'frontend'),
           framework: route.framework,
           fileType: route.fileType,
@@ -5630,13 +5630,13 @@ describe('inferFileBasedRoutes — file-based routes across frameworks', () => {
       mkMod('mod:app/page', 'app/page.tsx', {
         semanticHints: {
           hasRoutes: true,
-          routes: [{ path: '/', component: '(file-route)', source: 'file', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }],
+          routes: [{ path: '/', component: '(file-route)', declaredIn: 'layout', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }],
         },
       }),
       mkMod('mod:app/router', 'src/App.tsx', {
         semanticHints: {
           hasRoutes: true,
-          routes: [{ path: '/users', component: 'UsersPage', source: 'jsx', kind: 'frontend' }],
+          routes: [{ path: '/users', component: 'UsersPage', declaredIn: 'code', syntax: 'markup', kind: 'frontend' }],
         },
       }),
     ];

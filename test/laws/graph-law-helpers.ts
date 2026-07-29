@@ -119,9 +119,19 @@ export function* sourceFiles(dir: string): Generator<string> {
 /** Every engine and SDK source root a text guard reads. */
 export function guardedRoots(): Array<{ root: string; dir: string }> {
   const root = repoRoot();
+  const pluginsRoot = path.join(root, 'packages', 'plugins');
+  // Every first-party plugin package, read from the tree rather than listed: a package added
+  // tomorrow is guarded the day it exists. Code that moved out of `src/` into one of these is still
+  // first-party code, and a law that stopped seeing it would report a clean sweep over less.
+  const pluginPackages = fs.existsSync(pluginsRoot)
+    ? fs.readdirSync(pluginsRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => ({ root, dir: path.join(pluginsRoot, entry.name, 'src') }))
+    : [];
   return [
     { root, dir: path.join(root, 'src') },
     { root, dir: path.join(root, 'packages', 'plugin-sdk', 'src') },
+    ...pluginPackages,
   ].filter(entry => fs.existsSync(entry.dir));
 }
 

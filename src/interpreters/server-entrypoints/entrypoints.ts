@@ -26,13 +26,13 @@ export function collectFrameworkApiEntrypoints(ctx: InterpreterEntrypointContext
 
   for (const mod of ctx.snapshot.modules) {
     for (const route of mod.semanticHints?.routes ?? []) {
-      if ((route.source !== 'decorator' && route.source !== 'ast') || route.kind !== 'api') continue;
+      if ((route.syntax !== 'decorator' && route.syntax !== 'call') || route.kind !== 'api') continue;
       const method = route.method ?? 'GET';
       const webFramework = mod.semanticHints?.webFramework;
       const rendersTemplate = route.rendersTemplate;
       const isServerPage = Array.isArray(rendersTemplate) && rendersTemplate.length > 0;
       out.push({
-        [LAYER_ENTRYPOINT_SLOT_KEY]: 'python-api',
+        [LAYER_ENTRYPOINT_SLOT_KEY]: 'api-route',
         id: `entrypoint:api:${mod.id}:${route.path}:${method}`,
         kind: 'api',
         layer: 'backend',
@@ -40,9 +40,9 @@ export function collectFrameworkApiEntrypoints(ctx: InterpreterEntrypointContext
         component: route.component,
         method,
         moduleId: mod.id,
-        source: frameworkRouteSource(route.source, webFramework),
+        source: frameworkRouteSource(route.syntax, webFramework),
         webFramework,
-        // Server-rendered page: keeps the python-api slot (no new EntrypointSlot / dual-gate),
+        // Server-rendered page: keeps the api-route slot (no new EntrypointSlot / dual-gate),
         // attaches the rendered template(s) + a surface marker for trace_flow / page-vs-api queries.
         ...(isServerPage ? { surface: 'server-page', rendersTemplate } : {}),
       });
@@ -52,9 +52,10 @@ export function collectFrameworkApiEntrypoints(ctx: InterpreterEntrypointContext
   return out;
 }
 
-function frameworkRouteSource(source: 'decorator' | 'ast', webFramework: string | undefined): string {
+/** The producer-facing `source` label of an API entrypoint, from the declaration syntax + framework. */
+function frameworkRouteSource(syntax: 'decorator' | 'call', webFramework: string | undefined): string {
   if (webFramework === 'fastify') return 'fastify-route';
-  if (source === 'decorator') return webFramework ? `${webFramework}-decorator` : 'decorator-route';
+  if (syntax === 'decorator') return webFramework ? `${webFramework}-decorator` : 'decorator-route';
   if (webFramework === 'django' || webFramework === 'drf') return 'django-urlpatterns';
   return webFramework ? `${webFramework}-ast` : 'ast-route';
 }

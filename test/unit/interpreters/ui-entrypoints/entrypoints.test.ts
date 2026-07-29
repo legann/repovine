@@ -37,10 +37,10 @@ function ctxFor(modules: ModuleInfo[]): InterpreterEntrypointContext {
 describe('frontend-routes layer entrypoints', () => {
   it('emits jsx routes, conditional renders, and non-api file pages with hidden slots', () => {
     const entries = collectUiRouteEntrypoints(ctxFor([
-      mod('jsx', { routes: [{ path: '/jsx', component: 'JsxPage', source: 'jsx', kind: 'frontend' }] }),
+      mod('jsx', { routes: [{ path: '/jsx', component: 'JsxPage', declaredIn: 'code', syntax: 'markup', kind: 'frontend' }] }),
       mod('cond', { conditionalRenders: [{ component: 'MaybeAdmin', condition: 'isAdmin', renderedIn: 'App', lineRange: { start: 5, end: 7 } }] }),
-      mod('page', { routes: [{ path: '/page', component: '(file-route)', source: 'file', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }] }),
-      mod('src-app-page', { routes: [{ path: '/agents', component: '(file-route)', source: 'file', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }] }),
+      mod('page', { routes: [{ path: '/page', component: '(file-route)', declaredIn: 'layout', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }] }),
+      mod('src-app-page', { routes: [{ path: '/agents', component: '(file-route)', declaredIn: 'layout', kind: 'frontend', framework: 'nextjs-app', fileType: 'page' }] }),
     ]));
 
     expect(entries).toEqual([
@@ -90,7 +90,7 @@ describe('frontend-routes layer entrypoints', () => {
 
   it('skips api file routes (owned by backend-routes)', () => {
     const entries = collectUiRouteEntrypoints(ctxFor([
-      mod('api', { routes: [{ path: '/api/items', component: '(file-route)', source: 'file', kind: 'api', framework: 'nextjs-app', fileType: 'route' }] }),
+      mod('api', { routes: [{ path: '/api/items', component: '(file-route)', declaredIn: 'layout', kind: 'api', framework: 'nextjs-app', fileType: 'route' }] }),
     ]));
     expect(entries).toEqual([]);
   });

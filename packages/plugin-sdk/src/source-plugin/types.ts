@@ -109,10 +109,19 @@ export interface CompiledScanPatterns {
   exclude: CompiledScanPattern[];
 }
 
+export type SourceDiscoveryLogLevel = 'debug' | 'warn' | 'error';
+
 /** Options handed to discover(). Path filters the orchestrator already resolved. */
 export interface SourceDiscoveryOptions {
   /** Compiled `scan.include` / `scan.exclude` from repovine.config.json. */
   scanPatterns?: CompiledScanPatterns;
+  /**
+   * Diagnostic sink for discovery. The host decides where a line goes and whether it goes anywhere:
+   * a build driven by the MCP server writes to a different stream than a CLI run, and both silence
+   * the channel in machine-readable modes. A producer reports what it could not read; it does not
+   * pick the stream. Absent means the host wants no diagnostics from this pass.
+   */
+  log?(level: SourceDiscoveryLogLevel, message: string): void;
 }
 
 export interface SourceDiscoveryResult {

@@ -4,8 +4,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { PLUGIN_API_VERSION } from '@repovine/plugin-sdk';
-import typescriptPlugin from '../../src/source-plugins/typescript/index.js';
-import pythonPlugin from '../../src/source-plugins/python/index.js';
+import typescriptPlugin from '../../packages/plugins/source-typescript/src/plugin.js';
+import pythonPlugin from '../../packages/plugins/source-python/src/plugin.js';
 import samIacPlugin from '../../src/iac-plugins/sam/index.js';
 import helmIacPlugin from '../../src/iac-plugins/helm/index.js';
 import kubernetesIacPlugin from '../../src/iac-plugins/kubernetes/index.js';
@@ -49,6 +49,13 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
   // violation today. This Set is the ONLY core surface a plugin may reach by relative import; the
   // check below is a strict allowlist, not a denylist, so a NEW core module is forbidden by default
   // (no need to enumerate every layer — anything not listed here that resolves into core src/ fails).
+  // What is left of the allowlist, and for whom.
+  //
+  // A plugin that still lives inside the engine tree reaches a small set of mechanical utilities by
+  // relative import. The source vertical no longer does: it ships as its own packages, where a
+  // relative escape cannot even resolve, and every one of these utilities reached it through the
+  // published SDK instead. The remainder belongs to the IaC vertical until it moves too, and the
+  // check stays a strict allowlist, so a NEW core module is forbidden by default.
   const ALLOWED_ENGINE_UTILS = new Set(
     [
       'stage1/utils.ts',
@@ -56,23 +63,21 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
       'stage1/k8s-workload.ts',
       'scan-filters.ts',
       'cli/ui.ts',
-      // Cross-platform path primitives: by design shared by core,
-      // CLI, and source plugins — dependency-free id/path plumbing.
       'platform/paths.ts',
-      // Code-unit string comparison. Same reason as `fs/read-dir-sorted.ts` one axis over: a
-      // producer that ordered its own output by locale would make the projection depend on
-      // LANG/LC_ALL and the host ICU build. Dependency-free, one function.
       'platform/ordering.ts',
-      // Directory enumeration in a host-independent order. Node order follows discovery order, so
-      // every producer must read directories the same way or the same repository projects
-      // differently per filesystem. Mechanical, and shared with core for that reason.
       'fs/read-dir-sorted.ts',
     ].map(rel => rel.replace(/\//g, path.sep)),
   );
 
+  it('the migrated source vertical is gone from the engine tree', () => {
+    // The allowlist above exists for plugins inside `src/`. A source implementation left there would
+    // keep using it, and the law below would report a clean sweep while the coupling stayed.
+    expect(fs.existsSync(path.join(findSrcRoot(), 'source-plugins'))).toBe(false);
+  });
+
   it('plugins import only the SDK + allowlisted engine utils, never any other core module', () => {
     const srcRoot = findSrcRoot();
-    const pluginRoots = [path.join(srcRoot, 'source-plugins'), path.join(srcRoot, 'iac-plugins')];
+    const pluginRoots = [path.join(srcRoot, 'iac-plugins')];
     const importRe = /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]/g;
     // A `from` clause is not the only way into a module. Side-effect imports (`import '…'`),
     // dynamic `import(…)`, and `require(…)` each reach a target with no `from`, so the primary
@@ -99,9 +104,7 @@ describe('core-laws plugin-sdk boundary (facts-only SDK seam)', () => {
           const absTs = absJs.replace(/\.js$/, '.ts');
           const rel = path.relative(srcRoot, absTs);
           // Intra-plugin imports stay within the producer's own tree.
-          if (rel.startsWith('source-plugins' + path.sep) || rel.startsWith('iac-plugins' + path.sep)) {
-            continue;
-          }
+          if (rel.startsWith('iac-plugins' + path.sep)) continue;
           // Allowlist: every relative import that escapes the plugin tree must land on a sanctioned
           // mechanical engine util. Anything else resolving into core src/ — ontology (`types`),
           // projection (`graph`), interpreters, MCP, analysis, OR any not-yet-classified core module

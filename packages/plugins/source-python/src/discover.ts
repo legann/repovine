@@ -5,10 +5,8 @@ import * as os from 'node:os';
 import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { walkRepository } from '@repovine/plugin-sdk';
-import { compileScanPatterns, shouldScanSourcePath, shouldWalkDiscoveryDir, type CompiledScanPatterns } from '../../scan-filters.js';
-import { hostPathKey, repoRelativePosix, toPosixPath } from '../../platform/paths.js';
-import { readDirSorted } from '../../fs/read-dir-sorted.js';
-import { compareCodeUnits } from '../../platform/ordering.js';
+import { compareCodeUnits, compileScanPatterns, hostPathKey, readDirSorted, repoRelativePosix, shouldScanSourcePath, shouldWalkDiscoveryDir, toPosixPath } from '@repovine/plugin-sdk';
+import type { CompiledScanPatterns } from '@repovine/plugin-sdk';
 import { PYTHON_PACKAGE_MARKERS } from './extensions.js';
 
 /**

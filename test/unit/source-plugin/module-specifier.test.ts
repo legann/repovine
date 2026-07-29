@@ -1,7 +1,7 @@
 import { Project, ScriptTarget } from 'ts-morph';
 import ts from 'typescript';
-import { collectImports } from '../../../src/source-plugins/typescript/imports.js';
-import { importDeclarationSpecifier, staticModuleSpecifierText } from '../../../src/source-plugins/typescript/module-specifier.js';
+import { collectImports } from '../../../packages/plugins/source-typescript/src/imports.js';
+import { importDeclarationSpecifier, staticModuleSpecifierText } from '../../../packages/plugins/source-typescript/src/module-specifier.js';
 
 describe('staticModuleSpecifierText', () => {
   it('reads string literals and no-substitution template literals', () => {

@@ -5,9 +5,9 @@ import * as path from 'node:path';
 import { ModuleKind, ModuleResolutionKind, type Project } from 'ts-morph';
 import {
   createTypeScriptExtractionProject,
-} from '../../../../src/source-plugins/typescript/extract.js';
-import { collectExports } from '../../../../src/source-plugins/typescript/exports.js';
-import { collectSemanticHints } from '../../../../src/source-plugins/typescript/semantic-hints.js';
+} from '../../../../packages/plugins/source-typescript/src/extract.js';
+import { collectExports } from '../../../../packages/plugins/source-typescript/src/exports.js';
+import { collectSemanticHints } from '../../../../packages/plugins/source-typescript/src/semantic-hints.js';
 
 const roots: string[] = [];
 

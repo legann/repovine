@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { shouldSkipRepoRelativePath } from '../../../../src/source-plugins/typescript/discover.js';
+import { shouldSkipRepoRelativePath } from '../../../../packages/plugins/source-typescript/src/discover.js';
 
 describe('shouldSkipRepoRelativePath — build-output / dependency subtrees are skipped', () => {
   it('skips dependency and build-output dirs (incl. target/build/out/coverage)', () => {

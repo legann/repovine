@@ -201,9 +201,9 @@ describe('core-laws paths, labels and id minting', () => {
     );
     const offenders = codeLines([
       // The three modules that declare a family, and the one frozen surface.
-      'source-plugins/typescript/extensions.ts',
-      'source-plugins/typescript/sfc-extractor.ts',
-      'source-plugins/python/discover.ts',
+      'source-typescript/src/extensions.ts',
+      'source-typescript/src/sfc-extractor.ts',
+      'source-python/src/discover.ts',
       'annotations/module-kind.ts',
       // `search-graph.ts` normalizes a raw QUERY, and the order of `topResults` is recorded in the
       // published benchmark corpus. Widening the set it forgives would change which nodes match and

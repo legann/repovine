@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import type { PackageInfo } from '@repovine/plugin-sdk';
 import { moduleCandidateSuffixes, resolveByCandidates } from '@repovine/plugin-sdk';
-import { compareCodeUnits } from '../../platform/ordering.js';
+import { compareCodeUnits } from '@repovine/plugin-sdk';
 import { PYTHON_EXTENSIONS, PYTHON_INDEX_BASENAMES } from './extensions.js';
 
 /**

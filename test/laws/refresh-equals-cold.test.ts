@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import type { RepositoryFactsSnapshot } from '../../src/types.js';
-import { detectPython } from '../../src/source-plugins/python/discover.js';
+import { detectPython } from '../../packages/plugins/source-python/src/discover.js';
 
 /**
  * Law: an incremental refresh over a mutated tree produces the same module set, order, and

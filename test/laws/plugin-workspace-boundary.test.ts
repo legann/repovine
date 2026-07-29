@@ -138,9 +138,13 @@ function scanPluginWorkspace(root: string): string[] {
       }
     }
 
+    // A built-in peer-depends on the SDK, and on the language toolchain it owns once it carries a
+    // real implementation: the toolchain resolves from the host that bundles it, so declaring it as a
+    // dependency would pull a second copy of a compiler into every tarball. First-party names are
+    // checked separately below — the SDK is the only one a built-in may reach.
     const dependencyNames = dirName === DEFAULT_PRESET_DIR
       ? Object.keys(manifest.dependencies ?? {}).sort()
-      : Object.keys(manifest.peerDependencies ?? {}).sort();
+      : Object.keys(manifest.peerDependencies ?? {}).filter(name => name.startsWith('@repovine/')).sort();
     const expectedDependencies = dirName === DEFAULT_PRESET_DIR
       ? [...BUILTIN_NAMES].sort()
       : ['@repovine/plugin-sdk'];
@@ -149,8 +153,15 @@ function scanPluginWorkspace(root: string): string[] {
         `${dirName}: dependencies expected ${expectedDependencies.join(', ')}, got ${dependencyNames.join(', ')}`,
       );
     }
-    if (dirName !== DEFAULT_PRESET_DIR && Object.keys(manifest.dependencies ?? {}).length > 0) {
-      violations.push(`${dirName}: runtime dependencies must be empty in the scaffold`);
+    // A migrated built-in owns its language toolchain, so third-party runtime dependencies are its
+    // own business. What it must never carry is another first-party package: the SDK is a peer, and
+    // every other `@repovine/` name would make one built-in depend on another.
+    if (dirName !== DEFAULT_PRESET_DIR) {
+      for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+        if (dependency.startsWith('@repovine/')) {
+          violations.push(`${dirName}: runtime dependency ${dependency} is a first-party package`);
+        }
+      }
     }
     for (const dependency of dependencyNames) {
       const version = dirName === DEFAULT_PRESET_DIR
@@ -199,6 +210,21 @@ function scanPluginWorkspace(root: string): string[] {
   return violations;
 }
 
+/**
+ * The one core file allowed to name a built-in package, and what it may name.
+ *
+ * A built-in that ships as its own package has to reach production from somewhere until config-driven
+ * loading replaces the pre-boundary path. Naming that file here keeps the permission a single
+ * reviewed location rather than a hole: any other core or SDK module importing a product package is
+ * still a violation, and so is this file importing one that is not a built-in.
+ */
+const PRE_BOUNDARY_COMPOSITION_ROOTS = new Map<string, ReadonlySet<string>>([
+  [
+    ['src', 'stage1', 'source', 'bootstrap.ts'].join('/'),
+    new Set(['@repovine/plugin-source-typescript', '@repovine/plugin-source-python']),
+  ],
+]);
+
 function scanCoreProductImports(root: string): string[] {
   const violations: string[] = [];
   const pluginsRoot = path.join(root, 'packages', 'plugins');
@@ -209,6 +235,7 @@ function scanCoreProductImports(root: string): string[] {
   for (const productionRoot of productionRoots) {
     if (!fs.existsSync(productionRoot)) continue;
     for (const file of walkTypeScript(productionRoot)) {
+      const permitted = PRE_BOUNDARY_COMPOSITION_ROOTS.get(relativePosix(root, file));
       for (const spec of moduleSpecifiers(file)) {
         const productPackage = ALL_PACKAGE_NAMES.find(
           packageName => spec === packageName || spec.startsWith(`${packageName}/`),
@@ -223,6 +250,7 @@ function scanCoreProductImports(root: string): string[] {
           && targetFromPluginsRoot !== '..'
           && !targetFromPluginsRoot.startsWith(`..${path.sep}`)
           && !path.isAbsolute(targetFromPluginsRoot);
+        if (productPackage !== undefined && permitted?.has(productPackage)) continue;
         if (productPackage || reachesPluginWorkspace) {
           violations.push(
             `${relativePosix(root, file)} -> ${spec}: core/SDK must not activate a product package in Stage 1`,
@@ -307,7 +335,7 @@ describe('core-laws physical plugin workspace boundary', () => {
     }
   });
 
-  it('keeps the new preset scaffold inactive while the named legacy bootstraps own production', () => {
+  it('names every built-in only from the pre-boundary composition roots', () => {
     const sourceBootstrap = fs.readFileSync(
       path.join(repoRoot(), 'src', 'stage1', 'source', 'bootstrap.ts'),
       'utf8',
@@ -316,10 +344,15 @@ describe('core-laws physical plugin workspace boundary', () => {
       path.join(repoRoot(), 'src', 'stage1', 'iac', 'bootstrap.ts'),
       'utf8',
     );
-    const productionBootstrap = sourceBootstrap + iacBootstrap;
-    expect(productionBootstrap).toContain('../../source-plugins/typescript/index.js');
-    expect(productionBootstrap).toContain('../../source-plugins/python/index.js');
-    expect(productionBootstrap).toContain('../../iac-plugins/sam/index.js');
-    expect(productionBootstrap).not.toContain('@repovine/plugin-default-preset');
+    // The source vertical ships from its packages; the IaC vertical has not moved yet, so its
+    // bootstrap still names the pre-boundary implementations in `src/`.
+    expect(sourceBootstrap).toContain("from '@repovine/plugin-source-typescript'");
+    expect(sourceBootstrap).toContain("from '@repovine/plugin-source-python'");
+    expect(iacBootstrap).toContain('../../iac-plugins/sam/index.js');
+    // The declarative preset is still not what core loads: config-driven loading replaces these
+    // roots, and until then core reaches the packages one by one.
+    expect(sourceBootstrap + iacBootstrap).not.toContain('@repovine/plugin-default-preset');
+    // No source implementation is left behind in the engine tree.
+    expect(fs.existsSync(path.join(repoRoot(), 'src', 'source-plugins'))).toBe(false);
   });
 });

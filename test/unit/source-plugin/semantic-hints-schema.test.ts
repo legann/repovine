@@ -8,8 +8,8 @@ import {
   zSemanticHints,
   validateSemanticHints,
 } from '@repovine/plugin-sdk';
-import { collectSemanticHints } from '../../../src/source-plugins/typescript/semantic-hints.js';
-import { frameworkHintsFromRaw } from '../../../src/source-plugins/python/framework-hints.js';
+import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
+import { frameworkHintsFromRaw } from '../../../packages/plugins/source-python/src/framework-hints.js';
 import type { SemanticHints } from '@repovine/plugin-sdk';
 
 function makeSf(source: string, fileName = '/virtual/file.tsx') {
@@ -38,7 +38,7 @@ describe('zSemanticHints — built-in (trusted) output matches the schema with n
     );
     const hints = collectSemanticHints(sf, 'app/page.tsx');
     expect(hints).toBeDefined();
-    expect(hints?.routes?.find(route => route.source === 'file')).toMatchObject({
+    expect(hints?.routes?.find(route => route.declaredIn === 'layout')).toMatchObject({
       framework: 'nextjs-app',
       fileType: 'page',
     });
@@ -97,7 +97,7 @@ describe('acceptance — non-JS/Python routes surface with no core-type change',
       hasRoutes: true,
       webFramework: 'spring',
       routes: [
-        { path: '/users/{id}', component: 'UserController.getUser', source: 'decorator', kind: 'api', method: 'GET' },
+        { path: '/users/{id}', component: 'UserController.getUser', declaredIn: 'code', syntax: 'decorator', kind: 'api', method: 'GET' },
       ],
       ssr: { runsOn: 'server' },
     };

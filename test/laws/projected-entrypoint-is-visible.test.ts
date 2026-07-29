@@ -88,10 +88,10 @@ describe('a projected entrypoint reaches the reader', () => {
   it('does not publish a legacy-slotted entrypoint twice', () => {
     const modules = [mod('mod:shop/api', {
       hasRoutes: true,
-      routes: [{ path: '/legacy', component: 'handler', source: 'ast', kind: 'api', method: 'GET' }],
+      routes: [{ path: '/legacy', component: 'handler', declaredIn: 'code', syntax: 'call', kind: 'api', method: 'GET' }],
     })];
     const slotted: EntrypointFragment = {
-      [LAYER_ENTRYPOINT_SLOT_KEY]: 'python-api',
+      [LAYER_ENTRYPOINT_SLOT_KEY]: 'api-route',
       id: `entrypoint:api:${modules[0]!.id}:/legacy:GET`,
       kind: 'api',
       layer: 'backend',

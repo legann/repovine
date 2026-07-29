@@ -4,7 +4,8 @@ import { SERVER_ENTRYPOINTS_INTERPRETER_ID, collectBackendRouteEntrypoints } fro
 /** Builtin server entrypoint interpreter for normalized TS/Python route hints. */
 export const serverEntrypointsInterpreter: Interpreter = {
   id: SERVER_ENTRYPOINTS_INTERPRETER_ID,
-  sourceAdapterIds: ['typescript', 'python'],
+  phase: 'links',
+  // Any producer's normalized route hints. The interpreter reads the fact, not who published it.
   requiresSemanticHints: ['routes'],
   collectEntrypoints: collectBackendRouteEntrypoints,
 };

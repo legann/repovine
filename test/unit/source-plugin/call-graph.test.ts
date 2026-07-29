@@ -5,7 +5,7 @@
  * not gate collection.
  */
 import { Project, ScriptTarget } from 'ts-morph';
-import { collectExports } from '../../../src/source-plugins/typescript/exports.js';
+import { collectExports } from '../../../packages/plugins/source-typescript/src/exports.js';
 import { deliveredValue } from '../../../src/response/refusal.js';
 
 function makeSf(source: string, fileName = '/virtual/file.tsx') {
@@ -202,15 +202,15 @@ ${bigBody}
 // The per-declaration cap drops call names at extraction, so the true total is unrecoverable
 // downstream. A list sitting exactly on the cap is the observable trace, and both consumers of the
 // capped data now say so instead of presenting a capped list as the whole set.
-describe('PER_BUCKET_CAP is disclosed to callers', () => {
-  it('is exported so consumers can compare against it rather than hardcode 50', async () => {
-    const { PER_BUCKET_CAP } = await import('../../../src/source-plugins/typescript/call-graph.js');
-    expect(PER_BUCKET_CAP).toBe(50);
+describe('the call-index budget is disclosed to callers', () => {
+  it('is published by the SDK so producer and host cite one number rather than hardcode 50', async () => {
+    const { CALL_INDEX_PER_DECLARATION_CAP } = await import('@repovine/plugin-sdk');
+    expect(CALL_INDEX_PER_DECLARATION_CAP).toBe(50);
   });
 
   it('analyze_dependencies callgraph reports the exact dropped count', async () => {
     const { analyzeCallgraph } = await import('../../../src/mcp/lib/dependencies/callgraph.js');
-    const { PER_BUCKET_CAP } = await import('../../../src/source-plugins/typescript/call-graph.js');
+    const { CALL_INDEX_PER_DECLARATION_CAP: PER_BUCKET_CAP } = await import('@repovine/plugin-sdk');
     const { createEmptyGraph, addNode } = await import('../../../src/graph/index.js');
 
     const graph = createEmptyGraph();
@@ -245,7 +245,7 @@ describe('PER_BUCKET_CAP is disclosed to callers', () => {
   it('graph composition carries callsTotal from the fact snapshot onto the export-symbol node', async () => {
     const { contributeStructural } = await import('../../../src/interpreters/code-structure/graph.js');
     const { analyzeCallgraph } = await import('../../../src/mcp/lib/dependencies/callgraph.js');
-    const { PER_BUCKET_CAP } = await import('../../../src/source-plugins/typescript/call-graph.js');
+    const { CALL_INDEX_PER_DECLARATION_CAP: PER_BUCKET_CAP } = await import('@repovine/plugin-sdk');
     const { createEmptyGraph } = await import('../../../src/graph/index.js');
 
     const graph = createEmptyGraph();

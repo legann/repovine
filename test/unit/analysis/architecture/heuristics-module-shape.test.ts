@@ -50,7 +50,7 @@ describe('hasHttpHandlerSignals', () => {
     expect(hasHttpHandlerSignals(makeMod({
       relativeFilePath: 'src/chat.ts',
       semanticHints: {
-        routes: [{ path: '/chat', component: '(file-route)', source: 'file', kind: 'api' }],
+        routes: [{ path: '/chat', component: '(file-route)', declaredIn: 'layout', kind: 'api' }],
       },
     }))).toBe(true);
     expect(hasHttpHandlerSignals(makeMod({

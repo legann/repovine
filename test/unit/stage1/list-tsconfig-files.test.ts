@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { parsePackageTsConfig } from '../../../src/source-plugins/typescript/list-tsconfig-files.js';
+import { parsePackageTsConfig } from '../../../packages/plugins/source-typescript/src/list-tsconfig-files.js';
 
 function writeJson(filePath: string, value: unknown): void {
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2));

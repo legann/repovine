@@ -3,7 +3,7 @@ import {
   isTrustedInterpreterPathEntry,
   detectPython,
   safeInterpreterCwd,
-} from '../../../src/source-plugins/python/discover.js';
+} from '../../../packages/plugins/source-python/src/discover.js';
 
 /**
  * The interpreter is resolved to an absolute path from trusted PATH directories, and subprocesses run
