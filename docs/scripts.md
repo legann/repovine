@@ -106,13 +106,23 @@ Kept minimal on purpose. Use **`npx repovine`** in downstream projects or **`npm
 
 | Script | Meaning |
 |--------|---------|
-| `build` | Compile the SDK and private plugin workspaces through TypeScript project references, then the engine → `dist/` |
+| `build` | Compile the SDK and private plugin workspaces through TypeScript project references, then the engine → `dist/`, then verify every compiled module has an emitted counterpart |
 | `clean` | Remove engine, SDK, and private plugin workspace build output |
 | `typecheck` | Build/typecheck every workspace, then no-emit check of src + tests (`tsc -p tsconfig.test.json`) |
-| `test` | Jest unit tests |
+| `test` | Jest unit tests. Builds first; `REPOVINE_SKIP_BUILD=1` skips that build |
 | `smoke:pack-install` | Pack both packages, install into a throwaway repo, drive the MCP over stdio |
 | `smoke:sdk-standalone` | Pack the SDK, install it into a non-workspace package, compile and conform a plugin against it |
 | `profile` | Memory profiler (dev) |
+
+`build` ends by checking its own output: every `.ts` under a compiled `src/` has a `.js` beside it
+in that project's `dist/`. `clean` deletes `dist` before compiling, so anything reading the tree
+mid-build sees a partial one — that has surfaced as an `ENOENT` from the middle of a test run and
+from `npm pack`, always naming a file no entry-point check listed.
+
+`npm test` runs the same build first, because the plugin set, both workers and the packed-artifact
+checks read `dist/`. `REPOVINE_SKIP_BUILD=1` skips it for a caller who just built — a focused re-run
+over one tree. The artifact check still runs, so a skip against an unbuilt tree fails by name. It is
+an explicit statement, never inferred from timestamps, and CI does not set it.
 
 `smoke:pack-install` runs the path `npx -y repovine@<version>` takes. A build inside the
 engine checkout resolves `devDependencies` that a published install does not ship, so
@@ -172,6 +182,16 @@ launcher anyway (e.g. release validation). `setup` does not overwrite an existin
 `repovine` MCP entry, so to switch an old `npx` entry over to your local build,
 re-run after `repovine clear`. (`--replace-mcp` rewrites only invalid-JSON or
 empty MCP configs; it is a no-op when a `repovine` entry already exists.)
+
+**A running server keeps the code it started with.** Rebuilding under a live MCP
+server updates three things unevenly: the graph is rebuilt by `refresh_context`,
+worker scripts are read from disk at spawn, and the main thread never reloads its
+module graph. So a server started before a change serves the old engine while
+spawning workers built from the new one, and a plugin whose `package.json` uses a
+declaration the old schema does not know is refused outright — the manifest schema
+is strict, and an unknown key drops the whole package rather than one entry.
+Restart the server after rebuilding; graph numbers taken before the restart
+describe the old engine.
 
 ---
 

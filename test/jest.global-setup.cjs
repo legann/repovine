@@ -1,52 +1,47 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const { runNpm } = require('../scripts/lib/spawn.cjs');
 
 /**
- * The artifacts every test process assumes exist before the first test file loads.
+ * The build every test process runs against.
  *
- * `npm run build` starts by deleting them, so a build that reports success without re-emitting
- * leaves the suite reading a tree that is not there. That failure surfaced twice as an `ENOENT` from
- * inside a setup file — a crash with no build in the stack and no output, because the build's own
- * stdout is captured and discarded on success. Naming the artifacts here turns it into one
- * pre-flight error that says which one is missing.
+ * Tests execute TypeScript from `src/` through ts-jest, but the plugin set, both worker scripts and
+ * the packed-artifact checks read `dist/`. So the suite builds first, and it builds unconditionally
+ * by default: a green run against yesterday's `dist` is the one outcome a test suite must not be
+ * able to produce.
  *
- * `jest.setup.ts` loads the bundled preset, so every plugin package's entry belongs on the list, not
- * just the engine's own output.
+ * `REPOVINE_SKIP_BUILD=1` skips the build for a caller who just built — a focused re-run, or a
+ * mutation harness driving many test invocations over one tree. It is an explicit statement by the
+ * caller, never a heuristic: deciding by timestamps would silently certify stale code the one time
+ * the clock, a checkout or an editor disagreed. Nothing in CI sets it.
+ *
+ * The artifact check runs either way. `npm run build` makes the same check itself — one
+ * implementation, in `scripts/verify-build-output.mjs` — so a skip against a tree that was never
+ * built fails here by name instead of as an `ENOENT` from the middle of a run.
  */
-function requiredArtifacts(root) {
-  const pluginsRoot = path.join(root, 'packages', 'plugins');
-  const pluginEntries = fs
-    .readdirSync(pluginsRoot, { withFileTypes: true })
-    .filter(entry => entry.isDirectory() && fs.existsSync(path.join(pluginsRoot, entry.name, 'src')))
-    .map(entry => path.join('packages', 'plugins', entry.name, 'dist', 'index.js'));
-  return [
-    path.join('dist', 'mcp', 'index.js'),
-    path.join('dist', 'stage1', 'worker.js'),
-    path.join('dist', 'stage2', 'worker.js'),
-    path.join('packages', 'plugin-sdk', 'dist', 'index.js'),
-    ...pluginEntries,
-  ];
-}
-
 module.exports = async () => {
   const root = process.cwd();
-  const build = runNpm(['run', 'build'], {
-    cwd: root,
-    encoding: 'utf-8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  if (build.status !== 0) {
-    throw new Error(`npm run build failed before Jest tests\nSTDOUT:\n${build.stdout}\nSTDERR:\n${build.stderr}`);
+  const skipBuild = process.env.REPOVINE_SKIP_BUILD === '1';
+
+  let build;
+  if (!skipBuild) {
+    build = runNpm(['run', 'build'], {
+      cwd: root,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    if (build.status !== 0) {
+      throw new Error(`npm run build failed before Jest tests\nSTDOUT:\n${build.stdout}\nSTDERR:\n${build.stderr}`);
+    }
   }
 
-  const missing = requiredArtifacts(root).filter(rel => !fs.existsSync(path.join(root, rel)));
-  if (missing.length > 0) {
+  const { assertBuildOutput } = await import('../scripts/verify-build-output.mjs');
+  try {
+    assertBuildOutput(skipBuild ? 'REPOVINE_SKIP_BUILD=1 was set and the existing tree' : 'npm run build', root);
+  } catch (error) {
     throw new Error(
-      'npm run build reported success but did not emit:\n'
-      + missing.map(rel => `  ${rel}`).join('\n')
-      + `\nSTDOUT:\n${build.stdout}\nSTDERR:\n${build.stderr}`,
+      skipBuild
+        ? `${error.message}\nThe build was skipped by REPOVINE_SKIP_BUILD=1; unset it to build here.`
+        : `${error.message}\nSTDOUT:\n${build.stdout}\nSTDERR:\n${build.stderr}`,
     );
   }
 };

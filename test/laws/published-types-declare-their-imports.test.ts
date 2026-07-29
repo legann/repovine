@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import ts from 'typescript';
 import { repoRoot } from './graph-law-helpers.js';
 
 /**
@@ -19,8 +20,26 @@ import { repoRoot } from './graph-law-helpers.js';
  * ships a wart, and a gate that reddens for reasons that are not ours stops being read.
  */
 
-/** Packages whose published types this law reads. */
-const PUBLISHED = ['packages/plugin-sdk'];
+/**
+ * Packages whose published types this law reads.
+ *
+ * The SDK is the author-facing surface; the nine bundled plugins ship in the same tarball, and their
+ * `.d.ts` are published by the same act of packing. The list is spelled out rather than globbed: a
+ * new package under `packages/` is a decision about what the product publishes, and it should reach
+ * this law by someone naming it.
+ */
+const PUBLISHED = [
+  'packages/plugin-sdk',
+  'packages/plugins/source-typescript',
+  'packages/plugins/source-python',
+  'packages/plugins/iac-sam',
+  'packages/plugins/iac-kubernetes',
+  'packages/plugins/iac-helm',
+  'packages/plugins/iac-terraform',
+  'packages/plugins/iac-vercel',
+  'packages/plugins/iac-dockerfile',
+  'packages/plugins/iac-docker-compose',
+];
 
 /** A builtin import needs the ambient Node types, which are an ordinary dependency. */
 const NODE_TYPES_PACKAGE = '@types/node';
@@ -44,12 +63,20 @@ function declarationFiles(dir: string): string[] {
 /**
  * Package names the given `.d.ts` import, with a relative import counting as nothing.
  *
+ * Read with the compiler's own preprocessor rather than a regex over the text. Prose quotes module
+ * syntax — a doc comment reading ``export … from '…'`` is not an import — and a declaration carries
+ * string literal types that contain `/*` and `//`, so neither "match `from`" nor "strip comments
+ * first" survives contact with a real surface. `preProcessFile` answers what the compiler resolves,
+ * which is the question this law asks, and it sees the inline `import('…')` a declaration uses
+ * inside a type as well as the statement form.
+ *
  * A subpath import (`zod/v4`) is satisfied by the package that owns it, and a scoped name keeps two
  * segments, so the specifier is reduced to the name a manifest can declare.
  */
 function importedPackages(text: string): string[] {
   const out = new Set<string>();
-  for (const [, specifier] of text.matchAll(/\bfrom\s+'([^']+)'/g)) {
+  for (const reference of ts.preProcessFile(text, true, true).importedFiles) {
+    const specifier = reference.fileName;
     if (specifier.startsWith('.')) continue;
     if (specifier.startsWith('node:')) {
       out.add(NODE_TYPES_PACKAGE);
@@ -80,6 +107,18 @@ describe('core-laws a published type surface declares its own imports', () => {
       expect([...needed].filter(name => !declared.has(name)).sort()).toEqual([]);
     });
   }
+
+  it('covers every package the tarball publishes types for', () => {
+    // The list is hand-written, so a package added to the bundle is unguarded until someone adds it
+    // here. Compared against what is on disk, which is what npm packs.
+    const onDisk = fs
+      .readdirSync(path.join(repoRoot(), 'packages/plugins'), { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && fs.existsSync(path.join(repoRoot(), 'packages/plugins', entry.name, 'src')))
+      .map(entry => `packages/plugins/${entry.name}`)
+      .filter(dir => !dir.endsWith('default-preset'));
+
+    expect(onDisk.filter(dir => !PUBLISHED.includes(dir))).toEqual([]);
+  });
 
   it('reads a surface that actually imports something, so an empty answer is not a pass', () => {
     const files = declarationFiles(path.join(repoRoot(), 'packages/plugin-sdk', 'dist'));

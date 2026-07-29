@@ -35,7 +35,7 @@
     "typecheck:sdk": "tsc -p packages/plugin-sdk/tsconfig.json --noEmit",
     "build:workspaces": "tsc -b packages/plugin-sdk packages/plugins",
     "typecheck:workspaces": "npm run typecheck --workspaces --if-present",
-    "build": "npm run clean && npm run build:workspaces && tsc && node scripts/copy-build-assets.mjs",
+    "build": "npm run clean && npm run build:workspaces && tsc && node scripts/copy-build-assets.mjs && node scripts/verify-build-output.mjs",
     "typecheck": "npm run build:workspaces && npm run typecheck:workspaces && npm run typecheck:tests",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "lint": "eslint .",

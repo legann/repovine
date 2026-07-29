@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
 import type { SemanticHints, ExportInfo, ImportInfo, ModuleInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
@@ -77,10 +77,28 @@ const PY_AST_MAX_OUTPUT_BYTES = 256 * 1024 * 1024;
  * so a pathological hang cannot pin a core forever. Far above normal parse times. */
 const PY_AST_TIMEOUT_MS = 10 * 60_000;
 
+/**
+ * The part of a spawned child this module touches.
+ *
+ * Declared structurally rather than as `ChildProcess`, because the tracking helpers below are
+ * exported and a node type in their signature puts a `node:child_process` import into this package's
+ * published `.d.ts`. The package would then need the ambient node types declared to type-check,
+ * which inside a workspace is invisible — npm hoists them — and is a missing dependency for anyone
+ * else. What the module actually uses is these four members.
+ */
+export interface TrackedChild {
+  readonly exitCode: number | null;
+  readonly signalCode: string | null;
+  once(event: 'exit' | 'close', listener: () => void): unknown;
+  /** `SIGKILL` is the only signal this module sends, and naming it keeps the type assignable from
+   *  the node one: a wider `string` matches neither direction of the method-parameter check. */
+  kill(signal?: 'SIGKILL'): boolean;
+}
+
 /** Live python AST subprocesses spawned in THIS thread. They are children of the node process, not
  * of the worker thread, so `Worker.terminate()` alone would orphan them. Tracked so a shutdown /
  * build cancel can kill and reap them via `terminateLivePythonChildren`. */
-const livePythonChildren = new Set<ChildProcess>();
+const livePythonChildren = new Set<TrackedChild>();
 
 /**
  * SIGKILL every live python AST subprocess and wait for it to be reaped. Called from the worker
@@ -104,7 +122,7 @@ export async function terminateLivePythonChildren(waitMs = 3000): Promise<void> 
 
 /** Test-only: register a child so `terminateLivePythonChildren` can be exercised without a real
  * python interpreter, mirroring the tracking `runPythonAst` performs for real subprocesses. */
-export function __trackLivePythonChildForTest(child: ChildProcess): void {
+export function __trackLivePythonChildForTest(child: TrackedChild): void {
   livePythonChildren.add(child);
   child.once('close', () => livePythonChildren.delete(child));
 }
