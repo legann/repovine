@@ -2,10 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, describe, expect, it } from '@jest/globals';
-import {
-  REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
-  TEST_LAYOUT_DIRS,
-} from '../../packages/plugin-sdk/src/source-plugin/discovery-walk.js';
+import { currentDirLayoutTable } from '../../packages/plugin-sdk/src/source-plugin/dir-layout.js';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { shouldWalkDiscoveryDir } from '../../src/scan-filters.js';
 
@@ -40,7 +37,7 @@ const NET_FIXTURE_DIRS: readonly string[] = [
 ];
 
 const ENGINE_PRUNED: string[] = [...new Set(
-  [...REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS, ...TEST_LAYOUT_DIRS]
+  [...currentDirLayoutTable().pruned, ...currentDirLayoutTable().testLayout]
     .map(name => name.replace(/\/+$/, ''))
     .filter(Boolean),
 )].sort();

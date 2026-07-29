@@ -94,6 +94,13 @@
           "action": "lambda.invoke",
           "namespace": "aws-lambda"
         }
+      ],
+      "dirs": [
+        {
+          "name": ".aws-sam",
+          "role": "tool-output",
+          "because": "the SAM CLI writes its build and cache here"
+        }
       ]
     }
   },

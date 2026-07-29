@@ -236,7 +236,9 @@ describe('core-laws plugin declaration lifecycle (per-run catalog, no last-write
         retract: ['dir:.edge-out', 'resource-kind:edge/edge/edge-fn'],
       },
     });
-    expect(retracted.runtime.catalog.dirs).toEqual([]);
+    // `defaults: true` brings the bundled plugins and the dirs they declare, so what the
+    // retraction proves is that the named key left — not that nothing else is declared.
+    expect(retracted.runtime.catalog.dirs.map(record => record.key)).not.toContain('dir:.edge-out');
     expect(catalogResourceKindMeta(retracted.runtime.catalog, EDGE_FN)).toBeUndefined();
     expect(retracted.runtime.catalog.retractions.map(r => r.removed)).toEqual([
       ['dir:.edge-out'],

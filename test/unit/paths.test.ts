@@ -10,7 +10,7 @@ import {
   ANNOTATIONS_FILENAME,
   artifactsDir,
   cacheDir,
-  REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
+  currentDirLayoutTable,
   repoRoot,
   resolveAnnotationsFilePath,
   resolveWorkspaceRoot,
@@ -136,10 +136,13 @@ describe('derived paths', () => {
   });
 });
 
-describe('REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS', () => {
+describe('the installed directory-layout table', () => {
   it('names dependency, build-output and tooling trees, and never the workspace itself', () => {
-    expect(REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS).not.toContain('repovine');
-    expect(REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS).toEqual(expect.arrayContaining([
+    // The bundled preset is installed by the test setup, so this is the table a default build walks
+    // by: the base every build shares plus what the bundled plugins declared.
+    const pruned = [...currentDirLayoutTable().pruned];
+    expect(pruned).not.toContain('repovine');
+    expect(pruned).toEqual(expect.arrayContaining([
       'node_modules',
       // The third ecosystem's dependency tree, beside npm's and Python's.
       'vendor',

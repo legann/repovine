@@ -3,64 +3,34 @@ import * as path from 'node:path';
 import { compareCodeUnits } from '../ordering.js';
 import { normalizeRelPath, repoRelativePosix } from '../paths.js';
 import { toPosixPath } from './module-id.js';
+import { currentDirLayoutTable } from './dir-layout.js';
 
 /**
- * The discovery walk, and the two lists that decide where it stops.
+ * The discovery walk, and the table that decides where it stops.
  *
- * `discover()` is a full filesystem traversal, and the directories it must not enter are a property
- * of the engine, not of the ecosystem: a producer that pruned its own way puts files in the graph
- * that another producer leaves out, and the same repository then projects differently depending on
- * which plugin found a file first. Both lists and the walk ship here so a plugin declares its
- * language and nothing about repository layout.
+ * `discover()` is a full filesystem traversal, and where it stops is one answer for the whole build:
+ * a producer that pruned its own way puts files in the graph that another producer leaves out, and
+ * the same repository then projects differently depending on which plugin found a file first. The
+ * walk ships here and reads one installed table, so every producer of one build stops in the same
+ * places.
+ *
+ * Which names are in that table is declared by the plugins the build enabled — see `dir-layout.ts`.
  */
 
 /**
- * Engine-owned scan ignores (always applied; not configurable).
- * Segment match on repo-relative paths: engine cache, dependency, build-output,
- * and local tooling artifact directories.
+ * Directory names this build does not walk into, from the table installed in this isolate.
+ *
+ * The names are a property of the plugin set, not of the engine: a build with no Python plugin has
+ * no reason to know what a virtualenv is called. What every build shares stays in the base table.
  */
-export const REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS = [
-  '.repovine',
-  '.repovine/',
-  '.git',
-  '.cache',
-  '.next',
-  '.nuxt',
-  '.svelte-kit',
-  '.turbo',
-  '.nx',
-  '.venv',
-  'venv',
-  '.env',
-  'node_modules',
-  'bower_components',
-  // Go's vendored dependency tree, the third ecosystem's answer to `node_modules`.
-  'vendor',
-  '.yarn',
-  '.pnpm-store',
-  'dist',
-  'env',
-  'dist-bundled',
-  'target',
-  'build',
-  'out',
-  '.aws-sam',
-  'coverage',
-  'htmlcov',
-  'site-packages',
-  '__pycache__',
-  '.tox',
-  '.nox',
-  '.pytest_cache',
-  '.mypy_cache',
-  '.ruff_cache',
-  '.eggs',
-] as const;
+function prunedNames(): ReadonlySet<string> {
+  return currentDirLayoutTable().pruned;
+}
 
 /** True when a repo-relative path names, or sits under, an engine-ignored directory. */
 export function matchesEngineIgnorePath(relPath: string): boolean {
   const norm = normalizeRelPath(relPath);
-  for (const fragment of REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS) {
+  for (const fragment of prunedNames()) {
     const q = toPosixPath(fragment).replace(/^\//, '').replace(/\/$/, '');
     if (!q) continue;
     if (norm === q) return true;
@@ -71,30 +41,20 @@ export function matchesEngineIgnorePath(relPath: string): boolean {
 }
 
 /**
- * Directory names that hold tests by convention.
+ * Directory names that hold tests by convention, from the table installed in this isolate.
  *
  * Membership is by directory name: a repository that marks a test by filename, under a directory no
  * member names, is walked like any other source. The same members are asked of every tree the walk
- * enters. {@link shouldWalkDiscoveryDir} takes a path and nothing else, so the answer does not depend
- * on which language a plugin declared.
- *
- * Separate from the engine ignore list because it answers a separate question: those directories are
- * not build output or dependency trees, they are first-class repository content that the graph
- * deliberately leaves out.
- *
- * Exported from this module and re-exported by no package entry point: the composition net needs the
- * same set the walker prunes by, and a net built from a second copy would miss a name newly added to
- * the walker's set. Removal is caught independently by the net's pinned fixture. A barrel export
- * would freeze this implementation set as plugin-author contract instead.
+ * enters, whichever plugin declared them.
  */
-export const TEST_LAYOUT_DIRS: ReadonlySet<string> = new Set([
-  'test', 'tests', '__tests__', '__mocks__', '__snapshots__',
-  'e2e', '__e2e__', 'cypress', 'playwright',
-]);
+function testLayoutNames(): ReadonlySet<string> {
+  return currentDirLayoutTable().testLayout;
+}
 
 /** True when any segment of the repo-relative path is a test-layout directory. */
 function hasTestLayoutSegment(relPath: string): boolean {
-  return normalizeRelPath(relPath).split('/').some(segment => TEST_LAYOUT_DIRS.has(segment));
+  const names = testLayoutNames();
+  return normalizeRelPath(relPath).split('/').some(segment => names.has(segment));
 }
 
 /**

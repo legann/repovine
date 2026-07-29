@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { logPipelineWarn } from '../cli/ui.js';
 import {
   PLUGIN_API_VERSION,
+  installDirLayoutTable,
   stampDeclarationCatalog,
   validatePluginManifest,
   validatePluginRuntimeDescriptor,
@@ -29,7 +30,7 @@ import type {
 import { installSourcePlugins, getActiveSourcePluginIds } from './source-set.js';
 import { installIaCPlugins, getActiveIaCPluginIds, type ActiveIaCPlugin } from './iac-set.js';
 import { buildPluginRuntime, type PluginRuntime } from './runtime.js';
-import { buildDeclarationCatalog, type DeclarationCatalog } from './declaration-catalog.js';
+import { buildDeclarationCatalog, dirLayoutTableOf, type DeclarationCatalog } from './declaration-catalog.js';
 
 /**
  * The one plugin loading path.
@@ -469,6 +470,9 @@ export async function loadPluginSet(spec: PluginLoadSpec): Promise<PluginLoadRep
     plugins: [...candidates.values()],
     ...(config.retract === undefined ? {} : { retract: config.retract }),
   });
+  // Where the walk stops is decided by the set that was just installed, so the table is installed
+  // beside it: every producer of this build then prunes in the same places.
+  installDirLayoutTable(dirLayoutTableOf(report.runtime.catalog));
   return report;
 }
 

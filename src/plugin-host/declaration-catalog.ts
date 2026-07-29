@@ -1,6 +1,7 @@
-import { canonicalJson, resourceKindMetaKey, triggerTypeMetaKey } from '@repovine/plugin-sdk';
+import { BASE_DIR_LAYOUT, canonicalJson, resourceKindMetaKey, triggerTypeMetaKey } from '@repovine/plugin-sdk';
 import type {
   Declared,
+  DirLayoutTable,
   EcosystemDirFact,
   PluginOwnerIdentity,
   PluginValueDeclaration,
@@ -403,6 +404,30 @@ export function catalogRuntimeActionNamespace(
   const effect = lookups(catalog).get(runtimeActionKey({ action }));
   const namespace = effect?.namespace;
   return typeof namespace === 'string' ? namespace : undefined;
+}
+
+/**
+ * The layout table this build walks by: the base every build shares, plus what its plugins declared.
+ *
+ * A role decides which half a name lands in. `test-layout` marks a directory whose contents are
+ * tests of the package around it; the other three are trees the walk does not enter at all. The
+ * host reads the role and nothing else in the declaration — `because` is evidence for a reader, not
+ * an input to the walk.
+ *
+ * The base is added rather than replaced: what every build shares does not depend on which
+ * ecosystems it enabled, and a plugin re-declaring a base name states the same thing twice rather
+ * than contradicting it.
+ */
+export function dirLayoutTableOf(catalog: DeclarationCatalog): DirLayoutTable {
+  const pruned = new Set(BASE_DIR_LAYOUT.pruned);
+  const testLayout = new Set(BASE_DIR_LAYOUT.testLayout);
+  for (const record of catalog.dirs) {
+    const name = record.key.slice('dir:'.length);
+    if (!name) continue;
+    if (record.effect.role === 'test-layout') testLayout.add(name);
+    else pruned.add(name);
+  }
+  return { pruned, testLayout };
 }
 
 /**

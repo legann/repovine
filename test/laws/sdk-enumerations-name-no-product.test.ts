@@ -65,13 +65,14 @@ const EXEMPT = new Map<string, ExemptionRecord>([]);
  * carve-out.
  */
 const NOT_AN_AXIS = new Map<string, ReviewRecord>([
-  ['source-plugin/discovery-walk.ts::REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS', {
-    reason: 'Directory spellings the shared discovery walk must not enter; members classify paths.',
-    retirement: 'Remove when the ignore floor is represented as plugin-declared discovery policy.',
+  ['source-plugin/dir-layout.ts::BASE_PRUNED_DIRS', {
+    reason: 'The layout every build shares whatever it enabled: the engine cache, version control, '
+      + 'and output names several unrelated toolchains write. Ecosystem names are plugin-declared.',
+    retirement: 'Remove when a base plugin declares these the way every ecosystem declares its own.',
   }],
-  ['source-plugin/discovery-walk.ts::TEST_LAYOUT_DIRS', {
-    reason: 'Directory spellings that classify test-layout paths rather than plugin-declared values.',
-    retirement: 'Remove when test-layout conventions move into plugin-declared discovery policy.',
+  ['source-plugin/dir-layout.ts::BASE_TEST_LAYOUT_DIRS', {
+    reason: 'Directory names that hold tests in every language, so claimed by no single ecosystem.',
+    retirement: 'Remove when a base plugin declares these the way every ecosystem declares its own.',
   }],
   ['conformance.ts::MECHANICAL_KEYS', {
     reason: 'Object-key spellings used by the conformance checker to reject engine-owned fields.',
@@ -487,8 +488,8 @@ describe('core-laws every closed SDK literal axis is owner-reviewed', () => {
       && enumeration.kind === 'property-union'
     ))).toBe(true);
     expect(inventory.some(enumeration => (
-      enumeration.where === 'source-plugin/discovery-walk.ts'
-      && enumeration.owner === 'TEST_LAYOUT_DIRS'
+      enumeration.where === 'source-plugin/dir-layout.ts'
+      && enumeration.owner === 'BASE_TEST_LAYOUT_DIRS'
       && enumeration.kind === 'set-constant'
     ))).toBe(true);
     expect(inventory.some(enumeration => (

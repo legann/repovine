@@ -64,12 +64,17 @@ export { moduleCandidateSuffixes, resolveByCandidates } from './source-plugin/re
 
 /* ---- discovery walk: the traversal every producer runs, and where it stops ---- */
 export {
-  REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
   readDirSorted,
   shouldWalkDiscoveryDir,
   walkRepository,
 } from './source-plugin/discovery-walk.js';
 export type { WalkedFile, WalkRepositoryOptions } from './source-plugin/discovery-walk.js';
+export {
+  BASE_DIR_LAYOUT,
+  currentDirLayoutTable,
+  installDirLayoutTable,
+} from './source-plugin/dir-layout.js';
+export type { DirLayoutTable } from './source-plugin/dir-layout.js';
 
 /* ---- budgets a producer slices to and the host cites ---- */
 export { CALL_INDEX_PER_DECLARATION_CAP } from './source-plugin/budgets.js';

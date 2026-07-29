@@ -49,5 +49,8 @@
   },
   "devDependencies": {
     "zod": "4.4.3"
+  },
+  "dependencies": {
+    "@types/node": "^22.19.19"
   }
 }

@@ -20,12 +20,17 @@ export type { HashWidth } from '../content-hash.js';
 
 /* ---- the mechanics a producer does not write: discovery walk, prune rule, path vocabulary ---- */
 export {
-  REPOVINE_ENGINE_SCAN_IGNORE_PATTERNS,
   readDirSorted,
   shouldWalkDiscoveryDir,
   walkRepository,
 } from './discovery-walk.js';
 export type { WalkedFile, WalkRepositoryOptions } from './discovery-walk.js';
+export {
+  BASE_DIR_LAYOUT,
+  currentDirLayoutTable,
+  installDirLayoutTable,
+} from './dir-layout.js';
+export type { DirLayoutTable } from './dir-layout.js';
 export { moduleCandidateSuffixes, resolveByCandidates } from './resolve-candidates.js';
 export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, pathMatchKey, repoRelativePosix } from '../paths.js';
 export { compareCodeUnits } from '../ordering.js';
