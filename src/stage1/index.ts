@@ -31,7 +31,7 @@ import {
 import { rememberPluginRuntime } from '../plugins/runtime-store.js';
 import type { DeclarationCatalog } from '../plugins/declaration-catalog.js';
 import { getRegisteredIaCPluginIds } from './iac/registry.js';
-import type { SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
+import type { ReadonlyFactRecord, SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
 // Side-effect: register built-in source plugins (typescript, …) before discovery runs.
 import './source/bootstrap.js';
 import { compareCodeUnits } from '../platform/ordering.js';
@@ -42,6 +42,7 @@ import { refusal, type Refusal } from '../response/refusal.js';
 import {
   FILE_CLAIMED_TWICE_REFUSAL,
   OUTSIDE_WORKSPACE_REFUSAL,
+  PLUGIN_FACT_REJECTED_REFUSAL,
   PLUGIN_UNLOADABLE_REFUSAL,
   SOURCE_PLUGIN_UNAVAILABLE_REFUSAL,
 } from './refusal-kinds.js';
@@ -184,9 +185,11 @@ export function mergeResults(
   resultsByJobKey: Map<string, PackageJobResult[]>,
   packages: PackageInfo[],
   allModules: ModuleInfo[],
-): { reused: number; rescanned: number } {
+): { reused: number; rescanned: number; facts: ReadonlyFactRecord[]; factRefusals: string[] } {
   let reused = 0;
   let rescanned = 0;
+  const facts: ReadonlyFactRecord[] = [];
+  const factRefusals: string[] = [];
   const merged = new Set<string>();
   for (const pkg of packages) {
     const jobKey = packageJobKey(pkg);
@@ -205,9 +208,13 @@ export function mergeResults(
       for (const m of r.modules) allModules.push(m.sourcePluginId ? m : { ...m, sourcePluginId: pkg.sourcePluginId });
       reused += r.reused;
       rescanned += r.rescanned;
+      // Published facts merge in the same package/shard order as modules, so the view a projector
+      // reads does not depend on which worker finished first.
+      facts.push(...(r.facts ?? []));
+      factRefusals.push(...(r.factRefusals ?? []));
     }
   }
-  return { reused, rescanned };
+  return { reused, rescanned, facts, factRefusals };
 }
 
 function rssMb(): number {
@@ -248,6 +255,8 @@ async function runInlineExtractionAsync(
     let modules: ModuleInfo[] = [];
     let reused = 0;
     let rescanned = 0;
+    let facts: ReadonlyFactRecord[] = [];
+    let factRefusals: string[] = [];
     if (!plugin) {
       logPipelineWarn(`  ⚠ No source plugin registered for "${job.sourcePluginId}" (package ${job.pkg.name}); skipping.`);
     } else {
@@ -264,6 +273,8 @@ async function runInlineExtractionAsync(
       modules = r.modules;
       reused = r.reused;
       rescanned = r.rescanned;
+      facts = r.facts;
+      factRefusals = r.factRefusals;
     }
     // Surface an abort that landed DURING this shard (esp. the last / only shard) — otherwise a
     // single-job repo would finish as if it were never cancelled.
@@ -276,6 +287,8 @@ async function runInlineExtractionAsync(
       modules,
       reused,
       rescanned,
+      facts,
+      factRefusals,
     };
     let bucket = results.get(jobKey);
     if (!bucket) { bucket = []; results.set(jobKey, bucket); }
@@ -445,6 +458,7 @@ function buildSnapshot(
   linkingOpt: RepositoryFactsSnapshot['linkingConfig'] | undefined,
   buildRefusals: Refusal[],
   declarations: DeclarationCatalog,
+  facts: readonly ReadonlyFactRecord[],
   profiler: MemoryProfiler,
 ): RepositoryFactsSnapshot {
   const normalizedLinking = linkingOpt ? normalizeLinkingConfig(linkingOpt) : undefined;
@@ -493,6 +507,7 @@ function buildSnapshot(
     infraModules,
     ...(buildRefusals.length > 0 ? { buildRefusals } : {}),
     ...(hasDeclarations(declarations) ? { declarations } : {}),
+    ...(facts.length > 0 ? { facts: [...facts] } : {}),
     ...(templates.length > 0 ? { templates } : {}),
     ...(Object.keys(bundleOutputHandlerMap).length > 0 ? { bundleOutputHandlerMap } : {}),
     ...(linkingOpt && hasLinkingConfig(linkingOpt) ? {
@@ -717,7 +732,14 @@ function finalize(
   profiler: MemoryProfiler,
 ): { snapshot: RepositoryFactsSnapshot; reused: number; rescanned: number } {
   const allModules: ModuleInfo[] = [];
-  const { reused, rescanned } = mergeResults(results, packages, allModules);
+  const { reused, rescanned, facts, factRefusals } = mergeResults(results, packages, allModules);
+  for (const refused of factRefusals) {
+    buildRefusals.push(refusal(
+      'rejected-by-policy',
+      PLUGIN_FACT_REJECTED_REFUSAL,
+      `${refused}. The fact is absent from the Stage 1 view, so no projector can read it.`,
+    ));
+  }
   if (hasPreviousSnapshot) {
     logPipeline(formatPipelineDetail(`  Incremental: ${reused} reused, ${rescanned} rescanned`));
   }
@@ -737,6 +759,7 @@ function finalize(
     linkingOpt,
     buildRefusals,
     declarations,
+    facts,
     profiler,
   );
   return { snapshot, reused, rescanned };

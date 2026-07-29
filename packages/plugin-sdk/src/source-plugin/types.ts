@@ -1,5 +1,6 @@
 import type { ModuleInfo, PackageInfo, PendingModule, PendingModuleDraft, SemanticModuleDelta } from '../types.js';
 import type { PluginRequirements, PluginAvailability } from '../runtime.js';
+import type { ReadonlyFactRecord } from '../plugin/projection.js';
 
 /**
  * Source plugin contract types.
@@ -161,6 +162,16 @@ export interface SourceExtractResult {
   deltas: SemanticModuleDelta[];
   reused: number;
   rescanned: number;
+  /**
+   * Facts this producer publishes under schemas it owns, for Stage 2 projectors to select.
+   *
+   * This is the one channel from a Stage 1 producer to a projector. It carries data, so it survives
+   * the worker boundary and the snapshot cache, and it is addressed by schema: a reader selects
+   * `schema` without naming a producer, so the same fact from another ecosystem reads the same.
+   * A fact whose schema owner is not this plugin, or whose shape does not validate, is refused with
+   * the plugin named and is absent from the view.
+   */
+  facts?: readonly ReadonlyFactRecord[];
 }
 
 export interface SourcePlugin {

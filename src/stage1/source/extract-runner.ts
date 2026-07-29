@@ -1,6 +1,13 @@
 import * as fs from 'node:fs';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../../types.js';
-import { HASH_WIDTH, sha256Hex, type SourceFileText, type SourcePlugin } from '@repovine/plugin-sdk';
+import {
+  HASH_WIDTH,
+  sha256Hex,
+  validatePublishedFact,
+  type ReadonlyFactRecord,
+  type SourceFileText,
+  type SourcePlugin,
+} from '@repovine/plugin-sdk';
 
 /**
  * Engine-owned Stage-1 source extraction boundary.
@@ -32,6 +39,10 @@ export interface RunSourceExtractionResult {
   modules: ModuleInfo[];
   reused: number;
   rescanned: number;
+  /** Facts the producer published and this boundary took, in the order it emitted them. */
+  facts: ReadonlyFactRecord[];
+  /** One line per fact the boundary refused, naming the plugin and what was wrong with it. */
+  factRefusals: string[];
 }
 
 export async function runSourceExtraction(args: RunSourceExtractionArgs): Promise<RunSourceExtractionResult> {
@@ -90,5 +101,28 @@ export async function runSourceExtraction(args: RunSourceExtractionArgs): Promis
     });
   }
 
-  return { modules, reused: result.reused, rescanned: result.rescanned };
+  const { facts, factRefusals } = takePublishedFacts(plugin.id, result.facts);
+  return { modules, reused: result.reused, rescanned: result.rescanned, facts, factRefusals };
+}
+
+/**
+ * Take the facts a producer published, and name the ones this boundary will not take.
+ *
+ * Published facts are untrusted input like every other plugin output: shape and budget are checked
+ * here, and the schema owner must be the publishing plugin, so a producer cannot publish under
+ * another ecosystem's name. A refused fact is absent from the view and named in the build's
+ * refusals; it never degrades into a silently missing fact a reader would read as "no such thing".
+ */
+function takePublishedFacts(
+  pluginId: string,
+  published: readonly unknown[] | undefined,
+): { facts: ReadonlyFactRecord[]; factRefusals: string[] } {
+  const facts: ReadonlyFactRecord[] = [];
+  const factRefusals: string[] = [];
+  for (const candidate of published ?? []) {
+    const validated = validatePublishedFact(candidate, { pluginId });
+    if (validated.ok) facts.push(validated.fact);
+    else factRefusals.push(`plugin "${pluginId}" published an invalid fact: ${validated.error}`);
+  }
+  return { facts, factRefusals };
 }

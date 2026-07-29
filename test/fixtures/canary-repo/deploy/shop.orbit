@@ -1,0 +1,9 @@
+# orbit stack for the shop
+service checkout
+handler cmd/checkout/main.go
+route POST /checkout
+region eu-central
+
+service pricing
+handler internal/pricing/pricing.go
+region eu-central

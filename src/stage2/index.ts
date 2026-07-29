@@ -253,7 +253,13 @@ function composeProjectionsFor(
   if (contributors.length === 0) return emptyProjectionCompositionResult();
   return composeProjections({
     contributors,
-    input: { repoRoot: snapshot.repoRoot, facts: createFactView({ snapshot }) },
+    input: {
+      repoRoot: snapshot.repoRoot,
+      facts: createFactView({
+        snapshot,
+        ...(snapshot.facts === undefined ? {} : { facts: snapshot.facts }),
+      }),
+    },
     knownModuleIds: new Set(snapshot.modules.map(mod => mod.id)),
     knownNodeIds: new Set(graph.nodes.keys()),
   });

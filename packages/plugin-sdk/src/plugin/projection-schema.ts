@@ -5,6 +5,7 @@ import { SEMANTIC_LINK_RELATIONS } from './projection.js';
 import type {
   PluginProjectionBatch,
   ProjectionRef,
+  ReadonlyFactRecord,
 } from './projection.js';
 
 /**
@@ -32,6 +33,8 @@ export const PROJECTION_BUDGETS = Object.freeze({
   /** `JSON.stringify` length of one extension payload. */
   maxExtensionPayloadChars: 65_536,
   maxAttributesPerResource: 200,
+  /** `JSON.stringify` length of one published fact value. */
+  maxFactValueChars: 65_536,
   /** Any single string a plugin spells in a contribution: key, path, label, attribute value. */
   maxStringLength: 4_096,
 });
@@ -178,8 +181,22 @@ export const zPluginProjectionBatch = z.strictObject({
   delta: zPluginProjectionDelta,
 });
 
+/** One fact as a Stage 1 producer publishes it, before the host takes it. */
+export const zPublishedFact = z.strictObject({
+  schema: zSchemaId,
+  subjectRef: zProjectionRef,
+  value: zJsonValue.refine(
+    v => JSON.stringify(v).length <= PROJECTION_BUDGETS.maxFactValueChars,
+    { message: `value exceeds ${PROJECTION_BUDGETS.maxFactValueChars} JSON characters` },
+  ),
+});
+
 export type ProjectionValidation =
   | { ok: true; batch: PluginProjectionBatch }
+  | { ok: false; error: string };
+
+export type PublishedFactValidation =
+  | { ok: true; fact: ReadonlyFactRecord }
   | { ok: false; error: string };
 
 function firstIssue(error: z.ZodError): string {
@@ -216,6 +233,31 @@ export function validateProjectionBatch(
     }
   }
   return { ok: true, batch };
+}
+
+/**
+ * Validate one fact a Stage 1 producer publishes.
+ *
+ * A producer publishes under a schema it owns, exactly as a projector does with an extension: the
+ * owner segment of the schema id must be the publishing plugin's own id. A reader selects that
+ * schema without naming a producer, which is what lets a contributor read another ecosystem's
+ * semantics without depending on which package produced them.
+ */
+export function validatePublishedFact(
+  value: unknown,
+  opts: { pluginId: string },
+): PublishedFactValidation {
+  const parsed = zPublishedFact.safeParse(value);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const fact = parsed.data as ReadonlyFactRecord;
+  const owner = schemaIdOwner(fact.schema);
+  if (owner !== opts.pluginId) {
+    return {
+      ok: false,
+      error: `fact schema "${fact.schema}" is owned by "${owner}", not by "${opts.pluginId}"`,
+    };
+  }
+  return { ok: true, fact };
 }
 
 /* ------------------------------- reference resolution ------------------------------- */

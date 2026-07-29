@@ -14,6 +14,7 @@ import type {
   ModuleInfo,
   PackageInfo,
   ParamInfo,
+  ReadonlyFactRecord,
   SsrMarkers,
   SymbolKind,
 } from '@repovine/plugin-sdk';
@@ -103,6 +104,15 @@ export interface RepositoryFactsSnapshot {
    * anything.
    */
   declarations?: DeclarationCatalog;
+  /**
+   * What this build's Stage 1 producers published under their own schemas.
+   *
+   * The one channel from a producer to a Stage 2 projector, and data for the same reason the
+   * declarations are: it crosses the worker boundary and the snapshot cache, where a function or a
+   * registry populated on the other side would not arrive. A projector selects a schema, never a
+   * producer. Absent when no producer published anything.
+   */
+  facts?: ReadonlyFactRecord[];
   /** Template/rendered-surface artifacts discovered by stage1 producers. */
   templates?: TemplateFileInfo[];
   /**

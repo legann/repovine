@@ -12,6 +12,7 @@ import {
   inferFileBasedRoutes,
   type FileBasedRoute,
 } from '../../stage2/routes/file-based.js';
+import { compareCodeUnits } from '../../platform/ordering.js';
 import { nodeInScope, resolveScope } from '../scope/resolve.js';
 import { DEFAULT_LIST_LIMIT, limitFrom, offsetFrom } from '../response/pagination.js';
 import { pageTruncation, truncationMap, type TruncationMap } from '../../response/truncation.js';
@@ -108,6 +109,14 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
     }
   }
 
+  // Then everything the legacy replay above does not reach. A projected entrypoint carries no legacy
+  // slot — no pre-boundary layer minted it — so replaying by slot key would leave it in the store
+  // and out of every answer. It is appended in one stable pass by id, after the replayed order, so
+  // an entrypoint that arrived from a plugin is visible without the shell learning who produced it.
+  for (const entry of appendedEntrypoints(getInterpreterEntrypoints(graph))) {
+    pushInterpreterEntry(entry);
+  }
+
   const page = items.slice(offset, offset + limit);
   const truncation = truncationMap({
     items: pageTruncation({
@@ -131,6 +140,22 @@ const REPLAYED_SLOTS = new Set<EntrypointSlot>([
   'file-page',
   'service-trigger',
 ]);
+
+/**
+ * Entrypoints no slot replay reaches, in one stable order.
+ *
+ * The replay above is keyed by the slots the pre-boundary layers mint, so it can only publish what
+ * one of those layers produced. An entrypoint from anywhere else — today a projected one — has no
+ * slot to look up, and is ordered by id alone: registration order is not an input here either.
+ */
+function appendedEntrypoints(entries: readonly EntrypointFragment[]): EntrypointFragment[] {
+  return entries
+    .filter(entry => {
+      const slot = entry[LAYER_ENTRYPOINT_SLOT_KEY] as EntrypointSlot | undefined;
+      return !slot || !REPLAYED_SLOTS.has(slot);
+    })
+    .sort((a, b) => compareCodeUnits(String(a.id ?? ''), String(b.id ?? '')));
+}
 
 function indexInterpreterEntrypoints(entries: readonly EntrypointFragment[]): Map<string, EntrypointFragment> {
   const out = new Map<string, EntrypointFragment>();

@@ -1,5 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
+import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
 // Side-effect: register built-in source plugins in this worker thread before extraction.
 import './source/bootstrap.js';
 import { getSourcePlugin, getSourcePlugins } from './source/registry.js';
@@ -35,6 +36,9 @@ interface JobResultMessage {
   modules: ModuleInfo[];
   reused: number;
   rescanned: number;
+  /** Facts the shard's producer published, as data that survives the isolate boundary. */
+  facts: ReadonlyFactRecord[];
+  factRefusals: string[];
 }
 
 interface JobErrorMessage {
@@ -94,6 +98,8 @@ async function handleWorkerMessage(msg: IncomingMessage): Promise<void> {
       modules: result.modules,
       reused: result.reused,
       rescanned: result.rescanned,
+      facts: result.facts,
+      factRefusals: result.factRefusals,
     };
     parentPort!.postMessage(reply);
   } catch (e) {

@@ -67,12 +67,18 @@ export type {
   UiRouteEntrypointContribution,
 } from './projection.js';
 
-export { PROJECTION_BUDGETS, checkProjectionRefs, validateProjectionBatch } from './projection-schema.js';
+export {
+  PROJECTION_BUDGETS,
+  checkProjectionRefs,
+  validateProjectionBatch,
+  validatePublishedFact,
+} from './projection-schema.js';
 export type {
   AcceptedProjectionBatch,
   ProjectionRefProblem,
   ProjectionRefProblemReason,
   ProjectionValidation,
+  PublishedFactValidation,
 } from './projection-schema.js';
 
 export type { DocumentLoader, DocumentLoadInput, LoadedDocument } from './document-loader.js';

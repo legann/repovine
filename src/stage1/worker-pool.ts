@@ -4,6 +4,7 @@ import { totalmem } from 'node:os';
 import { Worker } from 'node:worker_threads';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
+import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import { packageJobKey } from './utils.js';
 
 /** Grace period for a worker to kill+reap its in-flight subprocesses and exit on its own after a
@@ -32,6 +33,10 @@ export interface PackageJobResult {
   modules: ModuleInfo[];
   reused: number;
   rescanned: number;
+  /** Facts this shard's producer published and the Stage 1 boundary took. */
+  facts?: ReadonlyFactRecord[];
+  /** What that boundary refused, one line per refused fact. */
+  factRefusals?: string[];
   error?: string;
 }
 
@@ -108,7 +113,7 @@ export class PackageWorkerPool {
         },
       });
       const slot: WorkerSlot = { worker, busy: false, runningSolo: false, dead: false, currentJobId: undefined };
-      worker.on('message', (msg: { type: string; jobId: number; pkgName?: string; modules?: ModuleInfo[]; reused?: number; rescanned?: number; message?: string; stack?: string }) => {
+      worker.on('message', (msg: { type: string; jobId: number; pkgName?: string; modules?: ModuleInfo[]; reused?: number; rescanned?: number; facts?: ReadonlyFactRecord[]; factRefusals?: string[]; message?: string; stack?: string }) => {
         // Free the slot only when this reply is for the job this worker is running. A stray/duplicate
         // reply for a different jobId must not free a slot busy with another job (one-job-per-slot). The
         // current job may already be gone from pendingByJobId (swept by a crash elsewhere) — the
@@ -127,6 +132,8 @@ export class PackageWorkerPool {
               modules: msg.modules ?? [],
               reused: msg.reused ?? 0,
               rescanned: msg.rescanned ?? 0,
+              facts: msg.facts ?? [],
+              factRefusals: msg.factRefusals ?? [],
             });
           } else {
             const error = new Error(msg.message ?? 'unknown worker error');
