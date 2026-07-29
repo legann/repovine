@@ -5183,7 +5183,7 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     addNode(g, { id: 'resource:terraform:TfLambda', type: 'runtime-resource', label: 'TfLambda', description: 'lambda declared in main.tf',
       data: { kind: 'lambda', provider: 'terraform' } });
     addNode(g, { id: 'resource:k8s:_/Deployment/web', type: 'runtime-resource', label: 'web', description: 'Deployment',
-      data: { provider: 'k8s', k8sKind: 'Deployment' } });
+      data: { provider: 'k8s' } });
 
     const annotations = {
       get: () => undefined, set: jest.fn(), isFresh: () => true, getQueue: () => [], getStats: () => backlogCoverage(),
@@ -5218,9 +5218,9 @@ describe('get_runtime_topology — returns whatever the graph contains', () => {
     const g = createEmptyGraph();
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'resource:k8s:_/Ingress/web-ingress', type: 'runtime-resource', label: 'web-ingress', description: 'Service',
-      data: { kind: 'k8s-service', k8sKind: 'Ingress', provider: 'k8s' } });
+      data: { kind: 'k8s-service', provider: 'k8s' } });
     addNode(g, { id: 'resource:k8s:_/Service/web', type: 'runtime-resource', label: 'web', description: 'Service',
-      data: { kind: 'k8s-service', k8sKind: 'Service', provider: 'k8s' } });
+      data: { kind: 'k8s-service', provider: 'k8s' } });
     addEdge(g, 'resource:k8s:_/Ingress/web-ingress', 'resource:k8s:_/Service/web', 'routes_to');
 
     const annotations = {

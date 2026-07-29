@@ -162,7 +162,7 @@
       "data": {
         "contentHash": "75ece3e1008139b4",
         "kind": "k8s-deployment",
-        "k8sKind": "CronJob",
+        "refScope": "k8s/_",
         "provider": "k8s",
         "declaredIn": [
           "manifests/cronjob.yaml"

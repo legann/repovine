@@ -33,7 +33,7 @@ interface ExpectedDomains {
   rejectedAsDomain?: string[];
   modulesInDomain?: Record<string, string[]>;
   /** Runtime-resource nodes that must exist in the graph after stage2 (e.g. Terraform/SAM resources). */
-  runtimeResourceNodes?: Array<{ label: string; kind?: string; k8sKind?: string; provider?: string }>;
+  runtimeResourceNodes?: Array<{ label: string; kind?: string; provider?: string }>;
   /** Execution entrypoints the fixture must surface (get_entrypoints contract): routes/apis with layer + method. */
   entrypoints?: Array<{ path: string; kind: string; layer: string; method?: string }>;
   /** Named documentation-derived edge-case groups, kept distinct in the fixture oracle. */
@@ -192,23 +192,22 @@ describe('Domain heuristic — fixture suite', () => {
     it('creates exactly the expected runtime-resource nodes from IaC resources', () => {
       const expectedNodes = expected.runtimeResourceNodes ?? [];
       const serviceIds = graph.byType.get('runtime-resource') ?? new Set();
-      const actual: Array<{ label: string; kind?: string; k8sKind?: string; provider?: string }> = [];
+      const actual: Array<{ label: string; kind?: string; provider?: string }> = [];
       for (const id of serviceIds) {
         const n = graph.nodes.get(id);
         if (!n || n.type !== 'runtime-resource') continue;
-        const data = (n.data ?? {}) as { kind?: string; k8sKind?: string; provider?: string };
+        const data = (n.data ?? {}) as { kind?: string; provider?: string };
         actual.push({
           label: n.label,
           kind: data.kind,
-          ...(data.k8sKind ? { k8sKind: data.k8sKind } : {}),
           provider: data.provider,
         });
       }
       const order = (
-        a: { label: string; provider?: string; kind?: string; k8sKind?: string },
-        b: { label: string; provider?: string; kind?: string; k8sKind?: string },
-      ) => `${a.provider ?? ''}:${a.kind ?? ''}:${a.k8sKind ?? ''}:${a.label}`
-        .localeCompare(`${b.provider ?? ''}:${b.kind ?? ''}:${b.k8sKind ?? ''}:${b.label}`);
+        a: { label: string; provider?: string; kind?: string },
+        b: { label: string; provider?: string; kind?: string },
+      ) => `${a.provider ?? ''}:${a.kind ?? ''}:${a.label}`
+        .localeCompare(`${b.provider ?? ''}:${b.kind ?? ''}:${b.label}`);
       expect(actual.sort(order)).toEqual([...expectedNodes].sort(order));
     });
   });

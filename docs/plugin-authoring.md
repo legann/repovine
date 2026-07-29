@@ -329,17 +329,24 @@ A trigger type declared with a `provider` and no `namespace` answers for every n
 provider mints; one declared with both answers only for that pair. Nothing is inferred from a
 resource id: an undeclared kind is a node with no linking, not a guess.
 
-### Built-in parity (0.1.0)
+### Built-in parity
 
 Bundled plugins compile against the published SDK alone: each lives in its own package under
-`packages/plugins/`, and a boundary law fails the build on an import of engine or SDK internals.
-Kubernetes workload enrichment moved into the Kubernetes package with the rest of that vertical, so
-it is that plugin's code rather than a privilege the SDK grants it.
+`packages/plugins/`, and a boundary law fails the build on an import of engine or SDK internals. A
+bundled plugin states its ecosystem the way an installed one does — the engine holds no name of any
+ecosystem, and a plugin outside this repository can say everything a bundled plugin says.
 
-Two engine paths still hold ecosystem semantics an out-of-tree plugin cannot state: Kubernetes
-Ingress-to-Service routing and the namespace comparison behind infra-reference resolution. They are
-listed in `docs/plugin-boundary-legacy-paths.md` and move to plugin projections with the single
-plugin-loading path.
+Every isolate that runs plugin code loads the set from the same serialisable spec.
+
+| Isolate | Where the spec comes from |
+|---|---|
+| control plane | `config.plugins`, resolved by `collectRepositoryFactsAsync` |
+| Stage 1 worker | `workerData.pluginSpec`, loaded before the first job |
+| Stage 2 worker | `snapshot.plugins`, loaded before composition |
+| `repovine doctor`, `repovine setup` | `ensurePluginsLoaded`, from the workspace config |
+
+An installed source plugin extracts in the worker pool, and a build with projectors composes in the
+Stage 2 worker: declaring either costs a plugin nothing.
 
 ## Enabling plugins (`repovine.config.json`)
 

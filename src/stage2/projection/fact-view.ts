@@ -1,9 +1,10 @@
-import { canonicalJson } from '@repovine/plugin-sdk';
+import { canonicalJson, makeResourceId } from '@repovine/plugin-sdk';
 import type {
   ProjectionFactSelector,
   ReadonlyFactRecord,
   ReadonlyFactView,
   ReadonlyModuleFact,
+  ResourceIdentity,
 } from '@repovine/plugin-sdk';
 import type { RepositoryFactsSnapshot } from '../../types.js';
 import { compareCodeUnits } from '../../platform/ordering.js';
@@ -20,6 +21,8 @@ export interface FactViewInput {
   snapshot: RepositoryFactsSnapshot;
   /** Facts published under declared schemas. Empty until a producer publishes one. */
   facts?: readonly ReadonlyFactRecord[];
+  /** Minted ids of the runtime resources the graph already holds. */
+  resourceIds?: ReadonlySet<string>;
 }
 
 function recordOrder(a: ReadonlyFactRecord, b: ReadonlyFactRecord): number {
@@ -47,10 +50,13 @@ export function createFactView(input: FactViewInput): ReadonlyFactView {
     else bySchema.set(record.schema, [record]);
   }
 
+  const resourceIds = input.resourceIds ?? new Set<string>();
+
   return {
     hasModule: (moduleId: string): boolean => modules.has(moduleId),
     moduleIds: (): readonly string[] => moduleIds,
     module: (moduleId: string): ReadonlyModuleFact | undefined => modules.get(moduleId),
+    hasResource: (identity: ResourceIdentity): boolean => resourceIds.has(makeResourceId(identity)),
     select: (selector: ProjectionFactSelector): readonly ReadonlyFactRecord[] => {
       const matches = bySchema.get(selector.schema) ?? [];
       if (selector.field === undefined) return matches;

@@ -221,8 +221,11 @@ export interface RuntimeResourceNodeData {
   contentHash?: string;
   /** Resource kind from InfraResource (lambda/queue/table/...) — exposed so agents can filter. */
   kind?: InfraResourceKind;
-  /** Original Kubernetes manifest kind before it is collapsed into an InfraResource kind. */
-  k8sKind?: string;
+  /**
+   * The scope this resource's own logical-id references are confined to, as its plugin spelled it.
+   * Opaque: resolution compares the strings and reads nothing else in them.
+   */
+  refScope?: string;
   /**
    * Ecosystem that declared the resource, as an opaque label. The pre-boundary IaC parsers spell one
    * of five, a projected resource spells whatever its plugin owns, and the graph stores and reports
@@ -248,7 +251,7 @@ export interface RuntimeResourceNodeData {
    * separate documents declare the same id and collapse onto this node.
    */
   declaredIn?: string[];
-  /** Kubernetes namespace from the manifest. Absent when the manifest declares none. */
+  /** Namespace attribute the declaring document carried. Absent when it declares none. */
   namespace?: string;
   /**
    * References the declaring document names that resolution refused to bind. Present when the
@@ -314,7 +317,7 @@ export const NODE_DATA_KEYS = {
   package: ['path', 'version', 'sourcePluginId'],
   module: ['filePath', 'relativeFilePath', 'hasRoutes', 'envVars', 'ssr', 'sourcePluginId'],
   'export-symbol': ['symbolKind', 'signature', 'params', 'returnType', 'typeValue', 'fields', 'implementsInterfaces', 'calls', 'callsTotal', 'privateMembers', 'internals', 'lineRange', 'isDefault'],
-  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'k8sKind', 'provider', 'attributes', 'service', 'hasCodeHandler', 'declaredIn', 'namespace', 'unresolvedRefs'],
+  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'refScope', 'provider', 'attributes', 'service', 'hasCodeHandler', 'declaredIn', 'namespace', 'unresolvedRefs'],
   domain: ['tier', 'weight', 'parent', 'subdomains'],
   template: ['relPath', 'contentHash', 'engine', 'blocks'],
 } as const satisfies Record<NodeType, readonly string[]>;

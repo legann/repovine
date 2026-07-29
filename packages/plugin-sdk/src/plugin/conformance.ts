@@ -2,6 +2,8 @@ import { validatePluginManifest } from './manifest.js';
 import { validatePluginRuntimeDescriptor } from './descriptor.js';
 import { checkProjectionRefs, validateProjectionBatch } from './projection-schema.js';
 import type { AcceptedProjectionBatch } from './projection-schema.js';
+import { makeResourceId } from './resource-identity.js';
+import type { ResourceIdentity } from './resource-identity.js';
 import type {
   ProjectionFactSelector,
   ReadonlyFactRecord,
@@ -28,6 +30,8 @@ export interface PluginConformanceInput {
   modules?: readonly ReadonlyModuleFact[];
   /** Facts a projector's `requires` selectors will see. */
   facts?: readonly ReadonlyFactRecord[];
+  /** Runtime resources the graph already holds, which a projected reference can point at. */
+  resources?: readonly ResourceIdentity[];
   /** Repository root handed to projectors. Defaults to a neutral placeholder. */
   repoRoot?: string;
 }
@@ -43,12 +47,14 @@ function reportOf(checks: ConformanceCheck[]): ConformanceReport {
 function factViewOf(
   modules: readonly ReadonlyModuleFact[],
   facts: readonly ReadonlyFactRecord[],
+  resourceIds: ReadonlySet<string>,
 ): ReadonlyFactView {
   const byId = new Map(modules.map(module => [module.moduleId, module]));
   return {
     hasModule: (moduleId: string) => byId.has(moduleId),
     moduleIds: () => [...byId.keys()],
     module: (moduleId: string) => byId.get(moduleId),
+    hasResource: (identity: ResourceIdentity) => resourceIds.has(makeResourceId(identity)),
     select: (selector: ProjectionFactSelector) => facts.filter(fact => fact.schema === selector.schema),
   };
 }
@@ -84,7 +90,8 @@ export function checkPluginConformance(input: PluginConformanceInput): Conforman
 
   const modules = input.modules ?? [];
   const facts = input.facts ?? [];
-  const view = factViewOf(modules, facts);
+  const knownResourceIds = new Set((input.resources ?? []).map(makeResourceId));
+  const view = factViewOf(modules, facts, knownResourceIds);
   const projectionInput = { repoRoot: input.repoRoot ?? '/repo', facts: view };
   const accepted: AcceptedProjectionBatch[] = [];
 
@@ -141,6 +148,7 @@ export function checkPluginConformance(input: PluginConformanceInput): Conforman
   const problems = checkProjectionRefs({
     accepted,
     knownModuleIds: new Set(modules.map(module => module.moduleId)),
+    knownResourceIds,
   });
   checks.push(check(
     'every projected reference resolves against the global index',

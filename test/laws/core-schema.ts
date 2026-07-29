@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Node, Project, SyntaxKind } from 'ts-morph';
+import { Node, Project, SyntaxKind, type VariableDeclaration } from 'ts-morph';
 import { EDGE_KINDS, NODE_TYPES } from '../../src/types.js';
 
 export const CORE_NODE_TYPES = [
@@ -68,6 +68,15 @@ export function scanLiteralGraphProducers(root = findRepovineRoot()): ProducerSc
   };
 
   for (const sourceFile of sourceFiles) {
+    // A projected relation is a producer too: the composer writes the edge kind the relation table
+    // names, so the table's literal values are where those kinds are spelled.
+    for (const declaration of sourceFile.getVariableDeclarations()) {
+      if (declaration.getName() !== RELATION_TABLE) continue;
+      for (const property of relationTableProperties(declaration)) {
+        addMapEntry(scan.edgeKinds, property.kind, property.location);
+      }
+    }
+
     for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const callee = call.getExpression();
       if (!Node.isIdentifier(callee)) continue;
@@ -94,6 +103,28 @@ export function scanLiteralGraphProducers(root = findRepovineRoot()): ProducerSc
   }
 
   return scan;
+}
+
+/** The one table mapping a published relation name to the edge kind the composer writes. */
+const RELATION_TABLE = 'RELATION_EDGE_KINDS';
+
+/** Every edge kind the relation table spells, with the line that spells it. */
+function relationTableProperties(
+  declaration: VariableDeclaration,
+): Array<{ kind: string; location: string }> {
+  const out: Array<{ kind: string; location: string }> = [];
+  const object = declaration
+    .getInitializerIfKind(SyntaxKind.CallExpression)
+    ?.getArguments()[0] ?? declaration.getInitializer();
+  if (!Node.isObjectLiteralExpression(object)) return out;
+  for (const property of object.getProperties()) {
+    if (!Node.isPropertyAssignment(property)) continue;
+    const initializer = property.getInitializer();
+    if (Node.isStringLiteral(initializer)) {
+      out.push({ kind: initializer.getLiteralText(), location: formatLocation(property) });
+    }
+  }
+  return out;
 }
 
 function readNodeTypeLiteral(node: Node | undefined): string | undefined {

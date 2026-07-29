@@ -1,4 +1,4 @@
-import type { InfraResourceProvider, RepositoryGraph } from '../types.js';
+import type { RepositoryGraph } from '../types.js';
 import { nodesOfType } from './index.js';
 
 /**
@@ -12,10 +12,14 @@ export interface InfraRefScope {
    * entry when separate documents declare the same logical id and collapse onto one node.
    */
   declaredIn?: readonly string[];
-  /** Kubernetes namespace of the referencing resource. */
-  namespace?: string;
-  /** Provider of the referencing resource, as the opaque label the node carries. */
-  provider?: InfraResourceProvider;
+  /**
+   * The scope the referencing resource confines its own references to, as its plugin spelled it.
+   *
+   * Opaque here: two resources are in one scope when the strings are equal, and nothing else about
+   * the string is read. Its presence replaces the declaring document as the scope — an ecosystem
+   * that carries one names its targets across documents and never outside it.
+   */
+  refScope?: string;
 }
 
 export type InfraRefResolution =
@@ -51,9 +55,9 @@ export function resourceLogicalIdAliases(logicalId: string): string[] {
 function candidateInScope(graph: RepositoryGraph, candidateId: string, scope: InfraRefScope): boolean {
   const node = graph.nodes.get(candidateId);
   if (node?.type !== 'runtime-resource') return false;
-  // A Kubernetes reference names an object in its own namespace. Both sides normalize an absent
-  // namespace to the same empty marker so two cluster-scoped manifests still match each other.
-  if (scope.provider === 'k8s') return (node.data?.namespace ?? '') === (scope.namespace ?? '');
+  // A declared scope answers on its own: the reference names something inside it, and a candidate
+  // carrying a different scope — or none — is a different thing with the same name.
+  if (scope.refScope !== undefined) return node.data?.refScope === scope.refScope;
   if (!scope.declaredIn?.length) return false;
   const declaredIn = node.data?.declaredIn ?? [];
   return scope.declaredIn.some(path => declaredIn.includes(path));
@@ -67,8 +71,9 @@ function decide(
   const inScope = candidates.filter(id => candidateInScope(graph, id, scope));
   if (inScope.length === 1) return { status: 'resolved', serviceId: inScope[0] };
   if (inScope.length > 1) return { status: 'unresolved', reason: 'ambiguous', candidates: inScope };
-  // Kubernetes never resolves across namespaces, so a target outside this one is not a target.
-  if (scope.provider === 'k8s') return { status: 'unresolved', reason: 'out-of-scope', candidates };
+  // A declared scope does not leak: a candidate outside it is not a target, and the repository-wide
+  // fallback below would answer with one.
+  if (scope.refScope !== undefined) return { status: 'unresolved', reason: 'out-of-scope', candidates };
   // Nested stacks hand identifiers to sibling templates: one candidate repo-wide still names one
   // resource, and refusing it would drop the cross-template links this aliasing exists to serve.
   if (candidates.length === 1) return { status: 'resolved', serviceId: candidates[0] };

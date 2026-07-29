@@ -1,6 +1,10 @@
-import type { PluginRuntimeDescriptor } from '@repovine/plugin-sdk';
+import type { PluginRuntimeDescriptor, ProjectionContributor } from '@repovine/plugin-sdk';
+import { stampDeclarationCatalog } from '@repovine/plugin-sdk';
 import { getActiveIaCPlugins, installIaCPlugins, type ActiveIaCPlugin } from '../../src/plugin-host/iac-set.js';
 import { defaultPluginsConfig, loadPluginSet } from '../../src/plugin-host/load.js';
+import { buildPluginRuntime } from '../../src/plugin-host/runtime.js';
+import { rememberPluginRuntime } from '../../src/plugin-host/runtime-store.js';
+import type { RepositoryFactsSnapshot } from '../../src/types.js';
 
 /**
  * A package's published descriptor as the active set holds its IaC half.
@@ -27,6 +31,29 @@ export function asActiveIaC(descriptor: PluginRuntimeDescriptor): ActiveIaCPlugi
  */
 export function installOneMore(plugin: ActiveIaCPlugin): void {
   installIaCPlugins([...getActiveIaCPlugins(), plugin]);
+}
+
+/**
+ * Key a projector to a hand-built snapshot, the way the loader keys one to a real build.
+ *
+ * Projectors are code, so they travel beside the snapshot rather than on it. A test that composes a
+ * snapshot it wrote itself has no loader to do that, and without it composition sees no contributor
+ * and reports an honest empty projection.
+ */
+export function attachProjectors(
+  snapshot: RepositoryFactsSnapshot,
+  pluginId: string,
+  projectors: readonly ProjectionContributor[],
+): void {
+  const owner = { pluginId, packageName: `@test/plugin-${pluginId}`, packageVersion: '0.0.0' };
+  rememberPluginRuntime(snapshot, buildPluginRuntime({
+    plugins: [{
+      owner,
+      capabilities: ['projectors'],
+      declarations: stampDeclarationCatalog(undefined, owner),
+      projectors,
+    }],
+  }));
 }
 
 /** Reload the bundled preset, dropping whatever a test installed on top of it. */

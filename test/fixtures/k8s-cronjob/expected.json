@@ -5,7 +5,7 @@
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "Dockerfile", "kind": "other", "provider": "generic" },
-    { "label": "demo-scheduler", "kind": "k8s-deployment", "k8sKind": "CronJob", "provider": "k8s" }
+    { "label": "demo-scheduler", "kind": "k8s-deployment", "provider": "k8s" }
   ],
   "runtimeLinks": [
     {

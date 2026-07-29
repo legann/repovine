@@ -1,5 +1,5 @@
 import type { InfraResource, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
-import { addEdge, hasEdge, nodesOfType } from '../graph/index.js';
+import { addEdge, hasEdge } from '../graph/index.js';
 import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 import { normalizeLinkingConfig } from '../stage1/linking-config.js';
 import { lastPathSegment, pathMatchKey, resolveRelPath, toPosixPath } from '../platform/paths.js';
@@ -161,91 +161,19 @@ function collectContainerImages(attrs: Record<string, string>): string[] {
   return uniqueStrings(images);
 }
 
-function shouldLinkResource(res: InfraResource): boolean {
-  if (res.kind === 'k8s-deployment' || res.kind === 'k8s-service') return true;
-  if (res.attributes.role === 'container-image') return true;
-  return Boolean(res.attributes.containerImages || res.attributes.containerImage0);
-}
-
 /**
- * The id prefix every Kubernetes runtime-resource in one namespace shares.
+ * Whether this resource declares a container this repository could have built.
  *
- * Spelled here, beside the ingress lookup that is its only reader, rather than in the id minter.
- * The minter is generic: it encodes the identity a plugin computed and knows nothing about
- * namespaces. This is the remaining Kubernetes knowledge in core, and it leaves with the ingress
- * relation when that becomes a plugin projection.
+ * The gate is the evidence, not the kind: a resource that declares its containers is a candidate
+ * whatever ecosystem it comes from. A bare `image` reference is not that evidence — it names an
+ * image the resource consumes, and admitting one would match every pulled image against whichever
+ * Dockerfile in the tree scores highest.
  */
-function k8sNamespacePrefix(namespace: string | undefined): string {
-  return `resource:k8s:${namespace ?? '_'}/`;
-}
-
-function findK8sIngressBackendServiceId(
-  graph: RepositoryGraph,
-  label: string,
-  namespace: string | undefined,
-): string | undefined {
-  const serviceSet = nodesOfType(graph, 'runtime-resource');
-  if (serviceSet.length === 0) return undefined;
-  const namespacePrefix = k8sNamespacePrefix(namespace);
-  let untypedServiceId: string | undefined;
-  for (const id of serviceSet) {
-    const node = graph.nodes.get(id);
-    if (node?.type !== 'runtime-resource' || node.label !== label) continue;
-    const data = (node.data ?? {}) as { kind?: string; k8sKind?: string; provider?: string };
-    if (data.kind !== 'k8s-service' || data.provider !== 'k8s') continue;
-    // Kubernetes Ingress service backends are namespace-local. Once ids encode namespaces,
-    // label-only lookup must not reconnect an ingress to a same-name Service elsewhere.
-    if (!id.startsWith(namespacePrefix)) continue;
-    if (data.k8sKind === 'Ingress') continue;
-    if (data.k8sKind === 'Service') return id;
-    untypedServiceId ??= id;
-  }
-  return untypedServiceId;
-}
-
-function collectIngressBackends(attrs: Record<string, string>): string[] {
-  const backends: string[] = [];
-  if (attrs.ingressBackends) {
-    for (const part of attrs.ingressBackends.split(',')) {
-      const trimmed = part.trim();
-      if (trimmed) backends.push(trimmed);
-    }
-  }
-  for (const [key, value] of Object.entries(attrs)) {
-    if (key.startsWith('ingressBackend') && value) backends.push(value);
-  }
-  return uniqueStrings(backends);
-}
-
-/**
- * Link Kubernetes Ingress resources to backend Service nodes via `routes_to` edges.
- */
-export function linkK8sIngressRoutes(
-  graph: RepositoryGraph,
-  snapshot: RepositoryFactsSnapshot,
-): void {
-  for (const infraMod of snapshot.infraModules ?? []) {
-    for (const res of infraMod.resources) {
-      if (res.provider !== 'k8s' || res.kind !== 'k8s-service') continue;
-      const backends = collectIngressBackends(res.attributes);
-      if (backends.length === 0) continue;
-      const ingressServiceId = makeRuntimeResourceId(res);
-      if (!graph.nodes.has(ingressServiceId)) continue;
-      for (const backendName of backends) {
-        const targetServiceId = findK8sIngressBackendServiceId(
-          graph,
-          backendName,
-          res.attributes.namespace,
-        );
-        if (
-          !targetServiceId
-          || targetServiceId === ingressServiceId
-          || hasEdge(graph, ingressServiceId, 'routes_to', targetServiceId)
-        ) continue;
-        addEdge(graph, ingressServiceId, targetServiceId, 'routes_to');
-      }
-    }
-  }
+function shouldLinkResource(res: InfraResource): boolean {
+  if (res.attributes.role === 'container-image') return true;
+  if (res.attributes.containerImages || res.attributes.containerImage0) return true;
+  return Object.entries(res.attributes)
+    .some(([key, value]) => Boolean(value) && key.startsWith('containerEnvImage_'));
 }
 
 /**

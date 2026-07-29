@@ -126,8 +126,10 @@ describe('core-laws producer emits semantics only (engine/producer boundary)', (
     }
   });
 
-  it('IaC parsers return a semantics-only delta (kind + resources), never module mechanics', () => {
-    const SEMANTIC_KEYS = ['kind', 'resources'];
+  it('IaC parsers return a semantics-only delta (kind + resources + facts), never module mechanics', () => {
+    // `facts` is the third semantic key: what the ecosystem knows about the document beyond the
+    // canonical resource fields. Like the other two it says nothing about where the file sits.
+    const SEMANTIC_KEYS = ['facts', 'kind', 'resources'];
     const MECHANICAL_KEYS = ['contentHash', 'filePath', 'id', 'relativeFilePath'];
     const deltas = [
       dockerfileParser.parse('/repo/Dockerfile', 'Dockerfile', 'FROM node:20\n'),
@@ -141,7 +143,7 @@ describe('core-laws producer emits semantics only (engine/producer boundary)', (
     for (const delta of deltas) {
       expect(delta).not.toBeNull();
       const keys = Object.keys(delta!).sort();
-      expect(keys).toEqual(SEMANTIC_KEYS);
+      expect(keys.filter(key => !SEMANTIC_KEYS.includes(key))).toEqual([]);
       for (const mechanical of MECHANICAL_KEYS) expect(keys).not.toContain(mechanical);
     }
   });

@@ -18,7 +18,7 @@ describe('core-laws node-data shape (per-type data discriminant, D3)', () => {
         { id: 'export:x/Foo', type: 'export-symbol', label: 'Foo', description: 'class', data: { symbolKind: 'class', signature: 'class Foo' } },
         { id: 'mod:x', type: 'module', label: 'x.ts', description: 'module', data: { envVars: ['API_URL'], hasRoutes: true } },
         { id: 'resource:aws-dynamodb:T', type: 'runtime-resource', label: 'T', description: 'table', data: { kind: 'table', provider: 'aws' } },
-        { id: 'resource:k8s:_/Deployment/web', type: 'runtime-resource', label: 'web', description: 'deployment', data: { kind: 'k8s-deployment', k8sKind: 'Deployment', provider: 'k8s' } },
+        { id: 'resource:k8s:_/Deployment/web', type: 'runtime-resource', label: 'web', description: 'deployment', data: { kind: 'k8s-deployment', refScope: 'k8s/_', provider: 'k8s' } },
       ],
       edges: [],
     });

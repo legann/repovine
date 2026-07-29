@@ -62,6 +62,12 @@ export interface ProjectionCompositionInput {
   knownModuleIds: ReadonlySet<string>;
   /** Node ids the graph already holds. A minted resource id that collides with one is refused. */
   knownNodeIds: ReadonlySet<string>;
+  /**
+   * Runtime-resource ids the graph already holds. A resource reference resolves against these as a
+   * module reference resolves against `knownModuleIds`: a projection points at what is there and
+   * mints only what is not.
+   */
+  knownResourceIds?: ReadonlySet<string>;
 }
 
 export type BatchStatus = 'applied' | 'rejected';
@@ -348,7 +354,11 @@ export function composeProjections(input: ProjectionCompositionInput): Projectio
       batch: entry.batch,
     }));
 
-    const problems = checkProjectionRefs({ accepted, knownModuleIds: input.knownModuleIds });
+    const problems = checkProjectionRefs({
+      accepted,
+      knownModuleIds: input.knownModuleIds,
+      ...(input.knownResourceIds === undefined ? {} : { knownResourceIds: input.knownResourceIds }),
+    });
     if (problems.length > 0) {
       for (const problem of problems) {
         const entry = live.find(candidate =>

@@ -243,17 +243,22 @@ function composeProjectionsFor(
 ): ProjectionCompositionResult {
   const { contributors } = getPluginRuntime(snapshot);
   if (contributors.length === 0) return emptyProjectionCompositionResult();
+  // What the graph already holds, so a projected link can point at a resource an IaC producer
+  // emitted. The projector asks the same set through the fact view before it writes the reference.
+  const knownResourceIds = new Set(nodesOfType(graph, 'runtime-resource'));
   return composeProjections({
     contributors,
     input: {
       repoRoot: snapshot.repoRoot,
       facts: createFactView({
         snapshot,
+        resourceIds: knownResourceIds,
         ...(snapshot.facts === undefined ? {} : { facts: snapshot.facts }),
       }),
     },
     knownModuleIds: new Set(snapshot.modules.map(mod => mod.id)),
     knownNodeIds: new Set(graph.nodes.keys()),
+    knownResourceIds,
   });
 }
 

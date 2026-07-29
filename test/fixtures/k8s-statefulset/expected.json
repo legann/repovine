@@ -5,9 +5,9 @@
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "Dockerfile", "kind": "other", "provider": "generic" },
-    { "label": "demo-worker", "kind": "k8s-deployment", "k8sKind": "StatefulSet", "provider": "k8s" },
-    { "label": "demo-worker", "kind": "k8s-service", "k8sKind": "Service", "provider": "k8s" },
-    { "label": "demo-worker-ingress", "kind": "k8s-service", "k8sKind": "Ingress", "provider": "k8s" }
+    { "label": "demo-worker", "kind": "k8s-deployment", "provider": "k8s" },
+    { "label": "demo-worker", "kind": "k8s-service", "provider": "k8s" },
+    { "label": "demo-worker-ingress", "kind": "k8s-service", "provider": "k8s" }
   ],
   "runtimeLinks": [
     {

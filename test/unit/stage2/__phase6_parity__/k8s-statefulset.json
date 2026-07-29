@@ -187,7 +187,7 @@
       "data": {
         "contentHash": "b81aeaa654fecbac",
         "kind": "k8s-service",
-        "k8sKind": "Ingress",
+        "refScope": "k8s/_",
         "provider": "k8s",
         "declaredIn": [
           "manifests/ingress.yaml"
@@ -202,7 +202,7 @@
       "data": {
         "contentHash": "d996ae1666e53fc0",
         "kind": "k8s-service",
-        "k8sKind": "Service",
+        "refScope": "k8s/_",
         "provider": "k8s",
         "declaredIn": [
           "manifests/service.yaml"
@@ -217,7 +217,7 @@
       "data": {
         "contentHash": "222f912a4fdc2e55",
         "kind": "k8s-deployment",
-        "k8sKind": "StatefulSet",
+        "refScope": "k8s/_",
         "provider": "k8s",
         "declaredIn": [
           "manifests/statefulset.yaml"

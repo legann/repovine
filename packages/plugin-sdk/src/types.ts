@@ -554,6 +554,17 @@ export interface InfraResource {
   identity: ResourceIdentity;
   /** Fingerprint of this resource's IaC fragment only (not the whole template file). Used for runtime-resource annotation freshness. */
   contentHash: string;
+  /**
+   * The scope this resource's own logical-id references are confined to, opaque to the host.
+   *
+   * Some ecosystems name a target by a bare name that is unique only inside an enclosing scope — a
+   * Kubernetes namespace, a stack, a project. The plugin spells that scope; the host compares the
+   * strings. When it is present a reference resolves only to a candidate carrying the same string,
+   * and a name outside it is not a target at all rather than a repository-wide guess.
+   *
+   * Absent means the reference is scoped by the document that declares it, which is the default.
+   */
+  refScope?: string;
   attributes: Record<string, string>;
   envVars?: string[];
   links?: string[];

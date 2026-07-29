@@ -21,7 +21,6 @@ import {
 import { matchesInfraResourceExclude, type DomainsConfig } from '../../stage2/domains.js';
 import {
   linkContainerRuntimeTargets,
-  linkK8sIngressRoutes,
   resolveArtifactRoot,
   runtimeEntrySearchRoots,
 } from '../../stage2/runtime-links.js';
@@ -462,7 +461,7 @@ function pass2Infra(
           envRefs: res.envRefs,
           contentHash: res.contentHash,
           kind: res.kind,
-          k8sKind: res.provider === 'k8s' ? res.attributes.kind : undefined,
+          refScope: res.refScope,
           provider: res.provider,
           service: declaredMeta?.service,
           hasCodeHandler: declaredMeta?.hasCodeHandler,
@@ -485,9 +484,10 @@ function pass2Infra(
           addEdge(graph, serviceId, modId, 'infra');
         }
       }
-      // Compose services can point at repo Dockerfiles via build.dockerfile.
-      // Link them as infra edges so domains can propagate through shared build artifacts.
-      if (res.provider === 'generic' && res.attributes.dockerfile) {
+      // A resource that names a Dockerfile of this repository is linked to it, so domains propagate
+      // through the shared build artifact. Naming one is the evidence; which ecosystem named it is
+      // not read.
+      if (res.attributes.dockerfile) {
         const dockerfileModuleId = infraNodeId('dockerfile', toPosixPath(res.attributes.dockerfile));
         deferredComposeDockerfileInfraEdges.push({ fromServiceId: serviceId, toDockerfileModuleId: dockerfileModuleId });
       }
@@ -556,15 +556,13 @@ function pass2Infra(
   linkHandlerModuleEnvBindings(graph, infraModules, declarations);
   linkRuntimePublishes(graph, infraModules, modulesById, declarations);
   linkContainerRuntimeTargets(graph, snapshot);
-  linkK8sIngressRoutes(graph, snapshot);
 }
 
-/** The document and namespace a resource's own references are made from. */
+/** The document a resource's own references are made from, and the scope its plugin confined them to. */
 function refScopeFor(infraMod: InfraModuleInfo, res: InfraResource): InfraRefScope {
   return {
     declaredIn: [infraMod.relativeFilePath],
-    namespace: res.attributes.namespace,
-    provider: res.provider,
+    ...(res.refScope === undefined ? {} : { refScope: res.refScope }),
   };
 }
 

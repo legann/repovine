@@ -5,10 +5,10 @@
   "rejectedAsDomain": [],
   "runtimeResourceNodes": [
     { "label": "Dockerfile", "kind": "other", "provider": "generic" },
-    { "label": "demo-operator", "kind": "k8s-deployment", "k8sKind": "Deployment", "provider": "k8s" },
-    { "label": "operator-certs", "kind": "secret", "k8sKind": "Secret", "provider": "k8s" },
-    { "label": "operator-env", "kind": "secret", "k8sKind": "Secret", "provider": "k8s" },
-    { "label": "operator-secrets", "kind": "secret", "k8sKind": "Secret", "provider": "k8s" }
+    { "label": "demo-operator", "kind": "k8s-deployment", "provider": "k8s" },
+    { "label": "operator-certs", "kind": "secret", "provider": "k8s" },
+    { "label": "operator-env", "kind": "secret", "provider": "k8s" },
+    { "label": "operator-secrets", "kind": "secret", "provider": "k8s" }
   ],
   "runtimeLinks": [
     {

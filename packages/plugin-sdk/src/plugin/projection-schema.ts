@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { zJsonValue } from './json.js';
 import { schemaIdOwner } from './ids.js';
+import { makeResourceId } from './resource-identity.js';
 import { SEMANTIC_LINK_RELATIONS } from './projection.js';
 import type {
   PluginProjectionBatch,
@@ -292,10 +293,17 @@ function extensionIndexKey(pluginId: string, schema: string, localKey: string): 
  *
  * The index is global and built first, so a reference to a contribution made by a later contributor
  * resolves exactly like one made by an earlier contributor: registration order is not an input.
+ *
+ * A reference also reaches what the graph already holds — `knownModuleIds` for a module and
+ * `knownResourceIds` for a resource. Both name something a projection can point at and neither
+ * something it may mint: a batch declaring a resource whose id is already in the graph is refused
+ * by the host on its own terms.
  */
 export function checkProjectionRefs(input: {
   accepted: readonly AcceptedProjectionBatch[];
   knownModuleIds: ReadonlySet<string>;
+  /** Minted ids of the runtime resources the graph already holds. */
+  knownResourceIds?: ReadonlySet<string>;
 }): ProjectionRefProblem[] {
   const resources = new Set<string>();
   const extensions = new Set<string>();
@@ -314,7 +322,10 @@ export function checkProjectionRefs(input: {
       ref.type === 'module'
         ? (input.knownModuleIds.has(ref.moduleId) ? undefined : 'unknown-module')
         : ref.type === 'resource'
-          ? (resources.has(resourceIndexKey(ref.namespace, ref.localKey)) ? undefined : 'unknown-resource')
+          ? (resources.has(resourceIndexKey(ref.namespace, ref.localKey))
+            || input.knownResourceIds?.has(makeResourceId({ namespace: ref.namespace, localKey: ref.localKey }))
+            ? undefined
+            : 'unknown-resource')
           : (extensions.has(extensionIndexKey(ref.pluginId, ref.schema, ref.localKey)) ? undefined : 'unknown-extension');
     if (reason === undefined) return;
     problems.push({

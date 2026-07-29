@@ -1,5 +1,6 @@
 import type { JsonValue } from './json.js';
 import type { PluginOwnerIdentity } from './declarations.js';
+import type { ResourceIdentity } from './resource-identity.js';
 
 /**
  * The public projection contract: how a plugin turns its own facts into canonical repository
@@ -231,6 +232,14 @@ export interface ReadonlyFactView {
   hasModule(moduleId: string): boolean;
   moduleIds(): readonly string[];
   module(moduleId: string): ReadonlyModuleFact | undefined;
+  /**
+   * Whether the graph already holds this runtime resource.
+   *
+   * The guard a link needs when it points at a resource no batch contributes — one an IaC producer
+   * emitted, or one a repository's own configuration excluded. A reference that resolves to nothing
+   * takes its whole batch with it, so a projector asks first and drops the link, not the topology.
+   */
+  hasResource(identity: ResourceIdentity): boolean;
   /** Facts matching a schema selector, in a stable order. */
   select(selector: ProjectionFactSelector): readonly ReadonlyFactRecord[];
 }

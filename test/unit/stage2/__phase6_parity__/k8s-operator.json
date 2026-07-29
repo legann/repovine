@@ -193,7 +193,7 @@
         ],
         "contentHash": "453ead2364c8167c",
         "kind": "k8s-deployment",
-        "k8sKind": "Deployment",
+        "refScope": "k8s/demo-system",
         "provider": "k8s",
         "declaredIn": [
           "manifests/deployment.yaml"
@@ -209,7 +209,7 @@
       "data": {
         "contentHash": "75bcfe440b06eac8",
         "kind": "secret",
-        "k8sKind": "Secret",
+        "refScope": "k8s/demo-system",
         "provider": "k8s",
         "declaredIn": [
           "manifests/secrets.yaml"
@@ -225,7 +225,7 @@
       "data": {
         "contentHash": "0cfe1d7a00101286",
         "kind": "secret",
-        "k8sKind": "Secret",
+        "refScope": "k8s/demo-system",
         "provider": "k8s",
         "declaredIn": [
           "manifests/secrets.yaml"
@@ -241,7 +241,7 @@
       "data": {
         "contentHash": "191d3168720b3956",
         "kind": "secret",
-        "k8sKind": "Secret",
+        "refScope": "k8s/demo-system",
         "provider": "k8s",
         "declaredIn": [
           "manifests/secrets.yaml"

@@ -90,6 +90,51 @@ stringData:
     expect(hasEdge(graph, blueDeployment, greenSecret, 'uses_env')).toBe(false);
   });
 
+  it('separates two namespaces declared in one document, where the document cannot', async () => {
+    // Both namespaces in one file, which is how a manifest bundle ships. Document scoping puts every
+    // candidate in reach here, so the declared scope is the only thing left to separate them.
+    fs.mkdirSync(path.join(tmpDir, 'manifests'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'manifests', 'bundle.yaml'), `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: green
+stringData:
+  TOKEN: green-token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: blue
+stringData:
+  TOKEN: blue-token
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: blue
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          image: demo/api:1
+          envFrom:
+            - secretRef:
+                name: app-secrets
+`);
+
+    const graph = await buildGraph(tmpDir);
+    const blueDeployment = 'resource:k8s:blue/Deployment/api';
+
+    expect(graph.nodes.has('resource:k8s:green/Secret/app-secrets')).toBe(true);
+    expect(hasEdge(graph, blueDeployment, 'resource:k8s:blue/Secret/app-secrets', 'uses_env')).toBe(true);
+    expect(hasEdge(graph, blueDeployment, 'resource:k8s:green/Secret/app-secrets', 'uses_env')).toBe(false);
+  });
+
   it('emits no edge and reports a gap when a Kubernetes reference has no target in its namespace', async () => {
     fs.mkdirSync(path.join(tmpDir, 'manifests'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'manifests', 'blue.yaml'), `
