@@ -3,7 +3,7 @@ import type { SourcePlugin } from '@repovine/plugin-sdk';
 /**
  * The source plugins active in this isolate, as the one loading path installed them.
  *
- * Nothing registers itself here. `src/plugins/load.ts` resolves a build's plugin set — bundled and
+ * Nothing registers itself here. `src/plugin-host/load.ts` resolves a build's plugin set — bundled and
  * independently installed alike — and installs it whole; the next build replaces it whole. Every
  * isolate that runs plugin code, including both worker pools, installs its own set from the same
  * serialisable spec, so a build's active set is the same set wherever it is read.
@@ -82,7 +82,7 @@ export function pickSourcePluginIdForFile(base: string, ext: string): string | u
  *
  * They answer over the installed set, so a caller that reads them before the loading path ran gets
  * the empty answer: no extension is known and no suffix is stripped. Every entrypoint installs the
- * set before it reads one (`src/plugins/load.ts`, `ensurePluginsLoaded`).
+ * set before it reads one (`src/plugin-host/load.ts`, `ensurePluginsLoaded`).
  */
 
 /** Union of `capabilities.extensions` across registered plugins. Capabilities-only on purpose:

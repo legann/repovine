@@ -4,6 +4,8 @@ import * as path from 'node:path';
 import { jest } from '@jest/globals';
 import {
   AnnotationFileLockTimeoutError,
+  LOCK_MAX_WAIT_MS,
+  LOCK_STALE_MS,
   lockPathForAnnotationFile,
   withAnnotationFileLockAsync,
   withAnnotationFileLockSync,
@@ -30,7 +32,7 @@ describe('annotation file lock ownership', () => {
     jest.spyOn(Date, 'now')
       .mockReturnValueOnce(startedAt)
       .mockReturnValueOnce(startedAt)
-      .mockReturnValue(startedAt + 5_000);
+      .mockReturnValue(startedAt + LOCK_MAX_WAIT_MS);
   }
 
   function takeoverArtifacts(): string[] {
@@ -66,6 +68,37 @@ describe('annotation file lock ownership', () => {
     expect(fs.readFileSync(lockPath, 'utf-8')).toBe(foreignOwner);
   });
 
+  it('outlasts the staleness window, so a dead owner with a fresh lock file is reclaimed', () => {
+    // The regression this pins. A lock is reclaimable only once it is older than LOCK_STALE_MS, and
+    // the owner's liveness is read only at that moment — so a deadline shorter than the staleness
+    // window made a dead owner with a FRESH mtime time out every caller forever. A fixture tree
+    // copied into place produces exactly that file, which is how it reached the MCP refresh suite.
+    fs.writeFileSync(lockPath, '987654399'); // a pid no process has
+    const startedAt = fs.statSync(lockPath).mtimeMs;
+
+    // Virtual time advances a fixed step per observation, sized so the lock crosses the staleness
+    // window on the second attempt. Under the old deadline the loop gave up before that attempt.
+    const step = 4_000;
+    let clock = startedAt;
+    jest.spyOn(Date, 'now').mockImplementation(() => {
+      const observed = clock;
+      clock += step;
+      return observed;
+    });
+
+    const criticalSection = jest.fn();
+    withAnnotationFileLockSync(filePath, criticalSection);
+
+    expect(criticalSection).toHaveBeenCalledTimes(1);
+    expect(takeoverArtifacts()).toEqual([]);
+  });
+
+  it('waits longer than a lock takes to go stale', () => {
+    // Stated as a relation, not as two numbers: the ordering is what makes reclaim reachable, and
+    // two independent literals are what let it drift apart in the first place.
+    expect(LOCK_MAX_WAIT_MS).toBeGreaterThan(LOCK_STALE_MS);
+  });
+
   it('release preserves a lock that changed to a foreign owner', () => {
     const foreignOwner = '987654323';
 
@@ -99,7 +132,7 @@ describe('annotation file lock ownership', () => {
     jest.spyOn(Date, 'now')
       .mockReturnValueOnce(now)
       .mockReturnValueOnce(now)
-      .mockReturnValue(now + 5_000);
+      .mockReturnValue(now + LOCK_MAX_WAIT_MS);
     const criticalSection = jest.fn();
 
     expect(() => withAnnotationFileLockSync(filePath, criticalSection))
@@ -157,10 +190,16 @@ describe('annotation file lock ownership', () => {
     fs.writeFileSync(claimPath, 'orphaned-claim');
     const staleTime = new Date(now - 15_000);
     fs.utimesSync(lockPath, staleTime, staleTime);
+    // The case is a claim that is still FRESH when this waiter gives up, so its mtime is placed
+    // against the virtual clock rather than the real one: the deadline now outlasts the staleness
+    // window, and a claim stamped at real `now` would have aged out of it by then. A stale claim is
+    // the next test's case, and it ends the other way.
+    const freshWhenTheDeadlineExpires = new Date(now + LOCK_MAX_WAIT_MS - LOCK_STALE_MS + 1_000);
+    fs.utimesSync(claimPath, freshWhenTheDeadlineExpires, freshWhenTheDeadlineExpires);
     jest.spyOn(Date, 'now')
       .mockReturnValueOnce(now)
       .mockReturnValueOnce(now)
-      .mockReturnValue(now + 5_000);
+      .mockReturnValue(now + LOCK_MAX_WAIT_MS);
 
     expect(() => withAnnotationFileLockSync(filePath, () => undefined))
       .toThrow(AnnotationFileLockTimeoutError);

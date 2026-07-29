@@ -358,16 +358,16 @@ describe('core-laws physical plugin workspace boundary', () => {
     expect([...(preset.repovine?.plugins ?? [])].sort()).toEqual([...BUILTIN_NAMES].sort());
 
     // The loader names the preset package and nothing under it.
-    const loader = fs.readFileSync(path.join(repoRoot(), 'src', 'plugins', 'load.ts'), 'utf8');
+    const loader = fs.readFileSync(path.join(repoRoot(), 'src', 'plugin-host', 'load.ts'), 'utf8');
     expect(loader).toContain('@repovine/plugin-default-preset');
     for (const name of BUILTIN_NAMES) expect(loader).not.toContain(`'${name}'`);
 
-    // The pre-boundary composition roots are gone, along with both implementation trees.
+    // The pre-boundary composition roots are gone, along with both implementation trees and the
+    // ecosystem axes the engine used to be split by: `iac` and `source` are package names now.
     for (const gone of [
-      ['src', 'stage1', 'source', 'bootstrap.ts'],
-      ['src', 'stage1', 'iac', 'bootstrap.ts'],
-      ['src', 'stage1', 'source', 'registry.ts'],
-      ['src', 'stage1', 'iac', 'registry.ts'],
+      ['src', 'stage1', 'source'],
+      ['src', 'stage1', 'iac'],
+      ['src', 'plugins'],
       ['src', 'source-plugins'],
       ['src', 'iac-plugins'],
     ]) {

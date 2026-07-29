@@ -12,7 +12,7 @@ import type {
 import { addEdge, addNode, applyValidated, createEmptyGraph, domainMembers, infraTargetIds, isTaggedInto, modulePackageId, nodesOfType, taggedDomains } from '../graph/index.js';
 import { rememberGraphExtensions, rememberProjectionReport } from '../graph/build-artifact.js';
 import { emptyExtensionStore, extensionStoreOf, type ExtensionStore } from '../graph/extension-store.js';
-import { getPluginRuntime } from '../plugins/runtime-store.js';
+import { getPluginRuntime } from '../plugin-host/runtime-store.js';
 import {
   composeProjections,
   emptyProjectionCompositionResult,
@@ -54,7 +54,7 @@ export function rememberComposedRefusals(graph: RepositoryGraph, refusals: Refus
   composedRefusals.set(graph, refusals);
 }
 import { domainSlug } from './domain-slug.js';
-import { getSourceIndexBasenames, stripSourceExtension } from '../plugins/source-set.js';
+import { getSourceIndexBasenames, stripSourceExtension } from '../plugin-host/source-set.js';
 
 const STRUCTURAL_DIRS_REF = STRUCTURAL_DIRS;
 

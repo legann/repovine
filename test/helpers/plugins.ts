@@ -1,6 +1,6 @@
 import type { PluginRuntimeDescriptor } from '@repovine/plugin-sdk';
-import { getActiveIaCPlugins, installIaCPlugins, type ActiveIaCPlugin } from '../../src/plugins/iac-set.js';
-import { defaultPluginsConfig, loadPluginSet } from '../../src/plugins/load.js';
+import { getActiveIaCPlugins, installIaCPlugins, type ActiveIaCPlugin } from '../../src/plugin-host/iac-set.js';
+import { defaultPluginsConfig, loadPluginSet } from '../../src/plugin-host/load.js';
 
 /**
  * A package's published descriptor as the active set holds its IaC half.

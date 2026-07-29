@@ -6,8 +6,8 @@ import type { RepositoryFactsSnapshot } from '../types.js';
 import { composeRepositoryGraph, getComposedRefusals } from './index.js';
 import { getInterpreterEntrypoints } from './interpreter/entrypoint-store.js';
 import { getGraphExtensions, getProjectionReport } from '../graph/build-artifact.js';
-import { defaultPluginsConfig, loadPluginSet } from '../plugins/load.js';
-import { rememberPluginRuntime } from '../plugins/runtime-store.js';
+import { defaultPluginsConfig, loadPluginSet } from '../plugin-host/load.js';
+import { rememberPluginRuntime } from '../plugin-host/runtime-store.js';
 
 if (!parentPort) {
   throw new Error('stage2 worker must be spawned via worker_threads');

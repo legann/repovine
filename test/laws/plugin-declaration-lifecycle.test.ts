@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { loadPluginSet } from '../../src/plugins/load.js';
+import { loadPluginSet } from '../../src/plugin-host/load.js';
 import {
   buildDeclarationCatalog,
   catalogResourceKindMeta,
   catalogRuntimeActionNamespace,
   catalogTriggerTypeMeta,
   declarationCatalogIdentity,
-} from '../../src/plugins/declaration-catalog.js';
-import { pluginRuntimeIdentity } from '../../src/plugins/runtime.js';
+} from '../../src/plugin-host/declaration-catalog.js';
+import { pluginRuntimeIdentity } from '../../src/plugin-host/runtime.js';
 import type { StampedDeclarationCatalog } from '@repovine/plugin-sdk';
 
 /**

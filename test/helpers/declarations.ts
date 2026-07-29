@@ -1,5 +1,5 @@
-import { presetDeclarationCatalog } from '../../src/plugins/load.js';
-import type { DeclarationCatalog } from '../../src/plugins/declaration-catalog.js';
+import { presetDeclarationCatalog } from '../../src/plugin-host/load.js';
+import type { DeclarationCatalog } from '../../src/plugin-host/declaration-catalog.js';
 
 /**
  * The declaration catalog a real build carries: what the bundled plugin packages declare.

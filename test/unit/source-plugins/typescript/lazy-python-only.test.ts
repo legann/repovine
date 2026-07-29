@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getSourcePlugins } from '../../../../src/plugins/source-set.js';
+import { getSourcePlugins } from '../../../../src/plugin-host/source-set.js';
 import { isExtractModuleLoaded } from '../../../../packages/plugins/source-typescript/src/lazy-extract.js';
 import { detectPython } from '../../../../packages/plugins/source-python/src/discover.js';
 

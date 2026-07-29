@@ -7,16 +7,17 @@ import {
   compareCodeUnits,
   makeResourceId,
   sha256Hex,
+  validatePublishedFact,
   walkRepository,
 } from '@repovine/plugin-sdk';
-import type { IaCParser, LoadedDocument } from '@repovine/plugin-sdk';
+import type { IaCParser, LoadedDocument, ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import {
+  getActiveIaCPlugins,
   getLoaderRegistrationConflicts,
-  getParsers,
   isInfraCandidate,
   parserMatchesFile,
   resolveLoaderForFile,
-} from '../plugins/iac-set.js';
+} from '../plugin-host/iac-set.js';
 import type { CompiledScanPatterns } from '../scan-filters.js';
 import { shouldScanInfraPath } from '../scan-filters.js';
 import { infraNodeId } from '../graph/node-ids.js';
@@ -26,6 +27,7 @@ import {
   IAC_LOADER_AMBIGUOUS_REFUSAL,
   IAC_LOADER_CLAIMED_TWICE_REFUSAL,
   IAC_LOADER_UNKNOWN_REFUSAL,
+  PLUGIN_FACT_REJECTED_REFUSAL,
   RESOURCE_IDENTITY_CONFLICT_REFUSAL,
 } from './refusal-kinds.js';
 
@@ -42,6 +44,8 @@ export interface InfraScanOptions {
 export interface InfraScanResult {
   modules: InfraModuleInfo[];
   refusals: Refusal[];
+  /** What the IaC producers published this scan, in document order. */
+  facts: ReadonlyFactRecord[];
 }
 
 /**
@@ -152,8 +156,11 @@ function loadDocuments(
 
 interface Contribution {
   parser: IaCParser;
+  /** Plugin whose capability supplied this parser; the owner every fact it publishes is checked against. */
+  pluginId: string;
   kind: string;
   resources: InfraResource[];
+  facts: readonly ReadonlyFactRecord[];
 }
 
 /**
@@ -171,14 +178,54 @@ function collectContributions(
   doc: unknown,
 ): Contribution[] {
   const out: Contribution[] = [];
-  for (const parser of getParsers()) {
-    if (!parserMatchesFile(parser, base, ext)) continue;
-    if (!parser.supports(filePath, doc)) continue;
-    const delta = parser.parse(filePath, relPath, doc);
-    if (!delta) continue;
-    out.push({ parser, kind: delta.kind, resources: delta.resources });
+  // Walked per plugin rather than over the flat parser list, so each contribution carries the
+  // package that produced it. Order is identical — the flat list is these same parsers concatenated
+  // in installed order — and a published fact needs an owner to be checked against.
+  for (const plugin of getActiveIaCPlugins()) {
+    for (const parser of plugin.parsers) {
+      if (!parserMatchesFile(parser, base, ext)) continue;
+      if (!parser.supports(filePath, doc)) continue;
+      const delta = parser.parse(filePath, relPath, doc);
+      if (!delta) continue;
+      out.push({
+        parser,
+        pluginId: plugin.id,
+        kind: delta.kind,
+        resources: delta.resources,
+        facts: delta.facts ?? [],
+      });
+    }
   }
   return out;
+}
+
+/**
+ * Take the facts one contribution published, refusing any the publisher does not own.
+ *
+ * Same rule as the source boundary applies to `SourceExtractResult.facts`: a producer publishes
+ * under a schema it owns, and a fact that fails validation is absent from the view rather than
+ * silently reshaped.
+ */
+function takePublishedFacts(
+  contribution: Contribution,
+  relPath: string,
+  facts: ReadonlyFactRecord[],
+  refusals: Refusal[],
+): void {
+  for (const candidate of contribution.facts) {
+    const validated = validatePublishedFact(candidate, { pluginId: contribution.pluginId });
+    if (!validated.ok) {
+      refusals.push(refusal(
+        'rejected-by-policy',
+        PLUGIN_FACT_REJECTED_REFUSAL,
+        `Plugin "${contribution.pluginId}" published an invalid fact for ${relPath}: ${validated.error}. `
+        + 'The fact is absent from the Stage 1 view, so no projector can read it.',
+        { plugin: contribution.pluginId, relPath },
+      ));
+      continue;
+    }
+    facts.push(validated.fact);
+  }
 }
 
 /**
@@ -260,6 +307,7 @@ export function collectInfraModules(options: InfraScanOptions): InfraScanResult 
   const infraModules: InfraModuleInfo[] = [];
   const modulesById = new Map<string, InfraModuleInfo>();
   const refusals: Refusal[] = [];
+  const facts: ReadonlyFactRecord[] = [];
 
   for (const conflict of getLoaderRegistrationConflicts()) {
     refusals.push(refusal(
@@ -274,7 +322,7 @@ export function collectInfraModules(options: InfraScanOptions): InfraScanResult 
 
   const candidates: { filePath: string; relPath: string }[] = [];
   discoverInfraFiles(repoRoot, repoRoot, candidates);
-  if (candidates.length === 0) return { modules: infraModules, refusals };
+  if (candidates.length === 0) return { modules: infraModules, refusals, facts };
 
   for (const { filePath, relPath } of candidates) {
     if (scanPatterns && !shouldScanInfraPath(relPath, scanPatterns)) continue;
@@ -297,6 +345,7 @@ export function collectInfraModules(options: InfraScanOptions): InfraScanResult 
         refusals,
       );
       for (const contribution of contributions) {
+        takePublishedFacts(contribution, relPath, facts, refusals);
         // Stamp all mechanical/agnostic fields here; the parser supplied only infra semantics.
         mergeInfraModule(infraModules, modulesById, {
           id: infraNodeId(contribution.kind, relPath),
@@ -314,5 +363,5 @@ export function collectInfraModules(options: InfraScanOptions): InfraScanResult 
     infraModule.resources = dedupeByIdentity(infraModule.relativeFilePath, infraModule.resources, refusals);
   }
 
-  return { modules: infraModules, refusals };
+  return { modules: infraModules, refusals, facts };
 }

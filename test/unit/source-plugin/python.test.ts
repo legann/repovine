@@ -7,7 +7,7 @@ import { composeRepositoryGraph } from '../../../src/stage2/index.js';
 import { inferFileBasedRoutes } from '../../../src/mcp/lib/entrypoints.js';
 import { detectPython } from '../../../packages/plugins/source-python/src/discover.js';
 import pythonSourcePlugin from '../../../packages/plugins/source-python/src/plugin.js';
-import { runSourceExtraction } from '../../../src/stage1/source/extract-runner.js';
+import { runSourceExtraction } from '../../../src/stage1/extract-runner.js';
 import { effectImportsFromPythonImports } from '../../../packages/plugins/source-python/src/effect-imports.js';
 import type { ImportInfo, ModuleInfo, PackageInfo, PendingModule, RepositoryFactsSnapshot } from '../../../src/types.js';
 

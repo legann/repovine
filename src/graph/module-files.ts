@@ -1,6 +1,6 @@
 import type { RepositoryGraph } from '../types.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-import { getSourceIndexBasenames, stripIndexBasename, stripModuleIdSuffix } from '../plugins/source-set.js';
+import { getSourceIndexBasenames, stripIndexBasename, stripModuleIdSuffix } from '../plugin-host/source-set.js';
 import { lastPathSegment } from '../platform/paths.js';
 
 /**

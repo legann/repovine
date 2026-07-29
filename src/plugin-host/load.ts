@@ -58,7 +58,7 @@ export interface PluginsConfigInput {
   defaults: boolean;
   add: string[];
   disable: string[];
-  /** Catalog keys this build retracts, in the spelling `src/plugins/declaration-catalog.ts` mints. */
+  /** Catalog keys this build retracts, in the spelling `src/plugin-host/declaration-catalog.ts` mints. */
   retract?: string[];
 }
 

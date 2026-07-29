@@ -8,7 +8,7 @@ import { matchesInfraResourceExclude } from './domains.js';
 import { DomainsConfigSchema, type DomainsConfigFile } from './domains-schema.js';
 import { domainSlug } from './domain-slug.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-import { hasKnownSourceExtension, stripSourceExtension } from '../plugins/source-set.js';
+import { hasKnownSourceExtension, stripSourceExtension } from '../plugin-host/source-set.js';
 import { lastPathSegment } from '../platform/paths.js';
 
 const INFRA_NOISE_SUFFIXES = [

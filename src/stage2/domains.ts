@@ -4,7 +4,7 @@ import { loadDomainsConfig, type DomainsConfig } from './domains-schema.js';
 import { domainLabelFromId } from '../graph/node-ids.js';
 import { importerCount } from '../graph/index.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-import { stripSourceExtension } from '../plugins/source-set.js';
+import { stripSourceExtension } from '../plugin-host/source-set.js';
 import { domainLabelSlug, domainSlug } from './domain-slug.js';
 import { lastPathSegment, toPosixPath } from '../platform/paths.js';
 

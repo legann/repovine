@@ -1,5 +1,5 @@
 import * as fs from 'node:fs';
-import { getSourcePlugins } from '../../../src/plugins/source-set.js';
+import { getSourcePlugins } from '../../../src/plugin-host/source-set.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { spawnSync } from 'node:child_process';

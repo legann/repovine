@@ -10,7 +10,7 @@ import {
   getParsers,
   installIaCPlugins,
   type ActiveIaCPlugin,
-} from '../../src/plugins/iac-set.js';
+} from '../../src/plugin-host/iac-set.js';
 import { restoreBuiltinPlugins } from '../helpers/plugins.js';
 
 /**

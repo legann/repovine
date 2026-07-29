@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
-import { loadPluginSet } from '../../src/plugins/load.js';
+import { loadPluginSet } from '../../src/plugin-host/load.js';
 
 // An external source plugin, installed in the analyzed repo and listed in config.plugins.add, flows
 // end-to-end through the WHOLE Stage-1 pipeline (loader → discovery → engine extraction boundary)

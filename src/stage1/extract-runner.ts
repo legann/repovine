@@ -1,5 +1,5 @@
 import * as fs from 'node:fs';
-import type { ModuleInfo, PackageInfo, PendingModule } from '../../types.js';
+import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
 import {
   HASH_WIDTH,
   sha256Hex,

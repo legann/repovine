@@ -8,7 +8,7 @@ import type {
   SourceExtractResult,
   SourcePlugin,
 } from '@repovine/plugin-sdk';
-import { runSourceExtraction } from '../../src/stage1/source/extract-runner.js';
+import { runSourceExtraction } from '../../src/stage1/extract-runner.js';
 import { createFactView } from '../../src/stage2/projection/fact-view.js';
 import type { PackageInfo, PendingModule, RepositoryFactsSnapshot } from '../../src/types.js';
 

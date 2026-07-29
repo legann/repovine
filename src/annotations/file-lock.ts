@@ -2,9 +2,24 @@ import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 
-const LOCK_STALE_MS = 10_000;
+/** How old a lock file must be before its owner may be checked and the lock reclaimed. */
+export const LOCK_STALE_MS = 10_000;
 const LOCK_RETRY_MS = 50;
-const LOCK_MAX_WAIT_MS = 5_000;
+
+/**
+ * How long a caller waits for the lock before giving up.
+ *
+ * Strictly longer than {@link LOCK_STALE_MS}, and the ordering is the whole point. A lock becomes
+ * reclaimable only once it is older than the staleness window, and the owner's liveness is read only
+ * at that moment — so a waiter whose deadline expired first can never reclaim anything. With the
+ * shorter deadline a dead owner whose lock file carries a FRESH mtime timed out every caller for as
+ * long as the file existed: a fixture tree copied into place, or a process killed between writing
+ * the lock and releasing it, both produce exactly that file.
+ *
+ * The extra margin covers the worst arrival: a waiter that shows up one millisecond after the lock
+ * was written still has to sit through the whole staleness window plus a few retries.
+ */
+export const LOCK_MAX_WAIT_MS = LOCK_STALE_MS + 5_000;
 
 export class AnnotationFileLockTimeoutError extends Error {
   readonly code = 'ANNOTATION_FILE_LOCK_TIMEOUT';

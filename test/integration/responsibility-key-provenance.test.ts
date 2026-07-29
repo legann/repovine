@@ -14,7 +14,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { normalizeResponsibilityKey } from '../../src/analysis/architecture/heuristics.js';
-import { getSourceIndexBasenames, getSourceStripSuffixes, stripSourceExtension } from '../../src/plugins/source-set.js';
+import { getSourceIndexBasenames, getSourceStripSuffixes, stripSourceExtension } from '../../src/plugin-host/source-set.js';
 
 const FIXTURES_ROOT = [
   path.resolve(process.cwd(), 'test', 'fixtures'),

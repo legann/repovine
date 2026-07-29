@@ -42,7 +42,7 @@ import {
 } from './protocol.js';
 import { getManifest } from './manifests.js';
 import type { ContextQualityReport, ContextSessionPolicy, ContextQualityConfig } from '../context-quality/types.js';
-import { stripIndexBasename, stripModuleIdSuffix } from '../plugins/source-set.js';
+import { stripIndexBasename, stripModuleIdSuffix } from '../plugin-host/source-set.js';
 import { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
 export { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
 import { moduleNodeId } from '../graph/node-ids.js';

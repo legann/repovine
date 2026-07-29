@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { loadPluginSet, getActivePluginIds } from '../../src/plugins/load.js';
-import { getSourcePlugin } from '../../src/plugins/source-set.js';
-import { getParsers } from '../../src/plugins/iac-set.js';
-import { catalogTriggerTypeMeta } from '../../src/plugins/declaration-catalog.js';
+import { loadPluginSet, getActivePluginIds } from '../../src/plugin-host/load.js';
+import { getSourcePlugin } from '../../src/plugin-host/source-set.js';
+import { getParsers } from '../../src/plugin-host/iac-set.js';
+import { catalogTriggerTypeMeta } from '../../src/plugin-host/declaration-catalog.js';
 import type { SourceExtractInput } from '@repovine/plugin-sdk';
 
 // The plugin loader resolves plugins from the ANALYZED repo, validates `package.json#repovine`

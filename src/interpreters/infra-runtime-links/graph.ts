@@ -12,12 +12,12 @@ import { addEdge, addNode, hasEdge, infraTargetIds } from '../../graph/index.js'
 import { makeRuntimeResourceId } from '../../graph/make-runtime-resource-id.js';
 import { parseResourceId } from '@repovine/plugin-sdk';
 import { resolveInfraRef, type InfraRefScope } from '../../graph/resolve-infra-ref.js';
-import type { DeclarationCatalog } from '../../plugins/declaration-catalog.js';
+import type { DeclarationCatalog } from '../../plugin-host/declaration-catalog.js';
 import {
   catalogResourceKindMeta,
   catalogRuntimeActionNamespace,
   catalogTriggerTypeMeta,
-} from '../../plugins/declaration-catalog.js';
+} from '../../plugin-host/declaration-catalog.js';
 import { matchesInfraResourceExclude, type DomainsConfig } from '../../stage2/domains.js';
 import {
   linkContainerRuntimeTargets,
@@ -30,10 +30,10 @@ import { shortModuleLabel } from '../../stage2/module-label.js';
 // layer reads infra kind/resource/trigger metadata and known source extensions. Same rationale as
 import {
   getInfraKindDomain,
-} from '../../plugins/iac-set.js';
-import { getKnownExtensions, getSourcePlugins } from '../../plugins/source-set.js';
+} from '../../plugin-host/iac-set.js';
+import { getKnownExtensions, getSourcePlugins } from '../../plugin-host/source-set.js';
 import { resolveRelPath, toPosixPath } from '../../platform/paths.js';
-import { stripIndexBasename } from '../../plugins/source-set.js';
+import { stripIndexBasename } from '../../plugin-host/source-set.js';
 import { infraNodeId } from '../../graph/node-ids.js';
 
 type RuntimeActionName = RuntimeAction['action'];

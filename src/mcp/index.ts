@@ -15,7 +15,7 @@ import {
   runStatusCli,
 } from '../cli/health.js';
 import { promptLineSync } from '../cli/prompt.js';
-import { ensurePluginsLoaded } from '../plugins/load.js';
+import { ensurePluginsLoaded } from '../plugin-host/load.js';
 import { disposeEmbedderPipelines } from '../semantic/embedder.js';
 import { cli, logCli, logPipeline, formatPipelineMuted, setPipelineLogSink, setProgressInPlace } from '../cli/ui.js';
 
@@ -334,7 +334,7 @@ import type { McpToolRuntime } from './types.js';
 import { envelopeError, type ToolResponse } from './response/envelope.js';
 import { nextCall } from '../response/next-call.js';
 import { IndexBuildController } from './build-controller.js';
-import { getSourcePlugins } from '../plugins/source-set.js';
+import { getSourcePlugins } from '../plugin-host/source-set.js';
 import { loadConfig, type ResolvedConfig } from '../config.js';
 import { ContextSessionStore, bootstrapContextSessionsOnMcpStart } from '../context-quality/session-store.js';
 import {

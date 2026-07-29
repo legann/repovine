@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { getSourcePlugins, getSourcePlugin } from '../../../src/plugins/source-set.js';
+import { getSourcePlugins, getSourcePlugin } from '../../../src/plugin-host/source-set.js';
 import { restoreBuiltinPlugins } from '../../helpers/plugins.js';
 
 /**

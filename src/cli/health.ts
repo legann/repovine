@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { DEFAULT_EMBEDDING_MODEL, loadConfig } from '../config.js';
 import { describeTransformersInstall, resolveModelCacheDir } from '../semantic/embedder.js';
-import { getSourcePlugins } from '../plugins/source-set.js';
+import { getSourcePlugins } from '../plugin-host/source-set.js';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { countNodesOfType, graphStats } from '../graph/index.js';
 import {

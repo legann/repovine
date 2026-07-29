@@ -6,7 +6,7 @@ import type {
 import { compareCodeUnits } from '@repovine/plugin-sdk';
 import { domainNodeId } from '../graph/node-ids.js';
 import { domainLabelSlug } from '../stage2/domain-slug.js';
-import { HOST_DOCUMENT_LOADERS } from '../stage1/iac/document-loaders.js';
+import { HOST_DOCUMENT_LOADERS } from './document-loaders.js';
 
 /**
  * The IaC parsers, document loaders and kind→domain metadata active in this isolate.

@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
 import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import { packageJobKey } from './utils.js';
-import type { PluginLoadSpec } from '../plugins/load.js';
+import type { PluginLoadSpec } from '../plugin-host/load.js';
 
 /** Grace period for a worker to kill+reap its in-flight subprocesses and exit on its own after a
  * shutdown message, before the pool force-terminates it. Force-termination races the shutdown and

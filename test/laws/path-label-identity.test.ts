@@ -15,7 +15,7 @@ import { getPathBasedDomains, packageShortName } from '../../src/stage2/domains.
 import { shortModuleLabel } from '../../src/stage2/module-label.js';
 import { NODE_ID_PREFIXES, exportSymbolId, owningModuleId, packageNameFromId, packageNodeId } from '../../src/graph/node-ids.js';
 import { isBarrelRelPath } from '../../src/graph/module-files.js';
-import { getKnownExtensions, getModuleIdStripSuffixes, getSourceIndexBasenames } from '../../src/plugins/source-set.js';
+import { getKnownExtensions, getModuleIdStripSuffixes, getSourceIndexBasenames } from '../../src/plugin-host/source-set.js';
 import { shouldWalkDiscoveryDir } from '../../src/scan-filters.js';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';

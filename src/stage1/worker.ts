@@ -2,9 +2,9 @@ import { parentPort, workerData } from 'node:worker_threads';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
 import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import { setPipelineLogSink } from '../cli/ui.js';
-import { getSourcePlugin, getSourcePlugins } from '../plugins/source-set.js';
-import { loadPluginSet, type PluginLoadSpec } from '../plugins/load.js';
-import { runSourceExtraction } from './source/extract-runner.js';
+import { getSourcePlugin, getSourcePlugins } from '../plugin-host/source-set.js';
+import { loadPluginSet, type PluginLoadSpec } from '../plugin-host/load.js';
+import { runSourceExtraction } from './extract-runner.js';
 
 interface WorkerInit {
   packages: PackageInfo[];

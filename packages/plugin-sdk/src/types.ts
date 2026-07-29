@@ -1,3 +1,4 @@
+import type { ReadonlyFactRecord } from './plugin/projection.js';
 import type { ResourceIdentity } from './plugin/resource-identity.js';
 
 export type SymbolKind =
@@ -581,6 +582,18 @@ export interface InfraModuleInfo {
 export interface SemanticInfraDelta {
   kind: InfraKind;
   resources: InfraResource[];
+  /**
+   * Facts this parser publishes about the document it just read.
+   *
+   * The same channel a source producer has, at the boundary an IaC producer owns: a resource says
+   * what exists, a fact says what one ecosystem knows about it that no canonical field carries —
+   * a Kubernetes Ingress backend, a namespace, a workload kind. A projector selects the schema
+   * without naming a producer, so the semantics reach the graph without the host learning them.
+   *
+   * A fact whose schema owner is not the publishing plugin, or whose shape does not validate, is
+   * refused with the plugin named and is absent from the view.
+   */
+  facts?: readonly ReadonlyFactRecord[];
 }
 
 /**

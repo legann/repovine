@@ -12,7 +12,7 @@ import { isNodeType } from '../../graph/index.js';
 import { riskEntryTexts } from '../../annotations/format.js';
 import { serializeSideEffect } from '../../annotations/side-effect-vocab.js';
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-import { getKnownExtensions, getSourceIndexBasenames, stripSourceExtension } from '../../plugins/source-set.js';
+import { getKnownExtensions, getSourceIndexBasenames, stripSourceExtension } from '../../plugin-host/source-set.js';
 import { lastPathSegment, pathMatchKey, toPosixPath } from '../../platform/paths.js';
 import { UI_COMPONENT_EXTENSIONS_RE } from '../../annotations/module-kind.js';
 import { splitCamelCase } from '../../platform/text.js';

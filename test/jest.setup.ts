@@ -1,5 +1,5 @@
 import { setPipelineLogSink } from '../src/cli/ui.js';
-import { defaultPluginsConfig, loadPluginSet } from '../src/plugins/load.js';
+import { defaultPluginsConfig, loadPluginSet } from '../src/plugin-host/load.js';
 
 setPipelineLogSink('silent');
 

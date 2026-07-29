@@ -147,7 +147,7 @@ export async function checkSourcePluginConformance(
 }
 
 /**
- * SDK-local mirror of the engine's fileMatch pre-filter (src/stage1/iac/registry.ts
+ * SDK-local mirror of the engine's fileMatch pre-filter (src/plugin-host/iac-set.ts
  * parserMatchesFile): a parser with no fileMatch sees every candidate; otherwise the base
  * name must match one of extensions/fileNames/fileNamePatterns.
  */

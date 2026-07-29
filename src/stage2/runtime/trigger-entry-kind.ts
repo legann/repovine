@@ -1,5 +1,5 @@
-import type { DeclarationCatalog } from '../../plugins/declaration-catalog.js';
-import { catalogTriggerTypeMeta } from '../../plugins/declaration-catalog.js';
+import type { DeclarationCatalog } from '../../plugin-host/declaration-catalog.js';
+import { catalogTriggerTypeMeta } from '../../plugin-host/declaration-catalog.js';
 
 /**
  * Neutral mapping from an IaC trigger to its entrypoint kind. Lives outside the MCP shell so the

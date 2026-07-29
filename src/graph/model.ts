@@ -19,7 +19,7 @@ import type {
   SymbolKind,
 } from '@repovine/plugin-sdk';
 import type { Refusal } from '../response/refusal.js';
-import type { DeclarationCatalog } from '../plugins/declaration-catalog.js';
+import type { DeclarationCatalog } from '../plugin-host/declaration-catalog.js';
 
 // ── Symbol & Node taxonomy ──
 

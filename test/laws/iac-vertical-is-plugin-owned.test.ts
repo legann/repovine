@@ -5,7 +5,7 @@ import { describe, expect, it, afterEach } from '@jest/globals';
 import { defineIaCParser } from '@repovine/plugin-sdk';
 import type { DocumentLoader, IaCParser, SemanticInfraDelta } from '@repovine/plugin-sdk';
 import { collectInfraModules } from '../../src/stage1/infra.js';
-import { installIaCPlugins, type ActiveIaCPlugin } from '../../src/plugins/iac-set.js';
+import { installIaCPlugins, type ActiveIaCPlugin } from '../../src/plugin-host/iac-set.js';
 import { asActiveIaC, installOneMore, restoreBuiltinPlugins } from '../helpers/plugins.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import type { RepositoryFactsSnapshot } from '../../src/types.js';

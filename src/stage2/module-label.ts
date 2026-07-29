@@ -1,5 +1,5 @@
 // Side-effect import: the built-in source plugins must be registered before this module asks the
-import { stripModuleIdSuffix } from '../plugins/source-set.js';
+import { stripModuleIdSuffix } from '../plugin-host/source-set.js';
 
 /**
  * Short two-segment label for module and infra-module nodes. Neutral helper shared by the

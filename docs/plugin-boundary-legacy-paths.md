@@ -1,7 +1,7 @@
 # Plugin boundary migration inventory
 
 Status: recorded 2026-07-29, after stage 7. Every plugin — bundled or independently installed —
-reaches the engine through `src/plugins/load.ts`. The two named bootstrap files are gone, and no
+reaches the engine through `src/plugin-host/load.ts`. The two named bootstrap files are gone, and no
 file under `src/**` or `packages/plugin-sdk/src/**` names a product package.
 
 This file was a removal checklist for stage 8. What remains on it is ecosystem semantics, not a
@@ -22,9 +22,11 @@ Nothing is left. The table below records what each removed path did and what ans
 |---|---|
 | `src/stage1/source/bootstrap.ts` | the preset manifest names the package; the loader resolves and imports it |
 | `src/stage1/iac/bootstrap.ts` | same, including the manifest read it did by hand |
-| `src/stage1/source/registry.ts` | `src/plugins/source-set.ts` — the isolate's active set, installed whole |
-| `src/stage1/iac/registry.ts` | `src/plugins/iac-set.ts` — same, for parsers, loaders and kind domains |
-| `src/stage1/plugin-loader.ts` | `src/plugins/load.ts` — one path for bundled and installed packages |
+| `src/stage1/source/registry.ts` | `src/plugin-host/source-set.ts` — the isolate's active set, installed whole |
+| `src/stage1/iac/registry.ts` | `src/plugin-host/iac-set.ts` — same, for parsers, loaders and kind domains |
+| `src/stage1/plugin-loader.ts` | `src/plugin-host/load.ts` — one path for bundled and installed packages |
+| `src/stage1/iac/index.ts` | removed — a barrel nobody imported |
+| `src/stage1/{iac,source}/` | gone: the host has no ecosystem axes, only `packages/plugins/*` does |
 | `@repovine/plugin-default-preset` source | the package's `package.json#repovine` manifest: nine names, no code |
 | `defineIaCPlugin` / `IaCPluginDescriptor` | `definePlugin` and `capabilities.iac`, the one public descriptor |
 

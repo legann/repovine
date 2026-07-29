@@ -4,7 +4,7 @@ import {
   pluginHasUiSurfaces,
   pluginUsesLooseNameSeparators,
   setSourcePluginsForTest,
-} from '../../../src/plugins/source-set.js';
+} from '../../../src/plugin-host/source-set.js';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 
 /** Minimal SourcePlugin stub — the capability helpers only read `id` and `capabilities`. */

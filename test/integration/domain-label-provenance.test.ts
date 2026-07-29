@@ -14,8 +14,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { composeRepositoryGraph, CONTENT_DOMAIN_IDS } from '../../src/stage2/index.js';
-import { stripSourceExtension } from '../../src/plugins/source-set.js';
-import { getActiveKindDomains } from '../../src/plugins/iac-set.js';
+import { stripSourceExtension } from '../../src/plugin-host/source-set.js';
+import { getActiveKindDomains } from '../../src/plugin-host/iac-set.js';
 import type { RepositoryGraph } from '../../src/types.js';
 
 const FIXTURES_ROOT = [

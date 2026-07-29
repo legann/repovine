@@ -18,20 +18,20 @@ import {
   loadCalibration,
   saveCalibration,
 } from './calibration.js';
-import { getSourcePlugin, getSourcePlugins } from '../plugins/source-set.js';
-import { runSourceExtraction } from './source/extract-runner.js';
+import { getSourcePlugin, getSourcePlugins } from '../plugin-host/source-set.js';
+import { runSourceExtraction } from './extract-runner.js';
 import {
   defaultPluginsConfig,
   loadPluginSet,
   type PluginLoadSpec,
   type PluginsConfigInput,
-} from '../plugins/load.js';
+} from '../plugin-host/load.js';
 import { currentEngineBuildId, engineBuildMatches } from './engine-build-id.js';
 import { computeExtractionConfigFingerprint } from './extraction-config-fingerprint.js';
-import { pluginRuntimeIdentity, type PluginRuntime } from '../plugins/runtime.js';
-import { rememberPluginRuntime } from '../plugins/runtime-store.js';
-import type { DeclarationCatalog } from '../plugins/declaration-catalog.js';
-import { getActiveIaCPluginIds } from '../plugins/iac-set.js';
+import { pluginRuntimeIdentity, type PluginRuntime } from '../plugin-host/runtime.js';
+import { rememberPluginRuntime } from '../plugin-host/runtime-store.js';
+import type { DeclarationCatalog } from '../plugin-host/declaration-catalog.js';
+import { getActiveIaCPluginIds } from '../plugin-host/iac-set.js';
 import type { ReadonlyFactRecord, SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { repoRelativePosix } from '../platform/paths.js';
@@ -471,11 +471,18 @@ function buildSnapshot(
 
   // Infra scan is independent of source packages: an infra-only repo (Terraform/k8s with no
   // tsconfig/pyproject) still gets its infra modules.
-  const { modules: infraModules, refusals: infraRefusals } = collectInfraModules({
+  const {
+    modules: infraModules,
+    refusals: infraRefusals,
+    facts: infraFacts,
+  } = collectInfraModules({
     repoRoot,
     scanPatterns,
   });
   buildRefusals.push(...infraRefusals);
+  // Source facts first, then infra, each already deterministic within itself: one view, two
+  // producers, and a projector selects by schema without knowing which boundary published.
+  const publishedFacts = [...facts, ...infraFacts];
   if (packages.length === 0 && infraModules.length === 0) {
     logPipelineWarn('  No source packages or infra files found.');
   }
@@ -509,7 +516,7 @@ function buildSnapshot(
     infraModules,
     ...(buildRefusals.length > 0 ? { buildRefusals } : {}),
     ...(hasDeclarations(declarations) ? { declarations } : {}),
-    ...(facts.length > 0 ? { facts: [...facts] } : {}),
+    ...(publishedFacts.length > 0 ? { facts: publishedFacts } : {}),
     ...(templates.length > 0 ? { templates } : {}),
     ...(Object.keys(bundleOutputHandlerMap).length > 0 ? { bundleOutputHandlerMap } : {}),
     ...(linkingOpt && hasLinkingConfig(linkingOpt) ? {

@@ -4,7 +4,7 @@ import { contributeStructural } from '../../../../src/interpreters/code-structur
 import { contributeInfraLink } from '../../../../src/interpreters/infra-runtime-links/graph.js';
 import type { DomainsConfig } from '../../../../src/stage2/domains.js';
 import type { InfraModuleInfo, ModuleInfo, RepositoryFactsSnapshot } from '../../../../src/types.js';
-import { setSourcePluginsForTest } from '../../../../src/plugins/source-set.js';
+import { setSourcePluginsForTest } from '../../../../src/plugin-host/source-set.js';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 import { builtinDeclarationCatalog } from '../../../helpers/declarations.js';
 

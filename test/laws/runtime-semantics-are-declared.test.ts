@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
-import { buildDeclarationCatalog } from '../../src/plugins/declaration-catalog.js';
-import { presetDeclarationCatalog } from '../../src/plugins/load.js';
+import { buildDeclarationCatalog } from '../../src/plugin-host/declaration-catalog.js';
+import { presetDeclarationCatalog } from '../../src/plugin-host/load.js';
 import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { projectRuntimeTopology } from '../../src/mcp/lib/topology.js';
 import { ALL_SCOPE } from '../../src/scope/resolved.js';

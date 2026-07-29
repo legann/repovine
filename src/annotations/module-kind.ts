@@ -15,7 +15,7 @@ import {
 } from '../analysis/architecture/heuristics.js';
 // Side-effect: ensure built-in source plugins are registered so pluginHasUiSurfaces can
 // resolve them when this module runs outside a build (MCP/unit-test path). Cheap — registers
-import { pluginHasUiSurfaces } from '../plugins/source-set.js';
+import { pluginHasUiSurfaces } from '../plugin-host/source-set.js';
 
 export type ModuleKind =
   | 'types'        // type/interface-only exports — describe shape, not behavior
