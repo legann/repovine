@@ -7,15 +7,16 @@
 //   - parse() emits INFRA SEMANTICS ONLY (`kind` + `resources`). The engine stamps the
 //     InfraModuleInfo id/filePath/relativeFilePath/contentHash at the Stage-1 boundary;
 //   - per-resource contentHash is producer-owned because it fingerprints a resource fragment;
-//   - triggerTypeMeta teaches the core how to project custom trigger types into entrypoints/edges
-//     without a new interpreter.
+//   - the manifest's `declarations.triggerTypes` teach the core how to project custom trigger types
+//     into entrypoints/edges without a new interpreter. They are data, read before any plugin code
+//     runs, so they stay in effect when the executable capability is disabled.
 //
-// Authored through the SDK factories, which is what a real package does: `defineIaCPlugin` stamps
-// the contract major, so the descriptor never carries a version number that quietly goes stale, and
-// `defineIaCParser` types the parser against the same contract the conformance kit checks.
+// Authored through the SDK factories, which is what a real package does: `definePlugin` types the
+// descriptor against the published contract, `defineIaCParser` types the parser against the same
+// contract the conformance kit checks, and package.json carries `id` and `apiVersion`.
 
 import * as path from 'node:path';
-import { defineIaCParser, defineIaCPlugin, hashResourcePayload, lastPathSegment } from '@repovine/plugin-sdk';
+import { defineIaCParser, definePlugin, hashResourcePayload, lastPathSegment } from '@repovine/plugin-sdk';
 
 const STACK_KIND = 'edge-stack';
 const STACK_FILE = 'edge-stack.json';
@@ -165,21 +166,9 @@ const edgeStackParser = defineIaCParser({
   },
 });
 
-export default defineIaCPlugin({
+export default definePlugin({
   id: 'edge-stack',
-  parsers: [edgeStackParser],
-  kindDomains: [
-    {
-      kind: STACK_KIND,
-      meta: {
-        domainId: 'domain:infra-edge-stack',
-        label: 'infra-edge-stack',
-        description: 'Domain: infra-edge-stack (example third-party IaC plugin)',
-      },
-    },
-  ],
-  triggerTypeMeta: [
-    { type: 'edge-http', meta: { entrypointKind: 'api' } },
-    { type: 'edge-queue', meta: { isStreamLike: true, entrypointKind: 'queue-consumer' } },
-  ],
+  capabilities: {
+    iac: { parsers: [edgeStackParser] },
+  },
 });

@@ -60,5 +60,5 @@ installed. A missing install is skipped with a warning (never a hard error).
 | Normalized route facts | `index.js` — `semanticHints.routes` + `webFramework: 'gin'` |
 | Conformance self-check | `run.mjs` → `checkSourcePluginConformance` |
 
-For production, wrap the same object with `defineSourcePlugin` from `@repovine/plugin-sdk` and add
-the SDK as a `peerDependency` — see the guide.
+For production, wrap the descriptor with `definePlugin` from `@repovine/plugin-sdk` and add the SDK
+as a `peerDependency` — see the guide.

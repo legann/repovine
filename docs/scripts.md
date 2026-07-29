@@ -111,6 +111,7 @@ Kept minimal on purpose. Use **`npx repovine`** in downstream projects or **`npm
 | `typecheck` | Build/typecheck every workspace, then no-emit check of src + tests (`tsc -p tsconfig.test.json`) |
 | `test` | Jest unit tests |
 | `smoke:pack-install` | Pack both packages, install into a throwaway repo, drive the MCP over stdio |
+| `smoke:sdk-standalone` | Pack the SDK, install it into a non-workspace package, compile and conform a plugin against it |
 | `profile` | Memory profiler (dev) |
 
 `smoke:pack-install` runs the path `npx -y repovine@<version>` takes. A build inside the
@@ -120,6 +121,15 @@ this on every PR. The smoke also verifies the tarball's bundled dependency set,
 then resolves and imports the private default preset and all nine built-in
 package entrypoints from the clean installed dependency tree; finding their
 filenames in the archive is not sufficient.
+
+`smoke:sdk-standalone` answers a different question: whether the published plugin
+contract stands on its own. The in-repo built-ins resolve `@repovine/plugin-sdk`
+through npm workspaces, so a type that never left `packages/` still resolves for
+them. The gate installs the packed SDK into a package that is not a workspace
+member, compiles a plugin whose only product dependency is that tarball, and runs
+the conformance kit from it — including mutants that must be rejected: a dangling
+reference, a foreign extension owner, and a minted node id used as an identity
+component.
 
 `npm run build` **≠** `repovine build`. The first compiles the engine; the second builds the **syntax index and graph cache** for the resolved workspace root: `REPOVINE_ROOT` when set, otherwise the nearest ancestor holding `.git`. An unconfigured root re-roots to a configured ancestor — see [workspace-files.md](workspace-files.md).
 

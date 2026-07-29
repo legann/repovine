@@ -10,10 +10,13 @@
  *   - the versioned semanticHints schema (the real producer↔consumer coupling surface)
  *   - the runtime primitives: apiVersion, requires, available (graceful degradation)
  *
- * It deliberately does NOT export the projection/ontology layers (GraphDelta, RepositoryGraph,
- * NodeType/EdgeKind, Interpreter) — those are core-only. A plugin that needs one of
- * those is doing layer-2/3 work, which stays in the engine.
+ * Projection is public through restricted DTOs (`./plugin`): a plugin states contributions and
+ * structured references. The graph ontology itself — RepositoryGraph, GraphDelta, NodeType,
+ * EdgeKind, Interpreter — stays core-only, so a contribution never freezes the internal model.
  */
+
+/* ---- unified plugin contract: manifest, descriptor, declarations, projection, identity ---- */
+export * from './plugin/index.js';
 
 /* ---- runtime primitives (apiVersion + graceful-degradation shape) ---- */
 export { PLUGIN_API_VERSION } from './runtime.js';
@@ -102,6 +105,7 @@ export type {
   SemanticInfraDelta,
 } from './types.js';
 
+export { TRIGGER_ENTRY_KINDS } from './types.js';
 export type {
   InfraKindDomain,
   ResourceKindMeta,

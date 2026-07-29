@@ -9,8 +9,27 @@
     "@repovine/plugin-sdk": "^0.1.0"
   },
   "repovine": {
-    "kind": "iac-plugin",
-    "apiVersion": "1",
-    "entry": "index.js"
+    "kind": "plugin",
+    "id": "edge-stack",
+    "apiVersion": 1,
+    "entry": "index.js",
+    "declarations": {
+      "ecosystem": "edge-stack",
+      "triggerTypes": [
+        {
+          "type": "edge-http",
+          "namespace": "edge-stack",
+          "provider": "edge-stack",
+          "entrypointKind": "api"
+        },
+        {
+          "type": "edge-queue",
+          "namespace": "edge-stack",
+          "provider": "edge-stack",
+          "isStreamLike": true,
+          "entrypointKind": "queue-consumer"
+        }
+      ]
+    }
   }
 }

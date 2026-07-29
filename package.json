@@ -48,6 +48,7 @@
     "render-client-plugins:validate": "node scripts/validate-client-plugins.mjs",
     "render-client-plugins:check": "npm run build && node scripts/render-client-plugins.mjs --check",
     "smoke:pack-install": "npm run build && node scripts/smoke-pack-install.mjs",
+    "smoke:sdk-standalone": "npm run build:sdk && node scripts/smoke-sdk-standalone.mjs",
     "check:embedder": "npm run build && node scripts/check-embedder.mjs",
     "audit:check": "node scripts/audit-gate.mjs",
     "prepack": "npm run build",

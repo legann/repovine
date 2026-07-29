@@ -10,18 +10,20 @@
 //     build the built-in `server-entrypoints` interpreter reads that slot for the `typescript` and
 //     `python` source plugins.
 //
-// Authored through the SDK, which is what a real package does: `defineSourcePlugin` stamps the
-// contract major, and `walkRepository` is the discovery traversal — it prunes the directories the
-// graph never indexes (`vendor/`, `node_modules/`, build output, test layouts) and enumerates in an
-// order that does not depend on the host filesystem. A plugin that walked the tree itself would
-// carry a second copy of both rules and drift from the engine on the first one that changed.
+// Authored through the SDK, which is what a real package does: `definePlugin` types the descriptor
+// against the published contract, the manifest in package.json carries `id` and `apiVersion`, and
+// `walkRepository` is the discovery traversal — it prunes the directories the graph never indexes
+// (`vendor/`, `node_modules/`, build output, test layouts) and enumerates in an order that does not
+// depend on the host filesystem. A plugin that walked the tree itself would carry a second copy of
+// both rules and drift from the engine on the first one that changed.
 
-import { defineSourcePlugin, hostPathKey, walkRepository } from '@repovine/plugin-sdk';
+import { definePlugin, hostPathKey, walkRepository } from '@repovine/plugin-sdk';
 
 const GO_RE = /\.go$/;
 
-export default defineSourcePlugin({
-  id: 'go',
+// The source capability: discovery and extraction handlers only. Identity and lifecycle live on the
+// descriptor below, so this object never repeats who the plugin is.
+const goSource = {
   fileMatch: { extensions: ['.go'] },
   // `moduleIdNormalize` states this ecosystem's facts; the ENGINE applies them when it mints ids.
   capabilities: {
@@ -98,4 +100,9 @@ export default defineSourcePlugin({
     });
     return { deltas, reused: 0, rescanned: deltas.length };
   },
+};
+
+export default definePlugin({
+  id: 'go',
+  capabilities: { source: goSource },
 });

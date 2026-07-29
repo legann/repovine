@@ -17,9 +17,7 @@ describe('external source plugin — full Stage-1 pipeline', () => {
   // semantic delta per file, keyed by the id the engine minted.
   const PLUGIN_JS = `import * as fs from 'node:fs';
 import * as path from 'node:path';
-export default {
-  id: 'foo-lang',
-  apiVersion: 1,
+const source = {
   fileMatch: { extensions: ['.foo'] },
   capabilities: {
     extensions: ['.foo'],
@@ -47,7 +45,8 @@ export default {
     }));
     return { deltas, reused: 0, rescanned: deltas.length };
   },
-};`;
+};
+export default { id: 'foo-lang', capabilities: { source } };`;
 
   afterEach(async () => {
     await applyPluginConfig({ repoRoot: process.cwd(), config: { defaults: true, add: [], disable: [] } });
@@ -60,7 +59,7 @@ export default {
     fs.mkdirSync(pkgDir, { recursive: true });
     fs.writeFileSync(
       path.join(pkgDir, 'package.json'),
-      JSON.stringify({ name: 'repovine-plugin-foo', type: 'module', main: 'index.js', repovine: { kind: 'source-plugin', apiVersion: '1', entry: 'index.js' } }),
+      JSON.stringify({ name: 'repovine-plugin-foo', type: 'module', main: 'index.js', repovine: { kind: 'plugin', id: 'foo-lang', apiVersion: 1, entry: 'index.js' } }),
     );
     fs.writeFileSync(path.join(pkgDir, 'index.js'), PLUGIN_JS);
     fs.writeFileSync(path.join(repoRoot, 'app.foo'), 'unit foo app\n');
@@ -94,7 +93,7 @@ export default {
     fs.mkdirSync(pkgDir, { recursive: true });
     fs.writeFileSync(
       path.join(pkgDir, 'package.json'),
-      JSON.stringify({ name: 'repovine-plugin-foo', type: 'module', main: 'index.js', repovine: { kind: 'source-plugin', apiVersion: '1', entry: 'index.js' } }),
+      JSON.stringify({ name: 'repovine-plugin-foo', type: 'module', main: 'index.js', repovine: { kind: 'plugin', id: 'foo-lang', apiVersion: 1, entry: 'index.js' } }),
     );
     fs.writeFileSync(path.join(pkgDir, 'index.js'), PLUGIN_JS);
     fs.writeFileSync(path.join(repoRoot, 'keep.foo'), 'keep\n');

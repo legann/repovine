@@ -9,8 +9,9 @@
     "@repovine/plugin-sdk": "^0.1.0"
   },
   "repovine": {
-    "kind": "source-plugin",
-    "apiVersion": "1",
+    "kind": "plugin",
+    "id": "go",
+    "apiVersion": 1,
     "entry": "index.js"
   }
 }

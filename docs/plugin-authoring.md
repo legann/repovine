@@ -63,7 +63,7 @@ Both scripts: (1) run the SDK conformance kit, (2) symlink the plugin into the f
 2. Edit index.js (or src/index.ts): fileMatch, discover(), extract() / parsers[]
 3. Replace fixtures/sample/ with minimal files your plugin should understand
 4. Optionally run node run.mjs while adapting the plugin
-5. Wrap with defineSourcePlugin / defineIaCPlugin + peerDep on @repovine/plugin-sdk
+5. Wrap with definePlugin + declare the manifest + peerDep on @repovine/plugin-sdk
 6. npm publish (or npm pack / file: link for local use)
 7. Users: npm i -D my-repovine-plugin-rust + list in repovine.config.json plugins.add
 ```
@@ -79,13 +79,13 @@ installed (CLI, MCP, embed — same rule, like ESLint plugins).
 | **A — PR into the core** | Your plugin is adopted as a built-in, shipped with `repovine`, `trusted:true`. | maintenance budget on the core | broad languages the maintainers choose to guarantee |
 | **B — your own npm package** | You publish `repovine-plugin-<lang>`; users install it; `trusted:false`. | ~zero for the core | the long tail |
 
-Both author against the **same** SDK surface (`defineSourcePlugin` / `defineIaCPlugin`) — the
-built-ins are the dogfood. Nothing below is private to the core.
+Both author against the **same** SDK surface (`definePlugin`) — the built-ins are the dogfood.
+Nothing below is private to the core.
 
 ## Anatomy of a plugin package
 
-A plugin is a normal npm package that declares a `repovine` manifest in its `package.json` and
-default-exports a plugin object built with an SDK factory.
+A plugin is a normal npm package with two halves: a `repovine` manifest in its `package.json` and a
+runtime descriptor as the entry module's default export.
 
 ```jsonc
 // package.json
@@ -94,37 +94,61 @@ default-exports a plugin object built with an SDK factory.
   "type": "module",
   "main": "dist/index.js",
   "repovine": {
-    "kind": "source-plugin",   // or "iac-plugin"
-    "apiVersion": "1",          // must match the SDK contract major
-    "entry": "dist/index.js"    // optional; falls back to "main", then index.js
+    "kind": "plugin",           // one transport kind; capabilities come from the descriptor
+    "id": "go",                 // the descriptor must claim the same id
+    "apiVersion": 1,            // must match the SDK contract major
+    "entry": "dist/index.js",   // optional POSIX path; falls back to "main", then index.js
+    "declarations": {           // optional JSON facts, read before any plugin code runs
+      "ecosystem": "go"
+    }
   },
   "peerDependencies": { "@repovine/plugin-sdk": "^0.1.0" }
 }
 ```
 
+### Declarations and capabilities
+
+| Half | Form | Lives in | Lifetime |
+|---|---|---|---|
+| `declarations` | JSON data | `package.json#repovine` | survives a disabled capability |
+| `capabilities` | code | the entry module's descriptor | active while the plugin is enabled and available |
+
+The host reads and validates declarations without importing plugin code, so turning a capability off
+keeps the facts that bound a scan. Ownership is host-stamped from package identity: a declaration
+that spells its own `declaredBy` is refused.
+
+| Declaration | States |
+|---|---|
+| `dirs` | directory names this ecosystem owns, with a role and a reason |
+| `values` | values this plugin adds to a canonical or namespaced axis |
+| `resourceKinds` | resource metadata keyed by `(namespace, provider, kind)` |
+| `triggerTypes` | trigger metadata and the canonical entrypoint kind it projects into |
+
+| Capability | Provides |
+|---|---|
+| `source` | `discover` / `extract` for one language or ecosystem |
+| `iac` | infrastructure `parsers` |
+| `loaders` | document decoding, by loader id |
+| `projectors` | contributions to the canonical graph |
+
+`requires` and `available` sit on the descriptor and cover every capability, so a missing toolchain
+produces one actionable message rather than a failure per file.
+
 Arbitrary npm is never auto-installed: the user installs your package and lists it in
 `config.plugins.add`, which is their trust decision.
 
-Both examples are authored through the SDK, which is what a production package does: the factories
-stamp `apiVersion` so no descriptor carries a version number that goes stale, `walkRepository` is the
+Both examples are authored through the SDK, which is what a production package does: the manifest
+carries `apiVersion` so no descriptor holds a version number that goes stale, `walkRepository` is the
 discovery traversal, and `hashResourcePayload` is the one content hash a producer mints. CI runs both
-end to end, so a contract change that would break an author breaks them first. The loader validates
-shape either way — the factories are what keep the mechanics from being written a second time.
+end to end, so a contract change that would break an author breaks them first.
 
 ### Source plugin
 
 ```ts
-import { defineSourcePlugin, hostPathKey, walkRepository } from '@repovine/plugin-sdk';
-import type { SourceExtractInput, SourceExtractResult } from '@repovine/plugin-sdk';
+import { definePlugin, hostPathKey, walkRepository } from '@repovine/plugin-sdk';
+import type { SourceExtractInput, SourceExtractResult, SourceRuntimeCapability } from '@repovine/plugin-sdk';
 
-export default defineSourcePlugin({
-  id: 'go',
-  // Optional graceful-degradation: declare an external prerequisite and a probe. When `available()`
-  // resolves `{ ok: false }` the engine skips the plugin with ONE warning instead of failing per file.
-  requires: { runtime: 'go' },
-  available() {
-    return hasGoToolchain() ? { ok: true } : { ok: false, reason: 'go not found on PATH' };
-  },
+const goSource: SourceRuntimeCapability = {
   fileMatch: { extensions: ['.go'] },
   capabilities: {
     extensions: ['.go'],
@@ -164,8 +188,23 @@ export default defineSourcePlugin({
     }));
     return { deltas, reused: 0, rescanned: deltas.length };
   },
+};
+
+export default definePlugin({
+  id: 'go',
+  // Optional graceful degradation: declare an external prerequisite and a probe. When `available()`
+  // resolves `{ ok: false }` the engine skips the plugin with ONE warning instead of failing per file.
+  requires: { runtime: 'go' },
+  available() {
+    return hasGoToolchain() ? { ok: true } : { ok: false, reason: 'go not found on PATH' };
+  },
+  capabilities: { source: goSource },
 });
 ```
+
+The nested `capabilities` inside `goSource` is the source capability's own language metadata —
+extensions and id-normalisation rules the engine applies. The outer `capabilities` is the
+descriptor's capability set.
 
 The cross-language contract is **`semanticHints`** — a versioned, `passthrough` bag (see
 `SEMANTIC_HINTS_VERSION`, `zSemanticHints`). It has ten slots, and they differ in reach: three carry
@@ -209,7 +248,7 @@ Five qualifications the table cannot hold:
 ### IaC plugin
 
 ```ts
-import { defineIaCPlugin, defineIaCParser } from '@repovine/plugin-sdk';
+import { definePlugin, defineIaCParser } from '@repovine/plugin-sdk';
 
 const pulumiParser = defineIaCParser({
   kind: 'pulumi',
@@ -222,12 +261,28 @@ const pulumiParser = defineIaCParser({
   },
 });
 
-export default defineIaCPlugin({
+export default definePlugin({
   id: 'pulumi',
-  parsers: [pulumiParser],
-  kindDomains: [{ kind: 'pulumi', meta: { domainId: 'domain:infra-pulumi', label: 'infra-pulumi', description: '…' } }],
+  capabilities: { iac: { parsers: [pulumiParser] } },
 });
 ```
+
+Resource and trigger metadata are declarations, not code — they belong in `package.json#repovine`:
+
+```jsonc
+"declarations": {
+  "ecosystem": "pulumi",
+  "resourceKinds": [
+    { "namespace": "pulumi", "provider": "pulumi", "kind": "function", "hasCodeHandler": true }
+  ],
+  "triggerTypes": [
+    { "type": "pulumi-http", "namespace": "pulumi", "provider": "pulumi", "entrypointKind": "api" }
+  ]
+}
+```
+
+A kind with no declared domain lands in `domain:infra-<kind>`, so an unlisted kind gets its own
+bucket rather than another plugin's.
 
 ### Built-in parity (0.1.0)
 
@@ -274,20 +329,30 @@ a mismatched major is refused.
 Run the conformance kit against your plugin. Both example `run.mjs` scripts do this first.
 
 ```ts
-import { checkSourcePluginConformance, checkIaCPluginConformance } from '@repovine/plugin-sdk';
-import plugin from '../index.js';
+import { checkPluginConformance, checkSourcePluginConformance } from '@repovine/plugin-sdk';
+import descriptor from '../index.js';
+import pkg from '../package.json' with { type: 'json' };
 
-const report = await checkSourcePluginConformance(plugin, {
-  sampleRepoRoot: 'fixtures/sample',   // or test/fixtures/sample
-});
-if (!report.passed) {
+const contract = checkPluginConformance({ manifest: pkg.repovine, descriptor });
+const behaviour = await checkSourcePluginConformance(
+  { ...descriptor.capabilities.source, id: descriptor.id },
+  { sampleRepoRoot: 'fixtures/sample' },
+);
+for (const report of [contract, behaviour]) {
+  if (report.passed) continue;
   for (const c of report.checks.filter(c => !c.ok)) console.error(`FAIL ${c.name}: ${c.detail ?? ''}`);
   process.exit(1);
 }
 ```
 
-Checks: correct shape, fact schemas pass, **semantics only** (no engine-owned mechanics),
-deterministic `extract()`.
+| Kit | Asks |
+|---|---|
+| `checkPluginConformance` | manifest validates, descriptor validates, both claim the same id, projected batches pass shape, budgets, extension ownership, reference resolution and determinism |
+| `checkSourcePluginConformance` | discover/extract shape, fact schemas pass, semantics only (no engine-owned mechanics), deterministic `extract()` |
+| `checkIaCPluginConformance` | parser gating, fact schemas pass, semantics only (`kind` + `resources`), deterministic `parse()` |
+
+A bundled first-party plugin and an independently installed one run the same kits: shipping in the
+box is packaging, not privilege.
 
 ## Governance — permissionless
 

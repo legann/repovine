@@ -226,8 +226,20 @@ const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
     members('generic')],
   ['types.ts::IaCDocFormat',
     members('yaml', 'json', 'hcl', 'raw')],
-  ['types.ts::TriggerEntryKind',
+  ['types.ts::TRIGGER_ENTRY_KINDS',
     members('api', 'schedule', 'websocket', 'webhook', 'queue-consumer', 'unknown')],
+  ['plugin/declarations.ts::ECOSYSTEM_DIR_ROLES',
+    members('dependencies', 'build-output', 'tool-output', 'test-layout')],
+  ['plugin/descriptor.ts::PLUGIN_CAPABILITY_NAMES',
+    members('source', 'iac', 'loaders', 'projectors')],
+  ['plugin/projection.ts::PROJECTION_REF_TYPES',
+    members('module', 'resource', 'extension')],
+  ['plugin/projection.ts::SEMANTIC_LINK_RELATIONS',
+    members('publishes', 'consumes', 'binds-to', 'uses-env', 'routes-to')],
+  ['plugin/projection.ts::ENTRYPOINT_CONTRIBUTION_KINDS',
+    members('api-route', 'file-route', 'ui-route', 'conditional-render', 'resource-trigger')],
+  ['plugin/projection-schema.ts::ProjectionRefProblemReason',
+    members('unknown-module', 'unknown-resource', 'unknown-extension')],
 ]);
 
 type EnumerationKind =

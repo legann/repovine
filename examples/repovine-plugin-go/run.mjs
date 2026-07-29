@@ -35,18 +35,31 @@ fs.rmSync(link, { recursive: true, force: true });
 fs.symlinkSync(pluginRoot, link, 'junction');
 
 const imp = rel => import(pathToFileURL(path.join(distDir, rel)).href);
-const { checkSourcePluginConformance } = await import('@repovine/plugin-sdk');
+const { checkPluginConformance, checkSourcePluginConformance } = await import('@repovine/plugin-sdk');
 const { collectRepositoryFactsAsync } = await imp('stage1/index.js');
 const { collectFrameworkApiEntrypoints } = await imp('interpreters/server-entrypoints/entrypoints.js');
 
-const plugin = (await import(pathToFileURL(path.join(pluginRoot, 'index.js')).href)).default;
+const descriptor = (await import(pathToFileURL(path.join(pluginRoot, 'index.js')).href)).default;
+const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'package.json'), 'utf8')).repovine;
 
-const conformance = await checkSourcePluginConformance(plugin, { sampleRepoRoot: target });
-console.log('=== Source plugin conformance ===');
-for (const check of conformance.checks) {
-  console.log(`  ${check.ok ? 'ok ' : 'FAIL'} ${check.name}${!check.ok && check.detail ? ` (${check.detail})` : ''}`);
-}
-if (!conformance.passed) process.exit(1);
+// Two kits, two questions. The plugin kit checks the package contract — manifest, descriptor, and
+// the agreement between them. The source kit checks the capability's behaviour on a sample repo.
+const printChecks = (title, report) => {
+  console.log(`=== ${title} ===`);
+  for (const check of report.checks) {
+    console.log(`  ${check.ok ? 'ok ' : 'FAIL'} ${check.name}${!check.ok && check.detail ? ` (${check.detail})` : ''}`);
+  }
+  if (!report.passed) process.exit(1);
+};
+
+printChecks('Plugin contract conformance', checkPluginConformance({ manifest, descriptor }));
+printChecks(
+  'Source capability conformance',
+  await checkSourcePluginConformance(
+    { ...descriptor.capabilities.source, id: descriptor.id },
+    { sampleRepoRoot: target },
+  ),
+);
 
 const origLog = console.log;
 console.log = () => {};

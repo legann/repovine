@@ -561,13 +561,18 @@ export interface ResourceKindMeta {
   hasCodeHandler?: boolean;
 }
 
-export type TriggerEntryKind =
-  | 'api'
-  | 'websocket'
-  | 'queue-consumer'
-  | 'schedule'
-  | 'webhook'
-  | 'unknown';
+/** Canonical entrypoint kinds a trigger projects into. The array is the single declaration; the
+ *  type is derived from it, so a runtime validator reads the same list a consumer types against. */
+export const TRIGGER_ENTRY_KINDS = [
+  'api',
+  'websocket',
+  'queue-consumer',
+  'schedule',
+  'webhook',
+  'unknown',
+] as const;
+
+export type TriggerEntryKind = typeof TRIGGER_ENTRY_KINDS[number];
 
 export interface TriggerTypeMeta {
   /**

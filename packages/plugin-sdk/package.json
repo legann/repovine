@@ -23,6 +23,10 @@
     "./iac-plugin": {
       "types": "./dist/iac-plugin/index.d.ts",
       "import": "./dist/iac-plugin/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin/index.d.ts",
+      "import": "./dist/plugin/index.js"
     }
   },
   "scripts": {

@@ -32,24 +32,35 @@ fs.rmSync(link, { recursive: true, force: true });
 fs.symlinkSync(pluginRoot, link, 'junction');
 
 const imp = rel => import(pathToFileURL(path.join(distDir, rel)).href);
-const { checkIaCPluginConformance } = await import('@repovine/plugin-sdk');
+const { checkIaCPluginConformance, checkPluginConformance } = await import('@repovine/plugin-sdk');
 const { collectRepositoryFactsAsync } = await imp('stage1/index.js');
 const { composeRepositoryGraph } = await imp('stage2/index.js');
 const { getInterpreterEntrypoints } = await imp('stage2/interpreter/entrypoint-store.js');
 const { getPipelineLogSink, setPipelineLogSink } = await imp('cli/ui.js');
 
-const plugin = (await import(pathToFileURL(path.join(pluginRoot, 'index.js')).href)).default;
+const descriptor = (await import(pathToFileURL(path.join(pluginRoot, 'index.js')).href)).default;
+const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'package.json'), 'utf8')).repovine;
 const samplePath = path.join(target, 'edge-stack.json');
 const sampleDoc = JSON.parse(fs.readFileSync(samplePath, 'utf8'));
-const conformance = checkIaCPluginConformance(plugin, {
-  samples: [{ filePath: samplePath, relPath: 'edge-stack.json', doc: sampleDoc }],
-});
 
-console.log('=== IaC plugin conformance ===');
-for (const check of conformance.checks) {
-  console.log(`  ${check.ok ? 'ok ' : 'FAIL'} ${check.name}${!check.ok && check.detail ? ` (${check.detail})` : ''}`);
-}
-if (!conformance.passed) process.exit(1);
+// Two kits, two questions. The plugin kit checks the package contract — manifest, descriptor, and
+// the agreement between them. The IaC kit checks the parsers' behaviour on sample documents.
+const printChecks = (title, report) => {
+  console.log(`=== ${title} ===`);
+  for (const check of report.checks) {
+    console.log(`  ${check.ok ? 'ok ' : 'FAIL'} ${check.name}${!check.ok && check.detail ? ` (${check.detail})` : ''}`);
+  }
+  if (!report.passed) process.exit(1);
+};
+
+printChecks('Plugin contract conformance', checkPluginConformance({ manifest, descriptor }));
+printChecks(
+  'IaC capability conformance',
+  checkIaCPluginConformance(
+    { id: descriptor.id, parsers: descriptor.capabilities.iac.parsers },
+    { samples: [{ filePath: samplePath, relPath: 'edge-stack.json', doc: sampleDoc }] },
+  ),
+);
 
 const origLog = console.log;
 const origSink = getPipelineLogSink();
