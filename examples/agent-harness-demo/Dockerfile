@@ -7,12 +7,14 @@
 # ── Stage 1: compile the repovine CLI from source (dev deps live here only) ────
 FROM node:22-bookworm-slim@sha256:7af03b14a13c8cdd38e45058fd957bf00a72bbe17feac43b1c15a689c029c732 AS builder
 WORKDIR /app/repovine
-# `package*.json` glob: use `npm ci` when a lockfile is present, else `npm install`
-# (package-lock.json is gitignored repo-wide, so a clean CI checkout has none).
+# `package*.json` includes the committed root lockfile; keep the fallback so the
+# image also remains buildable from a source export that intentionally omits it.
 COPY package*.json tsconfig.json ./
-COPY packages/plugin-sdk/package.json packages/plugin-sdk/tsconfig.json ./packages/plugin-sdk/
+# The root build owns every plugin workspace after the plugin-boundary migration.
+# Copy the complete workspace tree before npm ci so workspace links resolve, and
+# so clean/build/asset verification see the same projects as a clean checkout.
+COPY packages ./packages
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
-COPY packages/plugin-sdk/src ./packages/plugin-sdk/src
 COPY src ./src
 # `npm run build` shells out to Node build scripts (clean, copy-build-assets),
 # so the scripts/ dir must be in the builder stage — a plain `tsc` is not enough.
@@ -27,15 +29,12 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/repovine
-# Production deps only, then the compiled output. dist/stage1/*.js imports
-# `typescript` at runtime (it is a devDependency), so copy that one package from
-# the builder — this pins it to the lockfile with no second `npm install` and no
-# version drift (the old `npm install typescript@<literal>` workaround is gone).
+# Production deps plus the compiled workspace packages. The root lockfile links
+# @repovine/plugin-* dependencies to packages/**, so those workspaces must exist
+# before npm ci; copying them from the builder also carries their verified dist/.
 COPY package*.json ./
-COPY packages/plugin-sdk/package.json ./packages/plugin-sdk/
-COPY --from=builder /app/repovine/packages/plugin-sdk/dist ./packages/plugin-sdk/dist
+COPY --from=builder /app/repovine/packages ./packages
 RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
-COPY --from=builder /app/repovine/node_modules/typescript ./node_modules/typescript
 COPY --from=builder /app/repovine/dist ./dist
 
 WORKDIR /app/repovine/examples/agent-harness-demo

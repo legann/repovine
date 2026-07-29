@@ -60,7 +60,11 @@ test('egress container smoke (actual container)', { skip }, async (t) => {
   const gw = (script) => dc([...files, 'exec', '-T', 'egress-gw', 'sh', '-c', script]);
 
   const build = dc([...files, 'build']);
-  assert.equal(build.status, 0, `image build failed:\n${build.stderr}`);
+  assert.equal(
+    build.status,
+    0,
+    `image build failed:\n${build.stdout ?? ''}\n${build.stderr ?? ''}`,
+  );
 
   let up = dc([...files, 'up', '-d', '--wait', 'egress-gw']);
   if (up.status !== 0 && IPV6_NET_ERROR.test(up.stderr)) {

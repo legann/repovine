@@ -12,7 +12,15 @@
  * Requires a built dist/ (npm run build) and registry access for third-party deps.
  */
 import { nodeOutput, runBinShim, runNode, runNpm, spawnNode } from './lib/spawn.cjs';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -186,7 +194,10 @@ function mcpHandshake(binPath, cwd) {
 
 // Spaces + non-ASCII in every path the install and the server touch. The prefix
 // avoids cmd metacharacters so the ComSpec adapter paths stay valid.
-const workRoot = mkdtempSync(path.join(os.tmpdir(), 'repovine smoke ünï-'));
+// On macOS os.tmpdir() is commonly reached through /var while Node's module
+// resolver returns the physical /private/var path. Canonicalize the fixture
+// root before comparing resolved package paths with the installed tree.
+const workRoot = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'repovine smoke ünï-')));
 const consumer = path.join(workRoot, 'consumer');
 
 try {
@@ -212,11 +223,15 @@ try {
   const installed = path.join(consumer, 'node_modules', 'repovine');
   check(existsSync(installed), 'repovine installs from the tarball');
   const pluginProbe = probeInstalledPluginPackages(installed);
-  const installedTree = path.join(consumer, 'node_modules');
+  const installedTree = realpathSync(path.join(consumer, 'node_modules'));
   const resolvesInsideInstalledTree = resolved => {
     if (typeof resolved !== 'string' || !path.isAbsolute(resolved)) return false;
-    const rel = path.relative(installedTree, resolved);
-    return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
+    try {
+      const rel = path.relative(installedTree, realpathSync(resolved));
+      return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
+    } catch {
+      return false;
+    }
   };
   for (const [packageName, [pluginId, capability]] of Object.entries(BUNDLED_PLUGIN_PACKAGES)) {
     const result = pluginProbe.packages[packageName];
