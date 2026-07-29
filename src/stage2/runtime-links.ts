@@ -57,8 +57,8 @@ export function runtimeEntrySearchRoots(
   if (artifactRoot) roots.push(artifactRoot);
   roots.push(...linking.handlers.searchRoots);
   for (const pkg of snapshot.packages) {
-    roots.push(pkg.path);
-    roots.push(resolveRelPath(`${pkg.path}/src`));
+    roots.push(pkg.repoRelDir);
+    roots.push(resolveRelPath(`${pkg.repoRelDir}/src`));
   }
   roots.push('');
   return uniqueStrings(roots.map(resolveRelPath));

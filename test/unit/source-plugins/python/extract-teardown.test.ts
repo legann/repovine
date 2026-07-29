@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 
@@ -25,7 +26,7 @@ describe('runPythonAst subprocess teardown', () => {
     jest.unstable_mockModule('node:child_process', () => ({ spawn: () => fake }));
     const { runPythonAst } = await import('../../../../packages/plugins/source-python/src/extract.js');
 
-    const p = runPythonAst('python3', 'script', ['/a.py']);
+    const p = runPythonAst('python3', 'script', [asHostPath('/a.py')]);
     fake.emit('error', new Error('boom')); // subprocess failure → fail() teardown path
 
     await expect(p).rejects.toThrow('boom');

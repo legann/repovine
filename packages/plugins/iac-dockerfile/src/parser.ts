@@ -14,17 +14,17 @@ export const dockerfileParser: IaCParser = {
   fileMatch: { fileNamePatterns: [/^Dockerfile(\..*)?$/] },
   loaderId: 'text',
 
-  supports(filePath: string, doc: unknown): boolean {
-    const base = path.basename(filePath);
+  supports(absPath, doc): boolean {
+    const base = path.basename(absPath);
     if (base !== 'Dockerfile' && !base.startsWith('Dockerfile.')) return false;
     return typeof doc === 'string';
   },
 
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (typeof doc !== 'string') return null;
     const content = doc;
-    const domainPath = pathGroupingLabel(relPath.replace(/\/Dockerfile.*$/, ''));
-    const normalizedRel = toPosixPath(relPath);
+    const domainPath = pathGroupingLabel(repoRelPath.replace(/\/Dockerfile.*$/, ''));
+    const normalizedRel = toPosixPath(repoRelPath);
     const baseImage = parseFirstFrom(content);
     const attrs: Record<string, string> = { domainPath };
     if (baseImage) attrs.baseImage = baseImage;

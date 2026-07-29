@@ -1,3 +1,4 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { describe, it, expect } from '@jest/globals';
 import { shouldSkipRepoRelativePath } from '../../../../packages/plugins/source-typescript/src/discover.js';
 
@@ -21,7 +22,7 @@ describe('shouldSkipRepoRelativePath — build-output / dependency subtrees are 
       'e2e/login.ts',
       'playwright/setup.ts',
     ]) {
-      expect(shouldSkipRepoRelativePath(p)).toBe(true);
+      expect(shouldSkipRepoRelativePath(asRepoRelPath(p))).toBe(true);
     }
   });
 
@@ -55,7 +56,7 @@ describe('shouldSkipRepoRelativePath — build-output / dependency subtrees are 
       __e2e__: 'src/__e2e__/flow.ts',
     };
     for (const [alt, p] of Object.entries(perAlternative)) {
-      expect([alt, shouldSkipRepoRelativePath(p)]).toEqual([alt, true]);
+      expect([alt, shouldSkipRepoRelativePath(asRepoRelPath(p))]).toEqual([alt, true]);
     }
   });
 
@@ -70,7 +71,7 @@ describe('shouldSkipRepoRelativePath — build-output / dependency subtrees are 
       'src/latest/client.ts', // 'latest' is not 'test'
       'src/playwrighting/tool.ts', // 'playwrighting' is not 'playwright'
     ]) {
-      expect(shouldSkipRepoRelativePath(p)).toBe(false);
+      expect(shouldSkipRepoRelativePath(asRepoRelPath(p))).toBe(false);
     }
   });
 });

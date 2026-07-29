@@ -1,4 +1,5 @@
 import type { HandlerResolveContext } from './types.js';
+import type { RepoRelPath } from '../path-contract.js';
 
 function handlerPathPart(handlerRef: string): string | undefined {
   const idx = handlerRef.lastIndexOf('.');
@@ -6,41 +7,43 @@ function handlerPathPart(handlerRef: string): string | undefined {
   return handlerRef.slice(0, idx);
 }
 
-function uniqueStrings(values: string[]): string[] {
+function uniqueRepoRelPaths(values: RepoRelPath[]): RepoRelPath[] {
   return [...new Set(values.filter(v => v !== undefined))];
 }
 
-function joinRelPath(ctx: HandlerResolveContext, ...parts: Array<string | undefined>): string {
-  return ctx.normalizeRelPath(parts.filter((p): p is string => Boolean(p)).join('/'));
+function joinRepoRelPath(ctx: HandlerResolveContext, ...parts: Array<string | undefined>): RepoRelPath {
+  return ctx.normalizeRepoRelPath(parts.filter((p): p is string => Boolean(p)).join('/'));
 }
 
 const COMMON_BUILD_OUTPUT_ROOTS = new Set(['build', 'dist', 'dist-bundled', 'out']);
 
-function sourceRootsFromArtifactRoot(ctx: HandlerResolveContext): string[] {
-  if (!ctx.artifactRoot) return [];
-  const artifactRoot = ctx.normalizeRelPath(ctx.artifactRoot);
+function sourceRootsFromArtifactRoot(ctx: HandlerResolveContext): RepoRelPath[] {
+  if (!ctx.repoRelArtifactRoot) return [];
+  const artifactRoot = ctx.normalizeRepoRelPath(ctx.repoRelArtifactRoot);
   const roots = [artifactRoot];
   const segments = artifactRoot.split('/');
 
   for (let i = 0; i < segments.length; i += 1) {
     if (!COMMON_BUILD_OUTPUT_ROOTS.has(segments[i])) continue;
     const packageRoot = segments.slice(0, i).join('/');
-    roots.push(joinRelPath(ctx, packageRoot, 'src'));
+    roots.push(joinRepoRelPath(ctx, packageRoot, 'src'));
   }
 
-  return uniqueStrings(roots);
+  return uniqueRepoRelPaths(roots);
 }
 
 function handlerPathMapCandidates(
   pathPart: string,
   ctx: HandlerResolveContext,
-): string[] {
-  const handlerPathMap = ctx.handlerPathMap ?? {};
+): RepoRelPath[] {
+  const handlerPathMap = ctx.repoRelHandlerPathMap ?? {};
   const keys = [pathPart];
-  if (ctx.artifactRoot) {
-    keys.push(joinRelPath(ctx, ctx.artifactRoot, pathPart));
+  if (ctx.repoRelArtifactRoot) {
+    keys.push(joinRepoRelPath(ctx, ctx.repoRelArtifactRoot, pathPart));
   }
-  return uniqueStrings(keys.map(key => handlerPathMap[key]).filter((x): x is string => Boolean(x)));
+  return uniqueRepoRelPaths(
+    keys.map(key => handlerPathMap[key]).filter((x): x is RepoRelPath => Boolean(x)),
+  );
 }
 
 /**
@@ -56,26 +59,26 @@ export function resolveDottedPathHandlerToModule(
   const pathPart = handlerPathPart(handlerRef);
   if (!pathPart) return undefined;
 
-  const pathCandidates = uniqueStrings(
-    [...handlerPathMapCandidates(pathPart, ctx), pathPart],
+  const pathCandidates = uniqueRepoRelPaths(
+    [...handlerPathMapCandidates(pathPart, ctx), ctx.normalizeRepoRelPath(pathPart)],
   );
   const artifactRoots = sourceRootsFromArtifactRoot(ctx);
 
   for (const rel of pathCandidates) {
-    const normalizedRel = ctx.normalizeRelPath(rel);
+    const normalizedRel = ctx.normalizeRepoRelPath(rel);
 
     for (const root of artifactRoots) {
-      const candidate = joinRelPath(ctx, root, normalizedRel);
-      const modId = ctx.resolveModuleByRepoPath(candidate);
+      const candidate = joinRepoRelPath(ctx, root, normalizedRel);
+      const modId = ctx.resolveModuleByRepoRelPath(candidate);
       if (modId) return modId;
     }
 
-    const direct = ctx.resolveModuleByRepoPath(normalizedRel);
+    const direct = ctx.resolveModuleByRepoRelPath(normalizedRel);
     if (direct) return direct;
 
-    for (const root of ctx.searchRoots) {
-      const candidate = joinRelPath(ctx, root, normalizedRel);
-      const modId = ctx.resolveModuleByRepoPath(candidate);
+    for (const root of ctx.repoRelSearchRoots) {
+      const candidate = joinRepoRelPath(ctx, root, normalizedRel);
+      const modId = ctx.resolveModuleByRepoRelPath(candidate);
       if (modId) return modId;
     }
   }

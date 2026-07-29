@@ -49,7 +49,7 @@ export function refactoringNodeSummary(
         })
       : undefined;
     summary.packageId = modulePackageId(graph, nodeId);
-    summary.relativeFilePath = mod.relativeFilePath;
+    summary.relativeFilePath = mod.pkgRelPath;
     summary.exports = mod.exports.slice(0, 12).map(exp => ({ name: exp.name, kind: exp.kind, lineRange: exp.lineRange }));
     summary.exportCount = mod.exports.length;
     summary.fanIn = fanIn;
@@ -387,7 +387,7 @@ export function refactoringCategoryDetail(
           .filter(imp => !imp.isTypeOnly && imp.resolvedModuleId && finding.nodes.includes(imp.resolvedModuleId))
           .map(imp => ({
             targetId: imp.resolvedModuleId,
-            targetPath: imp.resolvedModuleId ? modulesById.get(imp.resolvedModuleId)?.relativeFilePath : undefined,
+            targetPath: imp.resolvedModuleId ? modulesById.get(imp.resolvedModuleId)?.pkgRelPath : undefined,
             importedNames: imp.importedNames,
           })) ?? [],
       };

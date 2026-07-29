@@ -14,9 +14,12 @@ import type {
   ModuleInfo,
   PackageInfo,
   ParamInfo,
+  PkgRelPath,
   ReadonlyFactRecord,
+  RepoRelPath,
   SsrMarkers,
   SymbolKind,
+  HostPath,
 } from '@repovine/plugin-sdk';
 import type { Refusal } from '../response/refusal.js';
 import type { DeclarationCatalog } from '../plugin-host/declaration-catalog.js';
@@ -184,8 +187,12 @@ export interface PackageNodeData {
 }
 
 export interface ModuleNodeData {
-  filePath?: string;
-  relativeFilePath?: string;
+  /** Absolute host path, spelled the way the filesystem spells it. */
+  absPath?: HostPath;
+  /** Path relative to this module's PACKAGE root, POSIX-separated — the tail of `mod:<pkg>/<path>`. */
+  pkgRelPath?: PkgRelPath;
+  /** Path relative to the REPOSITORY root, POSIX-separated — used by repository-owned modules. */
+  repoRelPath?: RepoRelPath;
   hasRoutes?: boolean;
   envVars?: string[];
   ssr?: SsrMarkers;
@@ -343,7 +350,7 @@ export type GraphNode = {
 export const NODE_DATA_KEYS = {
   root: [],
   package: ['path', 'version', 'sourcePluginId'],
-  module: ['filePath', 'relativeFilePath', 'hasRoutes', 'envVars', 'ssr', 'sourcePluginId'],
+  module: ['absPath', 'pkgRelPath', 'repoRelPath', 'hasRoutes', 'envVars', 'ssr', 'sourcePluginId'],
   'export-symbol': ['symbolKind', 'signature', 'params', 'returnType', 'typeValue', 'fields', 'implementsInterfaces', 'calls', 'callsTotal', 'privateMembers', 'internals', 'lineRange', 'isDefault'],
   'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'refScope', 'provider', 'attributes', 'service', 'hasCodeHandler', 'declaredIn', 'namespace', 'unresolvedRefs'],
   domain: ['tier', 'weight', 'parent', 'subdomains'],

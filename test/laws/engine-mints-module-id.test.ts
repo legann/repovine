@@ -1,10 +1,18 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, hostPathKey } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { setSourcePluginsForTest } from '../../src/plugin-host/source-set.js';
-import type { SourcePlugin, PendingModule, PendingModuleDraft } from '@repovine/plugin-sdk';
+import type {
+  HostPath,
+  SourcePlugin,
+  PendingModule,
+  PendingModuleDraft,
+} from '@repovine/plugin-sdk';
 
 // The identity invariant: `mod:<pkg>/<path>` is load-bearing for scope resolution, annotation keys,
 // boundary lookups and runtime handoff, so the ENGINE mints it. A producer reports where a file is
@@ -43,23 +51,23 @@ describe('core-laws engine mints module ids (producer supplies none)', () => {
       id,
       capabilities: capabilities ?? { extensions: [ext] },
       discover: (repoRoot: string) => {
-        const pkg = { name: 'demo-app', path: '.', sourcePluginId: id };
-        const pendingByPath = new Map<string, PendingModuleDraft>();
+        const pkg = { name: 'demo-app', repoRelDir: asRepoRelPath('.'), sourcePluginId: id };
+        const pendingByPath = new Map<HostPath, PendingModuleDraft>();
         const walk = (dir: string): void => {
           for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
             const abs = path.join(dir, entry.name);
             if (entry.isDirectory()) { walk(abs); continue; }
             if (!entry.isFile() || !entry.name.endsWith(ext)) continue;
-            pendingByPath.set(abs, {
-              filePath: abs,
+            pendingByPath.set(asHostPath(abs), {
+              absPath: asHostPath(abs),
               pkg,
-              relPath: path.relative(repoRoot, abs).split(path.sep).join('/'),
+              pkgRelPath: asPkgRelPath(path.relative(repoRoot, abs).split(path.sep).join('/')),
               sourcePluginId: id,
             });
           }
         };
         walk(repoRoot);
-        return { packages: [pkg], pendingByPath };
+        return { packages: [pkg], pendingByAbsPath: pendingByPath };
       },
       extract: input => {
         seen?.push(...input.pendingModules);
@@ -111,6 +119,79 @@ describe('core-laws engine mints module ids (producer supplies none)', () => {
     expect(snapshot.modules.map(m => m.id)).toEqual(['mod:demo-app/main']);
   });
 
+  it('canonicalizes producer map keys and the absolute-path resolver map at the engine boundary', async () => {
+    let resolverMapWasCanonical = false;
+    const plugin = draftingPlugin('go', '.go', {
+      extensions: ['.go'],
+      moduleIdNormalize: { stripSuffixes: ['.go'] },
+    });
+    const discover = plugin.discover.bind(plugin);
+    plugin.discover = (repoRoot, options) => {
+      const result = discover(repoRoot, options);
+      const draft = [...result.pendingByAbsPath.values()][0]!;
+      // Keep an existing intermediate directory so the filesystem can resolve `alias/..`, while
+      // preserving the non-normal spelling in the string handed to the engine.
+      const dottedAbsPath = asHostPath(
+        `${repoRoot}${path.sep}alias${path.sep}..${path.sep}${draft.pkgRelPath}`,
+      );
+      draft.absPath = dottedAbsPath;
+      return {
+        ...result,
+        // A plain-JS third-party can brand or key this map incorrectly. The engine must derive its
+        // own key from `draft.absPath`, not trust this producer-owned key.
+        pendingByAbsPath: new Map([
+          [asHostPath(`${repoRoot}${path.sep}producer-owned-key`), draft],
+        ]),
+      };
+    };
+    plugin.extract = input => {
+      const [pending] = input.pendingModules;
+      resolverMapWasCanonical = input.absPathToId.get(hostPathKey(pending!.absPath)) === pending!.moduleId;
+      return {
+        deltas: input.pendingModules.map(pm => ({ moduleId: pm.moduleId, imports: [], exports: [] })),
+        reused: 0,
+        rescanned: input.pendingModules.length,
+      };
+    };
+    restore = setSourcePluginsForTest([plugin]);
+    const root = fixture({ 'main.go': 'package main\n', 'alias/.keep': '' });
+
+    const snapshot = await collectRepositoryFactsAsync(root);
+
+    expect(resolverMapWasCanonical).toBe(true);
+    expect(snapshot.modules.map(m => m.id)).toEqual(['mod:demo-app/main']);
+  });
+
+  it('deduplicates two producer spellings by pending.absPath rather than by their map keys', async () => {
+    const first = draftingPlugin('go-a', '.go');
+    const second = draftingPlugin('go-b', '.go');
+    const discoverSecond = second.discover.bind(second);
+    second.discover = (repoRoot, options) => {
+      const result = discoverSecond(repoRoot, options);
+      return {
+        ...result,
+        pendingByAbsPath: new Map([...result.pendingByAbsPath.values()].map(draft => [
+          asHostPath(`${draft.absPath}.producer-b-key`),
+          draft,
+        ])),
+      };
+    };
+    restore = setSourcePluginsForTest([first, second]);
+    const root = fixture({ 'main.go': 'package main\n' });
+
+    const snapshot = await collectRepositoryFactsAsync(root);
+
+    expect(snapshot.modules).toHaveLength(1);
+    expect(snapshot.modules[0]?.sourcePluginId).toBe('go-a');
+    expect(snapshot.buildRefusals).toEqual([
+      expect.objectContaining({
+        reason: 'conflict',
+        kind: 'file-claimed-twice',
+        details: { count: 1, sample: ['main.go'] },
+      }),
+    ]);
+  });
+
   it('ignores an id a producer tries to smuggle onto its draft', async () => {
     // `PendingModuleDraft` has no `moduleId`, so this cannot happen through the typed contract. A
     // plain-JS plugin can still set the property; the engine overwrites it rather than trusting it.
@@ -121,7 +202,7 @@ describe('core-laws engine mints module ids (producer supplies none)', () => {
     const discover = plugin.discover.bind(plugin);
     plugin.discover = (repoRoot, options) => {
       const result = discover(repoRoot, options);
-      for (const draft of result.pendingByPath.values()) {
+      for (const draft of result.pendingByAbsPath.values()) {
         (draft as PendingModule).moduleId = 'not-a-module-id';
       }
       return result;

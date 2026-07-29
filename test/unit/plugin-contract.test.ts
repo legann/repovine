@@ -1,3 +1,4 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import {
   ECOSYSTEM_DIR_ROLES,
@@ -35,7 +36,7 @@ import { ENTRYPOINT_SCHEMA_KINDS } from '../../packages/plugin-sdk/src/plugin/pr
 // projection batches). Every case here is something an untrusted package can actually ship.
 
 const MODULES: ReadonlyModuleFact[] = [
-  { moduleId: 'mod:app/index', packageName: 'app', relativeFilePath: 'src/index.ts' },
+  { moduleId: 'mod:app/index', packageName: 'app', repoRelPath: asRepoRelPath('src/index.ts') },
 ];
 
 function projectorOf(batches: readonly unknown[]): ProjectionContributor {
@@ -160,7 +161,7 @@ describe('runtime descriptor', () => {
       id: 'demo',
       capabilities: {
         source: {
-          discover: () => ({ packages: [], pendingByPath: new Map() }),
+          discover: () => ({ packages: [], pendingByAbsPath: new Map() }),
           extract: () => ({ deltas: [], reused: 0, rescanned: 0 }),
         },
         iac: { parsers: [{ kind: 'demo', loaderId: 'demo-json', supports: () => false, parse: () => null }] },

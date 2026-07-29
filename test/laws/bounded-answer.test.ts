@@ -153,7 +153,8 @@ describe('core-laws bounded answers', () => {
   it('never asks path.basename about a repo-relative value', () => {
     // `path.basename` is the host answer: on win32 it splits on `\` too, and a repo-relative path is
     // POSIX-normalized at its producers, so a backslash in one is part of a filename.
-    const hostAnswerOnRelative = /basename\(\s*[^)]*\b(?:relativeFilePath|relPath|RelPath|repoRelative)/;
+    const hostAnswerOnRelative =
+      /basename\(\s*[^)]*\b(?:pkgRelPath|repoRelPath|repoRelDir|relativeFilePath|relPath|RelPath|repoRelative)/;
     const offenders = codeLines([])
       .filter(line => hostAnswerOnRelative.test(line.text))
       .map(line => line.where);

@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -13,8 +15,8 @@ function makeInfraModule(relativeFilePath: string, resourceIds: string[]): Infra
   return {
     id: `infra:cloudformation:${relativeFilePath}`,
     kind: 'cloudformation',
-    filePath: `/repo/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/${relativeFilePath}`),
+    repoRelPath: asRepoRelPath(relativeFilePath),
     contentHash: relativeFilePath,
     resources: resourceIds.map(id => ({
       id,

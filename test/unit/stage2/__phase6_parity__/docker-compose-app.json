@@ -95,8 +95,8 @@
       "label": "docker-compose.yml",
       "description": "IaC docker-compose module docker-compose.yml",
       "data": {
-        "filePath": "<FIXTURE>/docker-compose.yml",
-        "relativeFilePath": "docker-compose.yml"
+        "absPath": "<FIXTURE>/docker-compose.yml",
+        "repoRelPath": "docker-compose.yml"
       }
     },
     {
@@ -105,8 +105,8 @@
       "label": "…/api/Dockerfile",
       "description": "IaC dockerfile module services/api/Dockerfile",
       "data": {
-        "filePath": "<FIXTURE>/services/api/Dockerfile",
-        "relativeFilePath": "services/api/Dockerfile"
+        "absPath": "<FIXTURE>/services/api/Dockerfile",
+        "repoRelPath": "services/api/Dockerfile"
       }
     },
     {
@@ -115,8 +115,8 @@
       "label": "src/index",
       "description": "Module src/index.ts in docker-compose-app-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/index.ts",
-        "relativeFilePath": "src/index.ts",
+        "absPath": "<FIXTURE>/src/index.ts",
+        "pkgRelPath": "src/index.ts",
         "sourcePluginId": "typescript"
       }
     },

@@ -333,8 +333,8 @@
       "label": "composables/useAuth",
       "description": "Module composables/useAuth.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/composables/useAuth.ts",
-        "relativeFilePath": "composables/useAuth.ts",
+        "absPath": "<FIXTURE>/composables/useAuth.ts",
+        "pkgRelPath": "composables/useAuth.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -344,8 +344,8 @@
       "label": "composables/useFetch",
       "description": "Module composables/useFetch.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/composables/useFetch.ts",
-        "relativeFilePath": "composables/useFetch.ts",
+        "absPath": "<FIXTURE>/composables/useFetch.ts",
+        "pkgRelPath": "composables/useFetch.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -355,8 +355,8 @@
       "label": "…/files/[...path]",
       "description": "Module server/api/files/[...path].ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/server/api/files/[...path].ts",
-        "relativeFilePath": "server/api/files/[...path].ts",
+        "absPath": "<FIXTURE>/server/api/files/[...path].ts",
+        "pkgRelPath": "server/api/files/[...path].ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -367,8 +367,8 @@
       "label": "…/products/index",
       "description": "Module server/api/products/index.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/server/api/products/index.ts",
-        "relativeFilePath": "server/api/products/index.ts",
+        "absPath": "<FIXTURE>/server/api/products/index.ts",
+        "pkgRelPath": "server/api/products/index.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -379,8 +379,8 @@
       "label": "…/users/index",
       "description": "Module server/api/users/index.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/server/api/users/index.ts",
-        "relativeFilePath": "server/api/users/index.ts",
+        "absPath": "<FIXTURE>/server/api/users/index.ts",
+        "pkgRelPath": "server/api/users/index.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -391,8 +391,8 @@
       "label": "…/users/[id].get",
       "description": "Module server/api/users/[id].get.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/server/api/users/[id].get.ts",
-        "relativeFilePath": "server/api/users/[id].get.ts",
+        "absPath": "<FIXTURE>/server/api/users/[id].get.ts",
+        "pkgRelPath": "server/api/users/[id].get.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -403,8 +403,8 @@
       "label": "…/users/create",
       "description": "Module server/api/users/create.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/server/api/users/create.ts",
-        "relativeFilePath": "server/api/users/create.ts",
+        "absPath": "<FIXTURE>/server/api/users/create.ts",
+        "pkgRelPath": "server/api/users/create.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -415,8 +415,8 @@
       "label": "…/middleware/auth",
       "description": "Module server/middleware/auth.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/server/middleware/auth.ts",
-        "relativeFilePath": "server/middleware/auth.ts",
+        "absPath": "<FIXTURE>/server/middleware/auth.ts",
+        "pkgRelPath": "server/middleware/auth.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -426,8 +426,8 @@
       "label": "…/middleware/logger",
       "description": "Module server/middleware/logger.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/server/middleware/logger.ts",
-        "relativeFilePath": "server/middleware/logger.ts",
+        "absPath": "<FIXTURE>/server/middleware/logger.ts",
+        "pkgRelPath": "server/middleware/logger.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -437,8 +437,8 @@
       "label": "stores/cart.store",
       "description": "Module stores/cart.store.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/stores/cart.store.ts",
-        "relativeFilePath": "stores/cart.store.ts",
+        "absPath": "<FIXTURE>/stores/cart.store.ts",
+        "pkgRelPath": "stores/cart.store.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -448,8 +448,8 @@
       "label": "stores/user.store",
       "description": "Module stores/user.store.ts in nuxt-fixture",
       "data": {
-        "filePath": "<FIXTURE>/stores/user.store.ts",
-        "relativeFilePath": "stores/user.store.ts",
+        "absPath": "<FIXTURE>/stores/user.store.ts",
+        "pkgRelPath": "stores/user.store.ts",
         "sourcePluginId": "typescript"
       }
     },

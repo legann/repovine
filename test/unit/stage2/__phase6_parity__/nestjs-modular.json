@@ -222,8 +222,8 @@
       "label": "…/auth/auth.controller",
       "description": "Module src/auth/auth.controller.ts in nestjs-modular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/auth/auth.controller.ts",
-        "relativeFilePath": "src/auth/auth.controller.ts",
+        "absPath": "<FIXTURE>/src/auth/auth.controller.ts",
+        "pkgRelPath": "src/auth/auth.controller.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -234,8 +234,8 @@
       "label": "…/auth/auth.service",
       "description": "Module src/auth/auth.service.ts in nestjs-modular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/auth/auth.service.ts",
-        "relativeFilePath": "src/auth/auth.service.ts",
+        "absPath": "<FIXTURE>/src/auth/auth.service.ts",
+        "pkgRelPath": "src/auth/auth.service.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -245,8 +245,8 @@
       "label": "…/billing/billing.controller",
       "description": "Module src/billing/billing.controller.ts in nestjs-modular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/billing/billing.controller.ts",
-        "relativeFilePath": "src/billing/billing.controller.ts",
+        "absPath": "<FIXTURE>/src/billing/billing.controller.ts",
+        "pkgRelPath": "src/billing/billing.controller.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -257,8 +257,8 @@
       "label": "src/main",
       "description": "Module src/main.ts in nestjs-modular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/main.ts",
-        "relativeFilePath": "src/main.ts",
+        "absPath": "<FIXTURE>/src/main.ts",
+        "pkgRelPath": "src/main.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -268,8 +268,8 @@
       "label": "…/users/users.controller",
       "description": "Module src/users/users.controller.ts in nestjs-modular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/users/users.controller.ts",
-        "relativeFilePath": "src/users/users.controller.ts",
+        "absPath": "<FIXTURE>/src/users/users.controller.ts",
+        "pkgRelPath": "src/users/users.controller.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -280,8 +280,8 @@
       "label": "…/users/users.repository",
       "description": "Module src/users/users.repository.ts in nestjs-modular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/users/users.repository.ts",
-        "relativeFilePath": "src/users/users.repository.ts",
+        "absPath": "<FIXTURE>/src/users/users.repository.ts",
+        "pkgRelPath": "src/users/users.repository.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -291,8 +291,8 @@
       "label": "…/users/users.service",
       "description": "Module src/users/users.service.ts in nestjs-modular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/users/users.service.ts",
-        "relativeFilePath": "src/users/users.service.ts",
+        "absPath": "<FIXTURE>/src/users/users.service.ts",
+        "pkgRelPath": "src/users/users.service.ts",
         "sourcePluginId": "typescript"
       }
     },

@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { createEmptyGraph, addNode } from '../../../../src/graph/index.js';
 import {
@@ -41,8 +43,8 @@ function pyModule(id: string, opts: { route?: { component: string; rendersTempla
   return {
     id,
     packageName: 'app',
-    filePath: `/repo/${id}.py`,
-    relativeFilePath: `${id.slice(4)}.py`,
+    absPath: asHostPath(`/repo/${id}.py`),
+    pkgRelPath: asPkgRelPath(`${id.slice(4)}.py`),
     contentHash: id,
     imports: [],
     exports: opts.exports ?? [],
@@ -193,7 +195,7 @@ describe('composeRepositoryGraph wires the server-templates interpreter', () => 
     const snapshot: RepositoryFactsSnapshot = {
       repoRoot: '/repo',
       timestamp: '2026-06-19T00:00:00.000Z',
-      packages: [{ name: 'app', path: '.', sourcePluginId: 'python' }],
+      packages: [{ name: 'app', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'python' }],
       modules: [
         pyModule('mod:app/views', {
           route: { component: 'home_view', rendersTemplate: ['home.html'] },

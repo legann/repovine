@@ -93,7 +93,7 @@ describe('config-surface recall and confidence', () => {
     const surface = collectConfigSurface(ctx, { scope: 'all', kind: 'all', limit: 100 });
     const detectedByFile = new Map<string, string[]>();
     for (const [file, expected] of Object.entries(DETECTED_BY_FILE)) {
-      const module = modules.find(item => item.relativeFilePath === file);
+      const module = modules.find(item => item.pkgRelPath === file);
       expect(module).toBeDefined();
       detectedByFile.set(
         file,

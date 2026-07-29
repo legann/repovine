@@ -6,7 +6,7 @@ import type {
   SourceExtractResult,
 } from '@repovine/plugin-sdk';
 import { defineSourcePlugin, resolveDottedPathHandlerToModule } from '@repovine/plugin-sdk';
-import type { PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
+import type { HostPath, PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import { discoverTypeScript } from './discover.js';
 import {
   TYPESCRIPT_DECLARATION_EXTENSION,
@@ -34,7 +34,7 @@ function runTypeScriptExtract(
   input: SourceExtractInput,
   extractPackage: (typeof import('./extract.js'))['extractPackage'],
 ): SourceExtractResult {
-  const { packages, pendingModules, prevByPath, absPathToId, repoRoot, sourceByModuleId } = input;
+  const { packages, pendingModules, prevByAbsPath, absPathToId, repoRoot, sourceByModuleId } = input;
   const optionsByPkg =
     (input.extractContext as TypeScriptExtractContext | undefined) ?? new Map<string, ts.CompilerOptions>();
 
@@ -61,7 +61,7 @@ function runTypeScriptExtract(
     const r = extractPackage({
       pkg,
       pkgModules,
-      prevByPath,
+      prevByAbsPath,
       compilerOptions,
       absPathToId,
       packages,
@@ -95,7 +95,7 @@ const typescriptSourcePlugin = defineSourcePlugin({
     },
   },
 
-  discover(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {
+  discover(repoRoot: HostPath, options: SourceDiscoveryOptions): SourceDiscoveryResult {
     return discoverTypeScript(repoRoot, options);
   },
 

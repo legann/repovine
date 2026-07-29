@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { ENTRYPOINT_CONTRIBUTION_KINDS, SEMANTIC_LINK_RELATIONS } from '@repovine/plugin-sdk';
 import type {
@@ -38,8 +39,8 @@ function snapshotWithModules(moduleIds: string[]): RepositoryFactsSnapshot {
     modules: moduleIds.map(id => ({
       id,
       packageName: 'app',
-      filePath: `/repo/${id.replace('mod:', '')}.ts`,
-      relativeFilePath: `${id.replace('mod:', '')}.ts`,
+      absPath: asHostPath(`/repo/${id.replace('mod:', '')}.ts`),
+      pkgRelPath: asPkgRelPath(`${id.replace('mod:', '')}.ts`),
       contentHash: 'h',
       imports: [],
       exports: [],
@@ -60,7 +61,7 @@ interface Case {
 function run(input: Case): ProjectionCompositionResult {
   const snapshot = snapshotWithModules(input.moduleIds ?? ['mod:app/index']);
   const projectionInput: ReadonlyProjectionInput = {
-    repoRoot: snapshot.repoRoot,
+    repoRoot: asHostPath(snapshot.repoRoot),
     facts: createFactView({ snapshot }),
   };
   return composeProjections({

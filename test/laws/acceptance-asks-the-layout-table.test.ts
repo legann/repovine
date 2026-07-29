@@ -1,3 +1,6 @@
+import { asHostPath } from '@repovine/plugin-sdk';
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -6,7 +9,7 @@ import { collectRepositoryFactsAsync } from '../../src/stage1/index.js';
 import { setSourcePluginsForTest } from '../../src/plugin-host/source-set.js';
 import { defaultPluginsConfig, loadPluginSet } from '../../src/plugin-host/load.js';
 import { compileScanPatterns, shouldScanInfraPath, shouldScanSourcePath } from '../../src/scan-filters.js';
-import type { PendingModuleDraft, SourcePlugin } from '@repovine/plugin-sdk';
+import type { HostPath, PendingModuleDraft, SourcePlugin } from '@repovine/plugin-sdk';
 
 /**
  * Law: the acceptance filter answers by the same table the walk stops at.
@@ -40,13 +43,18 @@ function reportingPlugin(relPaths: readonly string[]): SourcePlugin {
     fileMatch: { extensions: ['.rp'] },
     capabilities: { extensions: ['.rp'] },
     discover(repoRoot: string) {
-      const pkg = { name: 'reported', path: '.', sourcePluginId: 'reporter' };
-      const pendingByPath = new Map<string, PendingModuleDraft>();
+      const pkg = { name: 'reported', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'reporter' };
+      const pendingByPath = new Map<HostPath, PendingModuleDraft>();
       for (const relPath of relPaths) {
         const filePath = path.join(repoRoot, relPath);
-        pendingByPath.set(filePath, { filePath, pkg, relPath, sourcePluginId: 'reporter' });
+        pendingByPath.set(asHostPath(filePath), {
+          absPath: asHostPath(filePath),
+          pkg,
+          pkgRelPath: asPkgRelPath(relPath),
+          sourcePluginId: 'reporter',
+        });
       }
-      return { packages: [pkg], pendingByPath };
+      return { packages: [pkg], pendingByAbsPath: pendingByPath };
     },
     // A delta per pending module: the engine assembles `ModuleInfo` from what extract returns, so a
     // producer that reported files and extracted nothing would leave the graph empty for a reason
@@ -90,21 +98,21 @@ describe('core-laws acceptance and the walk answer from one table', () => {
 
     // The kept file proves the producer ran and its output reaches the graph, so the missing one is
     // a verdict rather than an empty pass.
-    expect(snapshot.modules.map(mod => mod.relativeFilePath).sort()).toEqual(['src/kept.rp']);
+    expect(snapshot.modules.map(mod => mod.pkgRelPath).sort()).toEqual(['src/kept.rp']);
   }, 120_000);
 
   it('states the same verdict for both scopes as a property of the path', () => {
     const patterns = compileScanPatterns([], []);
 
-    expect(shouldScanSourcePath('src/app.ts', patterns)).toBe(true);
-    expect(shouldScanSourcePath('tests/app.ts', patterns)).toBe(false);
-    expect(shouldScanSourcePath('pkg/__tests__/app.ts', patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('src/app.ts'), patterns)).toBe(true);
+    expect(shouldScanSourcePath(asRepoRelPath('tests/app.ts'), patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('pkg/__tests__/app.ts'), patterns)).toBe(false);
 
     // Infra reads the same table: an IaC file under a test-layout directory is a fixture, and one
     // scope accepting what the other refuses is the disagreement this law closes.
-    expect(shouldScanInfraPath('infra/main.tf', patterns)).toBe(true);
-    expect(shouldScanInfraPath('tests/main.tf', patterns)).toBe(false);
-    expect(shouldScanInfraPath('pkg/e2e/template.yaml', patterns)).toBe(false);
+    expect(shouldScanInfraPath(asRepoRelPath('infra/main.tf'), patterns)).toBe(true);
+    expect(shouldScanInfraPath(asRepoRelPath('tests/main.tf'), patterns)).toBe(false);
+    expect(shouldScanInfraPath(asRepoRelPath('pkg/e2e/template.yaml'), patterns)).toBe(false);
   });
 
   it('does not let scan.include reopen what the layout table closed', () => {
@@ -112,7 +120,7 @@ describe('core-laws acceptance and the walk answer from one table', () => {
     // walk never reached, and answering otherwise would make acceptance disagree with the walk again.
     const patterns = compileScanPatterns(['tests/**', 'node_modules/**'], []);
 
-    expect(shouldScanSourcePath('tests/app.ts', patterns)).toBe(false);
-    expect(shouldScanSourcePath('node_modules/pkg/index.ts', patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('tests/app.ts'), patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('node_modules/pkg/index.ts'), patterns)).toBe(false);
   });
 });

@@ -109,8 +109,8 @@
       "label": "Dockerfile",
       "description": "IaC dockerfile module Dockerfile",
       "data": {
-        "filePath": "<FIXTURE>/Dockerfile",
-        "relativeFilePath": "Dockerfile"
+        "absPath": "<FIXTURE>/Dockerfile",
+        "repoRelPath": "Dockerfile"
       }
     },
     {
@@ -119,8 +119,8 @@
       "label": "manifests/ingress.yaml",
       "description": "IaC kubernetes module manifests/ingress.yaml",
       "data": {
-        "filePath": "<FIXTURE>/manifests/ingress.yaml",
-        "relativeFilePath": "manifests/ingress.yaml"
+        "absPath": "<FIXTURE>/manifests/ingress.yaml",
+        "repoRelPath": "manifests/ingress.yaml"
       }
     },
     {
@@ -129,8 +129,8 @@
       "label": "manifests/service.yaml",
       "description": "IaC kubernetes module manifests/service.yaml",
       "data": {
-        "filePath": "<FIXTURE>/manifests/service.yaml",
-        "relativeFilePath": "manifests/service.yaml"
+        "absPath": "<FIXTURE>/manifests/service.yaml",
+        "repoRelPath": "manifests/service.yaml"
       }
     },
     {
@@ -139,8 +139,8 @@
       "label": "manifests/statefulset.yaml",
       "description": "IaC kubernetes module manifests/statefulset.yaml",
       "data": {
-        "filePath": "<FIXTURE>/manifests/statefulset.yaml",
-        "relativeFilePath": "manifests/statefulset.yaml"
+        "absPath": "<FIXTURE>/manifests/statefulset.yaml",
+        "repoRelPath": "manifests/statefulset.yaml"
       }
     },
     {
@@ -149,8 +149,8 @@
       "label": "src/worker",
       "description": "Module src/worker.ts in k8s-statefulset-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/worker.ts",
-        "relativeFilePath": "src/worker.ts",
+        "absPath": "<FIXTURE>/src/worker.ts",
+        "pkgRelPath": "src/worker.ts",
         "sourcePluginId": "typescript"
       }
     },

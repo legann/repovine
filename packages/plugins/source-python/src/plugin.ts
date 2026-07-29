@@ -4,6 +4,7 @@ import type {
   SourceExtractInput,
   SourceExtractResult,
   PluginAvailability,
+  HostPath,
 } from '@repovine/plugin-sdk';
 import { defineSourcePlugin, resolveDottedPathHandlerToModule } from '@repovine/plugin-sdk';
 import { detectPython, discoverPython } from './discover.js';
@@ -47,7 +48,7 @@ const pythonSourcePlugin = defineSourcePlugin({
     },
   },
 
-  discover(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {
+  discover(repoRoot: HostPath, options: SourceDiscoveryOptions): SourceDiscoveryResult {
     return discoverPython(repoRoot, options);
   },
 

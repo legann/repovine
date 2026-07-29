@@ -173,7 +173,13 @@ end to end, so a contract change that would break an author breaks them first.
 ### Source plugin
 
 ```ts
-import { definePlugin, hostPathKey, walkRepository } from '@repovine/plugin-sdk';
+import {
+  asPkgRelPath,
+  asRepoRelPath,
+  definePlugin,
+  hostPathKey,
+  walkRepository,
+} from '@repovine/plugin-sdk';
 import type { SourceExtractInput, SourceExtractResult, SourceRuntimeCapability } from '@repovine/plugin-sdk';
 
 const goSource: SourceRuntimeCapability = {
@@ -186,27 +192,38 @@ const goSource: SourceRuntimeCapability = {
   },
 
   // Pass 1 — discovery (NO AST). Return packages + candidate files keyed by absolute path.
-  // Each entry is a PendingModuleDraft: filePath, pkg, relPath — and NO moduleId. The engine mints
-  // `mod:<pkg>/<path>` from pkg + relPath, so a plugin never spells that format itself.
+  // Each entry is a PendingModuleDraft: absPath, pkg, pkgRelPath — and NO moduleId. The engine mints
+  // `mod:<pkg>/<path>` from pkg + pkgRelPath, so a plugin never spells that format itself.
   // `walkRepository` is the traversal: it prunes what the graph never indexes (dependency trees,
   // build output, test layouts) and enumerates in an order that does not depend on the filesystem,
   // so a plugin keeps no skip list of its own.
   discover(repoRoot, options) {
-    const pendingByPath = new Map();
+    const pkg = {
+      name: 'go-app',
+      repoRelDir: asRepoRelPath('.'),
+      sourcePluginId: 'go',
+    };
+    const packages = [pkg];
+    const pendingByAbsPath = new Map();
     walkRepository(repoRoot, {
-      onFile: ({ absPath, relFromRoot, name }) => {
+      onFile: ({ absPath, repoRelPath, name }) => {
         if (!name.endsWith('.go')) return;
         // Canonical key: the engine merges producers' drafts on one key form, and on win32 the same
         // file spelled two ways would register twice.
-        pendingByPath.set(hostPathKey(absPath), { filePath: absPath, pkg, relPath: relFromRoot, sourcePluginId: 'go' });
+        pendingByAbsPath.set(hostPathKey(absPath), {
+          absPath,
+          pkg,
+          pkgRelPath: asPkgRelPath(repoRelPath),
+          sourcePluginId: 'go',
+        });
       },
     });
-    return { packages, pendingByPath };
+    return { packages, pendingByAbsPath };
   },
 
   // Pass 2 — extract SEMANTICS ONLY, keyed back to the engine-minted PendingModule.moduleId.
   // The engine reads the file and computes the hash (input.sourceByModuleId); never set
-  // id/filePath/contentHash on the delta — those fields are not on the return type.
+  // id/absPath/pkgRelPath/contentHash on the delta — those fields are not on the return type.
   extract(input: SourceExtractInput): SourceExtractResult {
     const deltas = input.pendingModules.map(pm => ({
       moduleId: pm.moduleId,
@@ -281,10 +298,10 @@ import { definePlugin, defineIaCParser } from '@repovine/plugin-sdk';
 const pulumiParser = defineIaCParser({
   kind: 'pulumi',
   fileMatch: { fileNames: ['Pulumi.yaml'] },
-  docFormat: 'yaml',
-  supports(filePath, doc) { /* ... */ return true; },
+  loaderId: 'yaml',
+  supports(absPath, doc) { /* ... */ return true; },
   // Emit SEMANTICS ONLY: { kind, resources }. The engine stamps id/paths/module hash.
-  parse(filePath, relPath, doc) {
+  parse(absPath, repoRelPath, doc) {
     return { kind: 'pulumi', resources: [/* InfraResource[] */] };
   },
 });

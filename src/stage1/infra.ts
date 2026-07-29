@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { InfraModuleInfo, InfraResource, PackageInfo } from '../types.js';
 import {
+  asHostPath,
   HASH_WIDTH,
   canonicalJson,
   compareCodeUnits,
@@ -9,6 +10,8 @@ import {
   sha256Hex,
   validatePublishedFact,
   walkRepository,
+  type HostPath,
+  type RepoRelPath,
 } from '@repovine/plugin-sdk';
 import type { IaCParser, LoadedDocument, PrunedDir, ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import {
@@ -56,18 +59,18 @@ export interface InfraScanResult {
  * declared no fileMatch, in which case it sees everything).
  */
 function discoverInfraFiles(
-  repoRoot: string,
-  dir: string,
-  out: { filePath: string; relPath: string }[],
+  repoRoot: HostPath,
+  dir: HostPath,
+  out: { absPath: HostPath; repoRelPath: RepoRelPath }[],
   onPruned?: (pruned: PrunedDir) => void,
 ): void {
   walkRepository(dir, {
     repoRoot,
     ...(onPruned === undefined ? {} : { onPruned }),
-    onFile: ({ absPath, relFromRoot, name }) => {
+    onFile: ({ absPath, repoRelPath, name }) => {
       const ext = path.extname(name).toLowerCase();
       if (!isInfraCandidate(name, ext)) return;
-      out.push({ filePath: absPath, relPath: relFromRoot });
+      out.push({ absPath, repoRelPath });
     },
   });
 }
@@ -115,13 +118,13 @@ function readFileBytes(filePath: string, relPath: string): Uint8Array | null {
  * the build has to name, and the existing verbose channel already reports it.
  */
 function loadDocuments(
-  filePath: string,
-  relPath: string,
+  absPath: HostPath,
+  repoRelPath: RepoRelPath,
   bytes: Uint8Array,
   refusals: Refusal[],
 ): readonly LoadedDocument[] {
-  const base = path.basename(filePath);
-  const ext = path.extname(filePath).toLowerCase();
+  const base = path.basename(absPath);
+  const ext = path.extname(absPath).toLowerCase();
   const resolution = resolveLoaderForFile(base, ext);
 
   if (resolution.status === 'unclaimed') return [];
@@ -129,11 +132,11 @@ function loadDocuments(
     refusals.push(refusal(
       'conflict',
       IAC_LOADER_AMBIGUOUS_REFUSAL,
-      `${relPath} is claimed ${resolution.specificity === 'by-name' ? 'by name' : 'by extension'} `
+      `${repoRelPath} is claimed ${resolution.specificity === 'by-name' ? 'by name' : 'by extension'} `
       + `by parsers asking for different document loaders (${resolution.loaderIds.join(', ')}), `
       + 'so it was not decoded. Have the parsers name one loader, or let one of them claim the file '
       + 'by name so its loader decides.',
-      { relativeFilePath: relPath, loaderIds: [...resolution.loaderIds] },
+      { relativeFilePath: repoRelPath, loaderIds: [...resolution.loaderIds] },
     ));
     return [];
   }
@@ -141,10 +144,10 @@ function loadDocuments(
     refusals.push(refusal(
       'not-found',
       IAC_LOADER_UNKNOWN_REFUSAL,
-      `${relPath} asks for the document loader "${resolution.loaderId}", which no plugin registered, `
+      `${repoRelPath} asks for the document loader "${resolution.loaderId}", which no plugin registered, `
       + 'so it was not decoded. Register the loader with the plugin descriptor that names it.',
       {
-        relativeFilePath: relPath,
+        relativeFilePath: repoRelPath,
         loaderId: resolution.loaderId,
         claimedBy: [...resolution.claimedBy],
       },
@@ -153,10 +156,10 @@ function loadDocuments(
   }
 
   try {
-    return resolution.loader.load({ relativeFilePath: relPath, content: bytes });
+    return resolution.loader.load({ repoRelPath, content: bytes });
   } catch (err) {
     if (process.env.REPOVINE_VERBOSE) {
-      console.warn(`  ⚠ Infra: loader "${resolution.loaderId}" failed on ${relPath}:`, (err as Error).message);
+      console.warn(`  ⚠ Infra: loader "${resolution.loaderId}" failed on ${repoRelPath}:`, (err as Error).message);
     }
     return [];
   }
@@ -179,8 +182,8 @@ interface Contribution {
  * rather than ending the pass.
  */
 function collectContributions(
-  filePath: string,
-  relPath: string,
+  absPath: HostPath,
+  repoRelPath: RepoRelPath,
   base: string,
   ext: string,
   doc: unknown,
@@ -192,8 +195,8 @@ function collectContributions(
   for (const plugin of getActiveIaCPlugins()) {
     for (const parser of plugin.parsers) {
       if (!parserMatchesFile(parser, base, ext)) continue;
-      if (!parser.supports(filePath, doc)) continue;
-      const delta = parser.parse(filePath, relPath, doc);
+      if (!parser.supports(absPath, doc)) continue;
+      const delta = parser.parse(absPath, repoRelPath, doc);
       if (!delta) continue;
       out.push({
         parser,
@@ -328,38 +331,39 @@ export function collectInfraModules(options: InfraScanOptions): InfraScanResult 
     ));
   }
 
-  const candidates: { filePath: string; relPath: string }[] = [];
-  discoverInfraFiles(repoRoot, repoRoot, candidates, options.onPruned);
+  const hostRepoRoot = asHostPath(repoRoot);
+  const candidates: { absPath: HostPath; repoRelPath: RepoRelPath }[] = [];
+  discoverInfraFiles(hostRepoRoot, hostRepoRoot, candidates, options.onPruned);
   if (candidates.length === 0) return { modules: infraModules, refusals, facts };
 
-  for (const { filePath, relPath } of candidates) {
-    if (scanPatterns && !shouldScanInfraPath(relPath, scanPatterns)) continue;
-    const bytes = readFileBytes(filePath, relPath);
+  for (const { absPath, repoRelPath } of candidates) {
+    if (scanPatterns && !shouldScanInfraPath(repoRelPath, scanPatterns)) continue;
+    const bytes = readFileBytes(absPath, repoRelPath);
     if (!bytes) continue;
-    const documents = loadDocuments(filePath, relPath, bytes, refusals);
+    const documents = loadDocuments(absPath, repoRelPath, bytes, refusals);
     if (documents.length === 0) continue;
 
-    const base = path.basename(filePath);
-    const ext = path.extname(filePath).toLowerCase();
+    const base = path.basename(absPath);
+    const ext = path.extname(absPath).toLowerCase();
     // Module-level metadata is engine-owned: a single raw-file fingerprint shared by every
     // document the file produces. Computed once per file regardless of parser/doc count.
     const fileContentHash = infraFileContentHash(bytes);
 
     for (const document of documents) {
       const contributions = settleClaims(
-        relPath,
-        collectContributions(filePath, relPath, base, ext, document.value),
+        repoRelPath,
+        collectContributions(absPath, repoRelPath, base, ext, document.value),
         document.documentKey,
         refusals,
       );
       for (const contribution of contributions) {
-        takePublishedFacts(contribution, relPath, facts, refusals);
+        takePublishedFacts(contribution, repoRelPath, facts, refusals);
         // Stamp all mechanical/agnostic fields here; the parser supplied only infra semantics.
         mergeInfraModule(infraModules, modulesById, {
-          id: infraNodeId(contribution.kind, relPath),
+          id: infraNodeId(contribution.kind, repoRelPath),
           kind: contribution.kind,
-          filePath,
-          relativeFilePath: relPath,
+          absPath,
+          repoRelPath,
           contentHash: fileContentHash,
           resources: contribution.resources,
         });
@@ -368,7 +372,7 @@ export function collectInfraModules(options: InfraScanOptions): InfraScanResult 
   }
 
   for (const infraModule of infraModules) {
-    infraModule.resources = dedupeByIdentity(infraModule.relativeFilePath, infraModule.resources, refusals);
+    infraModule.resources = dedupeByIdentity(infraModule.repoRelPath, infraModule.resources, refusals);
   }
 
   return { modules: infraModules, refusals, facts };

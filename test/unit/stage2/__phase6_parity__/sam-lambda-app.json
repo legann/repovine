@@ -97,8 +97,8 @@
       "label": "template.yaml",
       "description": "IaC cloudformation module template.yaml",
       "data": {
-        "filePath": "<FIXTURE>/template.yaml",
-        "relativeFilePath": "template.yaml"
+        "absPath": "<FIXTURE>/template.yaml",
+        "repoRelPath": "template.yaml"
       }
     },
     {
@@ -107,8 +107,8 @@
       "label": "src/handler",
       "description": "Module src/handler.ts in sam-lambda-app-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/handler.ts",
-        "relativeFilePath": "src/handler.ts",
+        "absPath": "<FIXTURE>/src/handler.ts",
+        "pkgRelPath": "src/handler.ts",
         "sourcePluginId": "typescript"
       }
     },

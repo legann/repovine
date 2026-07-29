@@ -97,12 +97,12 @@ export function isFrontendPackageName(packageName: string): boolean {
 /** True when the module lives in a server/BFF context (package, path, or use server). */
 export function isBackendContext(mod: ModuleInfo): boolean {
   if (mod.semanticHints?.ssr?.useServer) return true;
-  return isBackendPackageName(mod.packageName) || BACKEND_PATH_RE.test(pathMatchKey(mod.relativeFilePath));
+  return isBackendPackageName(mod.packageName) || BACKEND_PATH_RE.test(pathMatchKey(mod.pkgRelPath));
 }
 
 /** HTTP/Lambda entry signals used by inferModuleKind and architecture boundary checks. */
 export function hasHttpHandlerSignals(mod: ModuleInfo): boolean {
-  const relPath = mod.relativeFilePath ?? '';
+  const relPath = mod.pkgRelPath ?? '';
   const hints = mod.semanticHints;
   if (pathHasToken(relPath, API_HANDLER_PATH_TOKENS)) return true;
   if (hints?.routes?.some(route => route.kind === 'api')) return true;
@@ -121,7 +121,7 @@ export function isFrontendSurfaceModule(mod: ModuleInfo): boolean {
     return false;
   }
 
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (mod.semanticHints?.ssr?.useClient) return true;
   if (/\b(client|api|sdk|graphql|http|rest|rpc)-client\b/.test(rel) || CLIENT_SUFFIX_RE.test(rel)) {
     return false;
@@ -136,7 +136,7 @@ export function isFrontendSurfaceModule(mod: ModuleInfo): boolean {
 
 export function isUiCouplingSourceModule(mod: ModuleInfo): boolean {
   if (!isFrontendSurfaceModule(mod)) return false;
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (isBuildOrToolingModule(rel) || isPureTypesModule(mod)) return false;
   if (/(^|\/)features\/[^/]+\/(domain|domains|application|services?|api|data|repositories?|infrastructure|infra|stores?)(\/|$)/.test(rel)) return false;
   if (/(^|\/)(domain|domains|application|services?|api|server|backend|lambda|functions|repositories?|infrastructure|infra)(\/|$)/.test(rel)) return false;
@@ -149,7 +149,7 @@ export function isUiCouplingSourceModule(mod: ModuleInfo): boolean {
 }
 
 export function isDesignSystemPrimitive(mod: ModuleInfo): boolean {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (/(^|\/)features\/[^/]+\//.test(rel)) return false;
   if (!/(^|\/)(components|ui|design-system|primitives)(\/|$)/.test(rel)) return false;
   // Count each export at most once: a name can match both the component predicate (starts uppercase)
@@ -164,17 +164,17 @@ export function isDesignSystemPrimitive(mod: ModuleInfo): boolean {
 }
 
 export function isRouteOrScreenEntryModule(mod: ModuleInfo): boolean {
-  if (isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) return false;
+  if (isBuildOrToolingModule(pathMatchKey(mod.pkgRelPath))) return false;
   if (!isFrontendSurfaceModule(mod)) return false;
   if (mod.semanticHints?.hasRoutes || mod.semanticHints?.routes?.length) return true;
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (/(^|\/)(pages|routes|views|screens)(\/|$)/.test(rel)) return true;
   if (APP_ROUTE_FILE_RE.test(rel)) return true;
   return FEATURE_ENTRY_FILE_RE.test(rel);
 }
 
 export function isComponentLikeFlowEntryModule(mod: ModuleInfo): boolean {
-  if (isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) return false;
+  if (isBuildOrToolingModule(pathMatchKey(mod.pkgRelPath))) return false;
   if (!isFrontendSurfaceModule(mod)) return false;
   if (isDesignSystemPrimitive(mod)) return false;
   return mod.exports.some(e => e.kind === 'component' || /^[A-Z]/.test(e.name));
@@ -185,7 +185,7 @@ export function isFrontendFlowEntryModule(mod: ModuleInfo, includeComponentEntry
 }
 
 export function isConvergenceTargetModule(mod: ModuleInfo, entryPackages: Set<string>): boolean {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (isBuildOrToolingModule(rel) || isDesignSystemPrimitive(mod)) return false;
   const pkgId = packageNodeId(mod.packageName);
   if (!entryPackages.has(pkgId)) return true;
@@ -194,7 +194,7 @@ export function isConvergenceTargetModule(mod: ModuleInfo, entryPackages: Set<st
 }
 
 export function convergenceTargetGroupKey(mod: ModuleInfo): string {
-  const rel = stripSourceExtension(pathMatchKey(mod.relativeFilePath));
+  const rel = stripSourceExtension(pathMatchKey(mod.pkgRelPath));
   const sharedMatch = rel.match(/^(.*?\/)?(shared|lib)\/(store|stores|config|constants)\/(.+)$/);
   if (sharedMatch) {
     const tail = sharedMatch[4].split('/');
@@ -206,21 +206,21 @@ export function convergenceTargetGroupKey(mod: ModuleInfo): string {
 }
 
 export function isGenericConvergenceTarget(mod: ModuleInfo): boolean {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   return /(^|\/)(shared|lib)\/(config|constants|store|stores)(\/|$)/.test(rel)
     || /(^|\/)(config|constants|store|stores)\/(index|types?|slices?)(\.[^.]+)?$/.test(rel)
     || GENERIC_CLIENT_FILE_RE.test(rel);
 }
 
 export function isStaticPageLikeModule(mod: ModuleInfo): boolean {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   const file = lastPathSegment(rel);
   return /(^|\/)(pages|routes|views|screens)\//.test(rel)
     && /(landing|legal|privacy|pricing|terms|how-to|shell|stub|last-updated|public)/.test(file);
 }
 
 export function isPureTypesModule(mod: ModuleInfo): boolean {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (!/(^|\/)(types?|models?|interfaces?)(\.[^.]+)?$/.test(lastPathSegment(rel))) return false;
   if (/(schema|validator|validation|rules?|policy|permission|authz|access)/.test(rel)) return false;
   return mod.exports.length > 0 && mod.exports.every(exp =>
@@ -230,7 +230,7 @@ export function isPureTypesModule(mod: ModuleInfo): boolean {
 }
 
 export function isBarrelLikeModule(mod: ModuleInfo): boolean {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   const file = lastPathSegment(rel);
   if (!BARREL_FILE_RE.test(file)) return false;
   return mod.exports.length === 0 || mod.exports.every(exp => exp.lineRange.end - exp.lineRange.start <= 1);
@@ -239,7 +239,7 @@ export function isBarrelLikeModule(mod: ModuleInfo): boolean {
 export type CoupledTargetRole = 'domain' | 'api' | 'storage' | 'server' | 'state' | 'feature';
 
 export function coupledTargetRole(mod: ModuleInfo): CoupledTargetRole | undefined {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (/(^|\/)(server|servers|backend|lambda|lambdas|functions)(\/|$)/.test(rel)) return 'server';
   if (/(^|\/)(api|apis|graphql|trpc|rpc|rest)(\/|$)/.test(rel) || /(?:api|graphql|trpc|rpc|rest)[-.](client|service)\./.test(rel)) return 'api';
   if (/(^|\/)(storage|db|database|repositories?|repository|persistence)(\/|$)/.test(rel) || STORAGE_SUFFIX_RE.test(rel)) return 'storage';
@@ -257,7 +257,7 @@ export function uiCouplingTargetRole(mod: ModuleInfo): Exclude<CoupledTargetRole
 export function isFrontendServiceWrapperCandidate(mod: ModuleInfo): boolean {
   const hint = mod.semanticHints?.ui?.serviceWrapper;
   if (!hint?.candidate) return false;
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (isBuildOrToolingModule(rel) || isPureTypesModule(mod) || isBarrelLikeModule(mod)) return false;
   if (/(^|\/)(types?|interfaces?|models?)(\/|$)/.test(rel)) return false;
   const exportCount = mod.exports.filter(exp => exp.name !== 'default').length || mod.exports.length;
@@ -328,7 +328,7 @@ export function rootDomainId(graph: RepositoryGraph, domainId: string): string {
 }
 
 export function frontendFeatureKey(mod: ModuleInfo): string | undefined {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   const featureMatch = rel.match(/(^|\/)features\/([^/]+)/);
   if (featureMatch) return `feature:${featureMatch[2]}`;
   const routeMatch = rel.match(/(^|\/)(pages|routes|views|screens)\/([^/.]+)/);
@@ -342,7 +342,7 @@ export function frontendFeatureKey(mod: ModuleInfo): string | undefined {
 }
 
 export function stateModuleKind(mod: ModuleInfo): string | undefined {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   const exportNames = mod.exports.map(e => e.name).join(' ');
   if (/(^|\/)(contexts?|providers?)(\/|$)/.test(rel) || /Context|Provider/.test(exportNames)) return 'context';
   if (/(^|\/)(stores?|state)(\/|$)/.test(rel) || /store|Store|State/.test(exportNames)) return 'store';
@@ -380,7 +380,7 @@ export function annotationText(ann: StoredAnnotation | undefined): string {
 }
 
 export function policySubjectKey(mod: ModuleInfo): string {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   const exportText = exportedNamesText(mod);
   const feature = frontendFeatureKey(mod)?.replace(/^[^:]+:/, '') ?? '';
   const featureWords = feature
@@ -398,7 +398,7 @@ export function policySubjectKey(mod: ModuleInfo): string {
 }
 
 export function policyTokens(mod: ModuleInfo, ann?: StoredAnnotation): string[] {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if (isStaticPageLikeModule(mod) || isPureTypesModule(mod)) return [];
   const exportText = exportedNamesText(mod);
   const lowerExportText = exportText.toLowerCase();
@@ -450,7 +450,7 @@ export function flowPrepKeys(modulesById: Map<string, ModuleInfo>, pathIds: stri
     if (id === targetId) continue;
     const mod = modulesById.get(id);
     if (!mod) continue;
-    const key = normalizeResponsibilityKey(mod.relativeFilePath);
+    const key = normalizeResponsibilityKey(mod.pkgRelPath);
     if (!key || key.length < 3) continue;
     if (/(map|mapper|mapping|valid|rules?|policy|normaliz|transform|schema|model|store|service|adapter|config|prepare|format)/.test(key)) {
       keys.add(key);
@@ -479,7 +479,7 @@ export function findFlowPaths(
       if (!scopedModuleIds.has(edge.to)) continue;
       const targetMod = modulesById.get(edge.to);
       if (!targetMod) continue;
-      if (isBuildOrToolingModule(pathMatchKey(targetMod.relativeFilePath)) || isDesignSystemPrimitive(targetMod)) continue;
+      if (isBuildOrToolingModule(pathMatchKey(targetMod.pkgRelPath)) || isDesignSystemPrimitive(targetMod)) continue;
       const nextPath = [...current.path, edge.to];
       out.push({ targetId: edge.to, path: nextPath });
       const previousDepth = seenAtDepth.get(edge.to);

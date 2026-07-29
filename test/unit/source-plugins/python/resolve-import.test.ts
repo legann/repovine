@@ -1,3 +1,5 @@
+import { asHostPath } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { describe, it, expect } from '@jest/globals';
 import * as path from 'node:path';
 import { resolvePythonImport } from '../../../../packages/plugins/source-python/src/resolve-import.js';
@@ -6,7 +8,7 @@ import type { PackageInfo } from '../../../../src/types.js';
 const REPO = '/repo';
 
 function pyPkg(name: string, relPath: string): PackageInfo {
-  return { name, path: relPath, sourcePluginId: 'python' };
+  return { name, repoRelDir: asRepoRelPath(relPath), sourcePluginId: 'python' };
 }
 
 function map(entries: Array<[string, string]>): Map<string, string> {
@@ -27,13 +29,13 @@ describe('resolvePythonImport', () => {
 
   it('resolves relative from .sibling', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/app.py')),
       level: 1,
       moduleDotted: 'models',
       kind: 'from',
       absPathToId,
       packages: [basicPython],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     expect(r).toEqual({ resolvedModuleId: 'mod:basic-python/models', isExternal: false });
@@ -41,13 +43,13 @@ describe('resolvePythonImport', () => {
 
   it('resolves relative package via __init__.py', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/app.py')),
       level: 1,
       moduleDotted: 'utils',
       kind: 'from',
       absPathToId,
       packages: [basicPython],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     expect(r.resolvedModuleId).toBe('mod:basic-python/utils');
@@ -56,13 +58,13 @@ describe('resolvePythonImport', () => {
 
   it('marks unresolved relative imports as non-external', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/app.py')),
       level: 1,
       moduleDotted: 'missing',
       kind: 'from',
       absPathToId,
       packages: [basicPython],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     expect(r).toEqual({ resolvedModuleId: undefined, isExternal: false });
@@ -70,13 +72,13 @@ describe('resolvePythonImport', () => {
 
   it('resolves absolute intra-package import (from models import x)', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/services.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/services.py')),
       level: 0,
       moduleDotted: 'models',
       kind: 'from',
       absPathToId,
       packages: [basicPython],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     expect(r).toEqual({ resolvedModuleId: 'mod:basic-python/models', isExternal: false });
@@ -85,13 +87,13 @@ describe('resolvePythonImport', () => {
   it('resolves absolute cross-package import by package name', () => {
     const importer = path.join(REPO, 'packages/basic-python/app.py');
     const r = resolvePythonImport({
-      importingFilePath: importer,
+      importingAbsPath: asHostPath(importer),
       level: 0,
       moduleDotted: 'otherpkg.util',
       kind: 'from',
       absPathToId,
       packages: [basicPython, otherPkg],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     expect(r).toEqual({ resolvedModuleId: 'mod:otherpkg/otherpkg/util', isExternal: false });
@@ -99,13 +101,13 @@ describe('resolvePythonImport', () => {
 
   it('marks third-party/stdlib imports external', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/app.py')),
       level: 0,
       moduleDotted: 'boto3',
       kind: 'import',
       absPathToId,
       packages: [basicPython],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     expect(r).toEqual({ resolvedModuleId: undefined, isExternal: true });
@@ -113,13 +115,13 @@ describe('resolvePythonImport', () => {
 
   it('resolves relative from ..parent (level 2 walks up one directory)', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/sub/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/sub/app.py')),
       level: 2,
       moduleDotted: 'models',
       kind: 'from',
       absPathToId,
       packages: [basicPython],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     // level 2 must walk from packages/basic-python/sub up to packages/basic-python.
@@ -128,13 +130,13 @@ describe('resolvePythonImport', () => {
 
   it('resolves relative from ...grandparent (level 3 walks up two directories)', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/a/b/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/a/b/app.py')),
       level: 3,
       moduleDotted: 'models',
       kind: 'from',
       absPathToId,
       packages: [basicPython],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     // level 3 must walk from .../a/b up two levels to packages/basic-python.
@@ -148,13 +150,13 @@ describe('resolvePythonImport', () => {
       [path.join(REPO, 'packages/my-pkg/my_pkg/util.py'), 'mod:my-pkg/my_pkg/util'],
     ]);
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/app.py')),
       level: 0,
       moduleDotted: 'my_pkg.util',
       kind: 'from',
       absPathToId: dashMap,
       packages: [basicPython, dashPkg],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     // Normalization (dash<->underscore) must match 'my-pkg' distribution to 'my_pkg' import.
@@ -168,13 +170,13 @@ describe('resolvePythonImport', () => {
       [path.join(REPO, 'packages/flat/helper.py'), 'mod:flatpkg/helper'],
     ]);
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/app.py')),
       level: 0,
       moduleDotted: 'flatpkg.helper',
       kind: 'from',
       absPathToId: flatMap,
       packages: [basicPython, flatPkg],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     // The nested candidate (packages/flat/flatpkg/helper.py) is absent; only the flat fallback resolves.
@@ -183,13 +185,13 @@ describe('resolvePythonImport', () => {
 
   it('resolves import pkg (module form) to package __init__', () => {
     const r = resolvePythonImport({
-      importingFilePath: path.join(REPO, 'packages/basic-python/app.py'),
+      importingAbsPath: asHostPath(path.join(REPO, 'packages/basic-python/app.py')),
       level: 0,
       moduleDotted: 'otherpkg',
       kind: 'import',
       absPathToId,
       packages: [basicPython, otherPkg],
-      repoRoot: REPO,
+      repoRoot: asHostPath(REPO),
       importingPackage: basicPython,
     });
     expect(r.resolvedModuleId).toBe('mod:otherpkg/otherpkg');

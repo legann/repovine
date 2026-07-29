@@ -25,18 +25,18 @@ const source = {
     moduleIdNormalize: { stripSuffixes: ['.foo'] },
   },
   discover(repoRoot) {
-    const pkg = { name: 'foo-pkg', path: '.', sourcePluginId: 'foo-lang' };
-    const pendingByPath = new Map();
+    const pkg = { name: 'foo-pkg', repoRelDir: '.', sourcePluginId: 'foo-lang' };
+    const pendingByAbsPath = new Map();
     for (const entry of fs.readdirSync(repoRoot)) {
       if (entry.endsWith('.foo')) {
-        const filePath = path.join(repoRoot, entry);
-        pendingByPath.set(filePath, {
-          filePath, pkg, relPath: entry,
+        const absPath = path.join(repoRoot, entry);
+        pendingByAbsPath.set(absPath, {
+          absPath, pkg, pkgRelPath: entry,
           sourcePluginId: 'foo-lang',
         });
       }
     }
-    return { packages: [pkg], pendingByPath };
+    return { packages: [pkg], pendingByAbsPath };
   },
   extract(input) {
     const deltas = input.pendingModules.map(pm => ({
@@ -76,7 +76,7 @@ export default { id: 'foo-lang', capabilities: { source } };`;
       // Engine-stamped mechanics the plugin never set.
       expect(fooMod!.sourcePluginId).toBe('foo-lang');
       expect(fooMod!.contentHash).toMatch(/^[0-9a-f]{16}$/);
-      expect(path.isAbsolute(fooMod!.filePath)).toBe(true);
+      expect(path.isAbsolute(fooMod!.absPath)).toBe(true);
       // Plugin-emitted semantic fact survived end to end.
       expect(fooMod!.semanticHints?.webFramework).toBe('fooframework');
     } finally {

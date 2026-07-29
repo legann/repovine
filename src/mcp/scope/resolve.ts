@@ -153,9 +153,9 @@ export function resolveModulePathAlias(ctx: McpToolRuntime, raw: string): string
   const normalized = normalizeLookupPath(value);
   for (const mod of modulesById.values()) {
     const candidates = [
-      mod.filePath,
-      mod.relativeFilePath,
-      path.relative(ctx.repoRoot, mod.filePath),
+      mod.absPath,
+      mod.pkgRelPath,
+      path.relative(ctx.repoRoot, mod.absPath),
     ].filter(Boolean).map(normalizeLookupPath);
 
     if (candidates.some(candidate => candidate === normalized || candidate.endsWith(`/${normalized}`))) {

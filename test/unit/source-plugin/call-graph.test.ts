@@ -1,3 +1,4 @@
+import { asPkgRelPath, asRepoRelPath } from '@repovine/plugin-sdk';
 /**
  * Forward-call attribution shape inventory. One synthetic SourceFile per host shape; each asserts
  * the inner call is captured and attributed to the enclosing export (or, for top-level statements
@@ -250,11 +251,11 @@ describe('the call-index budget is disclosed to callers', () => {
 
     const graph = createEmptyGraph();
     contributeStructural(graph, {
-      packages: [{ name: 'app', path: 'app', sourcePluginId: 'typescript' }],
+      packages: [{ name: 'app', repoRelDir: asRepoRelPath('app'), sourcePluginId: 'typescript' }],
       modules: [{
         id: 'mod:app/wide',
         packageName: 'app',
-        relativeFilePath: 'app/wide.ts',
+        pkgRelPath: asPkgRelPath('app/wide.ts'),
         imports: [],
         exports: [{
           name: 'wide',

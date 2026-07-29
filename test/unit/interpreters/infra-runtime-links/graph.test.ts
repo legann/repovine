@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { afterEach, describe, expect, it } from '@jest/globals';
 import { createEmptyGraph } from '../../../../src/graph/index.js';
 import { contributeStructural } from '../../../../src/interpreters/code-structure/graph.js';
@@ -25,8 +27,8 @@ function sourceModule(options: {
   return {
     id: options.id ?? 'mod:app/handler',
     packageName: options.packageName ?? 'app',
-    filePath: options.filePath ?? '/repo/handler.ts',
-    relativeFilePath: options.relativeFilePath ?? 'handler.ts',
+    absPath: asHostPath(options.filePath ?? '/repo/handler.ts'),
+    pkgRelPath: asPkgRelPath(options.relativeFilePath ?? 'handler.ts'),
     contentHash: 'h',
     imports: [],
     exports: [],
@@ -41,8 +43,8 @@ function infraModule(
   return {
     id: 'infra:sam:template',
     kind: 'sam',
-    filePath: '/repo/template.yaml',
-    relativeFilePath: 'template.yaml',
+    absPath: asHostPath('/repo/template.yaml'),
+    repoRelPath: asRepoRelPath('template.yaml'),
     contentHash: 't',
     resources: [
       {
@@ -69,7 +71,7 @@ function snapshotWith(
   infra: InfraModuleInfo[],
   modules: ModuleInfo[] = [sourceModule()],
   packages: RepositoryFactsSnapshot['packages'] = [
-    { name: 'app', path: '.', sourcePluginId: 'typescript' },
+    { name: 'app', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'typescript' },
   ],
 ): RepositoryFactsSnapshot {
   return {
@@ -94,7 +96,7 @@ function stubPlugin(id: string, capabilities?: SourcePlugin['capabilities']): So
   return {
     id,
     capabilities,
-    discover: () => ({ packages: [], pendingByPath: new Map() }),
+    discover: () => ({ packages: [], pendingByAbsPath: new Map() }),
     extract: () => ({ deltas: [], reused: 0, rescanned: 0 }),
   };
 }
@@ -125,7 +127,7 @@ describe('infra-link layer graph contribution', () => {
     const snapshot = snapshotWith(
       [infraModule()],
       [mod],
-      [{ name: 'app', path: '.', sourcePluginId: 'python' }],
+      [{ name: 'app', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'python' }],
     );
     const graph = createEmptyGraph();
     const modulesById = new Map(snapshot.modules.map(m => [m.id, m]));
@@ -156,12 +158,12 @@ describe('infra-link layer graph contribution', () => {
       [
         {
           name: '@lmtify/operator',
-          path: 'infrastructure/k8s-services/lmtify-operator',
+          repoRelDir: asRepoRelPath('infrastructure/k8s-services/lmtify-operator'),
           sourcePluginId: 'typescript',
         },
         {
           name: '@acme/lambda-functions',
-          path: 'packages/lambda-functions',
+          repoRelDir: asRepoRelPath('packages/lambda-functions'),
           sourcePluginId: 'typescript',
         },
       ],
@@ -183,7 +185,7 @@ describe('infra-link layer graph contribution', () => {
           const [fqcn] = handlerRef.split('::');
           if (!fqcn) return undefined;
           const rel = `src/main/java/${fqcn.replace(/\./g, '/')}.java`;
-          return ctx.resolveModuleByRepoPath(rel);
+          return ctx.resolveModuleByRepoRelPath(asRepoRelPath(rel));
         },
       }),
     ]);
@@ -197,7 +199,7 @@ describe('infra-link layer graph contribution', () => {
     const snapshot = snapshotWith(
       [infraModule('com.example.Handler::handleRequest')],
       [mod],
-      [{ name: 'java-app', path: '.', sourcePluginId: 'java' }],
+      [{ name: 'java-app', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'java' }],
     );
     const graph = createEmptyGraph();
     const modulesById = new Map(snapshot.modules.map(m => [m.id, m]));
@@ -211,8 +213,8 @@ describe('infra-link layer graph contribution', () => {
     const infra: InfraModuleInfo = {
       id: 'infra:sam:template',
       kind: 'sam',
-      filePath: '/repo/template.yaml',
-      relativeFilePath: 'template.yaml',
+      absPath: asHostPath('/repo/template.yaml'),
+      repoRelPath: asRepoRelPath('template.yaml'),
       contentHash: 't',
       resources: [
         {
@@ -260,8 +262,8 @@ describe('infra-link layer graph contribution', () => {
     const infra: InfraModuleInfo = {
       id: 'infra:sam:template',
       kind: 'sam',
-      filePath: '/repo/template.yaml',
-      relativeFilePath: 'template.yaml',
+      absPath: asHostPath('/repo/template.yaml'),
+      repoRelPath: asRepoRelPath('template.yaml'),
       contentHash: 't',
       resources: [
         {

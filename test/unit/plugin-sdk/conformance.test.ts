@@ -1,3 +1,5 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -6,6 +8,7 @@ import {
   checkSourcePluginConformance,
   checkIaCPluginConformance,
   defineSourcePlugin,
+  type HostPath,
   type SourcePlugin,
   type SourceExtractInput,
   type PendingModule,
@@ -27,15 +30,21 @@ describe('plugin-sdk conformance kit', () => {
   }
 
   function fooDiscover(repoRoot: string) {
-    const pkg = { name: 'foo-pkg', path: '.', sourcePluginId: 'foo-lang' };
-    const pendingByPath = new Map<string, PendingModule>();
+    const pkg = { name: 'foo-pkg', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'foo-lang' };
+    const pendingByPath = new Map<HostPath, PendingModule>();
     for (const entry of fs.readdirSync(repoRoot)) {
       if (entry.endsWith('.foo')) {
         const filePath = path.join(repoRoot, entry);
-        pendingByPath.set(filePath, { filePath, pkg, relPath: entry, moduleId: `mod:foo-pkg/${entry.replace(/\.foo$/, '')}`, sourcePluginId: 'foo-lang' });
+        pendingByPath.set(asHostPath(filePath), {
+          absPath: asHostPath(filePath),
+          pkg,
+          pkgRelPath: asPkgRelPath(entry),
+          moduleId: `mod:foo-pkg/${entry.replace(/\.foo$/, '')}`,
+          sourcePluginId: 'foo-lang',
+        });
       }
     }
-    return { packages: [pkg], pendingByPath };
+    return { packages: [pkg], pendingByAbsPath: pendingByPath };
   }
 
   afterEach(() => {
@@ -53,7 +62,7 @@ describe('plugin-sdk conformance kit', () => {
         return { deltas, reused: 0, rescanned: deltas.length };
       },
     });
-    const report = await checkSourcePluginConformance(plugin, { sampleRepoRoot: sampleRepoWithFooFile() });
+    const report = await checkSourcePluginConformance(plugin, { sampleRepoRoot: asHostPath(sampleRepoWithFooFile()) });
     expect(report.passed).toBe(true);
   });
 
@@ -68,7 +77,7 @@ describe('plugin-sdk conformance kit', () => {
         return { deltas: deltas as never, reused: 0, rescanned: deltas.length };
       },
     };
-    const report = await checkSourcePluginConformance(plugin, { sampleRepoRoot: sampleRepoWithFooFile() });
+    const report = await checkSourcePluginConformance(plugin, { sampleRepoRoot: asHostPath(sampleRepoWithFooFile()) });
     expect(report.passed).toBe(false);
     const leak = report.checks.find(c => c.name.includes('semantics only'));
     expect(leak?.ok).toBe(false);
@@ -86,14 +95,18 @@ describe('plugin-sdk conformance kit', () => {
         return { deltas, reused: 0, rescanned: deltas.length };
       },
     };
-    const report = await checkSourcePluginConformance(plugin, { sampleRepoRoot: sampleRepoWithFooFile() });
+    const report = await checkSourcePluginConformance(plugin, { sampleRepoRoot: asHostPath(sampleRepoWithFooFile()) });
     expect(report.passed).toBe(false);
     expect(report.checks.find(c => c.name.includes('deterministic'))?.ok).toBe(false);
   });
 
   it('the bundled Dockerfile plugin passes IaC conformance (dogfood)', () => {
     const report = checkIaCPluginConformance(dockerfileIacPlugin, {
-      samples: [{ filePath: '/repo/Dockerfile', relPath: 'Dockerfile', doc: 'FROM node:20\nEXPOSE 3000\n' }],
+      samples: [{
+        absPath: asHostPath('/repo/Dockerfile'),
+        repoRelPath: asRepoRelPath('Dockerfile'),
+        doc: 'FROM node:20\nEXPOSE 3000\n',
+      }],
     });
     expect(report.passed).toBe(true);
   });
@@ -123,7 +136,11 @@ describe('plugin-sdk conformance kit', () => {
     };
 
     const report = checkIaCPluginConformance(descriptor, {
-      samples: [{ filePath: '/repo/svc.yaml', relPath: 'svc.yaml', doc: { apiVersion: 'v1', kind: 'Service' } }],
+      samples: [{
+        absPath: asHostPath('/repo/svc.yaml'),
+        repoRelPath: asRepoRelPath('svc.yaml'),
+        doc: { apiVersion: 'v1', kind: 'Service' },
+      }],
     });
 
     expect(guardedParsed).toBe(false);

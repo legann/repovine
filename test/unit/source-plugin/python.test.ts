@@ -1,3 +1,6 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
 import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -16,7 +19,7 @@ const d = PYTHON_AVAILABLE ? describe : describe.skip;
 
 describe('inferFileBasedRoutes language gate (no Python interpreter needed)', () => {
   function mod(id: string, relativeFilePath: string, sourcePluginId: string, semanticHints?: ModuleInfo['semanticHints']): ModuleInfo {
-    return { id, packageName: 'p', filePath: '/' + relativeFilePath, relativeFilePath, contentHash: 'h', imports: [], exports: [], sourcePluginId, semanticHints };
+    return { id, packageName: 'p', absPath: asHostPath('/' + relativeFilePath), pkgRelPath: asPkgRelPath(relativeFilePath), contentHash: 'h', imports: [], exports: [], sourcePluginId, semanticHints };
   }
 
   it('emits TS file routes from enriched RouteInfo but never from non-TS router-shaped paths', () => {
@@ -248,12 +251,12 @@ describe('python extract subprocess failure (no interpreter needed)', () => {
   afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 
   it('does not cache empty modules under the real content hash when the subprocess fails', async () => {
-    const pkg: PackageInfo = { name: 'py-pkg', path: '.', sourcePluginId: 'python' };
+    const pkg: PackageInfo = { name: 'py-pkg', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'python' };
     const filePath = path.join(tmpRoot, 'svc.py');
     const pending: PendingModule = {
-      filePath,
+      absPath: asHostPath(filePath),
       pkg,
-      relPath: 'svc.py',
+      pkgRelPath: asPkgRelPath('svc.py'),
       moduleId: 'mod:py-pkg/svc',
       sourcePluginId: 'python',
     };
@@ -264,11 +267,11 @@ describe('python extract subprocess failure (no interpreter needed)', () => {
       // sentinel hash. This exercises the producer→engine anti-poison contract end-to-end.
       const result = await runSourceExtraction({
         plugin: pythonSourcePlugin,
-        repoRoot: tmpRoot,
+        repoRoot: asHostPath(tmpRoot),
         packages: [pkg],
         pendingModules: [pending],
-        prevByPath: new Map(),
-        absPathToId: new Map([[filePath, pending.moduleId]]),
+        prevByAbsPath: new Map(),
+        absPathToId: new Map([[asHostPath(filePath), pending.moduleId]]),
         extractContext: { pythonBin: '/nonexistent/python-binary-for-test' },
         analysisVersion: 0,
       });

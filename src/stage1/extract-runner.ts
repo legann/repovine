@@ -5,6 +5,7 @@ import {
   sha256Hex,
   validatePublishedFact,
   type ReadonlyFactRecord,
+  type HostPath,
   type SourceFileText,
   type SourcePlugin,
 } from '@repovine/plugin-sdk';
@@ -14,7 +15,7 @@ import {
  *
  * This is the single place that turns a producer's language semantics into materialized module
  * facts. The engine — not the plugin — owns everything language-agnostic: it reads each
- * shard file once, fingerprints it, and stamps `id` / `filePath` / `relativeFilePath` /
+ * shard file once, fingerprints it, and stamps `id` / `absPath` / `pkgRelPath` /
  * `packageName` / `contentHash` / `sourcePluginId` provenance onto the assembled `ModuleInfo`. The
  * plugin receives the raw text + hash via `sourceByModuleId` and returns only `SemanticModuleDelta`
  * (imports / exports / semanticHints), keyed back to the engine-minted `moduleId`.
@@ -26,11 +27,11 @@ import {
 
 export interface RunSourceExtractionArgs {
   plugin: SourcePlugin;
-  repoRoot: string;
+  repoRoot: HostPath;
   packages: PackageInfo[];
   pendingModules: PendingModule[];
-  prevByPath: Map<string, ModuleInfo>;
-  absPathToId: Map<string, string>;
+  prevByAbsPath: Map<HostPath, ModuleInfo>;
+  absPathToId: Map<HostPath, string>;
   extractContext?: unknown;
   analysisVersion: number;
 }
@@ -55,7 +56,7 @@ export async function runSourceExtraction(args: RunSourceExtractionArgs): Promis
   for (const pending of pendingModules) {
     let content: string;
     try {
-      content = fs.readFileSync(pending.filePath, 'utf-8');
+      content = fs.readFileSync(pending.absPath, 'utf-8');
     } catch {
       continue;
     }
@@ -67,7 +68,7 @@ export async function runSourceExtraction(args: RunSourceExtractionArgs): Promis
       repoRoot: args.repoRoot,
       packages: args.packages,
       pendingModules,
-      prevByPath: args.prevByPath,
+      prevByAbsPath: args.prevByAbsPath,
       absPathToId: args.absPathToId,
       sourceByModuleId,
       extractContext: args.extractContext,
@@ -85,8 +86,8 @@ export async function runSourceExtraction(args: RunSourceExtractionArgs): Promis
     modules.push({
       id: pending.moduleId,
       packageName: pending.pkg.name,
-      filePath: pending.filePath,
-      relativeFilePath: pending.relPath,
+      absPath: pending.absPath,
+      pkgRelPath: pending.pkgRelPath,
       // A transient extraction (e.g. a subprocess that died mid-shard) must not be cached under the
       // real hash, or a later incremental run would reuse the poisoned empty module forever. The
       // empty sentinel never matches a real file hash, forcing a re-parse next run.

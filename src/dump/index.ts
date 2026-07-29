@@ -108,7 +108,7 @@ function buildDump(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot): D
       if (modNode.type !== 'module') continue;
 
       // file path from node data
-      const filePath = (modNode.data?.filePath as string) ?? '';
+      const filePath = (modNode.data?.absPath as string) ?? '';
       const relFile = filePath ? path.relative(repoRoot, filePath) : modNode.id;
 
       // domains this module is tagged with

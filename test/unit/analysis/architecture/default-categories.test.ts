@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Three categories fired on clean-code counterexamples during the silence-oracle
  * audit: `duplicate-like`, `god-module` and `authorization-policy-drift`. A
@@ -54,8 +55,8 @@ function makeMod(
   return {
     id,
     packageName,
-    filePath: `/repo/packages/${packageName}/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/packages/${packageName}/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash: 'h1',
     imports: [],
     exports,
@@ -66,9 +67,9 @@ function addModule(graph: RepositoryGraph, mod: ModuleInfo): void {
   addNode(graph, {
     id: mod.id,
     type: 'module',
-    label: mod.relativeFilePath,
+    label: mod.pkgRelPath,
     description: '',
-    data: { filePath: mod.filePath, relativeFilePath: mod.relativeFilePath },
+    data: { absPath: asHostPath(mod.absPath), pkgRelPath: asPkgRelPath(mod.pkgRelPath) },
   });
   addEdge(graph, `pkg:${mod.packageName}`, mod.id, 'contains');
 }

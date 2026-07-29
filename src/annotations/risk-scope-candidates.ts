@@ -122,7 +122,7 @@ function appendNodePathParts(
   if (node) {
     parts.push(node.id, node.label, node.description);
     const data = node.data as Record<string, unknown> | undefined;
-    for (const key of ['filePath', 'relativeFilePath', 'relPath', 'handler']) {
+    for (const key of ['absPath', 'pkgRelPath', 'repoRelPath', 'relPath', 'handler']) {
       const value = data?.[key];
       if (typeof value === 'string') parts.push(value);
     }
@@ -130,12 +130,12 @@ function appendNodePathParts(
   const moduleId = node?.type === 'module' ? nodeId : owningModuleId(nodeId);
   if (moduleId) {
     const mod = (snapshot.modules ?? []).find((m) => m.id === moduleId);
-    if (mod) parts.push(mod.filePath, mod.relativeFilePath);
+    if (mod) parts.push(mod.absPath, mod.pkgRelPath);
     const moduleNode = graph.nodes.get(moduleId);
     if (moduleNode && moduleNode.id !== nodeId) {
       parts.push(moduleNode.label, moduleNode.description);
       const data = moduleNode.data as Record<string, unknown> | undefined;
-      for (const key of ['filePath', 'relativeFilePath']) {
+      for (const key of ['absPath', 'pkgRelPath', 'repoRelPath']) {
         const value = data?.[key];
         if (typeof value === 'string') parts.push(value);
       }
@@ -144,7 +144,7 @@ function appendNodePathParts(
   const template = snapshot.templates?.find((t) => t.id === nodeId);
   if (template) parts.push(template.relPath);
   const infra = snapshot.infraModules?.find((m) => m.id === nodeId);
-  if (infra) parts.push(infra.filePath, infra.relativeFilePath);
+  if (infra) parts.push(infra.absPath, infra.repoRelPath);
 }
 
 function nodePathText(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot, nodeId: string): string {

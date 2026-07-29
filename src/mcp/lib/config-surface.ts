@@ -74,7 +74,7 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
         kind: envKinds.get(envName) ?? 'env',
         name: envName,
         moduleId: mod.id,
-        moduleLabel: moduleLabelOf(graph, mod),
+        moduleLabel: moduleLabelOf(graph, mod, mod.pkgRelPath),
         packageName: mod.packageName,
       }, mod.id);
     }
@@ -94,7 +94,7 @@ export function collectConfigSurface(ctx: McpToolRuntime, args: Record<string, u
           resourceId: edge.to,
           relation: edge.kind,
           moduleId: mod.id,
-          moduleLabel: moduleLabelOf(graph, mod),
+          moduleLabel: moduleLabelOf(graph, mod, mod.pkgRelPath),
         }, mod.id);
       }
     }

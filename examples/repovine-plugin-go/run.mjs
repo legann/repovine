@@ -9,6 +9,7 @@
 // This check calls that collector directly. In a graph build the built-in `server-entrypoints`
 // interpreter reads `semanticHints.routes` for the `typescript` and `python` source plugins.
 
+import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -35,7 +36,11 @@ fs.rmSync(link, { recursive: true, force: true });
 fs.symlinkSync(pluginRoot, link, 'junction');
 
 const imp = rel => import(pathToFileURL(path.join(distDir, rel)).href);
-const { checkPluginConformance, checkSourcePluginConformance } = await import('@repovine/plugin-sdk');
+const {
+  checkPluginConformance,
+  checkSourcePluginConformance,
+  toPosixPath,
+} = await import('@repovine/plugin-sdk');
 const { collectRepositoryFactsAsync } = await imp('stage1/index.js');
 const { collectFrameworkApiEntrypoints } = await imp('interpreters/server-entrypoints/entrypoints.js');
 
@@ -70,6 +75,20 @@ const snapshot = await collectRepositoryFactsAsync(target, {
 console.log = origLog;
 
 const go = snapshot.modules.filter(m => m.sourcePluginId === 'go');
+assert.deepEqual(
+  go.map(m => m.pkgRelPath).sort(),
+  ['handlers.go', 'main.go'],
+  'the sample plugin must publish package-relative POSIX paths and keep tests/vendor out',
+);
+for (const module of go) {
+  assert.ok(path.isAbsolute(module.absPath), `absPath must use the host absolute form: ${module.absPath}`);
+  assert.ok(!module.pkgRelPath.includes('\\'), `pkgRelPath must use POSIX separators: ${module.pkgRelPath}`);
+  assert.equal(
+    toPosixPath(path.relative(target, module.absPath)),
+    module.pkgRelPath,
+    `absPath and pkgRelPath must name the same sample file: ${module.id}`,
+  );
+}
 console.log(`\n=== ${go.length} modules from the 'go' plugin in fixtures/sample/ (sourcePluginId + contentHash stamped by the engine) ===`);
 for (const m of go) {
   console.log(`\n${m.id}  hash=${m.contentHash}`);

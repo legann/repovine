@@ -1,3 +1,5 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asRepoRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -34,14 +36,14 @@ function writeFile(relPath: string, content: string): string {
   return abs;
 }
 
-const pkg: PackageInfo = { name: 'shop', path: '.', sourcePluginId: 'canary' };
+const pkg: PackageInfo = { name: 'shop', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'canary' };
 
 function pending(relPath: string): PendingModule {
   return {
     moduleId: `mod:shop/${relPath.replace(/\.[^.]+$/, '')}`,
-    filePath: writeFile(relPath, 'source text'),
+    absPath: asHostPath(writeFile(relPath, 'source text')),
     pkg,
-    relPath,
+    pkgRelPath: asPkgRelPath(relPath),
     sourcePluginId: 'canary',
   };
 }
@@ -50,7 +52,7 @@ function pending(relPath: string): PendingModule {
 function producer(id: string, facts: readonly unknown[]): SourcePlugin {
   return {
     id,
-    discover: () => ({ packages: [pkg], pendingByPath: new Map() }),
+    discover: () => ({ packages: [pkg], pendingByAbsPath: new Map() }),
     extract: (input: SourceExtractInput): SourceExtractResult => ({
       deltas: input.pendingModules.map(module => ({ moduleId: module.moduleId, imports: [], exports: [] })),
       reused: 0,
@@ -63,11 +65,11 @@ function producer(id: string, facts: readonly unknown[]): SourcePlugin {
 async function extract(plugin: SourcePlugin, modules: PendingModule[]): ReturnType<typeof runSourceExtraction> {
   return runSourceExtraction({
     plugin,
-    repoRoot: REPO,
+    repoRoot: asHostPath(REPO),
     packages: [pkg],
     pendingModules: modules,
-    prevByPath: new Map(),
-    absPathToId: new Map(modules.map(module => [module.filePath, module.moduleId])),
+    prevByAbsPath: new Map(),
+    absPathToId: new Map(modules.map(module => [module.absPath, module.moduleId])),
     analysisVersion: 1,
   });
 }

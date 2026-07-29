@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { addNode, createEmptyGraph } from '../../src/graph/index.js';
 import { INTERNAL_INTERPRETERS } from '../../src/interpreters/index.js';
@@ -40,8 +42,8 @@ function moduleWithRoute(sourcePluginId: string): ModuleInfo {
   return {
     id: MODULE_ID,
     packageName: 'shop',
-    filePath: `/repo/checkout`,
-    relativeFilePath: 'checkout',
+    absPath: asHostPath(`/repo/checkout`),
+    pkgRelPath: asPkgRelPath('checkout'),
     contentHash: 'checkout',
     imports: [],
     exports: [],
@@ -52,11 +54,11 @@ function moduleWithRoute(sourcePluginId: string): ModuleInfo {
 
 function runtime(module: ModuleInfo, fragments: EntrypointFragment[]): McpToolRuntime {
   const graph = createEmptyGraph();
-  addNode(graph, { id: module.id, type: 'module', label: module.relativeFilePath, description: 'module' });
+  addNode(graph, { id: module.id, type: 'module', label: module.pkgRelPath, description: 'module' });
   const snapshot = {
     repoRoot: '/repo',
     timestamp: '',
-    packages: [{ name: 'shop', path: '.', sourcePluginId: module.sourcePluginId }],
+    packages: [{ name: 'shop', repoRelDir: asRepoRelPath('.'), sourcePluginId: module.sourcePluginId }],
     modules: [module],
   } as unknown as RepositoryFactsSnapshot;
   rememberInterpreterEntrypoints(graph, fragments);
@@ -71,11 +73,11 @@ function runtime(module: ModuleInfo, fragments: EntrypointFragment[]): McpToolRu
 function publishedForProducer(sourcePluginId: string): Record<string, unknown> {
   const module = moduleWithRoute(sourcePluginId);
   const graph = createEmptyGraph();
-  addNode(graph, { id: module.id, type: 'module', label: module.relativeFilePath, description: 'module' });
+  addNode(graph, { id: module.id, type: 'module', label: module.pkgRelPath, description: 'module' });
   const snapshot = {
     repoRoot: '/repo',
     timestamp: '',
-    packages: [{ name: 'shop', path: '.', sourcePluginId }],
+    packages: [{ name: 'shop', repoRelDir: asRepoRelPath('.'), sourcePluginId }],
     modules: [module],
   } as unknown as RepositoryFactsSnapshot;
 

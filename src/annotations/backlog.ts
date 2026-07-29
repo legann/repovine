@@ -581,7 +581,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
 
         return {
           nodeId: mod.id,
-          label: moduleLabelOf(graph, mod),
+          label: moduleLabelOf(graph, mod, mod.pkgRelPath),
           status,
           ...(staleKind ? { staleKind } : {}),
           domains,
@@ -723,7 +723,7 @@ export function buildAnnotationBacklog(input: BacklogInput): AnnotationBacklog {
       },
       hydrate: () => ({
         nodeId: infraMod.id,
-        label: moduleLabelOf(graph, infraMod),
+        label: moduleLabelOf(graph, infraMod, infraMod.repoRelPath),
         status,
         ...(infraStaleKind ? { staleKind: infraStaleKind } : {}),
         domains,

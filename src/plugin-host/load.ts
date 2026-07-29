@@ -15,6 +15,7 @@ import {
 } from '@repovine/plugin-sdk';
 import type {
   DocumentLoader,
+  HostPath,
   IaCParser,
   PluginCapabilityName,
   PluginManifest,
@@ -22,6 +23,7 @@ import type {
   PluginRuntimeDescriptor,
   ProjectionContributor,
   SemanticInfraDelta,
+  RepoRelPath,
   SourcePlugin,
   SourceExtractInput,
   SourceExtractResult,
@@ -223,8 +225,8 @@ function wrapUntrustedSourcePlugin(plugin: SourcePlugin): SourcePlugin {
 function wrapUntrustedParser(parser: IaCParser, pluginId: string): IaCParser {
   return {
     ...parser,
-    parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
-      const out = parser.parse(filePath, relPath, doc);
+    parse(absPath: HostPath, repoRelPath: RepoRelPath, doc: unknown): SemanticInfraDelta | null {
+      const out = parser.parse(absPath, repoRelPath, doc);
       if (out === null) return null;
       const v = validateSemanticInfraDelta(out);
       if (!v.ok) {

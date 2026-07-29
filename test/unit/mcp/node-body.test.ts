@@ -119,13 +119,13 @@ function tempDir(label: string): string {
   return dir;
 }
 
-function moduleGraph(nodeId: string, filePath: string): {
+function moduleGraph(nodeId: string, absPath: string): {
   graph: RepositoryGraph;
   modulesById: Map<string, ModuleInfo>;
 } {
   return {
     graph: { nodes: new Map(), inEdges: new Map() } as unknown as RepositoryGraph,
-    modulesById: new Map([[nodeId, { id: nodeId, filePath } as unknown as ModuleInfo]]),
+    modulesById: new Map([[nodeId, { id: nodeId, absPath } as unknown as ModuleInfo]]),
   };
 }
 

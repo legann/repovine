@@ -119,8 +119,8 @@ function modulesForFile(graph: RepositoryGraph, snapshot: RepositoryFactsSnapsho
   const targetId = moduleNodeId(target);
   if (graph.nodes.has(targetId)) out.add(targetId);
   for (const mod of snapshot.modules ?? []) {
-    const rel = stripExt(norm(mod.relativeFilePath ?? ''));
-    const abs = stripExt(norm(mod.filePath ?? ''));
+    const rel = stripExt(norm(mod.pkgRelPath ?? ''));
+    const abs = stripExt(norm(mod.absPath ?? ''));
     if (rel && (target === rel || target.endsWith(`/${rel}`) || rel.endsWith(`/${target}`))) out.add(mod.id);
     else if (abs && (abs === target || abs.endsWith(`/${target}`))) out.add(mod.id);
   }

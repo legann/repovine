@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { CONFIG_DEFAULTS } from '../../../src/config.js';
 import { addEdge, addNode, createEmptyGraph } from '../../../src/graph/index.js';
@@ -109,8 +110,8 @@ function moduleInfo(id: string): ModuleInfo {
   return {
     id,
     packageName: rel.split('/')[0] ?? 'app',
-    filePath: `/repo/${rel}.ts`,
-    relativeFilePath: `${rel}.ts`,
+    absPath: asHostPath(`/repo/${rel}.ts`),
+    pkgRelPath: asPkgRelPath(`${rel}.ts`),
     contentHash: `${id}:hash`,
     imports: [],
     exports: [],
@@ -136,7 +137,7 @@ function mapFixture(): { graph: RepositoryGraph; modules: ModuleInfo[] } {
       type: 'module',
       label: id.replace(/^mod:app\//, ''),
       description: '',
-      data: { filePath: `/repo/${id}.ts`, relativeFilePath: `${id}.ts` },
+      data: { absPath: asHostPath(`/repo/${id}.ts`), pkgRelPath: asPkgRelPath(`${id}.ts`) },
     });
   }
   addEdge(graph, 'root', 'pkg:app', 'contains');

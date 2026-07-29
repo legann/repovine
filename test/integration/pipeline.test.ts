@@ -53,7 +53,7 @@ describe('integration: basic-typescript fixture', () => {
     expect(snapshot.packages.length).toBeGreaterThanOrEqual(1);
     expect(snapshot.modules.length).toBeGreaterThanOrEqual(3);
 
-    const moduleFiles = snapshot.modules.map(m => m.relativeFilePath);
+    const moduleFiles = snapshot.modules.map(m => m.pkgRelPath);
     expect(moduleFiles.some(f => f.includes('utils'))).toBe(true);
     expect(moduleFiles.some(f => f.includes('service'))).toBe(true);
     expect(moduleFiles.some(f => f.includes('models'))).toBe(true);
@@ -156,8 +156,8 @@ describe('integration: basic-typescript fixture', () => {
     for (const m of snapshot.modules) modulesById.set(m.id, m);
     const graph = composeRepositoryGraph(snapshot, modulesById);
 
-    const utilsModule = snapshot.modules.find(m => m.relativeFilePath === 'src/utils.ts');
-    const serviceModule = snapshot.modules.find(m => m.relativeFilePath === 'src/service.ts');
+    const utilsModule = snapshot.modules.find(m => m.pkgRelPath === 'src/utils.ts');
+    const serviceModule = snapshot.modules.find(m => m.pkgRelPath === 'src/service.ts');
     expect(utilsModule).toBeDefined();
     expect(serviceModule).toBeDefined();
 

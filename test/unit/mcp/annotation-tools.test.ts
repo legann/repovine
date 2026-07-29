@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -72,8 +73,8 @@ function moduleInfo(id: string): ModuleInfo {
   return {
     id,
     packageName: rel.split('/')[0] ?? 'pkg',
-    filePath: `/repo/${rel}.ts`,
-    relativeFilePath: `${rel}.ts`,
+    absPath: asHostPath(`/repo/${rel}.ts`),
+    pkgRelPath: asPkgRelPath(`${rel}.ts`),
     contentHash: `${id}:hash`,
     imports: [],
     exports: [],
@@ -87,7 +88,7 @@ function moduleNode(id: string): GraphNode {
     type: 'module',
     label: rel,
     description: `Module ${rel}`,
-    data: { relativeFilePath: `${rel}.ts` },
+    data: { pkgRelPath: asPkgRelPath(`${rel}.ts`) },
   };
 }
 

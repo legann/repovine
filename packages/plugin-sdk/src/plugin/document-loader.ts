@@ -14,7 +14,7 @@ export interface DocumentLoader {
 
 export interface DocumentLoadInput {
   /** Repo-root-relative POSIX path of the file being decoded. */
-  relativeFilePath: string;
+  repoRelPath: RepoRelPath;
   content: Uint8Array;
 }
 
@@ -35,3 +35,4 @@ export interface LoadedDocument {
    */
   value: unknown;
 }
+import type { RepoRelPath } from '../path-contract.js';

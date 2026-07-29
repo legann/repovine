@@ -752,7 +752,7 @@ export const samParser: IaCParser = {
   fileMatch: { extensions: ['.yaml', '.yml', '.json'] },
   loaderId: 'yaml',
 
-  supports(_filePath, doc): boolean {
+  supports(_absPath, doc): boolean {
     if (!doc || typeof doc !== 'object') return false;
     const root = doc as { Transform?: unknown; Resources?: unknown };
     if (typeof root.Transform === 'string' && root.Transform.startsWith('AWS::Serverless::')) {
@@ -764,7 +764,7 @@ export const samParser: IaCParser = {
     return false;
   },
 
-  parse(filePath, relPath, doc): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (!doc || typeof doc !== 'object') return null;
     const root = doc as {
       Transform?: unknown;

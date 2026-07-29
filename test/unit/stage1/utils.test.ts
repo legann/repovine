@@ -75,7 +75,7 @@ describe('modulePathResolverPriority', () => {
   });
 
   it('applies the index-form penalty to the `/` spelling only', () => {
-    // The production caller ranks `pending.filePath`, but its spelling is producer-dependent:
+    // The production caller ranks `pending.absPath`, but its spelling is producer-dependent:
     // TypeScript's tsconfig parser normalizes to `/` even on win32, while filesystem-walk branches
     // may retain `\`. These synthetic inputs pin both spellings. Ranks are literals — a comparison
     // between two calls would agree with itself when both collapsed. Widening the pattern turns this

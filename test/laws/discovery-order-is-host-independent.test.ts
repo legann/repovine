@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import { jest } from '@jest/globals';
 import * as actualFs from 'node:fs';
 import * as os from 'node:os';
@@ -77,7 +78,7 @@ describe('law: discovery order does not depend on filesystem enumeration order',
       // comparator the engine sorts with moves whenever that comparator moves, and the two sides
       // agree again on the far side of the change. The literal is the order this law claims.
       const scanPatterns = compile([], []);
-      expect(discover(root, packageMarkersFor('typescript')).map(pkg => pkg.path)).toEqual(['alpha', 'zulu']);
+      expect(discover(asHostPath(root), packageMarkersFor('typescript')).map(pkg => pkg.repoRelDir)).toEqual(['alpha', 'zulu']);
       expect(templates({ repoRoot: root, scanPatterns }).map(t => t.relPath))
         .toEqual(['templates/apple.html', 'templates/zebra.html']);
     } finally {
@@ -205,14 +206,14 @@ describe('law: discovery order does not depend on the runtime collation', () => 
   function discoveryOrder(): Record<string, string[] | null> {
     const scanPatterns = compileScanPatterns([], []);
     const python = PYTHON_AVAILABLE
-      ? discoverPython(repoRoot, { scanPatterns, packageMarkers: packageMarkersFor('python') })
+      ? discoverPython(asHostPath(repoRoot), { scanPatterns, packageMarkers: packageMarkersFor('python') })
       : null;
     return {
       templates: collectTemplates({ repoRoot, scanPatterns }).map(t => t.relPath),
-      tsPackages: discoverPackages(repoRoot, packageMarkersFor('typescript')).map(p => p.path),
-      pythonPackages: python ? python.packages.map(p => p.path) : null,
+      tsPackages: discoverPackages(asHostPath(repoRoot), packageMarkersFor('typescript')).map(p => p.repoRelDir),
+      pythonPackages: python ? python.packages.map(p => p.repoRelDir) : null,
       // Map insertion order is what stage 1 consumes downstream, so read it back as an order.
-      pythonModules: python ? [...python.pendingByPath.values()].map(m => `${m.pkg.path}/${m.relPath}`) : null,
+      pythonModules: python ? [...python.pendingByAbsPath.values()].map(m => `${m.pkg.repoRelDir}/${m.pkgRelPath}`) : null,
     };
   }
 

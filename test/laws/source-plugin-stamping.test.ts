@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import * as path from 'node:path';
 import { collectRepositoryFactsAsync, mergeResults, packageJobKey } from '../../src/stage1/index.js';
@@ -36,12 +38,12 @@ describe('core-laws source-plugin stamping (capability-first boundary)', () => {
     // the owning package carries the id. mergeResults must stamp the module from the package, so
     // ownership is never undefined downstream — the invariant that lets the core drop its
     // language-identity fallback. Removing the stamp in mergeResults makes this case fail.
-    const pkg: PackageInfo = { name: 'app', path: 'apps/app', sourcePluginId: 'fake-lang' };
+    const pkg: PackageInfo = { name: 'app', repoRelDir: asRepoRelPath('apps/app'), sourcePluginId: 'fake-lang' };
     const unstamped: ModuleInfo = {
       id: 'mod:app/handler',
       packageName: 'app',
-      filePath: '/repo/apps/app/handler.ts',
-      relativeFilePath: 'handler.ts',
+      absPath: asHostPath('/repo/apps/app/handler.ts'),
+      pkgRelPath: asPkgRelPath('handler.ts'),
       contentHash: 'h1',
       imports: [],
       exports: [],

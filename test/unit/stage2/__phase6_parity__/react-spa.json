@@ -332,8 +332,8 @@
       "label": "src/App",
       "description": "Module src/App.tsx in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/App.tsx",
-        "relativeFilePath": "src/App.tsx",
+        "absPath": "<FIXTURE>/src/App.tsx",
+        "pkgRelPath": "src/App.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -344,8 +344,8 @@
       "label": "…/components/NavBar",
       "description": "Module src/components/NavBar.tsx in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/components/NavBar.tsx",
-        "relativeFilePath": "src/components/NavBar.tsx",
+        "absPath": "<FIXTURE>/src/components/NavBar.tsx",
+        "pkgRelPath": "src/components/NavBar.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -355,8 +355,8 @@
       "label": "…/components/SiteHeader",
       "description": "Module src/components/SiteHeader.tsx in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/components/SiteHeader.tsx",
-        "relativeFilePath": "src/components/SiteHeader.tsx",
+        "absPath": "<FIXTURE>/src/components/SiteHeader.tsx",
+        "pkgRelPath": "src/components/SiteHeader.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -366,8 +366,8 @@
       "label": "…/billing/billing-api",
       "description": "Module src/features/billing/billing-api.ts in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/features/billing/billing-api.ts",
-        "relativeFilePath": "src/features/billing/billing-api.ts",
+        "absPath": "<FIXTURE>/src/features/billing/billing-api.ts",
+        "pkgRelPath": "src/features/billing/billing-api.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -377,8 +377,8 @@
       "label": "…/billing/BillingForm",
       "description": "Module src/features/billing/BillingForm.tsx in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/features/billing/BillingForm.tsx",
-        "relativeFilePath": "src/features/billing/BillingForm.tsx",
+        "absPath": "<FIXTURE>/src/features/billing/BillingForm.tsx",
+        "pkgRelPath": "src/features/billing/BillingForm.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -388,8 +388,8 @@
       "label": "…/billing/BillingPage",
       "description": "Module src/features/billing/BillingPage.tsx in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/features/billing/BillingPage.tsx",
-        "relativeFilePath": "src/features/billing/BillingPage.tsx",
+        "absPath": "<FIXTURE>/src/features/billing/BillingPage.tsx",
+        "pkgRelPath": "src/features/billing/BillingPage.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -399,8 +399,8 @@
       "label": "…/dashboard/DashboardPage",
       "description": "Module src/features/dashboard/DashboardPage.tsx in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/features/dashboard/DashboardPage.tsx",
-        "relativeFilePath": "src/features/dashboard/DashboardPage.tsx",
+        "absPath": "<FIXTURE>/src/features/dashboard/DashboardPage.tsx",
+        "pkgRelPath": "src/features/dashboard/DashboardPage.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -410,8 +410,8 @@
       "label": "…/hooks/useAuth",
       "description": "Module src/hooks/useAuth.ts in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/hooks/useAuth.ts",
-        "relativeFilePath": "src/hooks/useAuth.ts",
+        "absPath": "<FIXTURE>/src/hooks/useAuth.ts",
+        "pkgRelPath": "src/hooks/useAuth.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -421,8 +421,8 @@
       "label": "…/hooks/useTheme",
       "description": "Module src/hooks/useTheme.ts in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/hooks/useTheme.ts",
-        "relativeFilePath": "src/hooks/useTheme.ts",
+        "absPath": "<FIXTURE>/src/hooks/useTheme.ts",
+        "pkgRelPath": "src/hooks/useTheme.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -432,8 +432,8 @@
       "label": "src/main",
       "description": "Module src/main.tsx in react-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/main.tsx",
-        "relativeFilePath": "src/main.tsx",
+        "absPath": "<FIXTURE>/src/main.tsx",
+        "pkgRelPath": "src/main.tsx",
         "sourcePluginId": "typescript"
       }
     },

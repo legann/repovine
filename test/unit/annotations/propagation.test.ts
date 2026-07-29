@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Tests for annotation propagation v2 (entrypoint-bounded derived, path-only domains).
  */
@@ -60,8 +61,8 @@ function makeMod(id: string, contentHash: string): ModuleInfo {
   return {
     id,
     packageName: 'test',
-    filePath: `/abs/${id}.ts`,
-    relativeFilePath: `${id.replace(/^mod:/, '')}.ts`,
+    absPath: asHostPath(`/abs/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id.replace(/^mod:/, '')}.ts`),
     contentHash,
     imports: [],
     exports: [],

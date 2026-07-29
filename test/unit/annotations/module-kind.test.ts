@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Tests for inferModuleKind heuristic and recommendedFieldsForKind.
  */
@@ -9,8 +10,8 @@ function makeMod(partial: Partial<ModuleInfo>): ModuleInfo {
   return {
     id: partial.id ?? 'mod:test/foo',
     packageName: partial.packageName ?? 'test',
-    filePath: partial.filePath ?? '/abs/test/foo.ts',
-    relativeFilePath: partial.relativeFilePath ?? 'test/foo.ts',
+    absPath: asHostPath(partial.absPath ?? '/abs/test/foo.ts'),
+    pkgRelPath: asPkgRelPath(partial.pkgRelPath ?? 'test/foo.ts'),
     contentHash: partial.contentHash ?? 'h1',
     imports: partial.imports ?? [],
     exports: partial.exports ?? [],
@@ -42,7 +43,7 @@ describe('inferModuleKind', () => {
 
   it('returns ui for SFC file (.vue)', () => {
     const mod = makeMod({
-      relativeFilePath: 'apps/web/MyComponent.vue',
+      pkgRelPath: asPkgRelPath('apps/web/MyComponent.vue'),
       exports: [{ name: 'default', kind: 'component', lineRange: { start: 1, end: 50 }, isDefault: true }],
     });
     expect(inferModuleKind({ mod })).toBe('ui');
@@ -50,7 +51,7 @@ describe('inferModuleKind', () => {
 
   it('returns ui for tsx file under components/ path', () => {
     const mod = makeMod({
-      relativeFilePath: 'apps/web/src/components/Button.tsx',
+      pkgRelPath: asPkgRelPath('apps/web/src/components/Button.tsx'),
       exports: [{ name: 'Button', kind: 'component', lineRange: { start: 1, end: 30 }, isDefault: false }],
     });
     expect(inferModuleKind({ mod })).toBe('ui');
@@ -62,7 +63,7 @@ describe('inferModuleKind', () => {
   // which also asserts module-kind's source-plugin bootstrap import populated the registry.
   it('returns ui for a typescript-owned module under components/ (uiSurfaces:true)', () => {
     const mod = makeMod({
-      relativeFilePath: 'apps/web/src/components/Button.tsx',
+      pkgRelPath: asPkgRelPath('apps/web/src/components/Button.tsx'),
       sourcePluginId: 'typescript',
       exports: [{ name: 'Button', kind: 'component', lineRange: { start: 1, end: 30 }, isDefault: false }],
     });
@@ -71,7 +72,7 @@ describe('inferModuleKind', () => {
 
   it('does NOT mark ui for a python-owned module under the same UI-ish path', () => {
     const mod = makeMod({
-      relativeFilePath: 'apps/web/src/components/Button.tsx',
+      pkgRelPath: asPkgRelPath('apps/web/src/components/Button.tsx'),
       sourcePluginId: 'python',
       exports: [{ name: 'Button', kind: 'component', lineRange: { start: 1, end: 30 }, isDefault: false }],
     });
@@ -80,7 +81,7 @@ describe('inferModuleKind', () => {
 
   it('returns api-handler for path under handlers/', () => {
     const mod = makeMod({
-      relativeFilePath: 'services/api/src/handlers/createOrder.ts',
+      pkgRelPath: asPkgRelPath('services/api/src/handlers/createOrder.ts'),
       exports: [{ name: 'handler', kind: 'function', lineRange: { start: 1, end: 40 }, isDefault: false }],
     });
     expect(inferModuleKind({ mod })).toBe('api-handler');
@@ -88,7 +89,7 @@ describe('inferModuleKind', () => {
 
   it('returns adapter for path under repositories/', () => {
     const mod = makeMod({
-      relativeFilePath: 'packages/data/src/repositories/userRepository.ts',
+      pkgRelPath: asPkgRelPath('packages/data/src/repositories/userRepository.ts'),
       exports: [{ name: 'UserRepository', kind: 'class', lineRange: { start: 1, end: 80 }, isDefault: false }],
     });
     expect(inferModuleKind({ mod })).toBe('adapter');
@@ -96,7 +97,7 @@ describe('inferModuleKind', () => {
 
   it('returns service-mgr for path under services/', () => {
     const mod = makeMod({
-      relativeFilePath: 'packages/billing/src/services/invoiceService.ts',
+      pkgRelPath: asPkgRelPath('packages/billing/src/services/invoiceService.ts'),
       exports: [{ name: 'InvoiceService', kind: 'class', lineRange: { start: 1, end: 120 }, isDefault: false }],
     });
     expect(inferModuleKind({ mod })).toBe('service-mgr');
@@ -104,7 +105,7 @@ describe('inferModuleKind', () => {
 
   it('returns generic when nothing matches', () => {
     const mod = makeMod({
-      relativeFilePath: 'lib/utils/helpers.ts',
+      pkgRelPath: asPkgRelPath('lib/utils/helpers.ts'),
       exports: [{ name: 'helper', kind: 'function', lineRange: { start: 1, end: 10 }, isDefault: false }],
     });
     expect(inferModuleKind({ mod })).toBe('generic');
@@ -130,14 +131,14 @@ describe('inferModuleKind', () => {
   });
 
   it('returns infra for an infra module id', () => {
-    const mod = makeMod({ id: 'infra:template.yaml', relativeFilePath: 'template.yaml' });
+    const mod = makeMod({ id: 'infra:template.yaml', pkgRelPath: asPkgRelPath('template.yaml') });
     expect(inferModuleKind({ mod })).toBe('infra');
   });
 
   it('returns api-handler for @backend BFF with weak AI SDK frontend hints', () => {
     const mod = makeMod({
       packageName: '@backend',
-      relativeFilePath: 'src/routes/chat.ts',
+      pkgRelPath: asPkgRelPath('src/routes/chat.ts'),
       exports: [{ name: 'POST', kind: 'function', lineRange: { start: 1, end: 80 }, isDefault: false }],
       semanticHints: {
         ui: { framework: 'react' },
@@ -150,7 +151,7 @@ describe('inferModuleKind', () => {
 
   it('does NOT classify weak frontend hints alone as ui', () => {
     const mod = makeMod({
-      relativeFilePath: 'src/lib/stream.ts',
+      pkgRelPath: asPkgRelPath('src/lib/stream.ts'),
       semanticHints: { ui: { framework: 'react' } },
     });
     expect(inferModuleKind({ mod })).toBe('generic');
@@ -160,7 +161,7 @@ describe('inferModuleKind', () => {
   it('returns ui for @frontend module with use client on a component path', () => {
     const mod = makeMod({
       packageName: '@frontend',
-      relativeFilePath: 'src/components/Chat.tsx',
+      pkgRelPath: asPkgRelPath('src/components/Chat.tsx'),
       exports: [{ name: 'Chat', kind: 'component', lineRange: { start: 1, end: 40 }, isDefault: false }],
       semanticHints: {
         ssr: { useClient: true },
@@ -193,7 +194,7 @@ describe('inferModuleKind', () => {
   it('returns api-handler for backend routes path with api file routes', () => {
     const mod = makeMod({
       packageName: '@backend',
-      relativeFilePath: 'src/routes/chat.ts',
+      pkgRelPath: asPkgRelPath('src/routes/chat.ts'),
       semanticHints: {
         hasRoutes: true,
         routes: [{ path: '/chat', component: '(file-route)', declaredIn: 'layout', kind: 'api' }],

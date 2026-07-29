@@ -8,6 +8,7 @@ import { compileScanPatterns } from './source-plugin/scan-filters.js';
 import { mintModuleId } from './source-plugin/module-id.js';
 import type { PluginRuntimeDescriptor } from './plugin/descriptor.js';
 import type { PackageInfo, PendingModule, PendingModuleDraft, IaCParser } from './types.js';
+import type { HostPath, RepoRelPath } from './path-contract.js';
 
 /**
  * Conformance kit. A plugin author runs these checks against
@@ -35,7 +36,14 @@ export interface ConformanceReport {
 }
 
 /** Keys the engine stamps. A producer delta that carries any of these is leaking mechanics. */
-const MECHANICAL_KEYS = ['id', 'filePath', 'relativeFilePath', 'contentHash', 'packageName'];
+const MECHANICAL_KEYS = [
+  'id',
+  'absPath',
+  'pkgRelPath',
+  'repoRelPath',
+  'contentHash',
+  'packageName',
+];
 
 function check(name: string, ok: boolean, detail?: string): ConformanceCheck {
   return detail === undefined ? { name, ok } : { name, ok, detail };
@@ -52,7 +60,7 @@ function reportOf(checks: ConformanceCheck[]): ConformanceReport {
  */
 export async function checkSourcePluginConformance(
   plugin: SourcePlugin,
-  opts: { sampleRepoRoot: string },
+  opts: { sampleRepoRoot: HostPath },
 ): Promise<ConformanceReport> {
   const checks: ConformanceCheck[] = [];
 
@@ -85,20 +93,20 @@ export async function checkSourcePluginConformance(
     packageMarkers: plugin.packageMarkers ?? [],
     scanPatterns: compileScanPatterns([], []),
   };
-  let discovery: { packages: PackageInfo[]; pendingByPath: Map<string, PendingModuleDraft>; extractContext?: unknown };
+  let discovery: { packages: PackageInfo[]; pendingByAbsPath: Map<HostPath, PendingModuleDraft>; extractContext?: unknown };
   try {
     discovery = plugin.discover(opts.sampleRepoRoot, discoveryOptions);
   } catch (e) {
     checks.push(check('discover() does not throw', false, (e as Error).message));
     return reportOf(checks);
   }
-  checks.push(check('discover() returns packages + pendingByPath', Array.isArray(discovery.packages) && discovery.pendingByPath instanceof Map));
+  checks.push(check('discover() returns packages + pendingByAbsPath', Array.isArray(discovery.packages) && discovery.pendingByAbsPath instanceof Map));
 
   // The kit stands in for the engine, so it mints ids the same way a real build does: the plugin
   // under test never supplies one, and it sees exactly the ids it will see in production.
-  const pendingModules: PendingModule[] = [...discovery.pendingByPath.values()].map(draft => ({
+  const pendingModules: PendingModule[] = [...discovery.pendingByAbsPath.values()].map(draft => ({
     ...draft,
-    moduleId: mintModuleId(draft.pkg.name, draft.relPath, plugin.capabilities?.moduleIdNormalize),
+    moduleId: mintModuleId(draft.pkg.name, draft.pkgRelPath, plugin.capabilities?.moduleIdNormalize),
   }));
   if (pendingModules.length === 0) {
     checks.push(check('behavioral extract checks', true, 'skipped — sample repo had no files this plugin owns'));
@@ -108,7 +116,7 @@ export async function checkSourcePluginConformance(
   const sourceByModuleId = new Map<string, { content: string; contentHash: string }>();
   for (const pm of pendingModules) {
     try {
-      const content = fs.readFileSync(pm.filePath, 'utf-8');
+      const content = fs.readFileSync(pm.absPath, 'utf-8');
       sourceByModuleId.set(pm.moduleId, { content, contentHash: sha256Hex(content, HASH_WIDTH.content) });
     } catch { /* unreadable file — plugin simply gets no source for it */ }
   }
@@ -116,8 +124,8 @@ export async function checkSourcePluginConformance(
     repoRoot: opts.sampleRepoRoot,
     packages: discovery.packages,
     pendingModules,
-    prevByPath: new Map(),
-    absPathToId: new Map(pendingModules.map(pm => [pm.filePath, pm.moduleId])),
+    prevByAbsPath: new Map(),
+    absPathToId: new Map(pendingModules.map(pm => [pm.absPath, pm.moduleId])),
     sourceByModuleId,
     extractContext: discovery.extractContext,
     analysisVersion: 0,
@@ -160,10 +168,10 @@ export async function checkSourcePluginConformance(
  * parserMatchesFile): a parser with no fileMatch sees every candidate; otherwise the base
  * name must match one of extensions/fileNames/fileNamePatterns.
  */
-function iacParserMatchesFile(parser: IaCParser, filePath: string): boolean {
+function iacParserMatchesFile(parser: IaCParser, absPath: HostPath): boolean {
   const fm = parser.fileMatch;
   if (!fm) return true;
-  const base = path.basename(filePath);
+  const base = path.basename(absPath);
   const dot = base.lastIndexOf('.');
   const ext = dot >= 0 ? base.slice(dot).toLowerCase() : '';
   if (fm.extensions?.some(e => e.toLowerCase() === ext)) return true;
@@ -181,7 +189,7 @@ function iacParserMatchesFile(parser: IaCParser, filePath: string): boolean {
  */
 export function checkIaCPluginConformance(
   descriptor: PluginRuntimeDescriptor,
-  opts: { samples: Array<{ filePath: string; relPath: string; doc: unknown }> },
+  opts: { samples: Array<{ absPath: HostPath; repoRelPath: RepoRelPath; doc: unknown }> },
 ): ConformanceReport {
   const checks: ConformanceCheck[] = [];
   const parsers: readonly IaCParser[] = descriptor.capabilities?.iac?.parsers ?? [];
@@ -202,13 +210,13 @@ export function checkIaCPluginConformance(
   // supports()/first-match pre-filtering.
   for (const sample of opts.samples) {
     for (const parser of parsers) {
-      if (!iacParserMatchesFile(parser, sample.filePath)) continue;
+      if (!iacParserMatchesFile(parser, sample.absPath)) continue;
 
       let claims: boolean;
       try {
-        claims = parser.supports(sample.filePath, sample.doc);
+        claims = parser.supports(sample.absPath, sample.doc);
       } catch (e) {
-        checks.push(check(`supports(${sample.relPath}) does not throw`, false, (e as Error).message));
+        checks.push(check(`supports(${sample.repoRelPath}) does not throw`, false, (e as Error).message));
         continue; // a throwing supports() cannot claim the doc under the engine
       }
       if (!claims) continue; // parser declined via supports() — correct gating, next parser
@@ -216,24 +224,24 @@ export function checkIaCPluginConformance(
       // First claiming parser: exercise parse() exactly as the engine would, then stop.
       let out: ReturnType<typeof parser.parse>;
       try {
-        out = parser.parse(sample.filePath, sample.relPath, sample.doc);
+        out = parser.parse(sample.absPath, sample.repoRelPath, sample.doc);
       } catch (e) {
-        checks.push(check(`parse(${sample.relPath}) does not throw`, false, (e as Error).message));
+        checks.push(check(`parse(${sample.repoRelPath}) does not throw`, false, (e as Error).message));
         break;
       }
       if (out === null) {
         checks.push(check(
-          `parse(${sample.relPath}) honors its supports() claim`,
+          `parse(${sample.repoRelPath}) honors its supports() claim`,
           false,
           'supports() returned true but parse() returned null',
         ));
         break;
       }
       const v = validateSemanticInfraDelta(out);
-      checks.push(check(`parse(${sample.relPath}) output passes the fact schema`, v.ok, v.ok ? undefined : v.error));
+      checks.push(check(`parse(${sample.repoRelPath}) output passes the fact schema`, v.ok, v.ok ? undefined : v.error));
       const keys = Object.keys(out).sort();
       checks.push(check(
-        `parse(${sample.relPath}) emits semantics only (kind + resources)`,
+        `parse(${sample.repoRelPath}) emits semantics only (kind + resources)`,
         keys.length === 2 && SEMANTIC_KEYS.every(k => keys.includes(k)),
         keys.join(','),
       ));
@@ -243,9 +251,9 @@ export function checkIaCPluginConformance(
       // different hash for the same document on a second read, and the resource then looks changed
       // every build. The source kit asks the same question of `extract`; here it is the only place
       // a producer-owned hash can be caught being unstable.
-      const again = parser.parse(sample.filePath, sample.relPath, sample.doc);
+      const again = parser.parse(sample.absPath, sample.repoRelPath, sample.doc);
       checks.push(check(
-        `parse(${sample.relPath}) is deterministic for identical input`,
+        `parse(${sample.repoRelPath}) is deterministic for identical input`,
         JSON.stringify(again) === JSON.stringify(out),
       ));
       break; // first-match precedence — mirror the engine's break

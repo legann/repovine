@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import { repoRelativePosix } from '@repovine/plugin-sdk';
 import { collectRepositoryFactsAsync } from './stage1/index.js';
 import { loadConfig } from './config.js';
 import { composeRepositoryGraph } from './stage2/index.js';
@@ -49,8 +50,8 @@ async function main(): Promise<void> {
 
   console.log('\n── Demo: pathFromRoot for a module ──\n');
   const sampleModule = snapshot.modules.find(m =>
-    m.relativeFilePath.toLowerCase().includes('oauth') ||
-    m.relativeFilePath.toLowerCase().includes('auth'),
+    m.pkgRelPath.toLowerCase().includes('oauth') ||
+    m.pkgRelPath.toLowerCase().includes('auth'),
   );
   if (sampleModule) {
     const result = pathFromRoot(graph, sampleModule.id);
@@ -86,7 +87,10 @@ async function main(): Promise<void> {
   const snapshotPath = path.join(cacheDir, 'repository-facts-snapshot-dump.json');
   const serializable = {
     ...snapshot,
-    modules: snapshot.modules.map(m => ({ ...m, filePath: path.relative(repoRoot, m.filePath) })),
+    modules: snapshot.modules.map(m => ({
+      ...m,
+      repoRelPath: repoRelativePosix(repoRoot, m.absPath),
+    })),
   };
   fs.writeFileSync(snapshotPath, JSON.stringify(serializable, null, 2));
 

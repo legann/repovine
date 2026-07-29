@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -20,16 +21,16 @@ describe('helmValuesParser chart detection', () => {
     tempDirs.push(chartDir);
     fs.writeFileSync(path.join(chartDir, 'Chart.yaml'), 'apiVersion: v2\nname: demo\n');
 
-    expect(helmValuesParser.supports(path.join(chartDir, 'values.yaml'), valuesDoc)).toBe(true);
+    expect(helmValuesParser.supports(asHostPath(path.join(chartDir, 'values.yaml')), valuesDoc)).toBe(true);
   });
 
   it('accepts charts/<name> and keeps the existing helm/<name> layouts', () => {
-    expect(helmValuesParser.supports('/repo/charts/demo/values.yaml', valuesDoc)).toBe(true);
-    expect(helmValuesParser.supports('/repo/helm/demo/values.yaml', valuesDoc)).toBe(true);
+    expect(helmValuesParser.supports(asHostPath('/repo/charts/demo/values.yaml'), valuesDoc)).toBe(true);
+    expect(helmValuesParser.supports(asHostPath('/repo/helm/demo/values.yaml'), valuesDoc)).toBe(true);
   });
 
   it('rejects an unrelated values.yaml without a chart marker', () => {
-    expect(helmValuesParser.supports('/repo/config/values.yaml', valuesDoc)).toBe(false);
+    expect(helmValuesParser.supports(asHostPath('/repo/config/values.yaml'), valuesDoc)).toBe(false);
   });
 
   it('rejects a values doc whose own content is Chart.yaml metadata even with an image signal', () => {
@@ -41,11 +42,11 @@ describe('helmValuesParser chart detection', () => {
       version: '1.0.0',
       app: { image: { repository: 'example/app', tag: '1.0.0' } },
     };
-    expect(helmValuesParser.supports('/repo/charts/demo/values.yaml', chartLookalike)).toBe(false);
+    expect(helmValuesParser.supports(asHostPath('/repo/charts/demo/values.yaml'), chartLookalike)).toBe(false);
   });
 
   it('rejects a values doc under a chart with no image or secret signal', () => {
     const noSignal = { replicaCount: 3, service: { type: 'ClusterIP', port: 8080 } };
-    expect(helmValuesParser.supports('/repo/charts/demo/values.yaml', noSignal)).toBe(false);
+    expect(helmValuesParser.supports(asHostPath('/repo/charts/demo/values.yaml'), noSignal)).toBe(false);
   });
 });

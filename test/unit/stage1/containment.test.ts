@@ -66,7 +66,7 @@ describeSymlink('stage 1 — containment of discovered candidates', () => {
   });
 
   it('keeps real files and a symlink that resolves inside the repo', () => {
-    const rel = snapshot.modules.map(m => m.relativeFilePath).sort();
+    const rel = snapshot.modules.map(m => m.pkgRelPath).sort();
 
     expect(rel).toEqual(['src/alias.ts', 'src/index.ts', 'src/real.ts']);
   });
@@ -90,7 +90,7 @@ describeSymlink('stage 1 — containment of discovered candidates', () => {
   });
 
   it('assembles an in-repo module unchanged', () => {
-    const entry = snapshot.modules.find(m => m.relativeFilePath === 'src/index.ts');
+    const entry = snapshot.modules.find(m => m.pkgRelPath === 'src/index.ts');
 
     expect(entry?.exports.map(e => e.name)).toContain('entry');
     expect(entry?.contentHash).not.toBe('');

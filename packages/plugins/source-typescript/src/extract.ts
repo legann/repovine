@@ -1,26 +1,26 @@
 import { Project, type ResolutionHostFactory, type SourceFile } from 'ts-morph';
 import ts from 'typescript';
-import type { ModuleInfo, PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
+import type { HostPath, ModuleInfo, PackageInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import type { SourceFileText } from '@repovine/plugin-sdk';
 import { collectImports, collectReExports } from './imports.js';
 import { isNodeModulesPath, resolveSpecifierFromMap, type PathsContext } from './resolve-specifier.js';
 import { collectExports } from './exports.js';
 import { collectSemanticHints } from './semantic-hints.js';
 import { extractTypeScriptFromSfc } from './sfc-extractor.js';
-import { toPosixPath } from '@repovine/plugin-sdk';
+
 export interface ExtractPackageInput {
   pkg: PackageInfo;
   pkgModules: PendingModule[];
-  /** Previous-snapshot modules for this package, keyed by filePath. May be empty. */
-  prevByPath: Map<string, ModuleInfo>;
+  /** Previous-snapshot modules for this package, keyed by absolute host path. May be empty. */
+  prevByAbsPath: Map<HostPath, ModuleInfo>;
   /** Pre-parsed tsconfig compiler options for this package. */
   compilerOptions: ts.CompilerOptions;
   /** Frozen abs-path → moduleId map covering all packages (read-only). */
-  absPathToId: Map<string, string>;
+  absPathToId: Map<HostPath, string>;
   /** All packages in the workspace (for cross-package import resolution). */
   packages: PackageInfo[];
   /** Repo root, used to resolve workspace package paths in string-based resolution. */
-  repoRoot: string;
+  repoRoot: HostPath;
   /** Engine-provided raw content + content hash per pending module, keyed by moduleId. The engine
    * owns file IO and hashing; this plugin never reads source files or fingerprints them. */
   sourceByModuleId: Map<string, SourceFileText>;
@@ -91,18 +91,18 @@ export function createTypeScriptExtractionProject(compilerOptions: ts.CompilerOp
 }
 
 /** Map the engine-provided raw source text to the text ts-morph should parse. SFC pseudo-modules
- * carry a `virtualPath`; their parseable TS is extracted from the raw component file, but the hash
+ * carry a `virtualAbsPath`; their parseable TS is extracted from the raw component file, but the hash
  * still fingerprints the raw file (engine-owned). */
 function moduleTextFor(pending: PendingModule, src: SourceFileText): ModuleContent {
-  if (pending.virtualPath) {
-    const extracted = extractTypeScriptFromSfc(pending.filePath, src.content);
+  if (pending.virtualAbsPath) {
+    const extracted = extractTypeScriptFromSfc(pending.absPath, src.content);
     return { text: extracted?.ts ?? '', hash: src.contentHash };
   }
   return { text: src.content, hash: src.contentHash };
 }
 
 function loadIntoProject(project: Project, pending: PendingModule, content: ModuleContent): SourceFile | undefined {
-  const targetPath = pending.virtualPath ?? pending.filePath;
+  const targetPath = pending.virtualAbsPath ?? pending.absPath;
   try {
     return project.createSourceFile(targetPath, content.text, { overwrite: true });
   } catch {
@@ -113,9 +113,9 @@ function loadIntoProject(project: Project, pending: PendingModule, content: Modu
 function extractModuleDelta(
   sf: SourceFile,
   pending: PendingModule,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   pathsContext: PathsContext,
 ): SemanticModuleDelta {
   const { exports, moduleCalls } = collectExports(sf);
@@ -127,7 +127,7 @@ function extractModuleDelta(
     ...(reExports.length > 0 ? { reExports } : {}),
     ...(moduleCalls.names.length > 0 ? { calls: moduleCalls.names } : {}),
     ...(moduleCalls.total > moduleCalls.names.length ? { callsTotal: moduleCalls.total } : {}),
-    semanticHints: collectSemanticHints(sf, toPosixPath(pending.relPath)),
+    semanticHints: collectSemanticHints(sf, pending.pkgRelPath),
   };
 }
 
@@ -142,13 +142,13 @@ function extractModuleDelta(
 function reuseDelta(
   pending: PendingModule,
   prev: ModuleInfo,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   pathsContext: PathsContext,
 ): SemanticModuleDelta {
   const resolveEdge = (moduleSpecifier: string): { resolvedModuleId: string | undefined; isExternal: boolean } => {
-    const res = resolveSpecifierFromMap(moduleSpecifier, prev.filePath, absPathToId, packages, repoRoot, pathsContext);
+    const res = resolveSpecifierFromMap(moduleSpecifier, prev.absPath, absPathToId, packages, repoRoot, pathsContext);
     return { resolvedModuleId: res?.resolvedModuleId, isExternal: res?.isExternal ?? false };
   };
   const reExports = prev.reExports?.map(rex => ({ ...rex, ...resolveEdge(rex.moduleSpecifier) }));
@@ -171,7 +171,7 @@ function reuseDelta(
  * is released as soon as this function returns (caller drops the result).
  */
 export function extractPackage(input: ExtractPackageInput): ExtractPackageResult {
-  const { pkg, pkgModules, prevByPath, compilerOptions, absPathToId, packages, repoRoot, sourceByModuleId } = input;
+  const { pkg, pkgModules, prevByAbsPath, compilerOptions, absPathToId, packages, repoRoot, sourceByModuleId } = input;
 
   // First pass: classify each module as cache hit vs miss using the engine-provided fingerprint.
   interface Resolved {
@@ -185,7 +185,7 @@ export function extractPackage(input: ExtractPackageInput): ExtractPackageResult
     const src = sourceByModuleId.get(pending.moduleId);
     if (!src) return { pending, content: undefined };
     const content = moduleTextFor(pending, src);
-    const prev = prevByPath.get(pending.filePath);
+    const prev = prevByAbsPath.get(pending.absPath);
     if (prev && prev.id === pending.moduleId && prev.contentHash === content.hash) {
       return { pending, content, cached: reuseDelta(pending, prev, absPathToId, packages, repoRoot, pathsContext) };
     }
@@ -222,7 +222,7 @@ export function extractPackage(input: ExtractPackageInput): ExtractPackageResult
       rescanned++;
     } catch (e) {
       // One bad AST edge case must not drop the whole extraction shard.
-      console.warn(`  ⚠ Skipping AST details for ${pkg.name}/${r.pending.relPath}: ${(e as Error).message}`);
+      console.warn(`  ⚠ Skipping AST details for ${pkg.name}/${r.pending.pkgRelPath}: ${(e as Error).message}`);
       deltas.push({
         moduleId: r.pending.moduleId,
         imports: collectImports(sf.compilerNode, absPathToId, packages, repoRoot, pathsContext),

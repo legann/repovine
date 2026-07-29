@@ -7,10 +7,14 @@ import type {
   RepositoryFactsSnapshot,
   UnresolvedInfraRef,
 } from '../../types.js';
-import type { HandlerResolveContext } from '@repovine/plugin-sdk';
+import {
+  asRepoRelPath,
+  parseResourceId,
+  type HandlerResolveContext,
+  type RepoRelPath,
+} from '@repovine/plugin-sdk';
 import { addEdge, addNode, hasEdge, infraTargetIds } from '../../graph/index.js';
 import { makeRuntimeResourceId } from '../../graph/make-runtime-resource-id.js';
-import { parseResourceId } from '@repovine/plugin-sdk';
 import { resolveInfraRef, type InfraRefScope } from '../../graph/resolve-infra-ref.js';
 import type { DeclarationCatalog } from '../../plugin-host/declaration-catalog.js';
 import {
@@ -142,15 +146,18 @@ function buildHandlerResolveContext(
   return {
     packages: snapshot.packages.filter(pkg => packageBelongsToSourcePlugin(pkg.sourcePluginId, sourcePluginId)),
     modulesById: pluginModulesById,
-    searchRoots,
-    artifactRoot,
+    repoRelSearchRoots: searchRoots.map(asRepoRelPath),
+    ...(artifactRoot === undefined ? {} : { repoRelArtifactRoot: asRepoRelPath(artifactRoot) }),
     attributes,
-    infraRelPath,
-    handlerPathMap: snapshot.bundleOutputHandlerMap ?? {},
-    resolveModuleByRepoPath(candidate: string): string | undefined {
+    ...(infraRelPath === undefined ? {} : { infraRepoRelPath: asRepoRelPath(infraRelPath) }),
+    repoRelHandlerPathMap: Object.fromEntries(
+      Object.entries(snapshot.bundleOutputHandlerMap ?? {})
+        .map(([key, value]) => [key, asRepoRelPath(value)]),
+    ),
+    resolveModuleByRepoRelPath(candidate: RepoRelPath): string | undefined {
       return lookupModuleByRepoPath(moduleIdsByRepoPath, candidate);
     },
-    normalizeRelPath: resolveRelPath,
+    normalizeRepoRelPath: value => asRepoRelPath(resolveRelPath(value)),
   };
 }
 
@@ -174,7 +181,7 @@ function buildModuleRepoPathIndex(
   for (const mod of modulesById.values()) {
     const pkg = packagesByName.get(mod.packageName);
     if (!pkg) continue;
-    const repoPath = stripKnownExtension(joinRelPath(pkg.path, mod.relativeFilePath));
+    const repoPath = stripKnownExtension(joinRelPath(pkg.repoRelDir, mod.pkgRelPath));
     const keys = uniqueStrings([repoPath, stripIndexBasename(repoPath)]);
     for (const key of keys) {
       let ids = out.get(key);
@@ -423,11 +430,11 @@ function pass2Infra(
     addNode(graph, {
       id: infraModuleId,
       type: 'module',
-      label: shortModuleLabel(infraMod.relativeFilePath),
-      description: `IaC ${infraMod.kind} module ${infraMod.relativeFilePath}`,
+      label: shortModuleLabel(infraMod.repoRelPath),
+      description: `IaC ${infraMod.kind} module ${infraMod.repoRelPath}`,
       data: {
-        filePath: infraMod.filePath,
-        relativeFilePath: infraMod.relativeFilePath,
+        absPath: infraMod.absPath,
+        repoRelPath: infraMod.repoRelPath,
       },
     });
 
@@ -453,7 +460,7 @@ function pass2Infra(
         id: serviceId,
         type: 'runtime-resource',
         label: res.id,
-        description: `${res.kind} declared in ${infraMod.relativeFilePath}`,
+        description: `${res.kind} declared in ${infraMod.repoRelPath}`,
         data: {
           handler: res.attributes.handler,
           envVars: res.envVars,
@@ -465,7 +472,7 @@ function pass2Infra(
           provider: res.provider,
           service: declaredMeta?.service,
           hasCodeHandler: declaredMeta?.hasCodeHandler,
-          declaredIn: uniqueStrings([...previouslyDeclaredIn, infraMod.relativeFilePath]),
+          declaredIn: uniqueStrings([...previouslyDeclaredIn, infraMod.repoRelPath]),
           namespace: res.attributes.namespace,
         },
       });
@@ -478,7 +485,7 @@ function pass2Infra(
           snapshot,
           modulesById,
           res.attributes,
-          infraMod.relativeFilePath,
+          infraMod.repoRelPath,
         );
         if (modId && graph.nodes.has(modId)) {
           addEdge(graph, serviceId, modId, 'infra');
@@ -561,7 +568,7 @@ function pass2Infra(
 /** The document a resource's own references are made from, and the scope its plugin confined them to. */
 function refScopeFor(infraMod: InfraModuleInfo, res: InfraResource): InfraRefScope {
   return {
-    declaredIn: [infraMod.relativeFilePath],
+    declaredIn: [infraMod.repoRelPath],
     ...(res.refScope === undefined ? {} : { refScope: res.refScope }),
   };
 }

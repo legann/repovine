@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -68,8 +69,8 @@ describe('prop-drilling tunnel depth', () => {
         modulesById.set(id, {
           id,
           packageName: 'web',
-          filePath: `/repo/src/features/diamond/Layer${layer}${branch}.tsx`,
-          relativeFilePath: `src/features/diamond/Layer${layer}${branch}.tsx`,
+          absPath: asHostPath(`/repo/src/features/diamond/Layer${layer}${branch}.tsx`),
+          pkgRelPath: asPkgRelPath(`src/features/diamond/Layer${layer}${branch}.tsx`),
           contentHash: `h-${layer}-${branch}`,
           imports,
           exports: [],

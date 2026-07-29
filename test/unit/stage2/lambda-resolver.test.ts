@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -9,8 +11,8 @@ function makeModule(partial?: Partial<ModuleInfo>): ModuleInfo {
   return {
     id: 'mod:@acme/api/src/handlers/user',
     packageName: '@acme/api',
-    filePath: '/repo/apps/api/src/handlers/user.ts',
-    relativeFilePath: 'src/handlers/user.ts',
+    absPath: asHostPath('/repo/apps/api/src/handlers/user.ts'),
+    pkgRelPath: asPkgRelPath('src/handlers/user.ts'),
     contentHash: 'm1',
     imports: [],
     exports: [],
@@ -43,13 +45,13 @@ describe('Lambda handler resolver', () => {
       declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
-      packages: [{ name: '@acme/api', path: 'apps/api'}],
+      packages: [{ name: '@acme/api', repoRelDir: asRepoRelPath('apps/api')}],
       modules: [mod],
       infraModules: [{
         id: 'infra:aws-sam:infra/template.yaml',
         kind: 'aws-sam',
-        filePath: path.join(tmpDir, 'infra/template.yaml'),
-        relativeFilePath: 'infra/template.yaml',
+        absPath: asHostPath(path.join(tmpDir, 'infra/template.yaml')),
+        repoRelPath: asRepoRelPath('infra/template.yaml'),
         contentHash: 'i1',
         resources: [
           {
@@ -95,8 +97,8 @@ describe('Lambda handler resolver', () => {
     const shared = makeModule({
       id: 'mod:@acme/shared/src/metrics',
       packageName: '@acme/shared',
-      filePath: '/repo/packages/shared/src/metrics.ts',
-      relativeFilePath: 'src/metrics.ts',
+      absPath: asHostPath('/repo/packages/shared/src/metrics.ts'),
+      pkgRelPath: asPkgRelPath('src/metrics.ts'),
       semanticHints: { runtimeActions: [{ action: 'sqs.sendMessage', envVar: 'USER_QUEUE_URL' }] },
     });
     const snapshot: RepositoryFactsSnapshot = {
@@ -104,15 +106,15 @@ describe('Lambda handler resolver', () => {
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
       packages: [
-        { name: '@acme/api', path: 'apps/api'},
-        { name: '@acme/shared', path: 'packages/shared'},
+        { name: '@acme/api', repoRelDir: asRepoRelPath('apps/api')},
+        { name: '@acme/shared', repoRelDir: asRepoRelPath('packages/shared')},
       ],
       modules: [handler, shared],
       infraModules: [{
         id: 'infra:aws-sam:infra/template.yaml',
         kind: 'aws-sam',
-        filePath: path.join(tmpDir, 'infra/template.yaml'),
-        relativeFilePath: 'infra/template.yaml',
+        absPath: asHostPath(path.join(tmpDir, 'infra/template.yaml')),
+        repoRelPath: asRepoRelPath('infra/template.yaml'),
         contentHash: 'i1',
         resources: [
           {
@@ -150,13 +152,13 @@ describe('Lambda handler resolver', () => {
       declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
-      packages: [{ name: '@acme/api', path: 'apps/api'}],
+      packages: [{ name: '@acme/api', repoRelDir: asRepoRelPath('apps/api')}],
       modules: [mod],
       infraModules: [{
         id: 'infra:aws-sam:infra/template.yaml',
         kind: 'aws-sam',
-        filePath: path.join(tmpDir, 'infra/template.yaml'),
-        relativeFilePath: 'infra/template.yaml',
+        absPath: asHostPath(path.join(tmpDir, 'infra/template.yaml')),
+        repoRelPath: asRepoRelPath('infra/template.yaml'),
         contentHash: 'i1',
         resources: [
           {
@@ -192,14 +194,14 @@ describe('Lambda handler resolver', () => {
       declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
-      packages: [{ name: '@acme/api', path: 'apps/api'}],
+      packages: [{ name: '@acme/api', repoRelDir: asRepoRelPath('apps/api')}],
       modules: [mod],
       linkingConfig: { handlers: { searchRoots: ['apps/api/src'] } },
       infraModules: [{
         id: 'infra:aws-sam:template.yaml',
         kind: 'aws-sam',
-        filePath: path.join(tmpDir, 'template.yaml'),
-        relativeFilePath: 'template.yaml',
+        absPath: asHostPath(path.join(tmpDir, 'template.yaml')),
+        repoRelPath: asRepoRelPath('template.yaml'),
         contentHash: 'i1',
         resources: [{
           id: 'UserFunction',
@@ -224,13 +226,13 @@ describe('Lambda handler resolver', () => {
       declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
-      packages: [{ name: '@acme/api', path: 'apps/api'}],
+      packages: [{ name: '@acme/api', repoRelDir: asRepoRelPath('apps/api')}],
       modules: [mod],
       infraModules: [{
         id: 'infra:aws-sam:template.yaml',
         kind: 'aws-sam',
-        filePath: path.join(tmpDir, 'template.yaml'),
-        relativeFilePath: 'template.yaml',
+        absPath: asHostPath(path.join(tmpDir, 'template.yaml')),
+        repoRelPath: asRepoRelPath('template.yaml'),
         contentHash: 'i1',
         resources: [{
           id: 'BrokenFunction',

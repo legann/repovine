@@ -23,6 +23,9 @@ import { guardedRoots, repoRoot, sourceFiles } from './graph-law-helpers.js';
 
 /** Parameter and field names the contract gives a repo-relative POSIX path. */
 const REPO_RELATIVE_NAMES = new Set([
+  'repoRelPath',
+  'pkgRelPath',
+  'repoRelDir',
   'relPath',
   'relFromRoot',
   'relativeFilePath',

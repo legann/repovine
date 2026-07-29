@@ -1,3 +1,4 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it, jest } from '@jest/globals';
 import { CONFIG_DEFAULTS } from '../../../src/config.js';
 import { createEmptyGraph, addNode, addEdge } from '../../../src/graph/index.js';
@@ -60,7 +61,7 @@ function addModule(graph: RepositoryGraph, id: string, label = id.replace(/^mod:
     type: 'module',
     label,
     description: '',
-    data: { relativeFilePath: `${label}.ts` },
+    data: { pkgRelPath: asPkgRelPath(`${label}.ts`) },
   });
 }
 
@@ -307,7 +308,7 @@ describe('runtime handoff', () => {
     expect(resolveHandlerModuleId(graph, 'resource:direct')).toBe('mod:app/direct-handler');
   });
 
-  it('falls back to the module whose relativeFilePath matches the resource handler string', () => {
+  it('falls back to the module whose pkgRelPath matches the resource handler string', () => {
     const graph = makeGraph();
     addNode(graph, {
       id: 'resource:by-path',
@@ -321,7 +322,7 @@ describe('runtime handoff', () => {
       type: 'module',
       label: 'worker',
       description: '',
-      data: { relativeFilePath: 'services/worker.ts' },
+      data: { pkgRelPath: asPkgRelPath('services/worker.ts') },
     });
 
     expect(resolveHandlerModuleId(graph, 'resource:by-path')).toBe('mod:app/worker');

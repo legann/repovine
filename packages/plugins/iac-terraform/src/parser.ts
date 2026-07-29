@@ -252,12 +252,12 @@ export const terraformParser: IaCParser = {
   fileMatch: { extensions: ['.tf'] },
   loaderId: 'text',
 
-  supports(filePath: string, doc: unknown): boolean {
-    if (path.extname(filePath).toLowerCase() !== '.tf') return false;
+  supports(absPath, doc): boolean {
+    if (path.extname(absPath).toLowerCase() !== '.tf') return false;
     return typeof doc === 'string';
   },
 
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (typeof doc !== 'string') return null;
     const content = doc;
 

@@ -286,8 +286,8 @@
       "label": "…/auth/auth-client",
       "description": "Module src/auth/auth-client.ts in @hybrid/client-react",
       "data": {
-        "filePath": "<FIXTURE>/packages/client-react/src/auth/auth-client.ts",
-        "relativeFilePath": "src/auth/auth-client.ts",
+        "absPath": "<FIXTURE>/packages/client-react/src/auth/auth-client.ts",
+        "pkgRelPath": "src/auth/auth-client.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -297,8 +297,8 @@
       "label": "…/auth/AuthContext",
       "description": "Module src/auth/AuthContext.tsx in @hybrid/client-react",
       "data": {
-        "filePath": "<FIXTURE>/packages/client-react/src/auth/AuthContext.tsx",
-        "relativeFilePath": "src/auth/AuthContext.tsx",
+        "absPath": "<FIXTURE>/packages/client-react/src/auth/AuthContext.tsx",
+        "pkgRelPath": "src/auth/AuthContext.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -308,8 +308,8 @@
       "label": "…/auth/useAuth",
       "description": "Module src/auth/useAuth.ts in @hybrid/client-react",
       "data": {
-        "filePath": "<FIXTURE>/packages/client-react/src/auth/useAuth.ts",
-        "relativeFilePath": "src/auth/useAuth.ts",
+        "absPath": "<FIXTURE>/packages/client-react/src/auth/useAuth.ts",
+        "pkgRelPath": "src/auth/useAuth.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -319,8 +319,8 @@
       "label": "…/components/SiteHeader",
       "description": "Module src/components/SiteHeader.tsx in @hybrid/client-react",
       "data": {
-        "filePath": "<FIXTURE>/packages/client-react/src/components/SiteHeader.tsx",
-        "relativeFilePath": "src/components/SiteHeader.tsx",
+        "absPath": "<FIXTURE>/packages/client-react/src/components/SiteHeader.tsx",
+        "pkgRelPath": "src/components/SiteHeader.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -330,8 +330,8 @@
       "label": "src/main",
       "description": "Module src/main.tsx in @hybrid/client-react",
       "data": {
-        "filePath": "<FIXTURE>/packages/client-react/src/main.tsx",
-        "relativeFilePath": "src/main.tsx",
+        "absPath": "<FIXTURE>/packages/client-react/src/main.tsx",
+        "pkgRelPath": "src/main.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -341,8 +341,8 @@
       "label": "src/auth-handler",
       "description": "Module src/auth-handler.ts in @hybrid/lambda-functions",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-functions/src/auth-handler.ts",
-        "relativeFilePath": "src/auth-handler.ts",
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/auth-handler.ts",
+        "pkgRelPath": "src/auth-handler.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -352,8 +352,8 @@
       "label": "src/users-handler",
       "description": "Module src/users-handler.ts in @hybrid/lambda-functions",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-functions/src/users-handler.ts",
-        "relativeFilePath": "src/users-handler.ts",
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/users-handler.ts",
+        "pkgRelPath": "src/users-handler.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -363,8 +363,8 @@
       "label": "…/auth/auth-vue",
       "description": "Module src/auth/auth-vue.ts in @hybrid/vue-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/vue-shared/src/auth/auth-vue.ts",
-        "relativeFilePath": "src/auth/auth-vue.ts",
+        "absPath": "<FIXTURE>/packages/vue-shared/src/auth/auth-vue.ts",
+        "pkgRelPath": "src/auth/auth-vue.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -374,8 +374,8 @@
       "label": "…/auth/LoginForm.vue",
       "description": "Module src/auth/LoginForm.vue in @hybrid/vue-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/vue-shared/src/auth/LoginForm.vue",
-        "relativeFilePath": "src/auth/LoginForm.vue",
+        "absPath": "<FIXTURE>/packages/vue-shared/src/auth/LoginForm.vue",
+        "pkgRelPath": "src/auth/LoginForm.vue",
         "sourcePluginId": "typescript"
       }
     },
@@ -385,8 +385,8 @@
       "label": "…/components/BaseButton.vue",
       "description": "Module src/components/BaseButton.vue in @hybrid/vue-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/vue-shared/src/components/BaseButton.vue",
-        "relativeFilePath": "src/components/BaseButton.vue",
+        "absPath": "<FIXTURE>/packages/vue-shared/src/components/BaseButton.vue",
+        "pkgRelPath": "src/components/BaseButton.vue",
         "sourcePluginId": "typescript"
       }
     },

@@ -108,8 +108,8 @@
       "label": "Dockerfile",
       "description": "IaC dockerfile module Dockerfile",
       "data": {
-        "filePath": "<FIXTURE>/Dockerfile",
-        "relativeFilePath": "Dockerfile"
+        "absPath": "<FIXTURE>/Dockerfile",
+        "repoRelPath": "Dockerfile"
       }
     },
     {
@@ -118,8 +118,8 @@
       "label": "manifests/deployment.yaml",
       "description": "IaC kubernetes module manifests/deployment.yaml",
       "data": {
-        "filePath": "<FIXTURE>/manifests/deployment.yaml",
-        "relativeFilePath": "manifests/deployment.yaml"
+        "absPath": "<FIXTURE>/manifests/deployment.yaml",
+        "repoRelPath": "manifests/deployment.yaml"
       }
     },
     {
@@ -128,8 +128,8 @@
       "label": "manifests/secrets.yaml",
       "description": "IaC kubernetes module manifests/secrets.yaml",
       "data": {
-        "filePath": "<FIXTURE>/manifests/secrets.yaml",
-        "relativeFilePath": "manifests/secrets.yaml"
+        "absPath": "<FIXTURE>/manifests/secrets.yaml",
+        "repoRelPath": "manifests/secrets.yaml"
       }
     },
     {
@@ -138,8 +138,8 @@
       "label": "src/handler",
       "description": "Module src/handler.ts in k8s-operator-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/handler.ts",
-        "relativeFilePath": "src/handler.ts",
+        "absPath": "<FIXTURE>/src/handler.ts",
+        "pkgRelPath": "src/handler.ts",
         "sourcePluginId": "typescript"
       }
     },

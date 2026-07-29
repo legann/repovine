@@ -69,8 +69,8 @@ describe('responsibility keys carry no extension and no package marker', () => {
       try {
         const snapshot = await collectRepositoryFactsAsync(fixtureRoot);
         keysByPath = snapshot.modules.map(mod => ({
-          relPath: mod.relativeFilePath,
-          key: normalizeResponsibilityKey(mod.relativeFilePath),
+          relPath: mod.pkgRelPath,
+          key: normalizeResponsibilityKey(mod.pkgRelPath),
         }));
       } finally {
         console.log = origLog;

@@ -2,10 +2,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import * as os from 'node:os';
-import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
+import type { HostPath, PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { walkRepository } from '@repovine/plugin-sdk';
-import { classifyDiscoveryDir, compareCodeUnits, compileScanPatterns, hostPathKey, readDirSorted, repoRelativePosix, shouldScanSourcePath, toPosixPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath, asRepoRelPath, classifyDiscoveryDir, compareCodeUnits, compileScanPatterns, hostPathKey, readDirSorted, repoRelativePosix, shouldScanSourcePath, toPosixPath } from '@repovine/plugin-sdk';
 import type { CompiledScanPatterns } from '@repovine/plugin-sdk';
 
 /**
@@ -129,13 +129,13 @@ function pyPackageName(pkgDir: string, fallback: string): string {
  * omit it would discover by whatever this module happened to spell.
  */
 function discoverPythonPackages(
-  repoRoot: string,
+  repoRoot: HostPath,
   markers: readonly string[],
   onPruned: SourceDiscoveryOptions['onPruned'],
 ): PackageInfo[] {
   const packages: PackageInfo[] = [];
   const seen = new Set<string>();
-  const walk = (dir: string): void => {
+  const walk = (dir: HostPath): void => {
     let entries: fs.Dirent[];
     try {
       entries = readDirSorted(dir);
@@ -146,19 +146,19 @@ function discoverPythonPackages(
       // POSIX form: pkg.path is persisted identity; path.resolve
       // consumes forward slashes on every OS.
       // `'.'` names the repository root itself; the empty relative path is not a package path.
-      const normalized = repoRelativePosix(repoRoot, dir) || '.';
+      const normalized = repoRelativePosix(repoRoot, dir) || asRepoRelPath('.');
       if (!seen.has(normalized)) {
         seen.add(normalized);
         packages.push({
           name: pyPackageName(dir, slug(normalized)),
-          path: normalized,
+          repoRelDir: normalized,
           sourcePluginId: 'python',
         });
       }
     }
     for (const e of entries) {
       if (!e.isDirectory()) continue;
-      const childAbs = path.join(dir, e.name);
+      const childAbs = asHostPath(path.join(dir, e.name));
       const pruned = classifyDiscoveryDir(repoRelativePosix(repoRoot, childAbs), childAbs);
       if (pruned) {
         onPruned?.(pruned);
@@ -168,15 +168,15 @@ function discoverPythonPackages(
     }
   };
   walk(repoRoot);
-  return packages.sort((a, b) => compareCodeUnits(a.path, b.path));
+  return packages.sort((a, b) => compareCodeUnits(a.repoRelDir, b.repoRelDir));
 }
 
 function discoverPyFiles(
-  pkgAbs: string,
-  repoRoot: string,
+  pkgAbs: HostPath,
+  repoRoot: HostPath,
   pkg: PackageInfo,
   scanPatterns: CompiledScanPatterns,
-  pendingByPath: Map<string, PendingModuleDraft>,
+  pendingByAbsPath: Map<HostPath, PendingModuleDraft>,
   onPruned: SourceDiscoveryOptions['onPruned'],
 ): void {
   // Starts inside the package, prunes by the path the graph knows: a package under a directory the
@@ -185,44 +185,44 @@ function discoverPyFiles(
   walkRepository(pkgAbs, {
     repoRoot,
     ...(onPruned === undefined ? {} : { onPruned }),
-    onFile: ({ absPath, relFromRoot, name }) => {
+    onFile: ({ absPath, repoRelPath, name }) => {
       if (path.extname(name).toLowerCase() !== '.py') return;
       if (SKIP_FILE_RE.test(name)) return;
-      if (!shouldScanSourcePath(relFromRoot, scanPatterns)) return;
+      if (!shouldScanSourcePath(repoRelPath, scanPatterns)) return;
 
       const relPathNative = path.relative(pkgAbs, absPath);
       if (relPathNative.startsWith('..')) return;
       // Persisted repo-relative identity is POSIX-normalized: relPath
       // feeds module labels and detector evidence, which must match cross-OS.
-      const relPath = toPosixPath(relPathNative);
+      const pkgRelPath = asPkgRelPath(toPosixPath(relPathNative));
       // Canonical key — uniform with the TS plugin so the stage-1
       // cross-plugin merge dedupes on one key form.
-      if (pendingByPath.has(hostPathKey(absPath))) return;
-      pendingByPath.set(hostPathKey(absPath), {
-        filePath: absPath,
+      if (pendingByAbsPath.has(hostPathKey(absPath))) return;
+      pendingByAbsPath.set(hostPathKey(absPath), {
+        absPath,
         pkg,
-        relPath,
+        pkgRelPath,
         sourcePluginId: 'python',
       });
     },
   });
 }
 
-export function discoverPython(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {
+export function discoverPython(repoRoot: HostPath, options: SourceDiscoveryOptions): SourceDiscoveryResult {
   // The engine gates discovery on the plugin's `available()` (→ detectPython), so an interpreter is
   // present by here. The null-guard stays as a defensive no-op; the user-facing "interpreter not
   // found" warning is emitted once at the engine boundary, not per discover() call.
   const pythonBin = detectPython();
   if (!pythonBin) {
-    return { packages: [], pendingByPath: new Map(), extractContext: { pythonBin: null } as PythonExtractContext };
+    return { packages: [], pendingByAbsPath: new Map(), extractContext: { pythonBin: null } as PythonExtractContext };
   }
 
   const scanPatterns = options.scanPatterns ?? compileScanPatterns([], []);
   const packages = discoverPythonPackages(repoRoot, options.packageMarkers, options.onPruned);
-  const pendingByPath = new Map<string, PendingModuleDraft>();
+  const pendingByAbsPath = new Map<HostPath, PendingModuleDraft>();
   for (const pkg of packages) {
-    const pkgAbs = path.resolve(repoRoot, pkg.path);
-    discoverPyFiles(pkgAbs, repoRoot, pkg, scanPatterns, pendingByPath, options.onPruned);
+    const pkgAbs = asHostPath(path.resolve(repoRoot, pkg.repoRelDir));
+    discoverPyFiles(pkgAbs, repoRoot, pkg, scanPatterns, pendingByAbsPath, options.onPruned);
   }
-  return { packages, pendingByPath, extractContext: { pythonBin } as PythonExtractContext };
+  return { packages, pendingByAbsPath, extractContext: { pythonBin } as PythonExtractContext };
 }

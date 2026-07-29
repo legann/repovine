@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, it, expect } from '@jest/globals';
 import { addNode, addEdge, createEmptyGraph } from '../../../../src/graph/index.js';
 import { getCallersByName, callersOfName } from '../../../../src/mcp/lib/dependencies/reverse-calls.js';
@@ -11,7 +12,7 @@ function mod(id: string, opts: { exportCalls?: Record<string, string[]>; moduleC
     name, kind: 'function' as const, lineRange: { start: 1, end: 2 }, isDefault: false, calls,
   }));
   return {
-    id, packageName: id.split('/')[0].slice(4), filePath: `/repo/${id}.ts`, relativeFilePath: `${id}.ts`,
+    id, packageName: id.split('/')[0].slice(4), absPath: asHostPath(`/repo/${id}.ts`), pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash: id, imports: [], exports,
     ...(opts.moduleCalls ? { calls: opts.moduleCalls } : {}),
   };

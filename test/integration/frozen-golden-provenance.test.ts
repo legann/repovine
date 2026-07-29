@@ -29,7 +29,7 @@ interface GoldenNode {
   label: string;
   data?: {
     path?: string;
-    filePath?: string;
+    absPath?: string;
     lineRange?: { start: number; end: number };
     declaredIn?: string[];
     provider?: string;
@@ -49,9 +49,9 @@ const GOLDEN_FILES = fs
   .filter(name => name.endsWith('.json'))
   .sort();
 
-function sourcePath(fixtureRoot: string, filePath: string | undefined): string | undefined {
-  if (!filePath?.startsWith('<FIXTURE>')) return undefined;
-  return path.resolve(fixtureRoot, filePath.slice('<FIXTURE>'.length).replace(/^[/\\]/, ''));
+function sourcePath(fixtureRoot: string, absPath: string | undefined): string | undefined {
+  if (!absPath?.startsWith('<FIXTURE>')) return undefined;
+  return path.resolve(fixtureRoot, absPath.slice('<FIXTURE>'.length).replace(/^[/\\]/, ''));
 }
 
 function isInside(root: string, candidate: string): boolean {
@@ -93,7 +93,7 @@ function exportLabelHasEvidence(
   const separator = rest.lastIndexOf('/');
   if (separator <= 0) return false;
   const owner = modules.get(`mod:${rest.slice(0, separator)}`);
-  const ownerPath = sourcePath(fixtureRoot, owner?.data?.filePath);
+  const ownerPath = sourcePath(fixtureRoot, owner?.data?.absPath);
   const range = node.data?.lineRange;
   if (!ownerPath || !range || !fs.existsSync(ownerPath)) return false;
 
@@ -159,7 +159,7 @@ describe.each(GOLDEN_FILES)('frozen golden provenance: %s', (goldenFile) => {
           break;
         }
         case 'module': {
-          const candidate = sourcePath(fixtureRoot, node.data?.filePath);
+          const candidate = sourcePath(fixtureRoot, node.data?.absPath);
           if (!candidate || !isInside(fixtureRoot, candidate) || !fs.existsSync(candidate)) {
             gaps.push(`${node.id}: module file is absent`);
           }
@@ -193,9 +193,9 @@ const COMPOSED_DEFAULT_FIXTURE = 'basic-typescript';
 /** The composed export node that fixture must produce, as `<id> -> <label>`. */
 const COMPOSED_DEFAULT_EXPORTS = ['export:basic-typescript/src/plugin-descriptor/default -> default (namedDescriptor)'];
 
-/** Golden `data.filePath` form: fixture-root-relative behind the `<FIXTURE>` marker, `/`-separated. */
-function fixtureMarkerPath(relativeFilePath: string): string {
-  return `<FIXTURE>/${relativeFilePath.split(path.sep).join('/')}`;
+/** Golden `data.absPath` form: fixture-root-relative behind the `<FIXTURE>` marker, `/`-separated. */
+function fixtureMarkerPath(pkgRelPath: string): string {
+  return `<FIXTURE>/${pkgRelPath.split(path.sep).join('/')}`;
 }
 
 describe(`composed default export label: ${COMPOSED_DEFAULT_FIXTURE}`, () => {
@@ -207,13 +207,13 @@ describe(`composed default export label: ${COMPOSED_DEFAULT_FIXTURE}`, () => {
     const modules = new Map<string, GoldenNode>();
     for (const node of graph.nodes.values()) {
       if (node.type !== 'module') continue;
-      const relativeFilePath = node.data?.relativeFilePath;
-      if (relativeFilePath === undefined) continue;
+      const pkgRelPath = node.data?.pkgRelPath;
+      if (pkgRelPath === undefined) continue;
       modules.set(node.id, {
         id: node.id,
         type: node.type,
         label: node.label,
-        data: { filePath: fixtureMarkerPath(relativeFilePath) },
+        data: { absPath: fixtureMarkerPath(pkgRelPath) },
       });
     }
 

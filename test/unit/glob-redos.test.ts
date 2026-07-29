@@ -1,3 +1,4 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { compileGlob } from '../../src/stage2/domains.js';
 import { compileScanPatterns, isScanExcluded } from '../../src/scan-filters.js';
 
@@ -51,7 +52,7 @@ describe('compileGlob resists catastrophic backtracking', () => {
   it('keeps scan.exclude matching linear for a hostile committed glob', () => {
     const patterns = compileScanPatterns([], [HOSTILE]);
     const start = Date.now();
-    const excluded = isScanExcluded(LONG_NONMATCH, patterns, 'source');
+    const excluded = isScanExcluded(asRepoRelPath(LONG_NONMATCH), patterns, 'source');
     const elapsedMs = Date.now() - start;
     expect(excluded).toBe(false);
     expect(elapsedMs).toBeLessThan(1000);

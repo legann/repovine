@@ -285,8 +285,8 @@
       "label": "app",
       "description": "Module app.py in basic-python",
       "data": {
-        "filePath": "<FIXTURE>/packages/basic-python/app.py",
-        "relativeFilePath": "app.py",
+        "absPath": "<FIXTURE>/packages/basic-python/app.py",
+        "pkgRelPath": "app.py",
         "envVars": [
           "USER"
         ],
@@ -299,8 +299,8 @@
       "label": "models",
       "description": "Module models.py in basic-python",
       "data": {
-        "filePath": "<FIXTURE>/packages/basic-python/models.py",
-        "relativeFilePath": "models.py",
+        "absPath": "<FIXTURE>/packages/basic-python/models.py",
+        "pkgRelPath": "models.py",
         "sourcePluginId": "python"
       }
     },
@@ -310,8 +310,8 @@
       "label": "services",
       "description": "Module services.py in basic-python",
       "data": {
-        "filePath": "<FIXTURE>/packages/basic-python/services.py",
-        "relativeFilePath": "services.py",
+        "absPath": "<FIXTURE>/packages/basic-python/services.py",
+        "pkgRelPath": "services.py",
         "sourcePluginId": "python"
       }
     },
@@ -321,8 +321,8 @@
       "label": "utils/__init__",
       "description": "Module utils/__init__.py in basic-python",
       "data": {
-        "filePath": "<FIXTURE>/packages/basic-python/utils/__init__.py",
-        "relativeFilePath": "utils/__init__.py",
+        "absPath": "<FIXTURE>/packages/basic-python/utils/__init__.py",
+        "pkgRelPath": "utils/__init__.py",
         "sourcePluginId": "python"
       }
     },
@@ -332,8 +332,8 @@
       "label": "gateway",
       "description": "Module gateway.py in sharedlib",
       "data": {
-        "filePath": "<FIXTURE>/packages/sharedlib/gateway.py",
-        "relativeFilePath": "gateway.py",
+        "absPath": "<FIXTURE>/packages/sharedlib/gateway.py",
+        "pkgRelPath": "gateway.py",
         "sourcePluginId": "python"
       }
     },
@@ -343,8 +343,8 @@
       "label": "sharedlib/__init__",
       "description": "Module sharedlib/__init__.py in sharedlib",
       "data": {
-        "filePath": "<FIXTURE>/packages/sharedlib/sharedlib/__init__.py",
-        "relativeFilePath": "sharedlib/__init__.py",
+        "absPath": "<FIXTURE>/packages/sharedlib/sharedlib/__init__.py",
+        "pkgRelPath": "sharedlib/__init__.py",
         "sourcePluginId": "python"
       }
     },
@@ -354,8 +354,8 @@
       "label": "sharedlib/helpers",
       "description": "Module sharedlib/helpers.py in sharedlib",
       "data": {
-        "filePath": "<FIXTURE>/packages/sharedlib/sharedlib/helpers.py",
-        "relativeFilePath": "sharedlib/helpers.py",
+        "absPath": "<FIXTURE>/packages/sharedlib/sharedlib/helpers.py",
+        "pkgRelPath": "sharedlib/helpers.py",
         "sourcePluginId": "python"
       }
     },

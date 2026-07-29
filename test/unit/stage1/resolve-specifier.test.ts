@@ -1,3 +1,5 @@
+import { asHostPath } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import ts from 'typescript';
 import * as path from 'node:path';
 import { resolveSpecifierFromMap, isNodeModulesPath } from '../../../packages/plugins/source-typescript/src/resolve-specifier.js';
@@ -6,7 +8,7 @@ import type { PackageInfo } from '../../../src/types.js';
 const REPO = '/repo';
 
 function pkg(name: string, relPath: string): PackageInfo {
-  return { name, path: relPath};
+  return { name, repoRelDir: asRepoRelPath(relPath)};
 }
 
 function map(entries: Array<[string, string]>): Map<string, string> {
@@ -18,13 +20,13 @@ describe('resolveSpecifierFromMap — relative specifiers', () => {
 
   it('resolves ./foo when foo.ts exists', () => {
     const m = map([['/repo/packages/web/src/foo.ts', 'mod:@app/web/src/foo']]);
-    const r = resolveSpecifierFromMap('./foo', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('./foo', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: 'mod:@app/web/src/foo', isExternal: false });
   });
 
   it('resolves ./foo when only foo/index.ts exists (directory form)', () => {
     const m = map([['/repo/packages/web/src/foo/index.ts', 'mod:@app/web/src/foo']]);
-    const r = resolveSpecifierFromMap('./foo', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('./foo', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/web/src/foo');
   });
 
@@ -33,31 +35,31 @@ describe('resolveSpecifierFromMap — relative specifiers', () => {
       ['/repo/packages/web/src/foo.ts', 'mod:@app/web/src/foo'],
       ['/repo/packages/web/src/foo/index.ts', 'mod:@app/web/src/foo-dir'],
     ]);
-    const r = resolveSpecifierFromMap('./foo', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('./foo', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/web/src/foo');
   });
 
   it('strips NodeNext .js extension to match .ts source', () => {
     const m = map([['/repo/packages/web/src/foo.ts', 'mod:@app/web/src/foo']]);
-    const r = resolveSpecifierFromMap('./foo.js', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('./foo.js', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/web/src/foo');
   });
 
   it('strips .jsx for .tsx source', () => {
     const m = map([['/repo/packages/web/src/Button.tsx', 'mod:@app/web/src/Button']]);
-    const r = resolveSpecifierFromMap('./Button.jsx', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('./Button.jsx', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/web/src/Button');
   });
 
   it('returns undefined when a relative specifier does not resolve via the map', () => {
     const m = map([['/repo/packages/web/src/foo.ts', 'mod:@app/web/src/foo']]);
-    const r = resolveSpecifierFromMap('./nope', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('./nope', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r).toBeUndefined();
   });
 
   it('walks up directories with ../', () => {
     const m = map([['/repo/packages/web/src/shared.ts', 'mod:@app/web/src/shared']]);
-    const r = resolveSpecifierFromMap('../shared', '/repo/packages/web/src/nested/inner.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('../shared', asHostPath('/repo/packages/web/src/nested/inner.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/web/src/shared');
   });
 });
@@ -70,43 +72,43 @@ describe('resolveSpecifierFromMap — workspace specifiers', () => {
 
   it('returns pkg id for bare workspace specifier', () => {
     const m = map([]);
-    const r = resolveSpecifierFromMap('@app/shared', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('@app/shared', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: 'pkg:@app/shared', isExternal: false });
   });
 
   it('resolves a bare workspace specifier to the package root index entry when present', () => {
     const m = map([['/repo/packages/shared/index.ts', 'mod:@app/shared/index']]);
-    const r = resolveSpecifierFromMap('@app/shared', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('@app/shared', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: 'mod:@app/shared/index', isExternal: false });
   });
 
   it('resolves a bare workspace specifier to the src/index entry when there is no root index', () => {
     const m = map([['/repo/packages/shared/src/index.ts', 'mod:@app/shared/src']]);
-    const r = resolveSpecifierFromMap('@app/shared', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('@app/shared', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/shared/src');
   });
 
   it('resolves workspace sub-path to specific module when present in map', () => {
     const m = map([['/repo/packages/shared/src/utils.ts', 'mod:@app/shared/src/utils']]);
-    const r = resolveSpecifierFromMap('@app/shared/src/utils', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('@app/shared/src/utils', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/shared/src/utils');
   });
 
   it('falls back to pkg id when workspace sub-path is not in map', () => {
     const m = map([]);
-    const r = resolveSpecifierFromMap('@app/shared/src/unknown', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('@app/shared/src/unknown', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: 'pkg:@app/shared', isExternal: false });
   });
 
   it('strips .js suffix on workspace sub-path', () => {
     const m = map([['/repo/packages/shared/src/utils.ts', 'mod:@app/shared/src/utils']]);
-    const r = resolveSpecifierFromMap('@app/shared/src/utils.js', '/repo/packages/web/src/bar.ts', m, packages, REPO);
+    const r = resolveSpecifierFromMap('@app/shared/src/utils.js', asHostPath('/repo/packages/web/src/bar.ts'), m, packages, asHostPath(REPO));
     expect(r?.resolvedModuleId).toBe('mod:@app/shared/src/utils');
   });
 
   it('recognizes single-segment package names', () => {
     const ps = [pkg('react-dom', 'packages/react-dom')];
-    const r = resolveSpecifierFromMap('react-dom', '/repo/packages/web/src/bar.ts', map([]), ps, REPO);
+    const r = resolveSpecifierFromMap('react-dom', asHostPath('/repo/packages/web/src/bar.ts'), map([]), ps, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: 'pkg:react-dom', isExternal: false });
   });
 });
@@ -115,17 +117,17 @@ describe('resolveSpecifierFromMap — external specifiers', () => {
   const packages: PackageInfo[] = [pkg('@app/web', 'packages/web')];
 
   it('marks unknown scoped packages as external', () => {
-    const r = resolveSpecifierFromMap('@vendor/lib', '/repo/packages/web/src/bar.ts', map([]), packages, REPO);
+    const r = resolveSpecifierFromMap('@vendor/lib', asHostPath('/repo/packages/web/src/bar.ts'), map([]), packages, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: undefined, isExternal: true });
   });
 
   it('marks unknown bare packages as external', () => {
-    const r = resolveSpecifierFromMap('lodash', '/repo/packages/web/src/bar.ts', map([]), packages, REPO);
+    const r = resolveSpecifierFromMap('lodash', asHostPath('/repo/packages/web/src/bar.ts'), map([]), packages, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: undefined, isExternal: true });
   });
 
   it('marks unknown packages with sub-paths as external', () => {
-    const r = resolveSpecifierFromMap('lodash/fp', '/repo/packages/web/src/bar.ts', map([]), packages, REPO);
+    const r = resolveSpecifierFromMap('lodash/fp', asHostPath('/repo/packages/web/src/bar.ts'), map([]), packages, asHostPath(REPO));
     expect(r).toEqual({ resolvedModuleId: undefined, isExternal: true });
   });
 });
@@ -156,10 +158,10 @@ describe('resolveSpecifierFromMap — tsconfig paths', () => {
     const importer = '/repo/packages/web/src/app/page.tsx';
     const r = resolveSpecifierFromMap(
       '@/components/error-fallback',
-      importer,
+      asHostPath(importer),
       m,
       packages,
-      REPO,
+      asHostPath(REPO),
       pathsContext,
     );
     expect(r).toEqual({
@@ -174,10 +176,10 @@ describe('resolveSpecifierFromMap — tsconfig paths', () => {
     ]);
     const r = resolveSpecifierFromMap(
       '@/lib/utils',
-      '/repo/packages/web/src/app/page.tsx',
+      asHostPath('/repo/packages/web/src/app/page.tsx'),
       m,
       packages,
-      REPO,
+      asHostPath(REPO),
       pathsContext,
     );
     expect(r?.resolvedModuleId).toBe('mod:@app/web/src/lib/utils');
@@ -189,10 +191,10 @@ describe('resolveSpecifierFromMap — tsconfig paths', () => {
     ]);
     const r = resolveSpecifierFromMap(
       '@app-alias',
-      '/repo/packages/web/src/app/page.tsx',
+      asHostPath('/repo/packages/web/src/app/page.tsx'),
       m,
       packages,
-      REPO,
+      asHostPath(REPO),
       pathsContext,
     );
     expect(r?.resolvedModuleId).toBe('mod:@app/web/src/alias-target');
@@ -206,10 +208,10 @@ describe('resolveSpecifierFromMap — tsconfig paths', () => {
     ];
     const r = resolveSpecifierFromMap(
       '@app/shared/src/utils',
-      '/repo/packages/web/src/app/page.tsx',
+      asHostPath('/repo/packages/web/src/app/page.tsx'),
       m,
       sharedPackages,
-      REPO,
+      asHostPath(REPO),
       pathsContext,
     );
     expect(r?.resolvedModuleId).toBe('mod:@app/shared/src/utils');
@@ -221,10 +223,10 @@ describe('resolveSpecifierFromMap — tsconfig paths', () => {
     ]);
     const r = resolveSpecifierFromMap(
       '@/components/button',
-      '/repo/packages/web/src/app/page.tsx',
+      asHostPath('/repo/packages/web/src/app/page.tsx'),
       m,
       packages,
-      REPO,
+      asHostPath(REPO),
     );
     expect(r).toEqual({ resolvedModuleId: undefined, isExternal: true });
   });

@@ -6,6 +6,7 @@
 // from the analyzed repo's node_modules, INV-5), runs conformance, Stage-1 infra extraction, and
 // Stage-2 graph compose to show runtime resources, entrypoints, and resource edges.
 
+import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -32,7 +33,11 @@ fs.rmSync(link, { recursive: true, force: true });
 fs.symlinkSync(pluginRoot, link, 'junction');
 
 const imp = rel => import(pathToFileURL(path.join(distDir, rel)).href);
-const { checkIaCPluginConformance, checkPluginConformance } = await import('@repovine/plugin-sdk');
+const {
+  checkIaCPluginConformance,
+  checkPluginConformance,
+  toPosixPath,
+} = await import('@repovine/plugin-sdk');
 const { collectRepositoryFactsAsync } = await imp('stage1/index.js');
 const { composeRepositoryGraph } = await imp('stage2/index.js');
 const { getInterpreterEntrypoints } = await imp('stage2/interpreter/entrypoint-store.js');
@@ -57,8 +62,8 @@ printChecks('Plugin contract conformance', checkPluginConformance({ manifest, de
 printChecks(
   'IaC capability conformance',
   checkIaCPluginConformance(
-    { id: descriptor.id, parsers: descriptor.capabilities.iac.parsers },
-    { samples: [{ filePath: samplePath, relPath: 'edge-stack.json', doc: sampleDoc }] },
+    descriptor,
+    { samples: [{ absPath: samplePath, repoRelPath: 'edge-stack.json', doc: sampleDoc }] },
   ),
 );
 
@@ -80,6 +85,16 @@ try {
 }
 
 const edgeModules = (snapshot.infraModules ?? []).filter(m => m.kind === 'edge-stack');
+assert.equal(edgeModules.length, 1, 'the sample plugin must publish exactly one edge-stack module');
+for (const module of edgeModules) {
+  assert.ok(path.isAbsolute(module.absPath), `absPath must use the host absolute form: ${module.absPath}`);
+  assert.ok(!module.repoRelPath.includes('\\'), `repoRelPath must use POSIX separators: ${module.repoRelPath}`);
+  assert.equal(
+    toPosixPath(path.relative(target, module.absPath)),
+    module.repoRelPath,
+    `absPath and repoRelPath must name the same sample file: ${module.id}`,
+  );
+}
 console.log(`\n=== ${edgeModules.length} infra module from the 'edge-stack' plugin (module hash stamped by the engine) ===`);
 for (const m of edgeModules) {
   console.log(`\n${m.id}  hash=${m.contentHash}`);

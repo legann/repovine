@@ -430,8 +430,8 @@
       "label": "vercel.json",
       "description": "IaC vercel module vercel.json",
       "data": {
-        "filePath": "<FIXTURE>/vercel.json",
-        "relativeFilePath": "vercel.json"
+        "absPath": "<FIXTURE>/vercel.json",
+        "repoRelPath": "vercel.json"
       }
     },
     {
@@ -440,8 +440,8 @@
       "label": "…/about/page",
       "description": "Module app/(marketing)/about/page.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/(marketing)/about/page.tsx",
-        "relativeFilePath": "app/(marketing)/about/page.tsx",
+        "absPath": "<FIXTURE>/app/(marketing)/about/page.tsx",
+        "pkgRelPath": "app/(marketing)/about/page.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -452,8 +452,8 @@
       "label": "…/posts/route",
       "description": "Module app/api/posts/route.ts in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/api/posts/route.ts",
-        "relativeFilePath": "app/api/posts/route.ts",
+        "absPath": "<FIXTURE>/app/api/posts/route.ts",
+        "pkgRelPath": "app/api/posts/route.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -464,8 +464,8 @@
       "label": "…/users/route",
       "description": "Module app/api/users/route.ts in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/api/users/route.ts",
-        "relativeFilePath": "app/api/users/route.ts",
+        "absPath": "<FIXTURE>/app/api/users/route.ts",
+        "pkgRelPath": "app/api/users/route.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -476,8 +476,8 @@
       "label": "…/[slug]/page",
       "description": "Module app/blog/[slug]/page.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/blog/[slug]/page.tsx",
-        "relativeFilePath": "app/blog/[slug]/page.tsx",
+        "absPath": "<FIXTURE>/app/blog/[slug]/page.tsx",
+        "pkgRelPath": "app/blog/[slug]/page.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -488,8 +488,8 @@
       "label": "…/dashboard/loading",
       "description": "Module app/dashboard/loading.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/dashboard/loading.tsx",
-        "relativeFilePath": "app/dashboard/loading.tsx",
+        "absPath": "<FIXTURE>/app/dashboard/loading.tsx",
+        "pkgRelPath": "app/dashboard/loading.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -499,8 +499,8 @@
       "label": "…/dashboard/page",
       "description": "Module app/dashboard/page.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/dashboard/page.tsx",
-        "relativeFilePath": "app/dashboard/page.tsx",
+        "absPath": "<FIXTURE>/app/dashboard/page.tsx",
+        "pkgRelPath": "app/dashboard/page.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -511,8 +511,8 @@
       "label": "…/[...slug]/page",
       "description": "Module app/docs/[...slug]/page.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/docs/[...slug]/page.tsx",
-        "relativeFilePath": "app/docs/[...slug]/page.tsx",
+        "absPath": "<FIXTURE>/app/docs/[...slug]/page.tsx",
+        "pkgRelPath": "app/docs/[...slug]/page.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -523,8 +523,8 @@
       "label": "app/layout",
       "description": "Module app/layout.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/layout.tsx",
-        "relativeFilePath": "app/layout.tsx",
+        "absPath": "<FIXTURE>/app/layout.tsx",
+        "pkgRelPath": "app/layout.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -534,8 +534,8 @@
       "label": "app/page",
       "description": "Module app/page.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/page.tsx",
-        "relativeFilePath": "app/page.tsx",
+        "absPath": "<FIXTURE>/app/page.tsx",
+        "pkgRelPath": "app/page.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -546,8 +546,8 @@
       "label": "…/[[...slug]]/page",
       "description": "Module app/shop/[[...slug]]/page.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/app/shop/[[...slug]]/page.tsx",
-        "relativeFilePath": "app/shop/[[...slug]]/page.tsx",
+        "absPath": "<FIXTURE>/app/shop/[[...slug]]/page.tsx",
+        "pkgRelPath": "app/shop/[[...slug]]/page.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -558,8 +558,8 @@
       "label": "components/error-fallback",
       "description": "Module components/error-fallback.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/components/error-fallback.tsx",
-        "relativeFilePath": "components/error-fallback.tsx",
+        "absPath": "<FIXTURE>/components/error-fallback.tsx",
+        "pkgRelPath": "components/error-fallback.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -569,8 +569,8 @@
       "label": "…/ui/button",
       "description": "Module components/ui/button.tsx in nextjs-app-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/components/ui/button.tsx",
-        "relativeFilePath": "components/ui/button.tsx",
+        "absPath": "<FIXTURE>/components/ui/button.tsx",
+        "pkgRelPath": "components/ui/button.tsx",
         "sourcePluginId": "typescript"
       }
     },

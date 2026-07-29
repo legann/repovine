@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -59,8 +60,8 @@ function realModule(id: string, contentHash: string): ModuleInfo {
   return {
     id,
     packageName: rel.split('/')[0] ?? 'pkg',
-    filePath: `/repo/${rel}.ts`,
-    relativeFilePath: `${rel}.ts`,
+    absPath: asHostPath(`/repo/${rel}.ts`),
+    pkgRelPath: asPkgRelPath(`${rel}.ts`),
     contentHash,
     imports: [],
     exports: [],
@@ -1187,8 +1188,8 @@ describe('annotation grounding gates (Phase B)', () => {
     return {
       id,
       packageName: 'p',
-      filePath: `/abs/${id.slice(4)}.ts`,
-      relativeFilePath: `${id.slice(4)}.ts`,
+      absPath: asHostPath(`/abs/${id.slice(4)}.ts`),
+      pkgRelPath: asPkgRelPath(`${id.slice(4)}.ts`),
       contentHash: 'h',
       imports: [],
       exports: exportNames.map(name => ({ name, kind: 'function', lineRange: { start: 1, end: 10 }, isDefault: false })),

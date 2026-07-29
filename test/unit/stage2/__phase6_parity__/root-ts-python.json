@@ -204,8 +204,8 @@
       "label": "…/api/health",
       "description": "Module src/myapp/api/health.py in myapp",
       "data": {
-        "filePath": "<FIXTURE>/src/myapp/api/health.py",
-        "relativeFilePath": "src/myapp/api/health.py",
+        "absPath": "<FIXTURE>/src/myapp/api/health.py",
+        "pkgRelPath": "src/myapp/api/health.py",
         "sourcePluginId": "python"
       }
     },
@@ -215,8 +215,8 @@
       "label": "…/web/urls",
       "description": "Module src/myapp/web/urls.py in myapp",
       "data": {
-        "filePath": "<FIXTURE>/src/myapp/web/urls.py",
-        "relativeFilePath": "src/myapp/web/urls.py",
+        "absPath": "<FIXTURE>/src/myapp/web/urls.py",
+        "pkgRelPath": "src/myapp/web/urls.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -227,8 +227,8 @@
       "label": "…/api/client",
       "description": "Module static/app/api/client.ts in myapp",
       "data": {
-        "filePath": "<FIXTURE>/static/app/api/client.ts",
-        "relativeFilePath": "static/app/api/client.ts",
+        "absPath": "<FIXTURE>/static/app/api/client.ts",
+        "pkgRelPath": "static/app/api/client.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -238,8 +238,8 @@
       "label": "…/router/routes",
       "description": "Module static/app/router/routes.tsx in myapp",
       "data": {
-        "filePath": "<FIXTURE>/static/app/router/routes.tsx",
-        "relativeFilePath": "static/app/router/routes.tsx",
+        "absPath": "<FIXTURE>/static/app/router/routes.tsx",
+        "pkgRelPath": "static/app/router/routes.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -250,8 +250,8 @@
       "label": "…/home/index",
       "description": "Module static/app/views/home/index.tsx in myapp",
       "data": {
-        "filePath": "<FIXTURE>/static/app/views/home/index.tsx",
-        "relativeFilePath": "static/app/views/home/index.tsx",
+        "absPath": "<FIXTURE>/static/app/views/home/index.tsx",
+        "pkgRelPath": "static/app/views/home/index.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }

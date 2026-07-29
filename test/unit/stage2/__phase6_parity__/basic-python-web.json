@@ -783,8 +783,8 @@
       "label": "drf_advanced",
       "description": "Module drf_advanced.py in django-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/django-app/drf_advanced.py",
-        "relativeFilePath": "drf_advanced.py",
+        "absPath": "<FIXTURE>/packages/django-app/drf_advanced.py",
+        "pkgRelPath": "drf_advanced.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -795,8 +795,8 @@
       "label": "drf_fbv",
       "description": "Module drf_fbv.py in django-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/django-app/drf_fbv.py",
-        "relativeFilePath": "drf_fbv.py",
+        "absPath": "<FIXTURE>/packages/django-app/drf_fbv.py",
+        "pkgRelPath": "drf_fbv.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -807,8 +807,8 @@
       "label": "drf_urls",
       "description": "Module drf_urls.py in django-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/django-app/drf_urls.py",
-        "relativeFilePath": "drf_urls.py",
+        "absPath": "<FIXTURE>/packages/django-app/drf_urls.py",
+        "pkgRelPath": "drf_urls.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -819,8 +819,8 @@
       "label": "firstpass_urls",
       "description": "Module firstpass_urls.py in django-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/django-app/firstpass_urls.py",
-        "relativeFilePath": "firstpass_urls.py",
+        "absPath": "<FIXTURE>/packages/django-app/firstpass_urls.py",
+        "pkgRelPath": "firstpass_urls.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -831,8 +831,8 @@
       "label": "nested_urls",
       "description": "Module nested_urls.py in django-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/django-app/nested_urls.py",
-        "relativeFilePath": "nested_urls.py",
+        "absPath": "<FIXTURE>/packages/django-app/nested_urls.py",
+        "pkgRelPath": "nested_urls.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -843,8 +843,8 @@
       "label": "urls",
       "description": "Module urls.py in django-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/django-app/urls.py",
-        "relativeFilePath": "urls.py",
+        "absPath": "<FIXTURE>/packages/django-app/urls.py",
+        "pkgRelPath": "urls.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -855,8 +855,8 @@
       "label": "firstpass",
       "description": "Module firstpass.py in fastapi-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/fastapi-app/firstpass.py",
-        "relativeFilePath": "firstpass.py",
+        "absPath": "<FIXTURE>/packages/fastapi-app/firstpass.py",
+        "pkgRelPath": "firstpass.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }
@@ -867,8 +867,8 @@
       "label": "main",
       "description": "Module main.py in fastapi-app",
       "data": {
-        "filePath": "<FIXTURE>/packages/fastapi-app/main.py",
-        "relativeFilePath": "main.py",
+        "absPath": "<FIXTURE>/packages/fastapi-app/main.py",
+        "pkgRelPath": "main.py",
         "hasRoutes": true,
         "sourcePluginId": "python"
       }

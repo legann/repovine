@@ -1,3 +1,6 @@
+import { asHostPath } from '@repovine/plugin-sdk';
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -30,7 +33,7 @@ describe('core-laws plugin-sdk dogfood (author against the facade only)', () => 
     fileMatch: { extensions: ['.dog'] },
     capabilities: { extensions: ['.dog'] },
     discover() {
-      return { packages: [], pendingByPath: new Map() };
+      return { packages: [], pendingByAbsPath: new Map() };
     },
     extract(input: SourceExtractInput): SourceExtractResult {
       // Producer emits ONLY semantics, keyed back to the engine-minted pending id. It never
@@ -54,10 +57,10 @@ describe('core-laws plugin-sdk dogfood (author against the facade only)', () => 
     try {
       const filePath = path.join(tmpRoot, 'svc.dog');
       fs.writeFileSync(filePath, 'unit dogfood\n');
-      const pkg: PackageInfo = { name: 'dog-pkg', path: tmpRoot, sourcePluginId: 'dogfood-lang' };
+      const pkg: PackageInfo = { name: 'dog-pkg', repoRelDir: asRepoRelPath(tmpRoot), sourcePluginId: 'dogfood-lang' };
       const pending: PendingModule = {
-        filePath,
-        relPath: 'svc.dog',
+        absPath: asHostPath(filePath),
+        pkgRelPath: asPkgRelPath('svc.dog'),
         pkg,
         moduleId: 'mod:dog-pkg/svc',
         sourcePluginId: 'dogfood-lang',
@@ -65,11 +68,11 @@ describe('core-laws plugin-sdk dogfood (author against the facade only)', () => 
 
       const result = await runSourceExtraction({
         plugin: thirdPartyStylePlugin,
-        repoRoot: tmpRoot,
+        repoRoot: asHostPath(tmpRoot),
         packages: [pkg],
         pendingModules: [pending],
-        prevByPath: new Map(),
-        absPathToId: new Map([[filePath, pending.moduleId]]),
+        prevByAbsPath: new Map(),
+        absPathToId: new Map([[asHostPath(filePath), pending.moduleId]]),
         extractContext: undefined,
         analysisVersion: 0,
       });

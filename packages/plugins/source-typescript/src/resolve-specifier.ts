@@ -4,6 +4,8 @@ import {
   moduleCandidateSuffixes,
   packageNodeId,
   resolveByCandidates,
+  asHostPath,
+  type HostPath,
   type PackageInfo,
 } from '@repovine/plugin-sdk';
 import { extractPackageName, hostKeyedView, hostPathKey } from '@repovine/plugin-sdk';
@@ -81,8 +83,8 @@ const CANDIDATE_SUFFIXES = moduleCandidateSuffixes({
   includeBareBase: true,
 });
 
-function lookupCandidates(basePath: string, absPathToId: Map<string, string>): string | undefined {
-  return resolveByCandidates(basePath, CANDIDATE_SUFFIXES, absPathToId);
+function lookupCandidates(baseAbsPath: HostPath, absPathToId: Map<HostPath, string>): string | undefined {
+  return resolveByCandidates(baseAbsPath, CANDIDATE_SUFFIXES, absPathToId);
 }
 
 /** NodeNext-style imports use the `.js` extension to refer to a sibling `.ts`/`.tsx` source.
@@ -97,20 +99,20 @@ function stripJsLikeExtension(specifier: string): string {
 
 function moduleIdForResolvedFile(
   resolvedFileName: string,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
 ): string | undefined {
-  const abs = path.resolve(resolvedFileName);
+  const abs = asHostPath(path.resolve(resolvedFileName));
   const direct = absPathToId.get(hostPathKey(abs));
   if (direct) return direct;
 
   const withoutExt = abs.replace(SOURCE_EXT_SUFFIX_RE, '');
-  const fromLookup = lookupCandidates(withoutExt, absPathToId);
+  const fromLookup = lookupCandidates(asHostPath(withoutExt), absPathToId);
   if (fromLookup) return fromLookup;
 
   // A declaration names an implementation beside it; the ladder finds whichever form that is.
   // Case-insensitive like every other suffix test here and like the id mint, which folds both sides.
   if (DECLARATION_EXT_SUFFIX_RE.test(abs)) {
-    return lookupCandidates(abs.replace(DECLARATION_EXT_SUFFIX_RE, ''), absPathToId);
+    return lookupCandidates(asHostPath(abs.replace(DECLARATION_EXT_SUFFIX_RE, '')), absPathToId);
   }
 
   return undefined;
@@ -119,9 +121,9 @@ function moduleIdForResolvedFile(
 /** Resolve via tsconfig `paths` / `baseUrl` using TypeScript's module resolver, then map to `mod:` ids. */
 function resolveViaTsconfigPaths(
   specifier: string,
-  importingFilePath: string,
+  importingAbsPath: HostPath,
   compilerOptions: ts.CompilerOptions,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
 ): string | undefined {
   const paths = compilerOptions.paths;
   if (!paths || Object.keys(paths).length === 0) return undefined;
@@ -129,7 +131,7 @@ function resolveViaTsconfigPaths(
   const host = createPathResolutionHost(absPathToId);
   const result = ts.resolveModuleName(
     specifier,
-    importingFilePath,
+    importingAbsPath,
     compilerOptions,
     host,
   );
@@ -138,11 +140,11 @@ function resolveViaTsconfigPaths(
   return moduleIdForResolvedFile(fileName, absPathToId);
 }
 
-function pathExistsInMap(fileName: string, absPathToId: Map<string, string>): boolean {
-  const abs = path.resolve(fileName);
+function pathExistsInMap(fileName: string, absPathToId: Map<HostPath, string>): boolean {
+  const abs = asHostPath(path.resolve(fileName));
   if (absPathToId.has(hostPathKey(abs))) return true;
   const withoutExt = abs.replace(DECLARATION_EXT_SUFFIX_RE, '').replace(SOURCE_EXT_SUFFIX_RE, '');
-  return lookupCandidates(withoutExt, absPathToId) !== undefined;
+  return lookupCandidates(asHostPath(withoutExt), absPathToId) !== undefined;
 }
 
 /** A `node_modules` segment never holds a graph module; never resolve into it. */
@@ -159,7 +161,7 @@ export function isNodeModulesPath(fileName: string): boolean {
  * dependency tree, the memory blow-up behind the build OOM. Blocking it keeps the same result
  * (the import resolves to "external") and never touches the type checker, so the graph is unchanged.
  */
-function createPathResolutionHost(absPathToId: Map<string, string>): ts.ModuleResolutionHost {
+function createPathResolutionHost(absPathToId: Map<HostPath, string>): ts.ModuleResolutionHost {
   const exists = (fileName: string): boolean =>
     !isNodeModulesPath(fileName) && (pathExistsInMap(fileName, absPathToId) || ts.sys.fileExists(fileName));
   return {
@@ -178,20 +180,20 @@ function createPathResolutionHost(absPathToId: Map<string, string>): ts.ModuleRe
  */
 export function resolveSpecifierFromMap(
   specifier: string,
-  importingFilePath: string,
-  absPathToId: Map<string, string>,
+  importingAbsPath: HostPath,
+  absPathToId: ReadonlyMap<string, string>,
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   pathsContext?: PathsContext,
 ): SpecifierResolution | undefined {
   // Canonical view: caller-built maps of any absolute-path shape —
   // tsconfig forward-slash, native walker, POSIX fixtures — resolve identically.
-  absPathToId = hostKeyedView(absPathToId);
+  const hostAbsPathToId = hostKeyedView(absPathToId);
   if (specifier.startsWith('.')) {
-    const importerDir = path.dirname(importingFilePath);
+    const importerDir = path.dirname(importingAbsPath);
     const stripped = stripJsLikeExtension(specifier);
-    const basePath = path.resolve(importerDir, stripped);
-    const id = lookupCandidates(basePath, absPathToId);
+    const basePath = asHostPath(path.resolve(importerDir, stripped));
+    const id = lookupCandidates(basePath, hostAbsPathToId);
     if (id !== undefined) {
       return { resolvedModuleId: id, isExternal: false };
     }
@@ -201,9 +203,9 @@ export function resolveSpecifierFromMap(
   if (pathsContext) {
     const pathsId = resolveViaTsconfigPaths(
       specifier,
-      importingFilePath,
+      importingAbsPath,
       pathsContext.compilerOptions,
-      absPathToId,
+      hostAbsPathToId,
     );
     if (pathsId !== undefined) {
       return { resolvedModuleId: pathsId, isExternal: false };
@@ -218,7 +220,7 @@ export function resolveSpecifierFromMap(
     return { resolvedModuleId: undefined, isExternal: true };
   }
 
-  const pkgAbsPath = path.resolve(repoRoot, pkg.path);
+  const pkgAbsPath = asHostPath(path.resolve(repoRoot, pkg.repoRelDir));
 
   // Bare workspace specifier: `@workspace/pkg` with no sub-path. Resolve to the package
   // entry/barrel module (`<pkg>/index.*` or `<pkg>/src/index.*`) so a cross-package import lands on
@@ -226,15 +228,18 @@ export function resolveSpecifierFromMap(
   const subPathRaw = specifier.length > pkgName.length ? specifier.slice(pkgName.length + 1) : '';
   if (!subPathRaw) {
     for (const entryDir of ['', 'src']) {
-      const entryId = lookupCandidates(path.resolve(pkgAbsPath, entryDir), absPathToId);
+      const entryId = lookupCandidates(
+        asHostPath(path.resolve(pkgAbsPath, entryDir)),
+        hostAbsPathToId,
+      );
       if (entryId !== undefined) return { resolvedModuleId: entryId, isExternal: false };
     }
     return { resolvedModuleId: packageNodeId(pkgName), isExternal: false };
   }
 
   // Workspace sub-path: resolve against the package directory.
-  const basePath = path.resolve(pkgAbsPath, stripJsLikeExtension(subPathRaw));
-  const id = lookupCandidates(basePath, absPathToId);
+  const basePath = asHostPath(path.resolve(pkgAbsPath, stripJsLikeExtension(subPathRaw)));
+  const id = lookupCandidates(basePath, hostAbsPathToId);
   if (id !== undefined) {
     return { resolvedModuleId: id, isExternal: false };
   }

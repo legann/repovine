@@ -6,6 +6,8 @@ import type { RepositoryFactsSnapshot } from '../types.js';
 import { MemoryProfiler } from '../perf/memory-profiler.js';
 import { writeFileAtomicSync, writeJsonObjectStreamed } from '../fs/atomic.js';
 import { repoRelativePosix } from '../platform/paths.js';
+import { asHostPath } from '@repovine/plugin-sdk';
+import type { HostPath, RepoRelPath } from '@repovine/plugin-sdk';
 
 export interface SnapshotCache {
   load(): RepositoryFactsSnapshot | null;
@@ -83,7 +85,7 @@ function canonicalize(value: unknown): string {
 
 const sortedStrings = (xs?: ReadonlyArray<string>): string[] => (xs ? [...xs].sort() : []);
 
-/** Extracted semantics of one module, excluding mechanical fields (`id`/`filePath`/`contentHash`,
+/** Extracted semantics of one module, excluding mechanical fields (`id`/`absPath`/`contentHash`,
  * folded separately) and position. Every list is normalized so extraction order does not move the
  * digest. */
 function moduleFacts(m: ModuleMember): unknown {
@@ -178,20 +180,20 @@ export function extractOutputFingerprint(snapshot: RepositoryFactsSnapshot): str
 
 const SNAPSHOT_FILENAME = 'repository-facts-snapshot.json';
 
-/** Module `filePath` is the only absolute field. Store it repo-root-relative (posix) so the
+/** Module `absPath` is stored repo-root-relative (POSIX) so the
  * on-disk cache transfers between worktrees, CI checkouts, and container mounts at the same
  * content. The absolute path is reconstructed against the current runtime root on load. */
-const toPortable = (root: string, abs: string): string => repoRelativePosix(root, abs);
-const toAbsolute = (root: string, stored: string): string =>
-  path.isAbsolute(stored) ? stored : path.resolve(root, stored);
+const toPortable = (root: string, abs: HostPath): RepoRelPath => repoRelativePosix(root, abs);
+const toAbsolute = (root: string, stored: string): HostPath =>
+  asHostPath(path.isAbsolute(stored) ? stored : path.resolve(root, stored));
 
-/** Serialize each module with its absolute `filePath` rewritten repo-root-relative, one element at a
+/** Serialize each module with its absolute `absPath` rewritten repo-root-relative, one element at a
  * time. A single transient clone is alive per yield, so the largest array is never doubled in memory,
  * and the streamed writer yields the event loop between batches. */
 function* portableModuleMembers(snapshot: RepositoryFactsSnapshot): Generator<string> {
   const root = snapshot.repoRoot;
   for (const m of snapshot.modules) {
-    yield JSON.stringify({ ...m, filePath: toPortable(root, m.filePath) });
+    yield JSON.stringify({ ...m, absPath: toPortable(root, m.absPath) });
   }
 }
 
@@ -199,28 +201,27 @@ export function createFileCache(cacheDir: string, repoRoot: string): SnapshotCac
   const filePath = path.join(cacheDir, SNAPSHOT_FILENAME);
 
   const reconstruct = (raw: { modules: RepositoryFactsSnapshot['modules'] }): RepositoryFactsSnapshot => {
-    for (const m of raw.modules) m.filePath = toAbsolute(repoRoot, m.filePath);
+    for (const m of raw.modules) m.absPath = toAbsolute(repoRoot, m.absPath);
     return raw as RepositoryFactsSnapshot;
   };
 
-  // Serialize with each module's absolute `filePath` rewritten repo-root-relative in place, then
-  // reverted in a finally. No clone of the (largest) modules array is allocated. The relative-path
-  // window is synchronous — there is no await between rewrite and revert — so nothing else on the
-  // event loop observes the snapshot mid-rewrite, even when called from `saveAsync`. The finally
-  // restores absolute paths even if `JSON.stringify` throws (the >512 MB string cliff).
+  // Serialize module host paths portably without ever writing a repo-relative value into the
+  // HostPath-branded in-memory record. A WeakSet marks module objects for the replacer; it avoids a
+  // second modules array while keeping the brand invariant true even if stringify throws.
   const writeSnapshot = (snapshot: RepositoryFactsSnapshot): string => {
     const profiler = MemoryProfiler.ensure();
     const root = snapshot.repoRoot;
-    for (const m of snapshot.modules) m.filePath = toPortable(root, m.filePath);
-    try {
-      profiler.phase('cache:before-stringify');
-      const json = JSON.stringify(snapshot);
-      profiler.setCounter('snapshotCacheJsonBytes', Buffer.byteLength(json, 'utf8'));
-      profiler.phase('cache:after-stringify');
-      return json;
-    } finally {
-      for (const m of snapshot.modules) m.filePath = toAbsolute(root, m.filePath);
-    }
+    const moduleRecords = new WeakSet<object>(snapshot.modules);
+    profiler.phase('cache:before-stringify');
+    const json = JSON.stringify(snapshot, function (key, value: unknown): unknown {
+      if (key === 'absPath' && moduleRecords.has(this as object) && typeof value === 'string') {
+        return toPortable(root, asHostPath(value));
+      }
+      return value;
+    });
+    profiler.setCounter('snapshotCacheJsonBytes', Buffer.byteLength(json, 'utf8'));
+    profiler.phase('cache:after-stringify');
+    return json;
   };
 
   return {

@@ -8,7 +8,7 @@ export const helmChartParser: IaCParser = {
   fileMatch: { fileNames: ['Chart.yaml', 'Chart.yml'] },
   loaderId: 'yaml',
 
-  supports(_filePath, doc): boolean {
+  supports(_absPath, doc): boolean {
     if (!doc || typeof doc !== 'object') return false;
     const d = doc as Record<string, unknown>;
     if (d.Resources && typeof d.Resources === 'object') return false;
@@ -16,10 +16,10 @@ export const helmChartParser: IaCParser = {
     return false;
   },
 
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (!doc || typeof doc !== 'object') return null;
     const d = doc as { name?: string; version?: string; appVersion?: string; description?: string };
-    const name = d.name ?? path.basename(path.dirname(filePath));
+    const name = d.name ?? path.basename(path.dirname(absPath));
     const helmResourceBody = {
       id: name,
       name: d.name,

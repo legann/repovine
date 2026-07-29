@@ -118,14 +118,14 @@ export const vercelParser: IaCParser = {
   fileMatch: { fileNames: ['vercel.json'] },
   loaderId: 'json',
 
-  supports(filePath: string, doc: unknown): boolean {
-    if (path.basename(filePath) !== 'vercel.json') return false;
+  supports(absPath, doc): boolean {
+    if (path.basename(absPath) !== 'vercel.json') return false;
     if (!isRecord(doc)) return false;
     return ['version', 'functions', 'crons', 'rewrites', 'redirects', 'headers', 'routes']
       .some(key => key in doc);
   },
 
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (!isRecord(doc)) return null;
     const root = doc;
     const resources: InfraResource[] = [];

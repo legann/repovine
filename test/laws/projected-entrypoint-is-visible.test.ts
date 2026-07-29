@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { addNode, createEmptyGraph } from '../../src/graph/index.js';
 import { collectEntrypoints } from '../../src/mcp/lib/entrypoints.js';
@@ -23,8 +24,8 @@ function mod(id: string, semanticHints?: ModuleInfo['semanticHints']): ModuleInf
   return {
     id,
     packageName: 'shop',
-    filePath: `/repo/${id}.go`,
-    relativeFilePath: `${id}.go`,
+    absPath: asHostPath(`/repo/${id}.go`),
+    pkgRelPath: asPkgRelPath(`${id}.go`),
     contentHash: id,
     imports: [],
     exports: [],
@@ -36,7 +37,7 @@ function mod(id: string, semanticHints?: ModuleInfo['semanticHints']): ModuleInf
 function runtime(modules: ModuleInfo[], fragments: EntrypointFragment[]): McpToolRuntime {
   const graph = createEmptyGraph();
   for (const module of modules) {
-    addNode(graph, { id: module.id, type: 'module', label: module.relativeFilePath, description: 'module' });
+    addNode(graph, { id: module.id, type: 'module', label: module.pkgRelPath, description: 'module' });
   }
   const snapshot = { repoRoot: '/repo', timestamp: '', packages: [], modules } as unknown as RepositoryFactsSnapshot;
   rememberInterpreterEntrypoints(graph, fragments);

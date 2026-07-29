@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
 import { afterEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -60,7 +62,7 @@ describe('plugin-loader', () => {
       source: {
         fileMatch: { extensions: ['.foo'] },
         capabilities: { extensions: ['.foo'] },
-        discover() { return { packages: [], pendingByPath: new Map() }; },
+        discover() { return { packages: [], pendingByAbsPath: new Map() }; },
         extract() { return { deltas: [], reused: 0, rescanned: 0 }; },
       },
     },
@@ -81,7 +83,7 @@ describe('plugin-loader', () => {
       source: {
         fileMatch: { extensions: ['.mix'] },
         capabilities: { extensions: ['.mix'] },
-        discover() { return { packages: [], pendingByPath: new Map() }; },
+        discover() { return { packages: [], pendingByAbsPath: new Map() }; },
         extract() {
           return {
             deltas: [
@@ -156,7 +158,7 @@ describe('plugin-loader', () => {
         id: 'wide',
         capabilities: {
           source: {
-            discover() { return { packages: [], pendingByPath: new Map() }; },
+            discover() { return { packages: [], pendingByAbsPath: new Map() }; },
             extract() { return { deltas: [], reused: 0, rescanned: 0 }; },
           },
           iac: { parsers: [{ kind: 'wide-infra', supports() { return false; }, parse() { return null; } }] },
@@ -365,7 +367,7 @@ describe('plugin-loader', () => {
     // wrap must coerce that to null so no malformed infra facts enter the graph.
     const parser = getParsers().find(p => p.kind === 'broken-infra');
     expect(parser).toBeDefined();
-    const out = parser!.parse('/repo/infra.yml', 'infra.yml', {});
+    const out = parser!.parse(asHostPath('/repo/infra.yml'), asRepoRelPath('infra.yml'), {});
     expect(out).toBeNull();
   });
 

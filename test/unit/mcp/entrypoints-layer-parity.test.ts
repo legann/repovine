@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { createEmptyGraph, addNode } from '../../../src/graph/index.js';
 import { collectBackendRouteEntrypoints } from '../../../src/interpreters/server-entrypoints/entrypoints.js';
@@ -14,8 +16,8 @@ function mod(id: string, semanticHints?: ModuleInfo['semanticHints'], sourcePlug
   return {
     id,
     packageName: 'pkg',
-    filePath: `/repo/${id}.ts`,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(`/repo/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash: id,
     imports: [],
     exports: [],
@@ -74,7 +76,7 @@ describe('collectEntrypoints layer parity', () => {
     const snapshot: RepositoryFactsSnapshot = {
       repoRoot: '/repo',
       timestamp: '2026-06-13T00:00:00.000Z',
-      packages: [{ name: 'pkg', path: '.', sourcePluginId: 'typescript' }],
+      packages: [{ name: 'pkg', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'typescript' }],
       modules,
       // A trigger's entrypoint kind is what its ecosystem declared, so the snapshot carries the
       // declarations a real build carries.

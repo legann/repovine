@@ -152,8 +152,8 @@
       "label": "src/App.svelte",
       "description": "Module src/App.svelte in svelte-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/App.svelte",
-        "relativeFilePath": "src/App.svelte",
+        "absPath": "<FIXTURE>/src/App.svelte",
+        "pkgRelPath": "src/App.svelte",
         "sourcePluginId": "typescript"
       }
     },
@@ -163,8 +163,8 @@
       "label": "…/components/Button.svelte",
       "description": "Module src/lib/components/Button.svelte in svelte-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/lib/components/Button.svelte",
-        "relativeFilePath": "src/lib/components/Button.svelte",
+        "absPath": "<FIXTURE>/src/lib/components/Button.svelte",
+        "pkgRelPath": "src/lib/components/Button.svelte",
         "sourcePluginId": "typescript"
       }
     },
@@ -174,8 +174,8 @@
       "label": "…/components/UserCard.svelte",
       "description": "Module src/lib/components/UserCard.svelte in svelte-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/lib/components/UserCard.svelte",
-        "relativeFilePath": "src/lib/components/UserCard.svelte",
+        "absPath": "<FIXTURE>/src/lib/components/UserCard.svelte",
+        "pkgRelPath": "src/lib/components/UserCard.svelte",
         "sourcePluginId": "typescript"
       }
     },
@@ -185,8 +185,8 @@
       "label": "…/lib/stores",
       "description": "Module src/lib/stores.ts in svelte-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/lib/stores.ts",
-        "relativeFilePath": "src/lib/stores.ts",
+        "absPath": "<FIXTURE>/src/lib/stores.ts",
+        "pkgRelPath": "src/lib/stores.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -196,8 +196,8 @@
       "label": "src/main",
       "description": "Module src/main.ts in svelte-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/main.ts",
-        "relativeFilePath": "src/main.ts",
+        "absPath": "<FIXTURE>/src/main.ts",
+        "pkgRelPath": "src/main.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -207,8 +207,8 @@
       "label": "…/users/UserList.svelte",
       "description": "Module src/routes/users/UserList.svelte in svelte-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/users/UserList.svelte",
-        "relativeFilePath": "src/routes/users/UserList.svelte",
+        "absPath": "<FIXTURE>/src/routes/users/UserList.svelte",
+        "pkgRelPath": "src/routes/users/UserList.svelte",
         "sourcePluginId": "typescript"
       }
     },

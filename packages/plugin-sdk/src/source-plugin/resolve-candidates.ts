@@ -1,4 +1,5 @@
 import { hostKeyedView, hostPathKey } from '../paths.js';
+import type { HostPath } from '../path-contract.js';
 
 /**
  * The lookup half of import resolution: probe a base path against a map of absolute paths, in the
@@ -17,13 +18,13 @@ import { hostKeyedView, hostPathKey } from '../paths.js';
  * its own implementation would resolve every import to the declaration file.
  */
 export function resolveByCandidates(
-  basePath: string,
+  baseAbsPath: HostPath,
   candidateSuffixes: readonly string[],
   absPathToId: ReadonlyMap<string, string>,
 ): string | undefined {
   const view = hostKeyedView(absPathToId);
   for (const suffix of candidateSuffixes) {
-    const id = view.get(hostPathKey(basePath + suffix));
+    const id = view.get(hostPathKey(baseAbsPath + suffix));
     if (id !== undefined) return id;
   }
   return undefined;

@@ -1,9 +1,14 @@
 import {
+  asHostPath,
+  asPkgRelPath,
+  asRepoRelPath,
   definePlugin,
+  hostPathKey,
   toPosixPath,
 } from '@repovine/plugin-sdk';
 import type {
   ExportInfo,
+  HostPath,
   ImportInfo,
   PackageInfo,
   PendingModuleDraft,
@@ -86,12 +91,12 @@ function moduleNameOf(goModPath: string): string | undefined {
   return match?.[1];
 }
 
-function discover(repoRoot: string): SourceDiscoveryResult {
+function discover(repoRoot: HostPath): SourceDiscoveryResult {
   const goMods: string[] = [];
   walk(repoRoot, goMods, ['go.mod']);
 
   const packages: PackageInfo[] = [];
-  const pendingByPath = new Map<string, PendingModuleDraft>();
+  const pendingByAbsPath = new Map<HostPath, PendingModuleDraft>();
 
   for (const goMod of goMods) {
     const root = goMod.slice(0, goMod.length - 'go.mod'.length - 1) || repoRoot;
@@ -99,7 +104,7 @@ function discover(repoRoot: string): SourceDiscoveryResult {
     if (name === undefined) continue;
     const pkg: PackageInfo = {
       name,
-      path: toPosixPath(relative(repoRoot, root)) || '.',
+      repoRelDir: asRepoRelPath(toPosixPath(relative(repoRoot, root)) || '.'),
       sourcePluginId: PLUGIN_ID,
     };
     packages.push(pkg);
@@ -107,16 +112,17 @@ function discover(repoRoot: string): SourceDiscoveryResult {
     const sources: string[] = [];
     walk(root, sources, ['.go']);
     for (const abs of sources) {
-      pendingByPath.set(abs, {
-        filePath: abs,
+      const absPath = asHostPath(abs);
+      pendingByAbsPath.set(hostPathKey(absPath), {
+        absPath,
         pkg,
-        relPath: toPosixPath(relative(repoRoot, abs)),
+        pkgRelPath: asPkgRelPath(toPosixPath(relative(root, abs))),
         sourcePluginId: PLUGIN_ID,
       });
     }
   }
 
-  return { packages, pendingByPath };
+  return { packages, pendingByAbsPath };
 }
 
 /* --------------------------------- extraction --------------------------------- */
@@ -135,7 +141,12 @@ function resolveImport(specifier: string, packages: readonly PackageInfo[]): str
   return undefined;
 }
 
-function importsOf(text: string, packages: readonly PackageInfo[], absPathToId: Map<string, string>, repoRoot: string): ImportInfo[] {
+function importsOf(
+  text: string,
+  packages: readonly PackageInfo[],
+  absPathToId: ReadonlyMap<HostPath, string>,
+  repoRoot: HostPath,
+): ImportInfo[] {
   const specifiers: string[] = [];
   for (const block of text.matchAll(IMPORT_BLOCK)) {
     for (const line of (block[1] ?? '').matchAll(IMPORT_LINE)) {

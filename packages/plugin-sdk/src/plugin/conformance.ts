@@ -4,6 +4,8 @@ import { checkProjectionRefs, validateProjectionBatch } from './projection-schem
 import type { AcceptedProjectionBatch } from './projection-schema.js';
 import { makeResourceId } from './resource-identity.js';
 import type { ResourceIdentity } from './resource-identity.js';
+import { asHostPath } from '../path-contract.js';
+import type { HostPath } from '../path-contract.js';
 import type {
   ProjectionFactSelector,
   ReadonlyFactRecord,
@@ -33,7 +35,7 @@ export interface PluginConformanceInput {
   /** Runtime resources the graph already holds, which a projected reference can point at. */
   resources?: readonly ResourceIdentity[];
   /** Repository root handed to projectors. Defaults to a neutral placeholder. */
-  repoRoot?: string;
+  repoRoot?: HostPath;
 }
 
 function check(name: string, ok: boolean, detail?: string): ConformanceCheck {
@@ -92,7 +94,7 @@ export function checkPluginConformance(input: PluginConformanceInput): Conforman
   const facts = input.facts ?? [];
   const knownResourceIds = new Set((input.resources ?? []).map(makeResourceId));
   const view = factViewOf(modules, facts, knownResourceIds);
-  const projectionInput = { repoRoot: input.repoRoot ?? '/repo', facts: view };
+  const projectionInput = { repoRoot: input.repoRoot ?? asHostPath('/repo'), facts: view };
   const accepted: AcceptedProjectionBatch[] = [];
 
   for (const projector of projectors) {

@@ -1,6 +1,7 @@
 import type { JsonValue } from './json.js';
 import type { PluginOwnerIdentity } from './declarations.js';
 import type { ResourceIdentity } from './resource-identity.js';
+import type { HostPath, RepoRelPath } from '../path-contract.js';
 
 /**
  * The public projection contract: how a plugin turns its own facts into canonical repository
@@ -214,7 +215,7 @@ export interface ReadonlyModuleFact {
   moduleId: string;
   packageName: string;
   /** Repo-root-relative POSIX path. */
-  relativeFilePath: string;
+  repoRelPath: RepoRelPath;
 }
 
 /** One fact published under a declared schema. */
@@ -246,7 +247,7 @@ export interface ReadonlyFactView {
 
 export interface ReadonlyProjectionInput {
   /** Absolute repository root. Path fields in facts are relative to it and POSIX-spelled. */
-  repoRoot: string;
+  repoRoot: HostPath;
   facts: ReadonlyFactView;
 }
 

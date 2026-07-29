@@ -78,7 +78,7 @@ const source: SourceRuntimeCapability = {
   fileMatch: { extensions: ['.sa'] },
   capabilities: { extensions: ['.sa'], moduleIdNormalize: { stripSuffixes: ['.sa'] } },
   discover() {
-    return { packages: [], pendingByPath: new Map() };
+    return { packages: [], pendingByAbsPath: new Map() };
   },
   extract() {
     return { deltas: [], reused: 0, rescanned: 0 };
@@ -88,7 +88,7 @@ const source: SourceRuntimeCapability = {
 const loader: DocumentLoader = {
   id: 'standalone-json',
   load(input) {
-    return [{ documentKey: input.relativeFilePath, value: JSON.parse(new TextDecoder().decode(input.content)) }];
+    return [{ documentKey: input.repoRelPath, value: JSON.parse(new TextDecoder().decode(input.content)) }];
   },
 };
 
@@ -298,7 +298,7 @@ process.stdout.write(JSON.stringify(out));
       import { readFileSync } from 'node:fs';
       const entry = await import(pathToFileURL(process.env.FIXTURE_ENTRY).href);
       const manifest = JSON.parse(readFileSync(process.env.FIXTURE_MANIFEST, 'utf-8')).repovine;
-      const modules = [{ moduleId: 'mod:app/index', packageName: 'app', relativeFilePath: 'src/index.ts' }];
+      const modules = [{ moduleId: 'mod:app/index', packageName: 'app', repoRelPath: 'src/index.ts' }];
       const honest = entry.checkPluginConformance({ manifest, descriptor: entry.default, modules });
       const mutants = {};
       for (const [name, descriptor] of Object.entries(entry.mutants)) {

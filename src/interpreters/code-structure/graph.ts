@@ -35,8 +35,8 @@ function pass1Packages(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot
       id: pkgId,
       type: 'package',
       label: pkg.name,
-      description: `Package ${pkg.name} (${pkg.path})`,
-      data: { path: pkg.path, version: pkg.version, sourcePluginId: pkg.sourcePluginId },
+      description: `Package ${pkg.name} (${pkg.repoRelDir})`,
+      data: { path: pkg.repoRelDir, version: pkg.version, sourcePluginId: pkg.sourcePluginId },
     });
     addEdge(graph, 'root', pkgId, 'contains');
   }
@@ -49,11 +49,11 @@ function pass2Modules(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot)
     addNode(graph, {
       id: mod.id,
       type: 'module',
-      label: shortModuleLabel(mod.relativeFilePath),
-      description: `Module ${mod.relativeFilePath} in ${mod.packageName}`,
+      label: shortModuleLabel(mod.pkgRelPath),
+      description: `Module ${mod.pkgRelPath} in ${mod.packageName}`,
       data: {
-        filePath: mod.filePath,
-        relativeFilePath: mod.relativeFilePath,
+        absPath: mod.absPath,
+        pkgRelPath: mod.pkgRelPath,
         hasRoutes: mod.semanticHints?.hasRoutes ?? undefined,
         envVars: mod.semanticHints?.envVars,
         ssr: mod.semanticHints?.ssr,

@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { computeRiskScopeCandidates } from '../../../src/annotations/risk-scope-candidates.js';
 import { addNode, createEmptyGraph } from '../../../src/graph/index.js';
@@ -8,8 +9,8 @@ function makeMod(id: string, relativeFilePath?: string): ModuleInfo {
   return {
     id,
     packageName: 'test',
-    filePath: `/repo/${rel}`,
-    relativeFilePath: rel,
+    absPath: asHostPath(`/repo/${rel}`),
+    pkgRelPath: asPkgRelPath(rel),
     contentHash: `${id}:hash`,
     imports: [],
     exports: [],
@@ -23,7 +24,7 @@ function addModule(graph: RepositoryGraph, id: string, relativeFilePath?: string
     type: 'module',
     label: rel,
     description: '',
-    data: { filePath: `/repo/${rel}`, relativeFilePath: rel },
+    data: { absPath: asHostPath(`/repo/${rel}`), pkgRelPath: asPkgRelPath(rel) },
   });
 }
 

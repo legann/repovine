@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -20,8 +21,8 @@ function makeMod(
   return {
     id,
     packageName,
-    filePath: `/repo/packages/${packageName}/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/packages/${packageName}/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash: 'h1',
     imports: [],
     exports: [],
@@ -38,11 +39,11 @@ function addModule(graph: RepositoryGraph, mod: ModuleInfo): void {
   addNode(graph, {
     id: mod.id,
     type: 'module',
-    label: mod.relativeFilePath,
+    label: mod.pkgRelPath,
     description: '',
     data: {
-      filePath: mod.filePath,
-      relativeFilePath: mod.relativeFilePath,
+      absPath: asHostPath(mod.absPath),
+      pkgRelPath: asPkgRelPath(mod.pkgRelPath),
       envVars: mod.semanticHints?.envVars,
     },
   });
@@ -51,7 +52,7 @@ function addModule(graph: RepositoryGraph, mod: ModuleInfo): void {
 
 function linkImport(from: ModuleInfo, to: ModuleInfo, importedName: string): void {
   from.imports.push({
-    moduleSpecifier: to.relativeFilePath,
+    moduleSpecifier: to.pkgRelPath,
     resolvedModuleId: to.id,
     importedNames: [importedName],
     isTypeOnly: false,

@@ -1,3 +1,4 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from '@jest/globals';
@@ -122,10 +123,10 @@ function fixture(options: FixtureOptions = {}): { graph: RepositoryGraph; snapsh
   addEdge(graph, RESOURCE, OWNED, 'infra');
 
   const modules = [
-    { id: OWNED, relativeFilePath: 'app/owned.ts', packageName: 'app', exports: [], imports: [], contentHash: ownedHash },
-    { id: LOOSE, relativeFilePath: 'loose/orphan.ts', packageName: 'app', exports: [], imports: [], contentHash: looseHash },
-    { id: TYPE_ONLY_IMPORTER, relativeFilePath: 'app/type-importer.ts', packageName: 'app', exports: [], imports: [], contentHash: 'ti-h1' },
-    { id: PATTERN_MATCHED, relativeFilePath: 'app/pattern-matched.ts', packageName: 'app', exports: [], imports: [], contentHash: 'pm-h1' },
+    { id: OWNED, pkgRelPath: asPkgRelPath('app/owned.ts'), packageName: 'app', exports: [], imports: [], contentHash: ownedHash },
+    { id: LOOSE, pkgRelPath: asPkgRelPath('loose/orphan.ts'), packageName: 'app', exports: [], imports: [], contentHash: looseHash },
+    { id: TYPE_ONLY_IMPORTER, pkgRelPath: asPkgRelPath('app/type-importer.ts'), packageName: 'app', exports: [], imports: [], contentHash: 'ti-h1' },
+    { id: PATTERN_MATCHED, pkgRelPath: asPkgRelPath('app/pattern-matched.ts'), packageName: 'app', exports: [], imports: [], contentHash: 'pm-h1' },
   ] as unknown as ModuleInfo[];
   const snapshot = { repoRoot: '/repo', timestamp: 't', packages: [], modules } as unknown as RepositoryFactsSnapshot;
   return { graph, snapshot };
@@ -484,7 +485,7 @@ describe('core-laws graph traversal (one question, one implementation)', () => {
     const offenders = otherSourceLines([GRAPH_INDEX])
       .filter(row => shape.test(row.line))
       // A path fallback answers a different question and says so by naming the path.
-      .filter(row => !/relativeFilePath|filePath/.test(row.line))
+      .filter(row => !/pkgRelPath|repoRelPath|absPath|relativeFilePath|filePath/.test(row.line))
       .map(row => `${row.rel}:${row.number}`);
     expect(offenders).toEqual([]);
   });

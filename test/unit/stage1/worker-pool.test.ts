@@ -1,3 +1,5 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asRepoRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it, afterEach, beforeAll, jest } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -192,7 +194,7 @@ describe('effectiveTotalMemBytes', () => {
 
 describe('pooled extraction failures', () => {
   it('refuses to finalize a snapshot when any shard reports an extraction error', () => {
-    const pkg: PackageInfo = { name: 'broken', path: 'packages/broken', sourcePluginId: 'typescript' };
+    const pkg: PackageInfo = { name: 'broken', repoRelDir: asRepoRelPath('packages/broken'), sourcePluginId: 'typescript' };
     const failed: PackageJobResult = {
       pkgName: pkg.name,
       jobKey: packageJobKey(pkg),
@@ -311,7 +313,7 @@ function poolOptions(size = 2): PackageWorkerPoolOptions {
     size,
     packages: [],
     absPathToId: new Map(),
-    repoRoot: '/repo',
+    repoRoot: asHostPath('/repo'),
     extractContextByPlugin: new Map(),
     pluginSpec: { repoRoot: '/repo', config: { defaults: true, add: [], disable: [] } },
     analysisVersion: 1,
@@ -320,10 +322,10 @@ function poolOptions(size = 2): PackageWorkerPoolOptions {
 }
 
 function poolJob(name: string, solo = false): PackageJob {
-  const pkg: PackageInfo = { name, path: `packages/${name}`, sourcePluginId: 'typescript' };
+  const pkg: PackageInfo = { name, repoRelDir: asRepoRelPath(`packages/${name}`), sourcePluginId: 'typescript' };
   const pending: PendingModule = {
-    filePath: `/repo/packages/${name}/src/index.ts`,
-    relPath: 'src/index.ts',
+    absPath: asHostPath(`/repo/packages/${name}/src/index.ts`),
+    pkgRelPath: asPkgRelPath('src/index.ts'),
     moduleId: `mod:${name}/src/index`,
     pkg,
     sourcePluginId: 'typescript',
@@ -332,7 +334,7 @@ function poolJob(name: string, solo = false): PackageJob {
     pkg,
     sourcePluginId: 'typescript',
     pendingModules: [pending],
-    prevModuleEntries: [] as [string, ModuleInfo][],
+    prevModuleEntries: [],
     shardIndex: 0,
     totalShards: 1,
     ...(solo ? { solo: true } : {}),

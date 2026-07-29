@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Delivery invariance (L1).
  *
@@ -76,8 +77,8 @@ function moduleInfo(nodeId: string): ModuleInfo {
   return {
     id: nodeId,
     packageName: 'app',
-    filePath: `/repo/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash: 'fixture-hash',
     imports: [],
     exports: [],

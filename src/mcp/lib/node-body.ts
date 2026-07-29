@@ -89,23 +89,24 @@ export async function readNodeBody(
     const parentEdge = (graph.inEdges.get(nodeId) ?? []).find(e => e.kind === 'contains');
     const parentMod = parentEdge ? modulesById.get(parentEdge.from) : undefined;
     if (!parentMod) return refused('not-found', 'body-parent-missing', `Parent module not found for export-symbol: ${nodeId}`, { nodeId });
-    if (!isPathInsideRepo(repoRoot, parentMod.filePath)) {
-      return refused('rejected-by-policy', 'body-outside-workspace', `Refusing to read source outside repo root: ${displayPath(repoRoot, parentMod.filePath)}`, { path: refusalPath(repoRoot, parentMod.filePath) });
+    if (!isPathInsideRepo(repoRoot, parentMod.absPath)) {
+      return refused('rejected-by-policy', 'body-outside-workspace', `Refusing to read source outside repo root: ${displayPath(repoRoot, parentMod.absPath)}`, { path: refusalPath(repoRoot, parentMod.absPath) });
     }
     try {
-      const raw = await fsPromises.readFile(parentMod.filePath, 'utf-8');
+      const raw = await fsPromises.readFile(parentMod.absPath, 'utf-8');
       const allLines = raw.split('\n');
       const lineStart = Math.max(0, lineRange.start - 1);
       const lineEnd = Math.min(allLines.length, lineRange.end);
-      return delivered({ lines: allLines.slice(lineStart, lineEnd), lineStart, filePath: parentMod.filePath });
+      return delivered({ lines: allLines.slice(lineStart, lineEnd), lineStart, filePath: parentMod.absPath });
     } catch (e) {
-      return refused('unreadable', 'body-unreadable', `Could not read file: ${displayPath(repoRoot, parentMod.filePath)} — ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`, { path: refusalPath(repoRoot, parentMod.filePath) });
+      return refused('unreadable', 'body-unreadable', `Could not read file: ${displayPath(repoRoot, parentMod.absPath)} — ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`, { path: refusalPath(repoRoot, parentMod.absPath) });
     }
   }
 
   if (nodeType === 'module') {
     const mod = modulesById.get(nodeId);
-    const filePath = mod?.filePath ?? (graph.nodes.get(nodeId)?.data as { filePath?: string } | undefined)?.filePath;
+    const filePath = mod?.absPath
+      ?? (graph.nodes.get(nodeId)?.data as { absPath?: string } | undefined)?.absPath;
     if (!filePath) return refused('not-found', 'body-module-missing', `Module file info not found: ${nodeId}`, { nodeId });
     if (!isPathInsideRepo(repoRoot, filePath)) {
       return refused('rejected-by-policy', 'body-outside-workspace', `Refusing to read source outside repo root: ${displayPath(repoRoot, filePath)}`, { path: refusalPath(repoRoot, filePath) });

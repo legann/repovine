@@ -5,7 +5,7 @@
 //   - fileMatch/docFormat let the engine find and parse candidate artifacts;
 //   - supports() claims only documents this plugin owns;
 //   - parse() emits INFRA SEMANTICS ONLY (`kind` + `resources`). The engine stamps the
-//     InfraModuleInfo id/filePath/relativeFilePath/contentHash at the Stage-1 boundary;
+//     InfraModuleInfo id/absPath/repoRelPath/contentHash at the Stage-1 boundary;
 //   - per-resource contentHash is producer-owned because it fingerprints a resource fragment;
 //   - the manifest's `declarations.triggerTypes` teach the core how to project custom trigger types
 //     into entrypoints/edges without a new interpreter. They are data, read before any plugin code
@@ -33,11 +33,11 @@ function asString(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
 
-function stackName(root, relPath) {
-  // `relPath` is repo-relative POSIX by contract, so the directory holding the stack is a POSIX
+function stackName(root, repoRelPath) {
+  // `repoRelPath` is repo-relative POSIX by contract, so the directory holding the stack is a POSIX
   // question and `path.basename` is not it — on win32 that also splits on `\`, which in a
   // repo-relative path is a character in a filename.
-  const stackDir = relPath.split('/').slice(0, -1).join('/');
+  const stackDir = repoRelPath.split('/').slice(0, -1).join('/');
   return asString(root.name) || lastPathSegment(stackDir) || 'edge-stack';
 }
 
@@ -51,6 +51,7 @@ function collectQueues(root, name) {
       id,
       kind: 'queue',
       provider: 'aws',
+      identity: { namespace: STACK_KIND, localKey: id },
       contentHash: hashResourcePayload({ kind: 'edge-queue', entry }),
       attributes: {
         stackName: name,
@@ -71,6 +72,7 @@ function collectSecrets(root, name) {
       id,
       kind: 'secret',
       provider: 'aws',
+      identity: { namespace: STACK_KIND, localKey: id },
       contentHash: hashResourcePayload({ kind: 'edge-secret', entry }),
       attributes: {
         stackName: name,
@@ -131,6 +133,7 @@ function collectFunctions(root, name) {
       id,
       kind: 'lambda',
       provider: 'aws',
+      identity: { namespace: STACK_KIND, localKey: id },
       contentHash: hashResourcePayload({ kind: 'edge-function', fn }),
       attributes: attrs,
       envVars: isRecord(fn.env) ? Object.keys(fn.env) : undefined,
@@ -144,18 +147,18 @@ function collectFunctions(root, name) {
 const edgeStackParser = defineIaCParser({
   kind: STACK_KIND,
   fileMatch: { fileNames: [STACK_FILE] },
-  docFormat: 'json',
+  loaderId: 'json',
 
-  supports(filePath, doc) {
-    return path.basename(filePath) === STACK_FILE &&
+  supports(absPath, doc) {
+    return path.basename(absPath) === STACK_FILE &&
       isRecord(doc) &&
       doc['x-repovine-kind'] === STACK_KIND;
   },
 
-  parse(filePath, relPath, doc) {
-    if (!this.supports(filePath, doc)) return null;
+  parse(absPath, repoRelPath, doc) {
+    if (!this.supports(absPath, doc)) return null;
     const root = doc;
-    const name = stackName(root, relPath);
+    const name = stackName(root, repoRelPath);
     const resources = [
       ...collectQueues(root, name),
       ...collectSecrets(root, name),

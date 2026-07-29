@@ -1,3 +1,4 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -150,7 +151,7 @@ describe('core-laws the pruned set is held by a fixture that contains one of eac
     expect({
       modules: snapshot.modules.map(mod => mod.id).sort(),
       templates: (snapshot.templates ?? []).map(tpl => tpl.relPath),
-      infra: (snapshot.infraModules ?? []).map(mod => mod.relativeFilePath),
+      infra: (snapshot.infraModules ?? []).map(mod => mod.repoRelPath),
     }).toEqual({ modules: [KEPT], templates: [], infra: [] });
   }, 180_000);
 
@@ -159,10 +160,10 @@ describe('core-laws the pruned set is held by a fixture that contains one of eac
 
     const snapshot = await snapshotOf(root);
 
-    // Repo-root-relative, derived from the absolute path. `ModuleInfo.relativeFilePath` is relative
+    // Repo-root-relative, derived from the absolute path. `ModuleInfo.pkgRelPath` is relative
     // to the module's PACKAGE, so a module minted inside a pruned directory spells itself
     // `src/hidden.ts` there and carries no trace of the directory that should have hidden it.
-    const admittedModules = snapshot.modules.map(mod => path.relative(root, mod.filePath));
+    const admittedModules = snapshot.modules.map(mod => path.relative(root, mod.absPath));
 
     // Measured against the pinned names, not against the predicate that did the pruning: asking the
     // walk's own predicate about a path the walk admitted answers yes by construction, whatever the
@@ -177,7 +178,7 @@ describe('core-laws the pruned set is held by a fixture that contains one of eac
     // Template/infra agreement is measured by the combined snapshot case above, not claimed here.
     // Compared as text so a disagreement names the path instead of reporting a bare boolean.
     for (const rel of admittedModules) {
-      expect(`${rel} walkable=${shouldWalkDiscoveryDir(rel)}`).toBe(`${rel} walkable=true`);
+      expect(`${rel} walkable=${shouldWalkDiscoveryDir(asRepoRelPath(rel))}`).toBe(`${rel} walkable=true`);
     }
   }, 180_000);
 
@@ -230,7 +231,7 @@ describe('core-laws the pruned set is held by a fixture that contains one of eac
       plugins: { ...defaultPluginsConfig(), retract: ['dir:.aws-sam'] },
     });
 
-    const admitted = withRetraction.modules.map(mod => path.relative(root, mod.filePath));
+    const admitted = withRetraction.modules.map(mod => path.relative(root, mod.absPath));
     const throughRetracted = admitted.filter(rel => rel.split(/[/\\]/).includes('.aws-sam'));
     expect(throughRetracted.length).toBeGreaterThan(0);
     expect((withRetraction.layoutSkipped ?? []).some(skip => skip.name === '.aws-sam')).toBe(false);

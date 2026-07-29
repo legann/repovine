@@ -2,6 +2,7 @@ import { compileGlob } from '../glob.js';
 import { normalizeRelPath } from '../paths.js';
 import { hasTestLayoutSegment, matchesEngineIgnorePath } from './discovery-walk.js';
 import type { CompiledScanPattern, CompiledScanPatterns, ScanPatternInput, ScanScope } from './types.js';
+import type { RepoRelPath } from '../path-contract.js';
 
 /**
  * `build.scan` include/exclude matching.
@@ -41,11 +42,11 @@ function scopeApplies(patternScope: ScanScope, requestScope: 'source' | 'infra')
 }
 
 function matchesAny(
-  relPath: string,
+  repoRelPath: RepoRelPath,
   patterns: readonly CompiledScanPattern[],
   requestScope: 'source' | 'infra',
 ): boolean {
-  const norm = normalizeRelPath(relPath);
+  const norm = normalizeRelPath(repoRelPath);
   for (const pattern of patterns) {
     if (!scopeApplies(pattern.scope, requestScope)) continue;
     if (pattern.matcher.test(norm)) return true;
@@ -55,21 +56,21 @@ function matchesAny(
 
 /** User `scan.include` match — wins over exclude. */
 export function isScanIncluded(
-  relPath: string,
+  repoRelPath: RepoRelPath,
   patterns: CompiledScanPatterns,
   scope: 'source' | 'infra',
 ): boolean {
-  return matchesAny(relPath, patterns.include, scope);
+  return matchesAny(repoRelPath, patterns.include, scope);
 }
 
 /** User `scan.exclude` match — ignored when include matches. */
 export function isScanExcluded(
-  relPath: string,
+  repoRelPath: RepoRelPath,
   patterns: CompiledScanPatterns,
   scope: 'source' | 'infra',
 ): boolean {
-  if (isScanIncluded(relPath, patterns, scope)) return false;
-  return matchesAny(relPath, patterns.exclude, scope);
+  if (isScanIncluded(repoRelPath, patterns, scope)) return false;
+  return matchesAny(repoRelPath, patterns.exclude, scope);
 }
 
 /**
@@ -81,13 +82,13 @@ export function isScanExcluded(
  * nothing the graph wants, and an include pattern pointing into it names files the walk never
  * reached.
  */
-function admittedByLayout(norm: string): boolean {
+function admittedByLayout(norm: RepoRelPath): boolean {
   return !matchesEngineIgnorePath(norm) && !hasTestLayoutSegment(norm);
 }
 
 /** Infra file collection for a repo-relative path. */
-export function shouldScanInfraPath(relPath: string, patterns: CompiledScanPatterns): boolean {
-  const norm = normalizeRelPath(relPath);
+export function shouldScanInfraPath(repoRelPath: RepoRelPath, patterns: CompiledScanPatterns): boolean {
+  const norm = normalizeRelPath(repoRelPath);
   if (!admittedByLayout(norm)) return false;
   if (isScanIncluded(norm, patterns, 'infra')) return true;
   if (isScanExcluded(norm, patterns, 'infra')) return false;
@@ -98,8 +99,8 @@ export function shouldScanInfraPath(relPath: string, patterns: CompiledScanPatte
  * Source discovery for a repo-relative path.
  * `.d.ts` files are skipped unless explicitly included.
  */
-export function shouldScanSourcePath(relPath: string, patterns: CompiledScanPatterns): boolean {
-  const norm = normalizeRelPath(relPath);
+export function shouldScanSourcePath(repoRelPath: RepoRelPath, patterns: CompiledScanPatterns): boolean {
+  const norm = normalizeRelPath(repoRelPath);
   if (!admittedByLayout(norm)) return false;
   if (isScanIncluded(norm, patterns, 'source')) return true;
   if (isScanExcluded(norm, patterns, 'source')) return false;

@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { walkRepository } from '@repovine/plugin-sdk';
+import { asHostPath, walkRepository } from '@repovine/plugin-sdk';
 import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
 
 export interface ParsedPackageTsConfig {
@@ -113,7 +113,7 @@ function walkSourceTree(srcDir: string): string[] {
   const results: string[] = [];
   // Prunes against the source directory it starts at: everything above it already passed the same
   // rule when `findAllTsconfigDirs` accepted the package.
-  walkRepository(srcDir, {
+  walkRepository(asHostPath(srcDir), {
     onFile: ({ absPath, name }) => {
       const ext = path.extname(name).toLowerCase();
       if (!SOURCE_WALK_EXTENSIONS.has(ext)) return;

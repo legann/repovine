@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import { Project, ScriptTarget } from 'ts-morph';
 import ts from 'typescript';
 import { collectImports } from '../../../packages/plugins/source-typescript/src/imports.js';
@@ -27,7 +28,7 @@ describe('importDeclarationSpecifier', () => {
     const sf = project.createSourceFile('/virtual/t.ts', `import { z } from \`zod\`;`);
     const imp = sf.getImportDeclarations()[0]!;
     expect(importDeclarationSpecifier(imp)).toBe('zod');
-    expect(collectImports(sf.compilerNode, new Map(), [], '/virtual')).toEqual([
+    expect(collectImports(sf.compilerNode, new Map(), [], asHostPath('/virtual'))).toEqual([
       expect.objectContaining({ moduleSpecifier: 'zod', importedNames: ['z'] }),
     ]);
   });

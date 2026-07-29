@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import { describe, expect, it, jest } from '@jest/globals';
 import { runPythonAst, __PY_AST_TIMEOUT_MS_FOR_TEST } from '../../../../packages/plugins/source-python/src/extract.js';
 
@@ -26,7 +27,7 @@ describe('runPythonAst backstop timer lifecycle', () => {
     try {
       // A binary that cannot spawn → the child emits 'error' (and the run rejects) promptly.
       await expect(
-        runPythonAst('repovine-no-such-python-binary-xyz', 'print(1)', ['/nonexistent/a.py']),
+        runPythonAst('repovine-no-such-python-binary-xyz', 'print(1)', [asHostPath('/nonexistent/a.py')]),
       ).rejects.toThrow();
 
       expect(backstop).toBeDefined();               // the manual backstop was armed

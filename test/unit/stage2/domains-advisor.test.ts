@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import {
   applyDomainsKeep,
   applyDomainsSuggestion,
@@ -30,21 +32,21 @@ function makeMod(id: string, relativeFilePath: string): ModuleInfo {
   return {
     id,
     packageName: 'pkg',
-    filePath: `/repo/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash: id,
     imports: [],
     exports: [],
   };
 }
 
-function makeInfraModule(relativeFilePath: string, resourceIds: string[]): InfraModuleInfo {
+function makeInfraModule(repoRelPath: string, resourceIds: string[]): InfraModuleInfo {
   return {
-    id: `infra:cloudformation:${relativeFilePath}`,
+    id: `infra:cloudformation:${repoRelPath}`,
     kind: 'cloudformation',
-    filePath: `/repo/${relativeFilePath}`,
-    relativeFilePath,
-    contentHash: relativeFilePath,
+    absPath: asHostPath(`/repo/${repoRelPath}`),
+    repoRelPath: asRepoRelPath(repoRelPath),
+    contentHash: repoRelPath,
     resources: resourceIds.map(id => ({
       id,
       kind: 'other',

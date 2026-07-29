@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -79,8 +81,8 @@ function makeModule(id: string, contentHash: string): ModuleInfo {
   return {
     id,
     packageName: 'app',
-    filePath: `/repo/${id}.ts`,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(`/repo/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash,
     imports: [],
     exports: [],
@@ -90,8 +92,8 @@ function makeModule(id: string, contentHash: string): ModuleInfo {
 const INFRA: InfraModuleInfo = {
   id: 'infra:sam:template.yaml',
   kind: 'sam',
-  filePath: '/repo/template.yaml',
-  relativeFilePath: 'template.yaml',
+  absPath: asHostPath('/repo/template.yaml'),
+  repoRelPath: asRepoRelPath('template.yaml'),
   contentHash: 'infra-h1',
   resources: [{
     id: 'Worker',

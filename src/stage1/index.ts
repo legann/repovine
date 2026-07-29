@@ -33,8 +33,15 @@ import { pluginRuntimeIdentity, type PluginRuntime } from '../plugin-host/runtim
 import { rememberPluginRuntime } from '../plugin-host/runtime-store.js';
 import type { DeclarationCatalog } from '../plugin-host/declaration-catalog.js';
 import { getActiveIaCPluginIds } from '../plugin-host/iac-set.js';
-import type { ReadonlyFactRecord, SourceDiscoveryOptions, SourcePlugin } from '@repovine/plugin-sdk';
-import { packageMarkersFor } from '@repovine/plugin-sdk';
+import {
+  asHostPath,
+  hostPathKey,
+  packageMarkersFor,
+  type HostPath,
+  type ReadonlyFactRecord,
+  type SourceDiscoveryOptions,
+  type SourcePlugin,
+} from '@repovine/plugin-sdk';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { repoRelativePosix } from '../platform/paths.js';
 import { packageNodeId } from '../graph/node-ids.js';
@@ -65,7 +72,7 @@ interface PackageJobInputs {
 function pendingJobKey(pending: PendingModule): string {
   return packageJobKey({
     name: pending.pkg.name,
-    path: pending.pkg.path,
+    repoRelDir: pending.pkg.repoRelDir,
     sourcePluginId: pending.sourcePluginId ?? pending.pkg.sourcePluginId,
   });
 }
@@ -127,7 +134,7 @@ export function splitIntoShards(pendingModules: PendingModule[], shardTargetSize
 export function buildPackageJobs(
   packages: PackageInfo[],
   pendingModules: PendingModule[],
-  prevByPath: Map<string, ModuleInfo>,
+  prevByAbsPath: Map<HostPath, ModuleInfo>,
   shardTargetSize: number,
 ): PackageJobInputs {
   const modulesByPackage = new Map<string, PendingModule[]>();
@@ -158,10 +165,10 @@ export function buildPackageJobs(
     const totalShards = shards.length;
     for (let shardIndex = 0; shardIndex < totalShards; shardIndex++) {
       const shardModules = shards[shardIndex]!;
-      const prevEntries: [string, ModuleInfo][] = [];
+      const prevEntries: [HostPath, ModuleInfo][] = [];
       for (const pm of shardModules) {
-        const prev = prevByPath.get(pm.filePath);
-        if (prev) prevEntries.push([pm.filePath, prev]);
+        const prev = prevByAbsPath.get(pm.absPath);
+        if (prev) prevEntries.push([pm.absPath, prev]);
       }
       jobs.push({
         pkg,
@@ -224,9 +231,9 @@ function rssMb(): number {
 
 async function runInlineExtractionAsync(
   jobs: PackageJob[],
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   extractContextByPlugin: Map<string, unknown>,
   profiler: MemoryProfiler,
   progress?: ExtractionProgressReporter,
@@ -266,7 +273,7 @@ async function runInlineExtractionAsync(
         repoRoot,
         packages,
         pendingModules: job.pendingModules,
-        prevByPath: new Map(job.prevModuleEntries),
+        prevByAbsPath: new Map(job.prevModuleEntries),
         absPathToId,
         extractContext: extractContextByPlugin.get(job.sourcePluginId),
         analysisVersion: STAGE1_ANALYSIS_VERSION,
@@ -312,9 +319,9 @@ async function runInlineExtractionAsync(
 
 async function runPooledExtraction(
   jobs: PackageJob[],
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   extractContextByPlugin: Map<string, unknown>,
   workerCount: number,
   pluginSpec: PluginLoadSpec,
@@ -391,11 +398,11 @@ function abortSignalRejection(signal: AbortSignal | undefined): { promise: Promi
   return { promise, cleanup: () => { if (onAbort) signal.removeEventListener('abort', onAbort); } };
 }
 
-function buildAbsPathToId(pendingModules: PendingModule[]): Map<string, string> {
-  const absPathToId = new Map<string, string>();
+function buildAbsPathToId(pendingModules: PendingModule[]): Map<HostPath, string> {
+  const absPathToId = new Map<HostPath, string>();
   for (const pending of pendingModules) {
-    absPathToId.set(pending.filePath, pending.moduleId);
-    if (pending.virtualPath) absPathToId.set(pending.virtualPath, pending.moduleId);
+    absPathToId.set(hostPathKey(pending.absPath), pending.moduleId);
+    if (pending.virtualAbsPath) absPathToId.set(hostPathKey(pending.virtualAbsPath), pending.moduleId);
   }
   return absPathToId;
 }
@@ -414,7 +421,7 @@ export function dedupByModuleIdPreservingOrder(pendings: PendingModule[]): Pendi
       firstSeenOrder.set(p.moduleId, orderCounter++);
       continue;
     }
-    if (modulePathResolverPriority(p.filePath) < modulePathResolverPriority(existing.filePath)) {
+    if (modulePathResolverPriority(p.absPath) < modulePathResolverPriority(existing.absPath)) {
       winnerByModuleId.set(p.moduleId, p);
     }
   }
@@ -547,8 +554,8 @@ function buildSnapshot(
 interface PreparedRun {
   packages: PackageInfo[];
   pendingModules: PendingModule[];
-  absPathToId: Map<string, string>;
-  prevByPath: Map<string, ModuleInfo>;
+  absPathToId: Map<HostPath, string>;
+  prevByAbsPath: Map<HostPath, ModuleInfo>;
   /** Opaque per-plugin extractContext returned by each plugin's discover(). */
   extractContextByPlugin: Map<string, unknown>;
   /** Hash of compiler/discovery options, scan filters, and active plugin identities. */
@@ -569,6 +576,7 @@ async function prepareRun(
 ): Promise<PreparedRun> {
   const profiler = MemoryProfiler.ensure();
   profiler.phase('stage1:start');
+  const hostRepoRoot = asHostPath(repoRoot);
 
   const scanPatterns = compileScanPatterns(
     options?.scanInclude ?? [],
@@ -587,11 +595,11 @@ async function prepareRun(
   // (keyed by absolute path), and an opaque extractContext threaded back into extract().
   const allPackages: PackageInfo[] = [];
   const seenPackageKeys = new Set<string>();
-  const mergedPendingByPath = new Map<string, PendingModule>();
+  const mergedPendingByAbsPath = new Map<HostPath, PendingModule>();
   const extractContextByPlugin = new Map<string, unknown>();
   const activeSourcePlugins: SourcePlugin[] = [];
   // A Set, so a file two packages both enumerate is one refused file, matching how
-  // `mergedPendingByPath` counts an accepted one.
+  // `mergedPendingByAbsPath` counts an accepted one.
   const outsideRepo = new Set<string>();
   const refusals: Refusal[] = [];
   // Collected, not pushed one-per-item: three surfaces publish the sink verbatim into a size-capped
@@ -614,23 +622,27 @@ async function prepareRun(
       }
     }
     activeSourcePlugins.push(plugin);
-    const { packages: pkgs, pendingByPath, extractContext } = plugin.discover(repoRoot, discoveryOptionsFor(plugin));
+    const {
+      packages: pkgs,
+      pendingByAbsPath,
+      extractContext,
+    } = plugin.discover(hostRepoRoot, discoveryOptionsFor(plugin));
     for (const pkg of pkgs) {
       const key = packageJobKey(pkg);
       if (seenPackageKeys.has(key)) continue;
       seenPackageKeys.add(key);
       allPackages.push(pkg);
     }
-    for (const [filePath, pending] of pendingByPath) {
+    for (const pending of pendingByAbsPath.values()) {
       // Containment is language-agnostic, so the engine applies it to every producer's candidates
       // rather than trusting each discover(). A candidate names an in-repo path while `readFileSync`
       // follows it, so `src/leak.ts -> ../../secret.ts`, or any file under a directory link, would
       // publish its export names, signatures and types into the graph. Refusing here, before
       // `absPathToId` is minted, keeps the path out of import resolution as well as out of the
-      // module set. `pending.filePath`, not the map key: keys are host-normalized (lowercased on
+      // module set. `pending.absPath`, not the map key: keys are host-normalized (lowercased on
       // win32) and would misreport the name.
-      if (!isPathInsideRepo(repoRoot, pending.filePath)) {
-        outsideRepo.add(repoRelativePosix(repoRoot, pending.filePath));
+      if (!isPathInsideRepo(repoRoot, pending.absPath)) {
+        outsideRepo.add(repoRelativePosix(repoRoot, pending.absPath));
         continue;
       }
       // Enforce scan.include/exclude on every producer's output, not only the built-ins that apply it
@@ -638,27 +650,36 @@ async function prepareRun(
       // otherwise seed the graph with files the config excludes; filtering here — before the id is
       // minted — makes `scan.exclude` an engine guarantee. Built-ins already filtered, so this is a
       // no-op for them.
-      if (!shouldScanSourcePath(repoRelativePosix(repoRoot, pending.filePath), scanPatterns)) {
+      if (!shouldScanSourcePath(repoRelativePosix(repoRoot, pending.absPath), scanPatterns)) {
         continue;
       }
-      const existing = mergedPendingByPath.get(filePath);
+      // A branded `HostPath` says which coordinate system a value uses, not that a third-party
+      // producer applied the canonical map spelling. Derive the key from the reported path at the
+      // trust boundary: win32 case/separator variants of one file must collide even when a plugin
+      // keyed `pendingByAbsPath` incorrectly.
+      const canonicalAbsPath = hostPathKey(pending.absPath);
+      const existing = mergedPendingByAbsPath.get(canonicalAbsPath);
       if (existing) {
-        logPipelineWarn(`  ⚠ File claimed by multiple source plugins (${existing.sourcePluginId} kept over ${pending.sourcePluginId}): ${pending.filePath}`);
-        claimedTwice.push(repoRelativePosix(repoRoot, pending.filePath));
+        logPipelineWarn(`  ⚠ File claimed by multiple source plugins (${existing.sourcePluginId} kept over ${pending.sourcePluginId}): ${pending.absPath}`);
+        claimedTwice.push(repoRelativePosix(repoRoot, pending.absPath));
         continue;
       }
       // The engine mints the id, here, from what the producer reported. `mod:<pkg>/<path>` is
       // load-bearing for scope resolution, annotation keys and boundary lookups, so it is derived
       // centrally rather than trusted from a plugin that could return any string.
-      mergedPendingByPath.set(filePath, {
+      mergedPendingByAbsPath.set(canonicalAbsPath, {
         ...pending,
-        moduleId: makeModuleId(pending.pkg.name, pending.relPath, plugin.capabilities?.moduleIdNormalize),
+        moduleId: makeModuleId(
+          pending.pkg.name,
+          pending.pkgRelPath,
+          plugin.capabilities?.moduleIdNormalize,
+        ),
       });
     }
     extractContextByPlugin.set(plugin.id, extractContext);
   }
 
-  const packages = allPackages.sort((a, b) => compareCodeUnits(a.path, b.path));
+  const packages = allPackages.sort((a, b) => compareCodeUnits(a.repoRelDir, b.repoRelDir));
   const extractionConfigFingerprint = computeExtractionConfigFingerprint({
     repoRoot,
     scanInclude: options?.scanInclude,
@@ -687,20 +708,20 @@ async function prepareRun(
         : 'extraction config changed';
     logPipeline(formatPipelineDetail(`  Snapshot not reused (${reason}); full re-extract`));
   }
-  const prevByPath = new Map<string, ModuleInfo>();
+  const prevByAbsPath = new Map<HostPath, ModuleInfo>();
   if (previousSnapshot && canReusePreviousSnapshot) {
-    for (const m of previousSnapshot.modules) prevByPath.set(m.filePath, m);
+    for (const m of previousSnapshot.modules) prevByAbsPath.set(m.absPath, m);
   }
 
-  profiler.setCounter('sourceFilesDiscovered', mergedPendingByPath.size);
+  profiler.setCounter('sourceFilesDiscovered', mergedPendingByAbsPath.size);
   profiler.phase('stage1:after-file-discovery');
 
-  // `mergedPendingByPath` dedups by filePath. A SECOND collision can occur when two distinct
-  // filePaths collapse to the same moduleId — e.g. `foo.ts` and `foo/index.ts` both become
+  // `mergedPendingByAbsPath` dedups by absPath. A SECOND collision can occur when two distinct
+  // paths collapse to the same moduleId — e.g. `foo.ts` and `foo/index.ts` both become
   // `mod:<pkg>/foo`. Resolve by picking the resolver winner. absPathToId is built from the FULL
-  // pending set so imports of either filePath form still resolve to the surviving moduleId.
-  const absPathToId = buildAbsPathToId(Array.from(mergedPendingByPath.values()));
-  const pendingModules = dedupByModuleIdPreservingOrder(Array.from(mergedPendingByPath.values()));
+  // pending set so imports of either absolute-path form still resolve to the surviving moduleId.
+  const absPathToId = buildAbsPathToId(Array.from(mergedPendingByAbsPath.values()));
+  const pendingModules = dedupByModuleIdPreservingOrder(Array.from(mergedPendingByAbsPath.values()));
   profiler.setCounter('uniqueModules', pendingModules.length);
   const pkgsWithModules = new Set(pendingModules.map(p => p.pkg.name)).size;
   logPipeline(formatPipelineDetail(`  Discovered ${pendingModules.length} unique modules across ${pkgsWithModules} packages`));
@@ -736,7 +757,7 @@ async function prepareRun(
     packages,
     pendingModules,
     absPathToId,
-    prevByPath,
+    prevByAbsPath,
     extractContextByPlugin,
     extractionConfigFingerprint,
     scanPatterns,
@@ -892,7 +913,12 @@ export async function collectRepositoryFactsAsync(
     { cpuCount: cpus, totalRamMb, defaultShardSize: DEFAULT_SHARD_TARGET_SIZE },
   );
   const shardTargetSize = advice?.shardTargetSize ?? resolvedOptions?.shardTargetSize ?? DEFAULT_SHARD_TARGET_SIZE;
-  const { jobs } = buildPackageJobs(prep.packages, prep.pendingModules, prep.prevByPath, shardTargetSize);
+  const { jobs } = buildPackageJobs(
+    prep.packages,
+    prep.pendingModules,
+    prep.prevByAbsPath,
+    shardTargetSize,
+  );
 
   try {
     resolvedOptions?.progress?.begin?.({
@@ -920,13 +946,22 @@ export async function collectRepositoryFactsAsync(
   try {
     let results: Map<string, PackageJobResult[]>;
     if (workerCount <= 1) {
-      results = await runInlineExtractionAsync(jobs, prep.absPathToId, prep.packages, repoRoot, prep.extractContextByPlugin, prep.profiler, resolvedOptions?.progress, signal);
+      results = await runInlineExtractionAsync(
+        jobs,
+        prep.absPathToId,
+        prep.packages,
+        asHostPath(repoRoot),
+        prep.extractContextByPlugin,
+        prep.profiler,
+        resolvedOptions?.progress,
+        signal,
+      );
     } else {
       results = await runPooledExtraction(
         jobs,
         prep.absPathToId,
         prep.packages,
-        repoRoot,
+        asHostPath(repoRoot),
         prep.extractContextByPlugin,
         workerCount,
         { repoRoot, config: pluginsConfig },

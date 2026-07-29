@@ -44,11 +44,16 @@ export function resolveHandlerModuleId(graph: RepositoryGraph, resourceId: strin
     .filter((moduleId) => {
       const node = graph.nodes.get(moduleId);
       if (!node) return false;
-      const data = node.data as { relativeFilePath?: string; filePath?: string } | undefined;
+      const data = node.data as {
+        absPath?: string;
+        pkgRelPath?: string;
+        repoRelPath?: string;
+      } | undefined;
       return node.label === handler
         || moduleId === handler
-        || data?.relativeFilePath === handler
-        || data?.filePath === handler;
+        || data?.pkgRelPath === handler
+        || data?.repoRelPath === handler
+        || data?.absPath === handler;
     })
     .sort()[0];
 }

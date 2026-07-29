@@ -1,9 +1,11 @@
+import { asHostPath, asRepoRelPath } from '@repovine/plugin-sdk';
+import { asPkgRelPath } from '@repovine/plugin-sdk';
 import { buildPackageJobs } from '../../../src/stage1/index.js';
 import { packageJobKey } from '../../../src/stage1/utils.js';
 import type { PackageInfo, PendingModule } from '../../../src/types.js';
 
 function pkg(name: string, path: string, sourcePluginId: string): PackageInfo {
-  return { name, path, sourcePluginId };
+  return { name, repoRelDir: asRepoRelPath(path), sourcePluginId };
 }
 
 function pending(
@@ -13,8 +15,8 @@ function pending(
   sourcePluginId: string,
 ): PendingModule {
   return {
-    filePath,
-    relPath: filePath,
+    absPath: asHostPath(filePath),
+    pkgRelPath: asPkgRelPath(filePath),
     moduleId,
     pkg: packageInfo,
     sourcePluginId,

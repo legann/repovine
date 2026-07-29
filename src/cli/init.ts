@@ -9,6 +9,7 @@ import {
   DOMAINS_CONFIG_FILENAME,
   currentDirLayoutTable,
 } from '../paths.js';
+import { asHostPath, asRepoRelPath } from '@repovine/plugin-sdk';
 import {
   REPOVINE_GITIGNORE_ENTRY,
   formatRepovineGitignoreBlock,
@@ -322,7 +323,7 @@ export function inspectWorkspaceSupport(cwd: string): WorkspaceSupportInspection
         // including the names claimed only on evidence, which is why the absolute path goes with the
         // name.
         const childAbs = path.join(dir, entry.name);
-        if (!shouldWalkDiscoveryDir(entry.name, childAbs)) continue;
+        if (!shouldWalkDiscoveryDir(asRepoRelPath(entry.name), asHostPath(childAbs))) continue;
         walk(childAbs);
         continue;
       }

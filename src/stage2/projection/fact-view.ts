@@ -1,4 +1,4 @@
-import { canonicalJson, makeResourceId } from '@repovine/plugin-sdk';
+import { canonicalJson, makeResourceId, repoRelativePosix } from '@repovine/plugin-sdk';
 import type {
   ProjectionFactSelector,
   ReadonlyFactRecord,
@@ -38,7 +38,7 @@ export function createFactView(input: FactViewInput): ReadonlyFactView {
     modules.set(mod.id, {
       moduleId: mod.id,
       packageName: mod.packageName,
-      relativeFilePath: mod.relativeFilePath,
+      repoRelPath: repoRelativePosix(input.snapshot.repoRoot, mod.absPath),
     });
   }
   const moduleIds = [...modules.keys()].sort(compareCodeUnits);

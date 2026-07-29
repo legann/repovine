@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { ingressRoutesProjector } from '@repovine/plugin-iac-kubernetes';
 import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
@@ -59,8 +61,8 @@ function graphFor(resources: InfraResource[], facts: ReadonlyFactRecord[] = []):
     infraModules: [{
       id: 'infra:kubernetes:manifests/test.yaml',
       kind: 'kubernetes',
-      filePath: '/repo/manifests/test.yaml',
-      relativeFilePath: 'manifests/test.yaml',
+      absPath: asHostPath('/repo/manifests/test.yaml'),
+      repoRelPath: asRepoRelPath('manifests/test.yaml'),
       contentHash: 'infra',
       resources,
     }],

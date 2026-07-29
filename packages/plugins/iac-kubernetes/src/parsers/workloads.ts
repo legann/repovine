@@ -79,7 +79,7 @@ export const kubernetesParser: IaCParser = {
   fileMatch: { extensions: ['.yaml', '.yml'] },
   loaderId: 'yaml',
 
-  supports(_filePath, doc): boolean {
+  supports(_absPath, doc): boolean {
     if (!doc || typeof doc !== 'object') return false;
     const d = doc as Record<string, unknown>;
     if (d.Resources && typeof d.Resources === 'object') return false;
@@ -88,12 +88,12 @@ export const kubernetesParser: IaCParser = {
     return false;
   },
 
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (!doc || typeof doc !== 'object') return null;
     const d = doc as { apiVersion?: string; kind?: string; metadata?: { name?: string; namespace?: string } };
     const kindStr = d.kind ?? 'Unknown';
     const resKind: InfraResourceKind = k8sKindMap[kindStr] ?? 'k8s-crd';
-    const name = d.metadata?.name ?? path.basename(filePath, path.extname(filePath));
+    const name = d.metadata?.name ?? path.basename(absPath, path.extname(absPath));
     const k8sResourceBody = {
       id: name,
       apiVersion: d.apiVersion,

@@ -215,8 +215,8 @@
       "label": "src/App.vue",
       "description": "Module src/App.vue in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/App.vue",
-        "relativeFilePath": "src/App.vue",
+        "absPath": "<FIXTURE>/src/App.vue",
+        "pkgRelPath": "src/App.vue",
         "sourcePluginId": "typescript"
       }
     },
@@ -226,8 +226,8 @@
       "label": "…/components/BaseButton.vue",
       "description": "Module src/components/BaseButton.vue in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/components/BaseButton.vue",
-        "relativeFilePath": "src/components/BaseButton.vue",
+        "absPath": "<FIXTURE>/src/components/BaseButton.vue",
+        "pkgRelPath": "src/components/BaseButton.vue",
         "sourcePluginId": "typescript"
       }
     },
@@ -237,8 +237,8 @@
       "label": "…/components/UserCard.vue",
       "description": "Module src/components/UserCard.vue in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/components/UserCard.vue",
-        "relativeFilePath": "src/components/UserCard.vue",
+        "absPath": "<FIXTURE>/src/components/UserCard.vue",
+        "pkgRelPath": "src/components/UserCard.vue",
         "sourcePluginId": "typescript"
       }
     },
@@ -248,8 +248,8 @@
       "label": "…/composables/useAuth",
       "description": "Module src/composables/useAuth.ts in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/composables/useAuth.ts",
-        "relativeFilePath": "src/composables/useAuth.ts",
+        "absPath": "<FIXTURE>/src/composables/useAuth.ts",
+        "pkgRelPath": "src/composables/useAuth.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -259,8 +259,8 @@
       "label": "…/composables/useTheme",
       "description": "Module src/composables/useTheme.ts in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/composables/useTheme.ts",
-        "relativeFilePath": "src/composables/useTheme.ts",
+        "absPath": "<FIXTURE>/src/composables/useTheme.ts",
+        "pkgRelPath": "src/composables/useTheme.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -270,8 +270,8 @@
       "label": "src/main",
       "description": "Module src/main.ts in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/main.ts",
-        "relativeFilePath": "src/main.ts",
+        "absPath": "<FIXTURE>/src/main.ts",
+        "pkgRelPath": "src/main.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -281,8 +281,8 @@
       "label": "…/stores/cart",
       "description": "Module src/stores/cart.ts in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/stores/cart.ts",
-        "relativeFilePath": "src/stores/cart.ts",
+        "absPath": "<FIXTURE>/src/stores/cart.ts",
+        "pkgRelPath": "src/stores/cart.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -292,8 +292,8 @@
       "label": "…/stores/user",
       "description": "Module src/stores/user.ts in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/stores/user.ts",
-        "relativeFilePath": "src/stores/user.ts",
+        "absPath": "<FIXTURE>/src/stores/user.ts",
+        "pkgRelPath": "src/stores/user.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -303,8 +303,8 @@
       "label": "…/users/UserListView.vue",
       "description": "Module src/views/users/UserListView.vue in vue-spa-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/views/users/UserListView.vue",
-        "relativeFilePath": "src/views/users/UserListView.vue",
+        "absPath": "<FIXTURE>/src/views/users/UserListView.vue",
+        "pkgRelPath": "src/views/users/UserListView.vue",
         "sourcePluginId": "typescript"
       }
     },

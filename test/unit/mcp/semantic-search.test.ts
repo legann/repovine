@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Tests for the fuzzy-entry stack of search_context:
  *  - annotation text in the token index (search-index)
@@ -579,8 +580,8 @@ describe('node cards', () => {
     const moduleInfo: ModuleInfo = {
       id: 'mod:test/session-store',
       packageName: 'test',
-      filePath: '/repo/session-store.ts',
-      relativeFilePath: 'session-store.ts',
+      absPath: asHostPath('/repo/session-store.ts'),
+      pkgRelPath: asPkgRelPath('session-store.ts'),
       contentHash: 'h',
       imports: [],
       exports: [{ name: 'createSession', kind: 'function', lineRange: { start: 1, end: 2 }, isDefault: false }],
@@ -601,8 +602,8 @@ describe('node cards', () => {
     const moduleInfo: ModuleInfo = {
       id: 'mod:test/session-store',
       packageName: 'test',
-      filePath: '/repo/session-store.ts',
-      relativeFilePath: 'session-store.ts',
+      absPath: asHostPath('/repo/session-store.ts'),
+      pkgRelPath: asPkgRelPath('session-store.ts'),
       contentHash: 'h',
       imports: [],
       exports: [{ name: 'createSession', kind: 'function', lineRange: { start: 1, end: 2 }, isDefault: false }],
@@ -681,7 +682,7 @@ describe('node cards', () => {
     addNode(graph, { id: 'mod:thin/barrel', type: 'module', label: 'barrel', description: '' }); // no moduleInfo → no exports
     addNode(graph, { id: 'mod:thin/real', type: 'module', label: 'real', description: '' });
     const moduleInfo: ModuleInfo = {
-      id: 'mod:thin/real', packageName: 'thin', filePath: '/repo/real.ts', relativeFilePath: 'real.ts',
+      id: 'mod:thin/real', packageName: 'thin', absPath: asHostPath('/repo/real.ts'), pkgRelPath: asPkgRelPath('real.ts'),
       contentHash: 'h', imports: [],
       exports: [{ name: 'doThing', kind: 'function', lineRange: { start: 1, end: 2 }, isDefault: false }],
     };
@@ -873,8 +874,8 @@ describe('search_context handler with semantic backend', () => {
     const configModule: ModuleInfo = {
       id: 'mod:test/session-store',
       packageName: 'test',
-      filePath: '/repo/session-store.ts',
-      relativeFilePath: 'session-store.ts',
+      absPath: asHostPath('/repo/session-store.ts'),
+      pkgRelPath: asPkgRelPath('session-store.ts'),
       contentHash: 'h',
       imports: [],
       exports: [],

@@ -67,24 +67,24 @@ function toRepoRel(repoRoot: string, absFilePath: string): string {
  * projection), so they are absent from the path index — the pull path still carries them via
  * inspect_node.
  *
- * A module's `relativeFilePath` is package-relative (relative to its package root), so in a monorepo it
+ * A module's `pkgRelPath` is package-relative (relative to its package root), so in a monorepo it
  * drops the package-dir prefix and would not match the hook's repo-root-relative lookup. Key modules
- * and their exports by the absolute `filePath` made relative to the snapshot root instead. Infra and
+ * and their exports by the absolute `absPath` made relative to the snapshot root instead. Infra and
  * template paths are already repo-root-relative, so they are used as stored.
  */
 function resolveNodeRelPath(state: RepovineState, nodeId: string): string | undefined {
   const repoRoot = state.snapshot.repoRoot;
   if (nodeId.startsWith('mod:')) {
     const mod = state.modulesById.get(nodeId);
-    return mod?.filePath ? toRepoRel(repoRoot, mod.filePath) : mod?.relativeFilePath;
+    return mod?.absPath ? toRepoRel(repoRoot, mod.absPath) : mod?.pkgRelPath;
   }
   if (nodeId.startsWith('export:')) {
     const moduleId = parentModuleId(state.graph, nodeId);
     const mod = moduleId ? state.modulesById.get(moduleId) : undefined;
-    return mod?.filePath ? toRepoRel(repoRoot, mod.filePath) : mod?.relativeFilePath;
+    return mod?.absPath ? toRepoRel(repoRoot, mod.absPath) : mod?.pkgRelPath;
   }
   if (nodeId.startsWith('infra:')) {
-    return state.snapshot.infraModules?.find((im) => im.id === nodeId)?.relativeFilePath;
+    return state.snapshot.infraModules?.find((im) => im.id === nodeId)?.repoRelPath;
   }
   if (nodeId.startsWith('template:')) {
     return state.snapshot.templates?.find((t) => t.id === nodeId)?.relPath;

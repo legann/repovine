@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { runRefactoringReport } from '../../../../src/analysis/architecture/index.js';
 import { AnnotationStore } from '../../../../src/annotations/store.js';
 import { addEdge, addNode, createEmptyGraph } from '../../../../src/graph/index.js';
@@ -35,8 +36,8 @@ function makeMod(
   return {
     id,
     packageName,
-    filePath: `/repo/packages/${packageName}/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/packages/${packageName}/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash: 'h1',
     imports: [],
     exports: [],
@@ -56,9 +57,9 @@ function buildGraph(modules: ModuleInfo[]): { graph: RepositoryGraph; modulesByI
     addNode(graph, {
       id: mod.id,
       type: 'module',
-      label: mod.relativeFilePath,
+      label: mod.pkgRelPath,
       description: '',
-      data: { filePath: mod.filePath, relativeFilePath: mod.relativeFilePath, ssr: mod.semanticHints?.ssr },
+      data: { absPath: asHostPath(mod.absPath), pkgRelPath: asPkgRelPath(mod.pkgRelPath), ssr: mod.semanticHints?.ssr },
     });
     addEdge(graph, `pkg:${mod.packageName}`, mod.id, 'contains');
   }

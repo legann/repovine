@@ -104,8 +104,8 @@
       "label": "infrastructure/main.tf",
       "description": "IaC terraform module infrastructure/main.tf",
       "data": {
-        "filePath": "<FIXTURE>/infrastructure/main.tf",
-        "relativeFilePath": "infrastructure/main.tf"
+        "absPath": "<FIXTURE>/infrastructure/main.tf",
+        "repoRelPath": "infrastructure/main.tf"
       }
     },
     {
@@ -114,8 +114,8 @@
       "label": "infrastructure/storage.tf",
       "description": "IaC terraform module infrastructure/storage.tf",
       "data": {
-        "filePath": "<FIXTURE>/infrastructure/storage.tf",
-        "relativeFilePath": "infrastructure/storage.tf"
+        "absPath": "<FIXTURE>/infrastructure/storage.tf",
+        "repoRelPath": "infrastructure/storage.tf"
       }
     },
     {
@@ -124,8 +124,8 @@
       "label": "src/users",
       "description": "Module src/users.ts in terraform-app-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/users.ts",
-        "relativeFilePath": "src/users.ts",
+        "absPath": "<FIXTURE>/src/users.ts",
+        "pkgRelPath": "src/users.ts",
         "sourcePluginId": "typescript"
       }
     },

@@ -1,3 +1,9 @@
+import {
+  asHostPath,
+  asPkgRelPath,
+  asRepoRelPath,
+  type RepoRelPath,
+} from '@repovine/plugin-sdk';
 /**
  * Tests for loadDomainsConfig — file loading and alias resolution.
  */
@@ -283,7 +289,7 @@ describe('matchFileAsDomain — config overrides', () => {
 
 describe('collectAllDomainTags — lightweight classification', () => {
   function makeMod(id: string, relPath: string, packageName: string): ModuleInfo {
-    return { id, packageName, filePath: `/repo/${relPath}`, relativeFilePath: relPath, contentHash: 'h', imports: [], exports: [] };
+    return { id, packageName, absPath: asHostPath(`/repo/${relPath}`), pkgRelPath: asPkgRelPath(relPath), contentHash: 'h', imports: [], exports: [] };
   }
   function makeSnapshot(modules: ModuleInfo[]): RepositoryFactsSnapshot {
     return { repoRoot: '/tmp/never-exists', timestamp: '2024-01-01', packages: [], modules };
@@ -397,9 +403,12 @@ describe('packageShortName', () => {
 
 describe('collectAllDomainTags — package-as-domain', () => {
   function makeMod(id: string, relPath: string, packageName: string): ModuleInfo {
-    return { id, packageName, filePath: `/repo/${relPath}`, relativeFilePath: relPath, contentHash: 'h', imports: [], exports: [] };
+    return { id, packageName, absPath: asHostPath(`/repo/${relPath}`), pkgRelPath: asPkgRelPath(relPath), contentHash: 'h', imports: [], exports: [] };
   }
-  function makeSnapshotWithPkgs(modules: ModuleInfo[], packages: { name: string; path: string; version?: string}[]): RepositoryFactsSnapshot {
+  function makeSnapshotWithPkgs(
+    modules: ModuleInfo[],
+    packages: Array<{ name: string; repoRelDir: RepoRelPath; version?: string }>,
+  ): RepositoryFactsSnapshot {
     return { repoRoot: '/tmp/never-exists', timestamp: '2024-01-01', packages, modules };
   }
 
@@ -412,7 +421,10 @@ describe('collectAllDomainTags — package-as-domain', () => {
     const g = createEmptyGraph();
     for (const m of mods) addNode(g, { id: m.id, type: 'module', label: m.id, description: '' });
     const { classification, tagsByModule } = collectAllDomainTags(
-      makeSnapshotWithPkgs(mods, [{ name: '@acme/client-ui', path: 'packages/client-ui'}]),
+      makeSnapshotWithPkgs(mods, [{
+        name: '@acme/client-ui',
+        repoRelDir: asRepoRelPath('packages/client-ui'),
+      }]),
       g,
       '/tmp/never-exists',
     );
@@ -429,7 +441,10 @@ describe('collectAllDomainTags — package-as-domain', () => {
     const g = createEmptyGraph();
     addNode(g, { id: mods[0].id, type: 'module', label: 'x', description: '' });
     const { classification } = collectAllDomainTags(
-      makeSnapshotWithPkgs(mods, [{ name: '@acme/mcp-server', path: 'tools/mcp-server'}]),
+      makeSnapshotWithPkgs(mods, [{
+        name: '@acme/mcp-server',
+        repoRelDir: asRepoRelPath('tools/mcp-server'),
+      }]),
       g,
       '/tmp/never-exists',
     );
@@ -450,7 +465,10 @@ describe('collectAllDomainTags — package-as-domain', () => {
       const g = createEmptyGraph();
       for (const m of mods) addNode(g, { id: m.id, type: 'module', label: m.id, description: '' });
       const { classification } = collectAllDomainTags(
-        makeSnapshotWithPkgs(mods, [{ name: 'legacy-pkg', path: 'pkg-legacy'}]),
+        makeSnapshotWithPkgs(mods, [{
+          name: 'legacy-pkg',
+          repoRelDir: asRepoRelPath('pkg-legacy'),
+        }]),
         g,
         tmpDir,
       );
@@ -474,7 +492,10 @@ describe('collectAllDomainTags — package-as-domain', () => {
       const g = createEmptyGraph();
       for (const m of mods) addNode(g, { id: m.id, type: 'module', label: m.id, description: '' });
       const { classification } = collectAllDomainTags(
-        makeSnapshotWithPkgs(mods, [{ name: 'lmtify-public', path: 'lmtify-public'}]),
+        makeSnapshotWithPkgs(mods, [{
+          name: 'lmtify-public',
+          repoRelDir: asRepoRelPath('lmtify-public'),
+        }]),
         g,
         tmpDir,
       );
@@ -500,8 +521,14 @@ describe('collectAllDomainTags — package-as-domain', () => {
       for (const m of mods) addNode(g, { id: m.id, type: 'module', label: m.id, description: '' });
       const { classification, tagsByModule } = collectAllDomainTags(
         makeSnapshotWithPkgs(mods, [
-          { name: '@x/api-functions', path: 'packages/api-functions'},
-          { name: '@x/shared-runtime', path: 'packages/shared-runtime'},
+          {
+            name: '@x/api-functions',
+            repoRelDir: asRepoRelPath('packages/api-functions'),
+          },
+          {
+            name: '@x/shared-runtime',
+            repoRelDir: asRepoRelPath('packages/shared-runtime'),
+          },
         ]),
         g,
         tmpDir,
@@ -534,7 +561,10 @@ describe('collectAllDomainTags — package-as-domain', () => {
       const g = createEmptyGraph();
       for (const m of mods) addNode(g, { id: m.id, type: 'module', label: m.id, description: '' });
       const { classification } = collectAllDomainTags(
-        makeSnapshotWithPkgs(mods, [{ name: 'foo', path: 'pkg-foo'}]),
+        makeSnapshotWithPkgs(mods, [{
+          name: 'foo',
+          repoRelDir: asRepoRelPath('pkg-foo'),
+        }]),
         g,
         tmpDir,
       );

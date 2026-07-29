@@ -111,7 +111,7 @@ function collectDomainsByWeight(graph: RepositoryGraph): { heavy: Set<string>; l
   return { heavy, lightweight, all };
 }
 
-/** Return all module relativeFilePaths tagged with the given domain. */
+/** Return all package-relative module paths tagged with the given domain. */
 function modulesInDomain(graph: RepositoryGraph, domainLabel: string): string[] {
   const domainId = `domain:${domainLabel}`;
   const incoming = graph.inEdges.get(domainId) ?? [];
@@ -120,8 +120,8 @@ function modulesInDomain(graph: RepositoryGraph, domainLabel: string): string[] 
     if (edge.kind !== 'tagged') continue;
     const node = graph.nodes.get(edge.from);
     if (!node || node.type !== 'module') continue;
-    const relPath = node.data && 'relativeFilePath' in node.data ? (node.data as { relativeFilePath?: string }).relativeFilePath : undefined;
-    if (relPath) out.push(relPath);
+    const pkgRelPath = node.data?.pkgRelPath;
+    if (pkgRelPath) out.push(pkgRelPath);
   }
   return out;
 }

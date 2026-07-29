@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -112,8 +114,8 @@ function graphOf(objects: MeridianObject[]): RepositoryGraph {
     infraModules: [{
       id: 'infra:meridian:deploy/mesh.meridian',
       kind: 'meridian',
-      filePath: '/repo/deploy/mesh.meridian',
-      relativeFilePath: 'deploy/mesh.meridian',
+      absPath: asHostPath('/repo/deploy/mesh.meridian'),
+      repoRelPath: asRepoRelPath('deploy/mesh.meridian'),
       contentHash: 'mesh',
       resources: objects.map(meridianResource),
     }],
@@ -179,8 +181,8 @@ describe('core-laws routing between resources is plugin-owned', () => {
       infraModules: [{
         id: 'infra:meridian:deploy/mesh.meridian',
         kind: 'meridian',
-        filePath: '/repo/deploy/mesh.meridian',
-        relativeFilePath: 'deploy/mesh.meridian',
+        absPath: asHostPath('/repo/deploy/mesh.meridian'),
+        repoRelPath: asRepoRelPath('deploy/mesh.meridian'),
         contentHash: 'mesh',
         resources: [front, api].map(meridianResource),
       }],
@@ -215,8 +217,8 @@ describe('core-laws routing between resources is plugin-owned', () => {
       infraModules: [{
         id: 'infra:meridian:deploy/mesh.meridian',
         kind: 'meridian',
-        filePath: '/repo/deploy/mesh.meridian',
-        relativeFilePath: 'deploy/mesh.meridian',
+        absPath: asHostPath('/repo/deploy/mesh.meridian'),
+        repoRelPath: asRepoRelPath('deploy/mesh.meridian'),
         contentHash: 'mesh',
         resources: [
           {
@@ -265,8 +267,8 @@ describe('core-laws routing between resources is plugin-owned', () => {
       infraModules: [{
         id: 'infra:meridian:deploy/mesh.meridian',
         kind: 'meridian',
-        filePath: '/repo/deploy/mesh.meridian',
-        relativeFilePath: 'deploy/mesh.meridian',
+        absPath: asHostPath('/repo/deploy/mesh.meridian'),
+        repoRelPath: asRepoRelPath('deploy/mesh.meridian'),
         contentHash: 'mesh',
         resources: [producer, store],
       }],

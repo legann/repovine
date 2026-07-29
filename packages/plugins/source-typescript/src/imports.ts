@@ -1,5 +1,6 @@
 import ts from 'typescript';
-import type { ImportInfo, PackageInfo, ReExportInfo } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
+import type { HostPath, ImportInfo, PackageInfo, ReExportInfo } from '@repovine/plugin-sdk';
 import { staticModuleSpecifierText } from './module-specifier.js';
 import { resolveSpecifierFromMap, type PathsContext } from './resolve-specifier.js';
 
@@ -11,13 +12,13 @@ import { resolveSpecifierFromMap, type PathsContext } from './resolve-specifier.
  */
 export function collectImports(
   sf: ts.SourceFile,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   pathsContext?: PathsContext,
 ): ImportInfo[] {
   const result: ImportInfo[] = [];
-  const importingFilePath = sf.fileName;
+  const importingAbsPath = asHostPath(sf.fileName);
 
   for (const stmt of sf.statements) {
     if (!ts.isImportDeclaration(stmt)) continue;
@@ -51,7 +52,7 @@ export function collectImports(
     let isExternal = false;
     const shortcut = resolveSpecifierFromMap(
       specifier,
-      importingFilePath,
+      importingAbsPath,
       absPathToId,
       packages,
       repoRoot,
@@ -83,13 +84,13 @@ export function collectImports(
  */
 export function collectReExports(
   sf: ts.SourceFile,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   pathsContext?: PathsContext,
 ): ReExportInfo[] {
   const result: ReExportInfo[] = [];
-  const importingFilePath = sf.fileName;
+  const importingAbsPath = asHostPath(sf.fileName);
 
   for (const stmt of sf.statements) {
     if (!ts.isExportDeclaration(stmt)) continue;
@@ -111,7 +112,7 @@ export function collectReExports(
     let resolvedModuleId: string | undefined;
     let isExternal = false;
     const shortcut = resolveSpecifierFromMap(
-      specifier, importingFilePath, absPathToId, packages, repoRoot, pathsContext,
+      specifier, importingAbsPath, absPathToId, packages, repoRoot, pathsContext,
     );
     if (shortcut) {
       resolvedModuleId = shortcut.resolvedModuleId;

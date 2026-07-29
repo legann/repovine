@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Regression locks for two analyze_architecture detector fixes:
  *  - graph-edge detectors ignore build-erased `import type` edges (metadata.isTypeOnly);
@@ -29,7 +30,7 @@ function makeGraph(nodes: GraphNode[], edges: GraphEdge[]): RepositoryGraph {
 function mod(id: string, relPath: string, imports: ModuleInfo['imports'] = []): ModuleInfo {
   return {
     id, packageName: id.split('/')[0]!.replace(/^mod:/, ''),
-    filePath: `/abs/${relPath}`, relativeFilePath: relPath, contentHash: 'h',
+    absPath: asHostPath(`/abs/${relPath}`), pkgRelPath: asPkgRelPath(relPath), contentHash: 'h',
     imports, exports: [], semanticHints: {},
   };
 }
@@ -47,11 +48,11 @@ describe('detectBoundary ignores type-only import edges', () => {
   const nodes: GraphNode[] = [
     { id: 'pkg:a', type: 'package', label: 'a', description: '' },
     { id: 'pkg:b', type: 'package', label: 'b', description: '' },
-    // `relativeFilePath` is stamped on every module node the engine builds; the barrel test reads
+    // `pkgRelPath` is stamped on every module node the engine builds; the barrel test reads
     // it rather than the label, so a fixture omitting it would describe no file at all.
-    { id: 'mod:a/importer', type: 'module', label: 'a/importer', description: '', data: { relativeFilePath: 'a/importer.ts' } },
-    { id: 'mod:b/target', type: 'module', label: 'b/target', description: '', data: { relativeFilePath: 'b/target.ts' } },
-    { id: 'mod:b/index', type: 'module', label: 'b/index', description: '', data: { relativeFilePath: 'b/index.ts' } },
+    { id: 'mod:a/importer', type: 'module', label: 'a/importer', description: '', data: { pkgRelPath: asPkgRelPath('a/importer.ts') } },
+    { id: 'mod:b/target', type: 'module', label: 'b/target', description: '', data: { pkgRelPath: asPkgRelPath('b/target.ts') } },
+    { id: 'mod:b/index', type: 'module', label: 'b/index', description: '', data: { pkgRelPath: asPkgRelPath('b/index.ts') } },
   ];
   const containment: GraphEdge[] = [
     { from: 'pkg:a', to: 'mod:a/importer', kind: 'contains' },

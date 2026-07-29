@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Tests for detectAnnotationRisk — kind-aware quality bar and derived-stale
  * propagation (the refactoring-side counterparts to the staleness changes).
@@ -37,8 +38,8 @@ function makeMod(id: string, relPath: string, exports: ModuleInfo['exports'], ha
   return {
     id,
     packageName: 'test',
-    filePath: `/abs/${relPath}`,
-    relativeFilePath: relPath,
+    absPath: asHostPath(`/abs/${relPath}`),
+    pkgRelPath: asPkgRelPath(relPath),
     contentHash: hash,
     imports: [],
     exports,

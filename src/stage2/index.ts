@@ -28,6 +28,7 @@ import { formatPipelineDetail, logPipeline } from '../cli/ui.js';
 // the structural + infra-link graph (and collect entrypoints) before the domain passes run.
 import './interpreter/bootstrap.js';
 import { composeInterpreters } from './interpreter/composer.js';
+import { asHostPath } from '@repovine/plugin-sdk';
 import { rememberInterpreterEntrypoints } from './interpreter/entrypoint-store.js';
 import type { EntrypointFragment } from '../interpreter/types.js';
 import { pruneInertRuntimeResources } from './prune-inert-resources.js';
@@ -249,7 +250,7 @@ function composeProjectionsFor(
   return composeProjections({
     contributors,
     input: {
-      repoRoot: snapshot.repoRoot,
+      repoRoot: asHostPath(snapshot.repoRoot),
       facts: createFactView({
         snapshot,
         resourceIds: knownResourceIds,
@@ -469,7 +470,7 @@ function clusterByPathPrefix(
     const mod = modulesById.get(modId);
     if (!mod) continue;
 
-    const rel = stripSourceExtension(mod.relativeFilePath);
+    const rel = stripSourceExtension(mod.pkgRelPath);
     const parts = rel.split('/');
 
     const domainIdx = parts.findIndex(p => domainSlug(p) === domainLabel);

@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * The read-only post-composition invariant check. A healthy graph produces no
  * problems; a missing snapshot record or a dangling edge is reported.
@@ -32,7 +33,7 @@ function makeGraph(nodes: GraphNode[], edges: GraphEdge[]): RepositoryGraph {
 }
 
 function makeMod(id: string): ModuleInfo {
-  return { id, packageName: 'test', filePath: `/abs/${id}.ts`, relativeFilePath: `${id}.ts`, contentHash: 'h', imports: [], exports: [] };
+  return { id, packageName: 'test', absPath: asHostPath(`/abs/${id}.ts`), pkgRelPath: asPkgRelPath(`${id}.ts`), contentHash: 'h', imports: [], exports: [] };
 }
 
 function makeSnapshot(modules: ModuleInfo[], templates?: TemplateFileInfo[]): RepositoryFactsSnapshot {

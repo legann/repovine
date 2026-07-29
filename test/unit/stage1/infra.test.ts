@@ -260,7 +260,7 @@ Resources:
     const cfn = modules.find(m => m.kind === 'cloudformation');
     expect(cfn).toMatchObject({
       id: 'infra:cloudformation:sam.modules.yml',
-      relativeFilePath: 'sam.modules.yml',
+      repoRelPath: 'sam.modules.yml',
     });
 
     const byId = Object.fromEntries((cfn?.resources ?? []).map(r => [r.id, r]));
@@ -328,7 +328,7 @@ Resources:
     const vercel = modules.find(m => m.kind === 'vercel');
     expect(vercel).toMatchObject({
       id: 'infra:vercel:vercel.json',
-      relativeFilePath: 'vercel.json',
+      repoRelPath: 'vercel.json',
     });
 
     const byId = Object.fromEntries((vercel?.resources ?? []).map(r => [r.id, r]));
@@ -792,7 +792,7 @@ services:
     const compose = modules.find(m => m.kind === 'docker-compose');
     expect(compose).toMatchObject({
       id: 'infra:docker-compose:docker-compose.repovine-test.yml',
-      relativeFilePath: 'docker-compose.repovine-test.yml',
+      repoRelPath: 'docker-compose.repovine-test.yml',
     });
 
     const byId = Object.fromEntries((compose?.resources ?? []).map(r => [r.id, r]));

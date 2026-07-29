@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Tests for AnnotationStore — CRUD, file lock, stale lock recovery.
  */
@@ -51,8 +53,8 @@ function makeMod(id: string, contentHash = `${id}:hash`): ModuleInfo {
   return {
     id,
     packageName: 'test',
-    filePath: `/repo/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash,
     imports: [],
     exports: [{
@@ -990,8 +992,8 @@ describe('AnnotationStore', () => {
       const infra: InfraModuleInfo = {
         id: infraId,
         kind: 'sam',
-        filePath: '/repo/template.yaml',
-        relativeFilePath: 'template.yaml',
+        absPath: asHostPath('/repo/template.yaml'),
+        repoRelPath: asRepoRelPath('template.yaml'),
         contentHash: 'template-v2',
         resources: [{
           id: 'Worker',
@@ -1077,8 +1079,8 @@ describe('AnnotationStore', () => {
       const makeStack = (id: string, fileHash: string, resourceHash: string): InfraModuleInfo => ({
         id,
         kind: 'sam',
-        filePath: `/repo/${id}.yaml`,
-        relativeFilePath: `${id}.yaml`,
+        absPath: asHostPath(`/repo/${id}.yaml`),
+        repoRelPath: asRepoRelPath(`${id}.yaml`),
         contentHash: fileHash,
         resources: [{
           id: 'Gateway',

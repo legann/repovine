@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, it, expect } from '@jest/globals';
 import { contributeStructural } from '../../../src/interpreters/code-structure/graph.js';
 import { createEmptyGraph } from '../../../src/graph/index.js';
@@ -8,25 +10,25 @@ import { deliveredValue } from '../../../src/response/refusal.js';
 
 function snapshot(): RepositoryFactsSnapshot {
   const barrel: ModuleInfo = {
-    id: 'mod:@shared/index', packageName: '@shared', filePath: '/repo/shared/index.ts', relativeFilePath: 'index.ts',
+    id: 'mod:@shared/index', packageName: '@shared', absPath: asHostPath('/repo/shared/index.ts'), pkgRelPath: asPkgRelPath('index.ts'),
     contentHash: 'h1', imports: [], exports: [],
     reExports: [{ moduleSpecifier: './utils', resolvedModuleId: 'mod:@shared/utils', isStar: true, isExternal: false }],
   };
   const leaf: ModuleInfo = {
-    id: 'mod:@shared/utils', packageName: '@shared', filePath: '/repo/shared/utils.ts', relativeFilePath: 'utils.ts',
+    id: 'mod:@shared/utils', packageName: '@shared', absPath: asHostPath('/repo/shared/utils.ts'), pkgRelPath: asPkgRelPath('utils.ts'),
     contentHash: 'h2', imports: [],
     exports: [{ name: 'slugify', kind: 'function', lineRange: { start: 1, end: 3 }, isDefault: false }],
   };
   // Cross-package consumer: imports { slugify } from '@shared' → resolves to the barrel entry.
   const consumer: ModuleInfo = {
-    id: 'mod:@web/tool', packageName: '@web', filePath: '/repo/web/tool.ts', relativeFilePath: 'tool.ts',
+    id: 'mod:@web/tool', packageName: '@web', absPath: asHostPath('/repo/web/tool.ts'), pkgRelPath: asPkgRelPath('tool.ts'),
     contentHash: 'h3',
     imports: [{ moduleSpecifier: '@shared', resolvedModuleId: 'mod:@shared/index', importedNames: ['slugify'], isTypeOnly: false, isExternal: false }],
     exports: [{ name: 'run', kind: 'function', lineRange: { start: 1, end: 3 }, isDefault: false, calls: ['slugify'] }],
   };
   return {
     repoRoot: '/repo', timestamp: '2024-01-01',
-    packages: [{ name: '@shared', path: 'shared' }, { name: '@web', path: 'web' }],
+    packages: [{ name: '@shared', repoRelDir: asRepoRelPath('shared') }, { name: '@web', repoRelDir: asRepoRelPath('web') }],
     modules: [barrel, leaf, consumer],
   };
 }

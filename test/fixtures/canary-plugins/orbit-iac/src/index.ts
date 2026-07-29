@@ -1,10 +1,15 @@
 import {
+  asHostPath,
+  asPkgRelPath,
+  asRepoRelPath,
   definePlugin,
+  hostPathKey,
   toPosixPath,
 } from '@repovine/plugin-sdk';
 import type {
   DocumentLoader,
   DocumentLoadInput,
+  HostPath,
   JsonValue,
   LoadedDocument,
   PackageInfo,
@@ -97,7 +102,7 @@ const loader: DocumentLoader = {
   load(input: DocumentLoadInput): readonly LoadedDocument[] {
     const text = new TextDecoder().decode(input.content);
     return [{
-      documentKey: input.relativeFilePath,
+      documentKey: input.repoRelPath,
       value: parseOrbit(text) as unknown as JsonValue,
     }];
   },
@@ -126,24 +131,25 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
-function discover(repoRoot: string): SourceDiscoveryResult {
+function discover(repoRoot: HostPath): SourceDiscoveryResult {
   const files: string[] = [];
   walk(repoRoot, files);
-  if (files.length === 0) return { packages: [], pendingByPath: new Map() };
+  if (files.length === 0) return { packages: [], pendingByAbsPath: new Map() };
 
   // One stack per repository: the manifests are claimed so the host reads them, they are never code
   // and this plugin emits no module for them.
-  const pkg: PackageInfo = { name: 'orbit-stack', path: '.', sourcePluginId: PLUGIN_ID };
-  const pendingByPath = new Map<string, PendingModuleDraft>();
+  const pkg: PackageInfo = { name: 'orbit-stack', repoRelDir: asRepoRelPath('.'), sourcePluginId: PLUGIN_ID };
+  const pendingByAbsPath = new Map<HostPath, PendingModuleDraft>();
   for (const abs of files) {
-    pendingByPath.set(abs, {
-      filePath: abs,
+    const absPath = asHostPath(abs);
+    pendingByAbsPath.set(hostPathKey(absPath), {
+      absPath,
       pkg,
-      relPath: toPosixPath(relative(repoRoot, abs)),
+      pkgRelPath: asPkgRelPath(toPosixPath(relative(repoRoot, abs))),
       sourcePluginId: PLUGIN_ID,
     });
   }
-  return { packages: [pkg], pendingByPath };
+  return { packages: [pkg], pendingByAbsPath };
 }
 
 /* --------------------------------- extraction --------------------------------- */
@@ -170,7 +176,7 @@ function extract(input: SourceExtractInput): SourceExtractResult {
     const text = input.sourceByModuleId.get(pending.moduleId)?.content;
     if (text === undefined) continue;
     const documents = loader.load({
-      relativeFilePath: pending.relPath,
+      repoRelPath: asRepoRelPath(toPosixPath(relative(input.repoRoot, pending.absPath))),
       content: new TextEncoder().encode(text),
     });
 

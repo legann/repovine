@@ -34,6 +34,8 @@ export {
 } from './dir-layout.js';
 export type { DirLayoutTable } from './dir-layout.js';
 export { moduleCandidateSuffixes, resolveByCandidates } from './resolve-candidates.js';
+export { asHostPath, asPkgRelPath, asRepoRelPath } from '../path-contract.js';
+export type { HostPath, PkgRelPath, RepoRelPath } from '../path-contract.js';
 export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, pathMatchKey, repoRelativePosix } from '../paths.js';
 export { compareCodeUnits } from '../ordering.js';
 export { compileGlob } from '../glob.js';

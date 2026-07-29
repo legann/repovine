@@ -229,10 +229,10 @@ describe('refusal form: the published spelling has one reader', () => {
 describe('refusal form: undefined does not mean "could not"', () => {
   const outsideRepo = path.join(path.sep === '/' ? '/' : 'C:\\', 'elsewhere', 'secret.ts');
 
-  function moduleGraph(id: string, filePath: string) {
+  function moduleGraph(id: string, absPath: string) {
     const graph = createEmptyGraph();
     addNode(graph, { id, type: 'module', label: id, data: {} } as never);
-    const mod = { id, filePath, relativeFilePath: 'src/x.ts', exports: [] } as unknown as ModuleInfo;
+    const mod = { id, absPath, pkgRelPath: 'src/x.ts', exports: [] } as unknown as ModuleInfo;
     return { graph, modulesById: new Map<string, ModuleInfo>([[id, mod]]) };
   }
 
@@ -412,7 +412,12 @@ describe('refusal form: throw stays for programmer error', () => {
     const graph = createEmptyGraph();
     addNode(graph, { id: 'mod:repo/src/gone', type: 'module', label: 'gone', data: {} } as never);
     const missing = path.join(repoRoot(), 'src', '__no_such_file_for_the_law__.ts');
-    const mod = { id: 'mod:repo/src/gone', filePath: missing, relativeFilePath: 'src/gone.ts', exports: [] } as unknown as ModuleInfo;
+    const mod = {
+      id: 'mod:repo/src/gone',
+      absPath: missing,
+      pkgRelPath: 'src/gone.ts',
+      exports: [],
+    } as unknown as ModuleInfo;
 
     const outcome = await readNodeBody(graph, new Map([['mod:repo/src/gone', mod]]), repoRoot(), 'mod:repo/src/gone', 'module');
 

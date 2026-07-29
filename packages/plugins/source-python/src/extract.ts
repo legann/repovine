@@ -3,7 +3,8 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
-import type { SemanticHints, ExportInfo, ImportInfo, ModuleInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
+import type { HostPath, SemanticHints, ExportInfo, ImportInfo, ModuleInfo, PendingModule, SemanticModuleDelta } from '@repovine/plugin-sdk';
 import type { SourceExtractInput, SourceExtractResult } from '@repovine/plugin-sdk';
 import type { PythonExtractContext } from './discover.js';
 import { resolvePythonImport } from './resolve-import.js';
@@ -133,7 +134,7 @@ export const __PY_AST_TIMEOUT_MS_FOR_TEST = PY_AST_TIMEOUT_MS;
 /** Run the stdlib-`ast` script in an async subprocess. Non-blocking: inline extraction on the
  * main thread (single-shard repos, MCP refresh) must not freeze the event loop while Python
  * parses a shard. Rejects on spawn failure, non-zero exit, or output overflow. */
-export function runPythonAst(pythonBin: string, pyAstScriptPath: string, filePaths: string[]): Promise<Map<string, RawModule>> {
+export function runPythonAst(pythonBin: string, pyAstScriptPath: string, filePaths: HostPath[]): Promise<Map<HostPath, RawModule>> {
   if (filePaths.length === 0) return Promise.resolve(new Map());
   return new Promise((resolve, reject) => {
     const child = spawn(pythonBin, [pyAstScriptPath], {
@@ -187,8 +188,8 @@ export function runPythonAst(pythonBin: string, pyAstScriptPath: string, filePat
       }
       try {
         const parsed = JSON.parse(Buffer.concat(stdoutChunks).toString('utf-8')) as RawModule[];
-        const result = new Map<string, RawModule>();
-        for (const r of parsed) result.set(r.filePath, r);
+        const result = new Map<HostPath, RawModule>();
+        for (const r of parsed) result.set(asHostPath(r.filePath), r);
         resolve(result);
       } catch (e) {
         reject(e as Error);
@@ -202,9 +203,9 @@ export function runPythonAst(pythonBin: string, pyAstScriptPath: string, filePat
 function toModuleDelta(
   pending: PendingModule,
   raw: RawModule | undefined,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: SourceExtractInput['packages'],
-  repoRoot: string,
+  repoRoot: HostPath,
 ): SemanticModuleDelta {
   const imports: ImportInfo[] = [];
   const exports: ExportInfo[] = [];
@@ -213,7 +214,7 @@ function toModuleDelta(
     for (const imp of raw.imports ?? []) {
       const moduleDotted = imp.module ?? '';
       const resolution = resolvePythonImport({
-        importingFilePath: pending.filePath,
+        importingAbsPath: pending.absPath,
         level: imp.level,
         moduleDotted,
         kind: imp.kind,
@@ -300,15 +301,15 @@ function specifierToResolverInput(moduleSpecifier: string): { level: number; mod
 function reuseDelta(
   pending: PendingModule,
   prev: ModuleInfo,
-  absPathToId: Map<string, string>,
+  absPathToId: Map<HostPath, string>,
   packages: SourceExtractInput['packages'],
-  repoRoot: string,
+  repoRoot: HostPath,
 ): SemanticModuleDelta {
   const imports = prev.imports.map(imp => {
     const { level, moduleDotted } = specifierToResolverInput(imp.moduleSpecifier);
     // resolvePythonImport resolves by level/moduleDotted/packages; `kind` does not affect the id.
     const res = resolvePythonImport({
-      importingFilePath: pending.filePath,
+      importingAbsPath: pending.absPath,
       level,
       moduleDotted,
       kind: 'from',
@@ -328,7 +329,7 @@ function reuseDelta(
 }
 
 export async function extractPython(input: SourceExtractInput): Promise<SourceExtractResult> {
-  const { pendingModules, prevByPath, absPathToId, packages, repoRoot, sourceByModuleId } = input;
+  const { pendingModules, prevByAbsPath, absPathToId, packages, repoRoot, sourceByModuleId } = input;
   const ctx = input.extractContext as PythonExtractContext | undefined;
   const pythonBin = ctx?.pythonBin;
   if (!pythonBin) return { deltas: [], reused: 0, rescanned: 0 };
@@ -345,21 +346,21 @@ export async function extractPython(input: SourceExtractInput): Promise<SourceEx
   const resolved: Resolved[] = pendingModules.map(pending => {
     const src = sourceByModuleId.get(pending.moduleId);
     if (!src) return { pending, needsParse: false };
-    const prev = prevByPath.get(pending.filePath);
+    const prev = prevByAbsPath.get(pending.absPath);
     if (prev && prev.id === pending.moduleId && prev.contentHash === src.contentHash) {
       return { pending, cached: reuseDelta(pending, prev, absPathToId, packages, repoRoot), needsParse: false };
     }
     return { pending, needsParse: true };
   });
 
-  let rawByPath = new Map<string, RawModule>();
+  let rawByPath = new Map<HostPath, RawModule>();
   let subprocessFailed = false;
   const toParse = resolved.filter(r => r.needsParse);
   if (toParse.length > 0) {
     const pyAstScriptPath = resolvePyAstScriptPath();
     if (!pyAstScriptPath) return { deltas: [], reused: 0, rescanned: 0 };
     try {
-      rawByPath = await runPythonAst(pythonBin, pyAstScriptPath, toParse.map(r => r.pending.filePath));
+      rawByPath = await runPythonAst(pythonBin, pyAstScriptPath, toParse.map(r => r.pending.absPath));
     } catch (e) {
       // A failed subprocess must not crash the build: emit modules with empty imports/exports.
       subprocessFailed = true;
@@ -377,7 +378,7 @@ export async function extractPython(input: SourceExtractInput): Promise<SourceEx
       continue;
     }
     if (!r.needsParse) continue;
-    const delta = toModuleDelta(r.pending, rawByPath.get(r.pending.filePath), absPathToId, packages, repoRoot);
+    const delta = toModuleDelta(r.pending, rawByPath.get(r.pending.absPath), absPathToId, packages, repoRoot);
     // On a subprocess-level failure (transient: interpreter killed, OOM, PATH change) the empty
     // imports/exports must NOT be cached under the real content hash — a later incremental run
     // would reuse the poisoned modules forever. Marking the delta `transient` makes the engine

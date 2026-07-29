@@ -75,23 +75,23 @@ describe('core-laws every isolate loads its own plugin set', () => {
             capabilities: { extensions: ['.brick'], moduleIdNormalize: { stripSuffixes: ['.brick'] } },
             discover(repoRoot) {
               const packages = [];
-              const pendingByPath = new Map();
+              const pendingByAbsPath = new Map();
               for (const name of PACKAGES) {
                 const dir = path.join(repoRoot, name);
                 if (!fs.existsSync(dir)) continue;
-                packages.push({ name, path: name, sourcePluginId: 'brick' });
+                packages.push({ name, repoRelDir: name, sourcePluginId: 'brick' });
                 for (const entry of fs.readdirSync(dir).sort()) {
                   if (!entry.endsWith('.brick')) continue;
-                  const filePath = path.join(dir, entry);
-                  pendingByPath.set(filePath, {
-                    filePath,
-                    relPath: entry,
-                    pkg: { name, path: name, sourcePluginId: 'brick' },
+                  const absPath = path.join(dir, entry);
+                  pendingByAbsPath.set(absPath, {
+                    absPath,
+                    pkgRelPath: entry,
+                    pkg: { name, repoRelDir: name, sourcePluginId: 'brick' },
                     sourcePluginId: 'brick',
                   });
                 }
               }
-              return { packages, pendingByPath };
+              return { packages, pendingByAbsPath };
             },
             extract(input) {
               return {

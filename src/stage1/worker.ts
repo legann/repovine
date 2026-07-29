@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
-import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
+import type { HostPath, ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import { setPipelineLogSink } from '../cli/ui.js';
 import { getSourcePlugin, getSourcePlugins } from '../plugin-host/source-set.js';
 import { loadPluginSet, type PluginLoadSpec } from '../plugin-host/load.js';
@@ -8,8 +8,8 @@ import { runSourceExtraction } from './extract-runner.js';
 
 interface WorkerInit {
   packages: PackageInfo[];
-  absPathToIdEntries: [string, string][];
-  repoRoot: string;
+  absPathToIdEntries: [HostPath, string][];
+  repoRoot: HostPath;
   extractContextEntries: [string, unknown][];
   analysisVersion: number;
   /** The set this isolate loads before it takes a job. */
@@ -22,7 +22,7 @@ interface JobMessage {
   pkg: PackageInfo;
   sourcePluginId: string;
   pendingModules: PendingModule[];
-  prevModuleEntries: [string, ModuleInfo][];
+  prevModuleEntries: [HostPath, ModuleInfo][];
 }
 
 interface ShutdownMessage {
@@ -64,7 +64,7 @@ console.log = (...args: unknown[]): void => console.error(...args);
 
 const init = workerData as WorkerInit;
 const packages = init.packages;
-const absPathToId = new Map<string, string>(init.absPathToIdEntries);
+const absPathToId = new Map<HostPath, string>(init.absPathToIdEntries);
 const extractContextByPlugin = new Map<string, unknown>(init.extractContextEntries);
 const repoRoot = init.repoRoot;
 const analysisVersion = init.analysisVersion;
@@ -117,7 +117,7 @@ async function handleWorkerMessage(msg: IncomingMessage): Promise<void> {
       repoRoot,
       packages,
       pendingModules: job.pendingModules,
-      prevByPath: new Map(job.prevModuleEntries),
+      prevByAbsPath: new Map(job.prevModuleEntries),
       absPathToId,
       extractContext: extractContextByPlugin.get(job.sourcePluginId),
       analysisVersion,

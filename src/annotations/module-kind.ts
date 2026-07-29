@@ -101,7 +101,7 @@ export function inferModuleKind(input: InferInput): ModuleKind {
   // Pure type declarations win first — they need only summary + keyExports.
   if (isTypesOnlyModule(mod)) return 'types';
 
-  const relPath = mod.relativeFilePath ?? '';
+  const relPath = mod.pkgRelPath ?? '';
   const hints = mod.semanticHints;
   // Frontend ('ui') classification is restricted to plugins that produce frontend surfaces.
   // Modules from backend-only plugins (Python, …) carry no frontend hints and must never be

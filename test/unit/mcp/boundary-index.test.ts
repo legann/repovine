@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath, asRepoRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -30,8 +31,8 @@ function moduleInfo(id: string, relativeFilePath: string): ModuleInfo {
   return {
     id,
     packageName: 'app',
-    filePath: `/abs/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/abs/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash: 'h',
     imports: [],
     exports: [],
@@ -63,7 +64,14 @@ function makeState(annots: Record<string, StoredAnnotation>): RepovineState {
     packages: [],
     modules: [...modulesById.values()],
     infraModules: [
-      { id: 'infra:lambda:app/handlers/process', relativeFilePath: 'app/handlers/process.ts' },
+      {
+        id: 'infra:lambda:app/handlers/process',
+        kind: 'cloudformation',
+        absPath: asHostPath('/abs/app/handlers/process.ts'),
+        repoRelPath: asRepoRelPath('app/handlers/process.ts'),
+        contentHash: 'h',
+        resources: [],
+      },
     ],
     templates: [
       { id: 'template:app/views/receipt.hbs', relPath: 'app/views/receipt.hbs', contentHash: 'h' },
@@ -101,8 +109,8 @@ describe('buildBoundaryIndex', () => {
     ]);
   });
 
-  it('keys a monorepo module by its repo-root-relative path, not its package-relative relativeFilePath', () => {
-    // filePath is absolute under repoRoot; relativeFilePath is package-relative and drops the
+  it('keys a monorepo module by its repo-root-relative path, not its package-relative pkgRelPath', () => {
+    // absPath is absolute under repoRoot; pkgRelPath is package-relative and drops the
     // package-dir prefix (`platform/backend`). The hook resolves the edited file repo-root-relative,
     // so the key must include that prefix or the pre-edit advisory never fires.
     const graph = createEmptyGraph();
@@ -111,8 +119,8 @@ describe('buildBoundaryIndex', () => {
       ['mod:@backend/src/models/tool', {
         id: 'mod:@backend/src/models/tool',
         packageName: '@backend',
-        filePath: '/repo/platform/backend/src/models/tool.ts',
-        relativeFilePath: 'src/models/tool.ts',
+        absPath: asHostPath('/repo/platform/backend/src/models/tool.ts'),
+        pkgRelPath: asPkgRelPath('src/models/tool.ts'),
         contentHash: 'h',
         imports: [],
         exports: [],

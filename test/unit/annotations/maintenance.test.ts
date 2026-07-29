@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,8 +26,8 @@ function makeMod(id: string): ModuleInfo {
   return {
     id,
     packageName: 'test',
-    filePath: `/repo/${rel}.ts`,
-    relativeFilePath: `${rel}.ts`,
+    absPath: asHostPath(`/repo/${rel}.ts`),
+    pkgRelPath: asPkgRelPath(`${rel}.ts`),
     contentHash: `${id}:hash`,
     imports: [],
     exports: [],
@@ -41,7 +42,7 @@ function makeValidateGraph(moduleIds: string[]) {
       type: 'module',
       label: id.replace(/^mod:/, ''),
       description: '',
-      data: { relativeFilePath: `${id.replace(/^mod:/, '')}.ts` },
+      data: { pkgRelPath: asPkgRelPath(`${id.replace(/^mod:/, '')}.ts`) },
     });
   }
   return graph;

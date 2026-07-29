@@ -1,3 +1,4 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import { compileScanPatterns, shouldScanInfraPath, shouldScanSourcePath } from '../../src/scan-filters.js';
 
 describe('scan-filters', () => {
@@ -6,14 +7,14 @@ describe('scan-filters', () => {
       ['packages/generated/keep.ts'],
       ['packages/generated/**'],
     );
-    expect(shouldScanSourcePath('packages/generated/keep.ts', patterns)).toBe(true);
-    expect(shouldScanSourcePath('packages/generated/other.ts', patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('packages/generated/keep.ts'), patterns)).toBe(true);
+    expect(shouldScanSourcePath(asRepoRelPath('packages/generated/other.ts'), patterns)).toBe(false);
   });
 
   it('includes explicit .d.ts paths', () => {
     const patterns = compileScanPatterns(['types/globals.d.ts'], []);
-    expect(shouldScanSourcePath('types/globals.d.ts', patterns)).toBe(true);
-    expect(shouldScanSourcePath('types/other.d.ts', patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('types/globals.d.ts'), patterns)).toBe(true);
+    expect(shouldScanSourcePath(asRepoRelPath('types/other.d.ts'), patterns)).toBe(false);
   });
 
   it('honors infra-only exclude scope', () => {
@@ -21,8 +22,8 @@ describe('scan-filters', () => {
       [],
       [{ path: 'infra/sam/template.yaml', scope: 'infra' }],
     );
-    expect(shouldScanInfraPath('infra/sam/template.yaml', patterns)).toBe(false);
-    expect(shouldScanSourcePath('infra/sam/template.yaml', patterns)).toBe(true);
+    expect(shouldScanInfraPath(asRepoRelPath('infra/sam/template.yaml'), patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('infra/sam/template.yaml'), patterns)).toBe(true);
   });
 
   it('always skips engine-owned dependency, build, and cache directories', () => {
@@ -42,8 +43,8 @@ describe('scan-filters', () => {
     ];
 
     for (const relPath of ignoredPaths) {
-      expect(shouldScanSourcePath(relPath, patterns)).toBe(false);
-      expect(shouldScanInfraPath(relPath, patterns)).toBe(false);
+      expect(shouldScanSourcePath(asRepoRelPath(relPath), patterns)).toBe(false);
+      expect(shouldScanInfraPath(asRepoRelPath(relPath), patterns)).toBe(false);
     }
   });
 
@@ -57,16 +58,16 @@ describe('scan-filters', () => {
       [],
     );
 
-    expect(shouldScanSourcePath('node_modules/pkg/index.js', patterns)).toBe(false);
-    expect(shouldScanSourcePath('dist/index.js', patterns)).toBe(false);
-    expect(shouldScanInfraPath('target/generated/template.yaml', patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('node_modules/pkg/index.js'), patterns)).toBe(false);
+    expect(shouldScanSourcePath(asRepoRelPath('dist/index.js'), patterns)).toBe(false);
+    expect(shouldScanInfraPath(asRepoRelPath('target/generated/template.yaml'), patterns)).toBe(false);
   });
 
   it('matches engine ignores by path segment, not by substring', () => {
     const patterns = compileScanPatterns([], []);
 
-    expect(shouldScanSourcePath('src/node_modulesish/index.ts', patterns)).toBe(true);
-    expect(shouldScanSourcePath('src/distillery/index.ts', patterns)).toBe(true);
-    expect(shouldScanSourcePath('src/targeted/index.ts', patterns)).toBe(true);
+    expect(shouldScanSourcePath(asRepoRelPath('src/node_modulesish/index.ts'), patterns)).toBe(true);
+    expect(shouldScanSourcePath(asRepoRelPath('src/distillery/index.ts'), patterns)).toBe(true);
+    expect(shouldScanSourcePath(asRepoRelPath('src/targeted/index.ts'), patterns)).toBe(true);
   });
 });

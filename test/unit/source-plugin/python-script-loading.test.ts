@@ -1,3 +1,5 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asRepoRelPath } from '@repovine/plugin-sdk';
 import { afterAll, describe, expect, it, jest } from '@jest/globals';
 import * as actualFs from 'node:fs';
 import * as os from 'node:os';
@@ -32,20 +34,20 @@ describe('Python AST script loading and packaging', () => {
     const imported = await import('../../../packages/plugins/source-python/src/extract.js');
     expect(accessSync).not.toHaveBeenCalled();
 
-    const pkg: PackageInfo = { name: 'py-pkg', path: '.', sourcePluginId: 'python' };
+    const pkg: PackageInfo = { name: 'py-pkg', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'python' };
     const pending: PendingModule = {
-      filePath: path.join(os.tmpdir(), 'lazy-script.py'),
+      absPath: asHostPath(path.join(os.tmpdir(), 'lazy-script.py')),
       pkg,
-      relPath: 'lazy-script.py',
+      pkgRelPath: asPkgRelPath('lazy-script.py'),
       moduleId: 'mod:py-pkg/lazy-script',
       sourcePluginId: 'python',
     };
     const input: SourceExtractInput = {
-      repoRoot: os.tmpdir(),
+      repoRoot: asHostPath(os.tmpdir()),
       packages: [pkg],
       pendingModules: [pending],
-      prevByPath: new Map(),
-      absPathToId: new Map([[pending.filePath, pending.moduleId]]),
+      prevByAbsPath: new Map(),
+      absPathToId: new Map([[pending.absPath, pending.moduleId]]),
       sourceByModuleId: new Map([[
         pending.moduleId,
         { content: 'def run():\n    return 1\n', contentHash: 'hash' },

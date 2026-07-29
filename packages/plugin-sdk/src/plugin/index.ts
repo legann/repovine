@@ -113,3 +113,6 @@ export type { JsonValue } from './json.js';
 
 export { checkPluginConformance } from './conformance.js';
 export type { PluginConformanceInput } from './conformance.js';
+
+export { asHostPath, asPkgRelPath, asRepoRelPath } from '../path-contract.js';
+export type { HostPath, PkgRelPath, RepoRelPath } from '../path-contract.js';

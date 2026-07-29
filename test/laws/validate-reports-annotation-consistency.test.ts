@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -30,8 +31,8 @@ function moduleInfo(): ModuleInfo {
   return {
     id: NODE,
     packageName: 'pkg',
-    filePath: '/repo/pkg/service.ts',
-    relativeFilePath: 'pkg/service.ts',
+    absPath: asHostPath('/repo/pkg/service.ts'),
+    pkgRelPath: asPkgRelPath('pkg/service.ts'),
     contentHash: 'revision-one',
     imports: [],
     exports: [{ name: REAL_EXPORT, kind: 'function', isDefault: false, lineRange: { start: 1, end: 3 } }],
@@ -44,7 +45,7 @@ function moduleNode(): GraphNode {
     type: 'module',
     label: 'pkg/service',
     description: 'Module pkg/service',
-    data: { relativeFilePath: 'pkg/service.ts' },
+    data: { pkgRelPath: asPkgRelPath('pkg/service.ts') },
   };
 }
 

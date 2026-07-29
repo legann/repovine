@@ -1,3 +1,6 @@
+import { asHostPath } from '@repovine/plugin-sdk';
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asRepoRelPath } from '@repovine/plugin-sdk';
 import {
   splitIntoShards,
   dedupByModuleIdPreservingOrder,
@@ -6,10 +9,10 @@ import type { PendingModule } from '../../../src/types.js';
 
 function pending(filePath: string, moduleId: string): PendingModule {
   return {
-    filePath,
-    relPath: filePath.replace(/^\/repo\/pkg\//, ''),
+    absPath: asHostPath(filePath),
+    pkgRelPath: asPkgRelPath(filePath.replace(/^\/repo\/pkg\//, '')),
     moduleId,
-    pkg: { name: 'pkg', path: 'pkg'},
+    pkg: { name: 'pkg', repoRelDir: asRepoRelPath('pkg')},
   };
 }
 

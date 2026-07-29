@@ -9,7 +9,7 @@ import { stripModuleIdSuffix } from '../plugin-host/source-set.js';
  * does and never names a file that is not there: `global.d.ts` labels as `global`, not `global.d`,
  * and a barrel labels as `index` whether it is written `index.ts` or `index.mjs`. A path deeper
  * than two segments keeps its last two behind `…/`, which makes the label a display form — code
- * that needs a path reads `relativeFilePath` from the node instead.
+ * that needs a path reads `pkgRelPath` from the node instead.
  */
 export function shortModuleLabel(relPath: string): string {
   const parts = stripModuleIdSuffix(relPath).split('/');

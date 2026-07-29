@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -75,7 +76,7 @@ describe('core-laws discovery finds packages by the markers their plugin declare
     const typescript = getSourcePlugins().find(plugin => plugin.id === 'typescript');
     expect(typescript).toBeDefined();
 
-    const discovered = typescript!.discover(root, {
+    const discovered = typescript!.discover(asHostPath(root), {
       packageMarkers: ['jsconfig.json'],
       scanPatterns: compileScanPatterns([], []),
     });
@@ -94,7 +95,7 @@ describe('core-laws discovery finds packages by the markers their plugin declare
     tmpRoots.push(root);
 
     const typescript = getSourcePlugins().find(plugin => plugin.id === 'typescript');
-    const discovered = typescript!.discover(root, {
+    const discovered = typescript!.discover(asHostPath(root), {
       packageMarkers: [],
       scanPatterns: compileScanPatterns([], []),
     });
@@ -108,7 +109,7 @@ describe('core-laws discovery finds packages by the markers their plugin declare
       apiVersion: 1,
       packageMarkers: ['brick.json'],
       fileMatch: { extensions: ['.brick'] },
-      discover: () => ({ packages: [], pendingByPath: new Map() }),
+      discover: () => ({ packages: [], pendingByAbsPath: new Map() }),
       extract: () => ({ deltas: [], reused: 0, rescanned: 0 }),
     };
     restores.push(setSourcePluginsForTest([brick]));

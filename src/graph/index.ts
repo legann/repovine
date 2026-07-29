@@ -59,12 +59,18 @@ export function nodeLabel(graph: RepositoryGraph, nodeId: string): string {
  * about a missing node, a caller holding the record can say which file it stands for instead, and
  * a file path reads better in a list of modules than a `mod:` id does. Callers without the record
  * use {@link nodeLabel}; domain nodes use `domainLabel`.
+ *
+ * The fallback path is passed rather than read off the record, because the records that reach here
+ * spell their path against different bases — a module's is package-relative, an infra module's is
+ * repo-relative — and a parameter that accepted either would be the mixing this vocabulary exists to
+ * stop. The caller holds one path and names it.
  */
 export function moduleLabelOf(
   graph: RepositoryGraph,
-  mod: { id: string; relativeFilePath: string },
+  mod: { id: string },
+  fallbackPath: string,
 ): string {
-  return graph.nodes.get(mod.id)?.label ?? mod.relativeFilePath;
+  return graph.nodes.get(mod.id)?.label ?? fallbackPath;
 }
 
 /**

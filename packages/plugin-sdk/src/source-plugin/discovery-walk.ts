@@ -2,6 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { compareCodeUnits } from '../ordering.js';
 import { lastPathSegment, normalizeRelPath, repoRelativePosix } from '../paths.js';
+import { asHostPath } from '../path-contract.js';
+import type { HostPath, RepoRelPath } from '../path-contract.js';
 import { toPosixPath } from './module-id.js';
 import { currentDirLayoutTable } from './dir-layout.js';
 
@@ -34,8 +36,8 @@ function prunedNames(): ReadonlySet<string> {
  * CONTAINS, and a path carries no evidence of that. A conditional name is decided by
  * {@link classifyDiscoveryDir}, at the directory a walk reached.
  */
-export function matchesEngineIgnorePath(relPath: string): boolean {
-  const norm = normalizeRelPath(relPath);
+export function matchesEngineIgnorePath(repoRelPath: RepoRelPath): boolean {
+  const norm = normalizeRelPath(repoRelPath);
   const conditional = currentDirLayoutTable().prunedWhenContains;
   for (const fragment of prunedNames()) {
     if (conditional.has(fragment)) continue;
@@ -60,9 +62,9 @@ function testLayoutNames(): ReadonlySet<string> {
 }
 
 /** True when any segment of the repo-relative path is a test-layout directory. */
-export function hasTestLayoutSegment(relPath: string): boolean {
+export function hasTestLayoutSegment(repoRelPath: RepoRelPath): boolean {
   const names = testLayoutNames();
-  return normalizeRelPath(relPath).split('/').some(segment => names.has(segment));
+  return normalizeRelPath(repoRelPath).split('/').some(segment => names.has(segment));
 }
 
 /** Which half of the layout table kept a path out. */
@@ -71,7 +73,7 @@ export type DirSkipReason = 'pruned' | 'test-layout';
 /** One directory a walk did not enter, and the table entry that decided it. */
 export interface PrunedDir {
   /** The repo-relative directory the walk stopped at. */
-  relPath: string;
+  repoRelPath: RepoRelPath;
   /** The single table entry that matched — a directory name, not a path. */
   name: string;
   reason: DirSkipReason;
@@ -84,8 +86,8 @@ export interface PrunedDir {
  * publishes is this function's record, so what a build skipped and why cannot drift from what it
  * actually skipped.
  */
-export function classifyDiscoveryDir(relDirPath: string, absDirPath?: string): PrunedDir | undefined {
-  const norm = normalizeRelPath(relDirPath);
+export function classifyDiscoveryDir(repoRelDir: RepoRelPath, absDirPath?: HostPath): PrunedDir | undefined {
+  const norm = normalizeRelPath(repoRelDir);
   const pruned = prunedNames();
   const testLayout = testLayoutNames();
   const conditional = currentDirLayoutTable().prunedWhenContains;
@@ -100,17 +102,17 @@ export function classifyDiscoveryDir(relDirPath: string, absDirPath?: string): P
       // alone is what this condition exists to stop trusting — so the walk descends.
       const dir = ancestorAbsPath(absDirPath, segments.length - 1 - index);
       if (dir !== undefined && markers.some(marker => fs.existsSync(path.join(dir, ...marker.split('/'))))) {
-        return { relPath: norm, name: segment, reason: 'pruned' };
+        return { repoRelPath: norm, name: segment, reason: 'pruned' };
       }
       continue;
     }
-    if (pruned.has(segment)) return { relPath: norm, name: segment, reason: 'pruned' };
-    if (testLayout.has(segment)) return { relPath: norm, name: segment, reason: 'test-layout' };
+    if (pruned.has(segment)) return { repoRelPath: norm, name: segment, reason: 'pruned' };
+    if (testLayout.has(segment)) return { repoRelPath: norm, name: segment, reason: 'test-layout' };
   }
   // A pruned entry spelled with a separator (`.repovine/`) is matched by path rather than by
   // segment, so the segment loop above does not see it.
   if (matchesEngineIgnorePath(norm)) {
-    return { relPath: norm, name: lastPathSegment(norm), reason: 'pruned' };
+    return { repoRelPath: norm, name: lastPathSegment(norm), reason: 'pruned' };
   }
   return undefined;
 }
@@ -121,10 +123,10 @@ export function classifyDiscoveryDir(relDirPath: string, absDirPath?: string): P
  * `path.dirname` rather than string surgery on the relative form: the two paths share a tail but are
  * spelled with different separators on win32, and only the host's own function walks the host's.
  */
-function ancestorAbsPath(absPath: string | undefined, levels: number): string | undefined {
+function ancestorAbsPath(absPath: HostPath | undefined, levels: number): HostPath | undefined {
   if (absPath === undefined) return undefined;
   let dir = absPath;
-  for (let i = 0; i < levels; i++) dir = path.dirname(dir);
+  for (let i = 0; i < levels; i++) dir = asHostPath(path.dirname(dir));
   return dir;
 }
 
@@ -148,8 +150,8 @@ function ancestorAbsPath(absPath: string | undefined, levels: number): string | 
  * and a walker that stopped descending on it could not honour a more specific `scan.include`
  * underneath.
  */
-export function shouldWalkDiscoveryDir(relDirPath: string, absDirPath?: string): boolean {
-  return classifyDiscoveryDir(relDirPath, absDirPath) === undefined;
+export function shouldWalkDiscoveryDir(repoRelDir: RepoRelPath, absDirPath?: HostPath): boolean {
+  return classifyDiscoveryDir(repoRelDir, absDirPath) === undefined;
 }
 
 /**
@@ -171,20 +173,20 @@ export function readDirSorted(dir: string): fs.Dirent[] {
 /** A file {@link walkRepository} reached. */
 export interface WalkedFile {
   /** Absolute host path, as the filesystem spelled it. */
-  absPath: string;
+  absPath: HostPath;
   /** Path relative to `repoRoot`, POSIX-normalized — the form the graph compares. */
-  relFromRoot: string;
+  repoRelPath: RepoRelPath;
   /** Base name, for an extension or filename test. */
   name: string;
 }
 
 export interface WalkRepositoryOptions {
   /**
-   * The base the prune predicate measures against, and the base `relFromRoot` is relative to.
+   * The base the prune predicate measures against, and the base `repoRelPath` is relative to.
    * Defaults to the directory the walk starts at.
    *
    * The two are separate because a walk that starts inside a package still reports paths the graph
-   * knows: `relFromRoot` is the form module ids, annotation keys and hashes compare, and only a
+   * knows: `repoRelPath` is the form module ids, annotation keys and hashes compare, and only a
    * repo-relative one carries it.
    *
    * The prune rule is measured against the same base, and that has a consequence worth stating: a
@@ -193,7 +195,7 @@ export interface WalkRepositoryOptions {
    * every child path still carries the ignored segment. Passing `repoRoot` equal to `startDir` is
    * what a caller wants when the subtree should be walked on its own terms.
    */
-  repoRoot?: string;
+  repoRoot?: HostPath;
   /**
    * Called for every file the walk reaches.
    *
@@ -223,11 +225,11 @@ export interface WalkRepositoryOptions {
  * channel for it, and the engine's refusal vocabulary has no kind for an unreadable tree either, so an
  * absent subtree is indistinguishable from an empty one on every surface.
  */
-export function walkRepository(startDir: string, options: WalkRepositoryOptions): void {
+export function walkRepository(startDir: HostPath, options: WalkRepositoryOptions): void {
   const repoRoot = options.repoRoot ?? startDir;
   const { onFile, onPruned } = options;
 
-  const walk = (dir: string): void => {
+  const walk = (dir: HostPath): void => {
     let entries: fs.Dirent[];
     try {
       entries = readDirSorted(dir);
@@ -235,10 +237,10 @@ export function walkRepository(startDir: string, options: WalkRepositoryOptions)
       return;
     }
     for (const entry of entries) {
-      const absPath = path.join(dir, entry.name);
-      const relFromRoot = repoRelativePosix(repoRoot, absPath);
+      const absPath = asHostPath(path.join(dir, entry.name));
+      const repoRelPath = repoRelativePosix(repoRoot, absPath);
       if (entry.isDirectory()) {
-        const pruned = classifyDiscoveryDir(relFromRoot, absPath);
+        const pruned = classifyDiscoveryDir(repoRelPath, absPath);
         if (pruned) {
           onPruned?.(pruned);
           continue;
@@ -247,7 +249,7 @@ export function walkRepository(startDir: string, options: WalkRepositoryOptions)
         continue;
       }
       if (!entry.isFile()) continue;
-      onFile({ absPath, relFromRoot, name: entry.name });
+      onFile({ absPath, repoRelPath, name: entry.name });
     }
   };
 

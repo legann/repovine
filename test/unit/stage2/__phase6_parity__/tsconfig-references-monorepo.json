@@ -188,8 +188,8 @@
       "label": "src/handler",
       "description": "Module src/handler.ts in fixture-api",
       "data": {
-        "filePath": "<FIXTURE>/packages/api/src/handler.ts",
-        "relativeFilePath": "src/handler.ts",
+        "absPath": "<FIXTURE>/packages/api/src/handler.ts",
+        "pkgRelPath": "src/handler.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -199,8 +199,8 @@
       "label": "src/index",
       "description": "Module src/index.ts in fixture-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/shared/src/index.ts",
-        "relativeFilePath": "src/index.ts",
+        "absPath": "<FIXTURE>/packages/shared/src/index.ts",
+        "pkgRelPath": "src/index.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -210,8 +210,8 @@
       "label": "…/lib/util",
       "description": "Module src/lib/util.ts in fixture-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/shared/src/lib/util.ts",
-        "relativeFilePath": "src/lib/util.ts",
+        "absPath": "<FIXTURE>/packages/shared/src/lib/util.ts",
+        "pkgRelPath": "src/lib/util.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -221,8 +221,8 @@
       "label": "…/components/Button",
       "description": "Module src/components/Button.tsx in fixture-web",
       "data": {
-        "filePath": "<FIXTURE>/packages/web/src/components/Button.tsx",
-        "relativeFilePath": "src/components/Button.tsx",
+        "absPath": "<FIXTURE>/packages/web/src/components/Button.tsx",
+        "pkgRelPath": "src/components/Button.tsx",
         "sourcePluginId": "typescript"
       }
     },
@@ -232,8 +232,8 @@
       "label": "…/components/Button.stories",
       "description": "Module src/components/Button.stories.ts in fixture-web",
       "data": {
-        "filePath": "<FIXTURE>/packages/web/src/components/Button.stories.ts",
-        "relativeFilePath": "src/components/Button.stories.ts",
+        "absPath": "<FIXTURE>/packages/web/src/components/Button.stories.ts",
+        "pkgRelPath": "src/components/Button.stories.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -243,8 +243,8 @@
       "label": "src/main",
       "description": "Module src/main.ts in fixture-web",
       "data": {
-        "filePath": "<FIXTURE>/packages/web/src/main.ts",
-        "relativeFilePath": "src/main.ts",
+        "absPath": "<FIXTURE>/packages/web/src/main.ts",
+        "pkgRelPath": "src/main.ts",
         "sourcePluginId": "typescript"
       }
     },

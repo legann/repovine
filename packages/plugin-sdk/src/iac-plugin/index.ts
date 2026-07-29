@@ -22,6 +22,8 @@ export type { FactValidationResult } from '../fact-schemas.js';
 export { hashResourcePayload } from '../resource-hash.js';
 export { HASH_WIDTH, sha256Hex } from '../content-hash.js';
 export type { HashWidth } from '../content-hash.js';
+export { asHostPath, asRepoRelPath } from '../path-contract.js';
+export type { HostPath, RepoRelPath } from '../path-contract.js';
 export { lastPathSegment, normalizeRelPath, repoRelativePosix } from '../paths.js';
 export { toPosixPath } from '../source-plugin/module-id.js';
 

@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { createEmptyGraph } from '../../../../src/graph/index.js';
 import {
@@ -11,8 +13,8 @@ function mod(id: string, sourcePluginId: string, semanticHints?: ModuleInfo['sem
   return {
     id,
     packageName: 'pkg',
-    filePath: `/repo/${id}.ts`,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(`/repo/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash: id,
     imports: [],
     exports: [],
@@ -25,7 +27,7 @@ function ctx(modules: ModuleInfo[]): InterpreterEntrypointContext {
   const snapshot: RepositoryFactsSnapshot = {
     repoRoot: '/repo',
     timestamp: '2026-06-13T00:00:00.000Z',
-    packages: [{ name: 'pkg', path: '.', sourcePluginId: 'typescript' }],
+    packages: [{ name: 'pkg', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'typescript' }],
     modules,
   };
   return {

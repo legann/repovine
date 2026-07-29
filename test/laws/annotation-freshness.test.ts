@@ -1,3 +1,5 @@
+import { asPkgRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asRepoRelPath } from '@repovine/plugin-sdk';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -79,8 +81,8 @@ function makeModule(id: string, relativeFilePath: string, contentHash: string, i
   return {
     id,
     packageName: 'app',
-    filePath: `/repo/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash,
     imports: imports.map(target => ({ specifier: target, resolvedModuleId: target })),
     exports: [{ name: 'handle', kind: 'function', lineRange: { start: 1, end: 3 } }],
@@ -117,8 +119,8 @@ function buildFreshnessFixture(): { graph: RepositoryGraph; snapshot: Repository
     infraModules: [{
       id: FIXTURE.infraId,
       kind: 'dockerfile',
-      filePath: '/repo/app/Dockerfile',
-      relativeFilePath: 'app/Dockerfile',
+      absPath: asHostPath('/repo/app/Dockerfile'),
+      repoRelPath: asRepoRelPath('app/Dockerfile'),
       contentHash: HASH.infra,
       resources: [{
         id: 'Worker',

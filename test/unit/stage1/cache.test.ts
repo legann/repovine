@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath, asRepoRelPath } from '@repovine/plugin-sdk';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -15,8 +16,8 @@ function makeModule(root: string, rel: string): ModuleInfo {
   return {
     id: `pkg/${rel}`,
     packageName: 'pkg',
-    filePath: path.join(root, ...rel.split('/')),
-    relativeFilePath: rel,
+    absPath: asHostPath(path.join(root, ...rel.split('/'))),
+    pkgRelPath: asPkgRelPath(rel),
     contentHash: `hash-${rel}`,
     imports: [],
     exports: [],
@@ -33,14 +34,14 @@ function makeSnapshot(root: string, rels: string[] = RELATIVE_FILES): Repository
   };
 }
 
-describe('snapshot cache filePath portability', () => {
-  it('stores module filePath repo-root-relative (posix) on disk', () => {
+describe('snapshot cache absPath portability', () => {
+  it('stores module absPath repo-root-relative (POSIX) on disk', () => {
     const rootA = tempDir('rootA');
     const cacheDir = tempDir('cache');
     createFileCache(cacheDir, rootA).save(makeSnapshot(rootA));
 
     const raw = JSON.parse(fs.readFileSync(path.join(cacheDir, SNAPSHOT_FILENAME), 'utf-8'));
-    const stored = raw.modules.map((m: ModuleInfo) => m.filePath);
+    const stored = raw.modules.map((m: ModuleInfo) => m.absPath);
     expect(stored).toEqual(RELATIVE_FILES);
     for (const fp of stored) {
       expect(path.isAbsolute(fp)).toBe(false);
@@ -49,7 +50,7 @@ describe('snapshot cache filePath portability', () => {
     }
   });
 
-  it('reconstructs absolute filePath against a different root on load (cross-worktree)', () => {
+  it('reconstructs absolute absPath against a different root on load (cross-worktree)', () => {
     const rootA = tempDir('worktreeA');
     const rootB = tempDir('worktreeB');
     const cacheDir = tempDir('cache');
@@ -61,12 +62,12 @@ describe('snapshot cache filePath portability', () => {
     expect(loaded).not.toBeNull();
     for (let i = 0; i < RELATIVE_FILES.length; i++) {
       const rel = RELATIVE_FILES[i];
-      expect(loaded!.modules[i].filePath).toBe(path.resolve(rootB, rel));
-      expect(loaded!.modules[i].filePath.startsWith(rootB)).toBe(true);
+      expect(loaded!.modules[i].absPath).toBe(path.resolve(rootB, rel));
+      expect(loaded!.modules[i].absPath.startsWith(rootB)).toBe(true);
     }
   });
 
-  it('round-trips to the same absolute filePath under one root', async () => {
+  it('round-trips to the same absolute absPath under one root', async () => {
     const root = tempDir('sameroot');
     const cacheDir = tempDir('cache');
     const cache = createFileCache(cacheDir, root);
@@ -77,9 +78,31 @@ describe('snapshot cache filePath portability', () => {
     const loadedAsync = await cache.loadAsync();
 
     for (let i = 0; i < original.modules.length; i++) {
-      expect(loaded!.modules[i].filePath).toBe(original.modules[i].filePath);
-      expect(loadedAsync!.modules[i].filePath).toBe(original.modules[i].filePath);
+      expect(loaded!.modules[i].absPath).toBe(original.modules[i].absPath);
+      expect(loadedAsync!.modules[i].absPath).toBe(original.modules[i].absPath);
     }
+  });
+
+  it('never writes a portable value into the in-memory HostPath field', () => {
+    const root = tempDir('brand-window');
+    const snapshot = makeSnapshot(root, [RELATIVE_FILES[0]]);
+    const module = snapshot.modules[0];
+    let absPath = module.absPath;
+    let writes = 0;
+    Object.defineProperty(module, 'absPath', {
+      enumerable: true,
+      configurable: true,
+      get: () => absPath,
+      set: (next: ModuleInfo['absPath']) => {
+        writes++;
+        absPath = next;
+      },
+    });
+
+    createFileCache(tempDir('brand-window-cache'), root).save(snapshot);
+
+    expect(writes).toBe(0);
+    expect(module.absPath).toBe(path.join(root, ...RELATIVE_FILES[0].split('/')));
   });
 
   it('saveAsync produces the same portable on-disk format as save', async () => {
@@ -88,10 +111,10 @@ describe('snapshot cache filePath portability', () => {
     await createFileCache(cacheDir, root).saveAsync(makeSnapshot(root));
 
     const raw = JSON.parse(fs.readFileSync(path.join(cacheDir, SNAPSHOT_FILENAME), 'utf-8'));
-    expect(raw.modules.map((m: ModuleInfo) => m.filePath)).toEqual(RELATIVE_FILES);
+    expect(raw.modules.map((m: ModuleInfo) => m.absPath)).toEqual(RELATIVE_FILES);
   });
 
-  it('tolerates a stray absolute filePath entry on load', () => {
+  it('tolerates a stray absolute absPath entry on load', () => {
     const root = tempDir('mixed');
     const cacheDir = tempDir('cache');
     const strayAbs = path.join(root, 'packages/legacy/old.ts');
@@ -103,15 +126,15 @@ describe('snapshot cache filePath portability', () => {
         analysisVersion: 7,
         packages: [],
         modules: [
-          { ...makeModule(root, RELATIVE_FILES[0]), filePath: RELATIVE_FILES[0] },
-          { ...makeModule(root, 'packages/legacy/old.ts'), filePath: strayAbs },
+          { ...makeModule(root, RELATIVE_FILES[0]), absPath: RELATIVE_FILES[0] },
+          { ...makeModule(root, 'packages/legacy/old.ts'), absPath: strayAbs },
         ],
       }),
     );
 
     const loaded = createFileCache(cacheDir, root).load();
-    expect(loaded!.modules[0].filePath).toBe(path.resolve(root, RELATIVE_FILES[0]));
-    expect(loaded!.modules[1].filePath).toBe(strayAbs);
+    expect(loaded!.modules[0].absPath).toBe(path.resolve(root, RELATIVE_FILES[0]));
+    expect(loaded!.modules[1].absPath).toBe(strayAbs);
   });
 
   it('returns null when the cache file is absent', () => {
@@ -122,9 +145,20 @@ describe('snapshot cache filePath portability', () => {
     const root = tempDir('streamcache');
     const snap = makeSnapshot(root);
     // Fields that serialize AFTER modules: exercises position-preserving streaming and the rule that
-    // only modules[].filePath is path-transformed (infra/template paths stay as-is).
-    snap.infraModules = [{ id: 'infra1', filePath: path.join(root, 'infra', 'main.tf') }] as unknown as RepositoryFactsSnapshot['infraModules'];
-    snap.templates = [{ path: 'web/index.html' }] as unknown as RepositoryFactsSnapshot['templates'];
+    // only modules[].absPath is path-transformed (infra/template paths stay as-is).
+    snap.infraModules = [{
+      id: 'infra1',
+      kind: 'terraform',
+      absPath: asHostPath(path.join(root, 'infra', 'main.tf')),
+      repoRelPath: asRepoRelPath('infra/main.tf'),
+      contentHash: 'infra-hash',
+      resources: [],
+    }];
+    snap.templates = [{
+      id: 'template:web/index.html',
+      relPath: 'web/index.html',
+      contentHash: 'template-hash',
+    }];
 
     const syncDir = tempDir('cacheSync');
     const asyncDir = tempDir('cacheAsync');
@@ -136,12 +170,12 @@ describe('snapshot cache filePath portability', () => {
     expect(asyncBytes).toBe(syncBytes);
 
     const raw = JSON.parse(asyncBytes);
-    expect(raw.modules.map((m: ModuleInfo) => m.filePath)).toEqual(RELATIVE_FILES);
-    expect(raw.infraModules[0].filePath).toBe(path.join(root, 'infra', 'main.tf'));
-    expect(raw.templates[0].path).toBe('web/index.html');
+    expect(raw.modules.map((m: ModuleInfo) => m.absPath)).toEqual(RELATIVE_FILES);
+    expect(raw.infraModules[0].absPath).toBe(path.join(root, 'infra', 'main.tf'));
+    expect(raw.templates[0].relPath).toBe('web/index.html');
 
     const loaded = createFileCache(asyncDir, root).load();
-    expect(loaded!.modules[0].filePath).toBe(path.resolve(root, RELATIVE_FILES[0]));
+    expect(loaded!.modules[0].absPath).toBe(path.resolve(root, RELATIVE_FILES[0]));
   });
 
   it('exists() reflects whether the cache file is present', () => {
@@ -213,8 +247,8 @@ function richModule(root: string): ModuleInfo {
   return {
     id: 'pkg/src/service.ts',
     packageName: 'pkg',
-    filePath: path.join(root, 'pkg', 'src', 'service.ts'),
-    relativeFilePath: 'pkg/src/service.ts',
+    absPath: asHostPath(path.join(root, 'pkg', 'src', 'service.ts')),
+    pkgRelPath: asPkgRelPath('pkg/src/service.ts'),
     contentHash: 'stable-service-hash',
     imports: [
       {

@@ -1,12 +1,14 @@
 import type { ReadonlyFactRecord } from './plugin/projection.js';
 import type { ResourceIdentity } from './plugin/resource-identity.js';
+import type { HostPath, PkgRelPath, RepoRelPath } from './path-contract.js';
 
 export type SymbolKind =
   | 'function' | 'class' | 'interface' | 'type'
   | 'const' | 'enum' | 'component' | 'unknown';
 export interface PackageInfo {
   name: string;
-  path: string;
+  /** Package directory relative to the repository root, POSIX-separated. */
+  repoRelDir: RepoRelPath;
   version?: string;
   /** Logical id of the source plugin that discovered this package (e.g. 'typescript'). */
   sourcePluginId?: string;
@@ -15,11 +17,12 @@ export interface PackageInfo {
 /** A discovered source file as a producer reports it: location and ownership, no identity. The
  * engine mints `moduleId` from these fields, so the graph id never depends on plugin cooperation. */
 export interface PendingModuleDraft {
-  filePath: string;
+  absPath: HostPath;
   /** Present for SFCs: the virtual `.ts` path used by ts-morph. */
-  virtualPath?: string;
+  virtualAbsPath?: HostPath;
   pkg: PackageInfo;
-  relPath: string;
+  /** Module path relative to the package root, POSIX-separated. */
+  pkgRelPath: PkgRelPath;
   /** Logical id of the source plugin that owns this file; drives worker dispatch. */
   sourcePluginId?: string;
 }
@@ -111,8 +114,17 @@ export interface ReExportInfo {
 export interface ModuleInfo {
   id: string;
   packageName: string;
-  filePath: string;
-  relativeFilePath: string;
+  /** Absolute host path, spelled the way the filesystem spells it. */
+  absPath: HostPath;
+  /**
+   * Path relative to this module's PACKAGE root, POSIX-separated.
+   *
+   * Package-relative, not repo-relative: it is the half of `mod:<pkg>/<path>` that follows the
+   * package name, so the id and this field say the same thing. A consumer that wants a
+   * repo-relative path derives one from {@link ModuleInfo.absPath}; deriving it from here silently
+   * drops the package prefix in a monorepo.
+   */
+  pkgRelPath: PkgRelPath;
   contentHash: string;
   imports: ImportInfo[];
   exports: ExportInfo[];
@@ -134,7 +146,7 @@ export interface ModuleInfo {
 
 /**
  * Producer output for ONE module: language semantics only. A source plugin emits these; the engine
- * stamps all mechanical / language-agnostic metadata — `id`, `filePath`, `relativeFilePath`,
+ * stamps all mechanical / language-agnostic metadata — `id`, `absPath`, `pkgRelPath`,
  * `packageName`, `contentHash`, `sourcePluginId` provenance — at the Stage-1 boundary when it
  * assembles the full `ModuleInfo`. The producer echoes back `moduleId` purely as a
  * correlation key to the engine-minted `PendingModule.moduleId`; it does NOT mint ids or paths.
@@ -575,16 +587,18 @@ export interface InfraResource {
 export interface InfraModuleInfo {
   id: string;
   kind: InfraKind;
-  filePath: string;
-  relativeFilePath: string;
+  /** Absolute host path of the document. */
+  absPath: HostPath;
+  /** Document path relative to the repository root, POSIX-separated. */
+  repoRelPath: RepoRelPath;
   contentHash: string;
   resources: InfraResource[];
 }
 
 /**
  * Producer output for ONE infra document: infra semantics only. An IaC parser emits this; the
- * engine stamps the mechanical / agnostic metadata — `id` (`infra:<kind>:<relPath>`), `filePath`,
- * `relativeFilePath`, and the module-level `contentHash` (raw-file fingerprint, computed once per
+ * engine stamps the mechanical / agnostic metadata — `id` (`infra:<kind>:<repoRelPath>`),
+ * `absPath`, `repoRelPath`, and the module-level `contentHash` (raw-file fingerprint, computed once per
  * file like template artifacts) — when it assembles the full `InfraModuleInfo` in
  * `collectInfraModules`. Per-resource fingerprints (`InfraResource.contentHash`) stay
  * producer-owned: they fingerprint a specific resource fragment, which is infra semantics, not
@@ -649,11 +663,11 @@ export interface IaCParser {
   loaderId: string;
   /** Whether a second parser may contribute from the same document. Defaults to `shared`. */
   claim?: DocumentClaim;
-  supports(filePath: string, doc: unknown): boolean;
+  supports(absPath: HostPath, doc: unknown): boolean;
   /** Emit infra semantics (kind + resources) for one document. The engine assembles the full
-   * `InfraModuleInfo` (id/filePath/relativeFilePath/module contentHash) at the Stage-1 boundary.
+   * `InfraModuleInfo` (id/absPath/repoRelPath/module contentHash) at the Stage-1 boundary.
    * Returning `null` means this parser has nothing to say, and never silences the others. */
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null;
+  parse(absPath: HostPath, repoRelPath: RepoRelPath, doc: unknown): SemanticInfraDelta | null;
 }
 
 /* ---------------------- IaC plugin registry metadata ---------------------- */

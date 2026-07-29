@@ -330,8 +330,8 @@
       "label": "…/app/app.component",
       "description": "Module src/app/app.component.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/app.component.ts",
-        "relativeFilePath": "src/app/app.component.ts",
+        "absPath": "<FIXTURE>/src/app/app.component.ts",
+        "pkgRelPath": "src/app/app.component.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -341,8 +341,8 @@
       "label": "…/app/app.module",
       "description": "Module src/app/app.module.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/app.module.ts",
-        "relativeFilePath": "src/app/app.module.ts",
+        "absPath": "<FIXTURE>/src/app/app.module.ts",
+        "pkgRelPath": "src/app/app.module.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -353,8 +353,8 @@
       "label": "…/auth/auth.guard",
       "description": "Module src/app/auth/auth.guard.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/auth/auth.guard.ts",
-        "relativeFilePath": "src/app/auth/auth.guard.ts",
+        "absPath": "<FIXTURE>/src/app/auth/auth.guard.ts",
+        "pkgRelPath": "src/app/auth/auth.guard.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -364,8 +364,8 @@
       "label": "…/auth/auth.interceptor",
       "description": "Module src/app/auth/auth.interceptor.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/auth/auth.interceptor.ts",
-        "relativeFilePath": "src/app/auth/auth.interceptor.ts",
+        "absPath": "<FIXTURE>/src/app/auth/auth.interceptor.ts",
+        "pkgRelPath": "src/app/auth/auth.interceptor.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -375,8 +375,8 @@
       "label": "…/directives/highlight.directive",
       "description": "Module src/app/shared/directives/highlight.directive.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/shared/directives/highlight.directive.ts",
-        "relativeFilePath": "src/app/shared/directives/highlight.directive.ts",
+        "absPath": "<FIXTURE>/src/app/shared/directives/highlight.directive.ts",
+        "pkgRelPath": "src/app/shared/directives/highlight.directive.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -386,8 +386,8 @@
       "label": "…/pipes/capitalize.pipe",
       "description": "Module src/app/shared/pipes/capitalize.pipe.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/shared/pipes/capitalize.pipe.ts",
-        "relativeFilePath": "src/app/shared/pipes/capitalize.pipe.ts",
+        "absPath": "<FIXTURE>/src/app/shared/pipes/capitalize.pipe.ts",
+        "pkgRelPath": "src/app/shared/pipes/capitalize.pipe.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -397,8 +397,8 @@
       "label": "…/user-list/user-list.component",
       "description": "Module src/app/users/pages/user-list/user-list.component.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/users/pages/user-list/user-list.component.ts",
-        "relativeFilePath": "src/app/users/pages/user-list/user-list.component.ts",
+        "absPath": "<FIXTURE>/src/app/users/pages/user-list/user-list.component.ts",
+        "pkgRelPath": "src/app/users/pages/user-list/user-list.component.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -408,8 +408,8 @@
       "label": "…/users/user.model",
       "description": "Module src/app/users/user.model.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/users/user.model.ts",
-        "relativeFilePath": "src/app/users/user.model.ts",
+        "absPath": "<FIXTURE>/src/app/users/user.model.ts",
+        "pkgRelPath": "src/app/users/user.model.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -419,8 +419,8 @@
       "label": "…/users/users.component",
       "description": "Module src/app/users/users.component.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/users/users.component.ts",
-        "relativeFilePath": "src/app/users/users.component.ts",
+        "absPath": "<FIXTURE>/src/app/users/users.component.ts",
+        "pkgRelPath": "src/app/users/users.component.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -430,8 +430,8 @@
       "label": "…/users/users.module",
       "description": "Module src/app/users/users.module.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/users/users.module.ts",
-        "relativeFilePath": "src/app/users/users.module.ts",
+        "absPath": "<FIXTURE>/src/app/users/users.module.ts",
+        "pkgRelPath": "src/app/users/users.module.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -442,8 +442,8 @@
       "label": "…/users/users.service",
       "description": "Module src/app/users/users.service.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/app/users/users.service.ts",
-        "relativeFilePath": "src/app/users/users.service.ts",
+        "absPath": "<FIXTURE>/src/app/users/users.service.ts",
+        "pkgRelPath": "src/app/users/users.service.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -453,8 +453,8 @@
       "label": "src/main",
       "description": "Module src/main.ts in angular-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/main.ts",
-        "relativeFilePath": "src/main.ts",
+        "absPath": "<FIXTURE>/src/main.ts",
+        "pkgRelPath": "src/main.ts",
         "sourcePluginId": "typescript"
       }
     },

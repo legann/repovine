@@ -411,7 +411,7 @@ function nameCluster(
   for (const modId of modIds) {
     const mod = modulesById.get(modId);
     if (!mod) continue;
-    const pathDomains = getPathBasedDomains(mod.relativeFilePath);
+    const pathDomains = getPathBasedDomains(mod.pkgRelPath);
     for (const d of pathDomains) {
       segmentCounts.set(d, (segmentCounts.get(d) ?? 0) + 1);
     }
@@ -584,19 +584,19 @@ export function collectAllDomainTags(
   const protectedDomains = new Set<string>();
 
   for (const mod of snapshot.modules) {
-    for (const d of getPathBasedDomains(mod.relativeFilePath, extraStructural)) {
+    for (const d of getPathBasedDomains(mod.pkgRelPath, extraStructural)) {
       add(mod.id, d, 'path');
     }
 
     // Basename-based domain: heuristic + config overrides.
-    const override = matchFileAsDomain(mod.relativeFilePath, config);
+    const override = matchFileAsDomain(mod.pkgRelPath, config);
     if (override === 'exclude') continue;
-    const decision = evaluateBasenameCandidate(mod.relativeFilePath, mod.id, graph, mod.packageName, {
+    const decision = evaluateBasenameCandidate(mod.pkgRelPath, mod.id, graph, mod.packageName, {
       pascalCaseBasename: config?.basename?.pascalCase,
     });
     if (override === 'include') {
       // Force basename to be a domain regardless of heuristic verdict.
-      const withoutExt = stripSourceExtension(mod.relativeFilePath);
+      const withoutExt = stripSourceExtension(mod.pkgRelPath);
       const basename = lastPathSegment(withoutExt);
       const { stem, suffix } = splitBasename(basename);
       const label = suffix && DOMAIN_SUFFIXES.has(suffix) ? stem : basename;
@@ -627,7 +627,7 @@ export function collectAllDomainTags(
       protectedDomains.add(label);
     }
     for (const mod of snapshot.modules) {
-      for (const d of getConfigPatternDomains(mod.relativeFilePath, config)) {
+      for (const d of getConfigPatternDomains(mod.pkgRelPath, config)) {
         add(mod.id, d, 'pattern');
       }
     }

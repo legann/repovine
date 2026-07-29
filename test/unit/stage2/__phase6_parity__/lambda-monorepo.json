@@ -248,8 +248,8 @@
       "label": "src/index",
       "description": "Module src/index.ts in @acme/lambda-functions",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-functions/src/index.ts",
-        "relativeFilePath": "src/index.ts",
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/index.ts",
+        "pkgRelPath": "src/index.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -259,8 +259,8 @@
       "label": "src/oauth-callback",
       "description": "Module src/oauth-callback.ts in @acme/lambda-functions",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-functions/src/oauth-callback.ts",
-        "relativeFilePath": "src/oauth-callback.ts",
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/oauth-callback.ts",
+        "pkgRelPath": "src/oauth-callback.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -270,8 +270,8 @@
       "label": "src/tenant-manager",
       "description": "Module src/tenant-manager.ts in @acme/lambda-functions",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-functions/src/tenant-manager.ts",
-        "relativeFilePath": "src/tenant-manager.ts",
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/tenant-manager.ts",
+        "pkgRelPath": "src/tenant-manager.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -281,8 +281,8 @@
       "label": "…/auth/jwt-manager",
       "description": "Module src/auth/jwt-manager.ts in @acme/lambda-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-shared/src/auth/jwt-manager.ts",
-        "relativeFilePath": "src/auth/jwt-manager.ts",
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/auth/jwt-manager.ts",
+        "pkgRelPath": "src/auth/jwt-manager.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -292,8 +292,8 @@
       "label": "…/auth/middleware",
       "description": "Module src/auth/middleware.ts in @acme/lambda-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-shared/src/auth/middleware.ts",
-        "relativeFilePath": "src/auth/middleware.ts",
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/auth/middleware.ts",
+        "pkgRelPath": "src/auth/middleware.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -303,8 +303,8 @@
       "label": "…/auth/session-manager",
       "description": "Module src/auth/session-manager.ts in @acme/lambda-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-shared/src/auth/session-manager.ts",
-        "relativeFilePath": "src/auth/session-manager.ts",
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/auth/session-manager.ts",
+        "pkgRelPath": "src/auth/session-manager.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -314,8 +314,8 @@
       "label": "…/monday/audit-log",
       "description": "Module src/monday/audit-log.ts in @acme/lambda-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-shared/src/monday/audit-log.ts",
-        "relativeFilePath": "src/monday/audit-log.ts",
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/monday/audit-log.ts",
+        "pkgRelPath": "src/monday/audit-log.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -325,8 +325,8 @@
       "label": "…/monday/monday-session-rate-limit",
       "description": "Module src/monday/monday-session-rate-limit.ts in @acme/lambda-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-shared/src/monday/monday-session-rate-limit.ts",
-        "relativeFilePath": "src/monday/monday-session-rate-limit.ts",
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/monday/monday-session-rate-limit.ts",
+        "pkgRelPath": "src/monday/monday-session-rate-limit.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -336,8 +336,8 @@
       "label": "…/monday/monday-session-rate-limit-http",
       "description": "Module src/monday/monday-session-rate-limit-http.ts in @acme/lambda-shared",
       "data": {
-        "filePath": "<FIXTURE>/packages/lambda-shared/src/monday/monday-session-rate-limit-http.ts",
-        "relativeFilePath": "src/monday/monday-session-rate-limit-http.ts",
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/monday/monday-session-rate-limit-http.ts",
+        "pkgRelPath": "src/monday/monday-session-rate-limit-http.ts",
         "sourcePluginId": "typescript"
       }
     },

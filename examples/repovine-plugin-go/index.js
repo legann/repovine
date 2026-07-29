@@ -4,8 +4,8 @@
 // It demonstrates the whole contract a third-party plugin honors:
 //   • discover() finds the artifacts it owns (no AST);
 //   • extract() emits SEMANTICS ONLY (imports/exports/semanticHints) keyed back to the
-//     engine-minted moduleId — discover() reports pkg + relPath and the engine mints the id, so a
-//     plugin never spells `mod:<pkg>/<path>` itself and never sets id/filePath/contentHash;
+//     engine-minted moduleId — discover() reports pkg + pkgRelPath and the engine mints the id, so a
+//     plugin never spells `mod:<pkg>/<path>` itself and never sets id/absPath/contentHash;
 //   • routes go into `semanticHints.routes`, the normalized route fact the core reads — in a graph
 //     build the built-in `server-entrypoints` interpreter reads that slot for the `typescript` and
 //     `python` source plugins.
@@ -33,22 +33,22 @@ const goSource = {
 
   // Pass 1 — discovery (no parsing). Return packages + candidate files keyed by absolute path.
   discover(repoRoot) {
-    const pkg = { name: 'go-app', path: '.', sourcePluginId: 'go' };
-    const pendingByPath = new Map();
+    const pkg = { name: 'go-app', repoRelDir: '.', sourcePluginId: 'go' };
+    const pendingByAbsPath = new Map();
     walkRepository(repoRoot, {
-      onFile: ({ absPath, relFromRoot, name }) => {
+      onFile: ({ absPath, repoRelPath, name }) => {
         if (!GO_RE.test(name)) return;
         // Canonical key, not the raw path: the engine merges every producer's drafts on one key
         // form, and on win32 the same file spelled two ways would register twice.
-        pendingByPath.set(hostPathKey(absPath), {
-          filePath: absPath,
+        pendingByAbsPath.set(hostPathKey(absPath), {
+          absPath,
           pkg,
-          relPath: relFromRoot,
+          pkgRelPath: repoRelPath,
           sourcePluginId: 'go',
         });
       },
     });
-    return { packages: [pkg], pendingByPath };
+    return { packages: [pkg], pendingByAbsPath };
   },
 
   // Pass 2 — emit semantics. The engine hands us raw text + hash via input.sourceByModuleId.
@@ -76,7 +76,7 @@ const goSource = {
       for (const m of text.matchAll(/\.(GET|POST|PUT|DELETE|PATCH)\(\s*"([^"]+)"/g)) {
         routes.push({
           path: m[2],
-          component: pm.relPath,
+          component: pm.pkgRelPath,
           method: m[1],
           kind: 'api',
           framework: usesGin ? 'gin' : 'go',

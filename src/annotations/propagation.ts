@@ -230,7 +230,7 @@ export function crossPackageFanIn(graph: RepositoryGraph, moduleId: string): num
 }
 
 function matchesContractPathHeuristic(mod: ModuleInfo): boolean {
-  const path = mod.relativeFilePath || mod.id.replace(/^mod:[^/]+\//, '');
+  const path = mod.pkgRelPath || mod.id.replace(/^mod:[^/]+\//, '');
   if (/(^|\/)types(\/|$)|-types\.|api-client/.test(path)) return true;
   const pkg = mod.packageName.toLowerCase();
   return pkg.includes('shared') || pkg.endsWith('-shared');

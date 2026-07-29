@@ -12,7 +12,7 @@ function stubPlugin(id: string, capabilities?: SourcePlugin['capabilities']): So
   return {
     id,
     capabilities,
-    discover: () => ({ packages: [], pendingByPath: new Map() }),
+    discover: () => ({ packages: [], pendingByAbsPath: new Map() }),
     extract: () => ({ deltas: [], reused: 0, rescanned: 0 }),
   };
 }

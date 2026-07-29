@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { computeEngineBuildId, engineBuildMatches, type EngineBuildIdDeps } from '../../../src/stage1/engine-build-id.js';
 import { extractOutputFingerprint } from '../../../src/stage1/cache.js';
@@ -41,8 +42,8 @@ function mod(id: string, contentHash: string): ModuleInfo {
   return {
     id,
     packageName: 'fixture',
-    filePath: `/repo/${id}.ts`,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(`/repo/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash,
     imports: [],
     exports: [],

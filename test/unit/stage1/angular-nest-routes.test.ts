@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { Project, ScriptTarget } from 'ts-morph';
 import { createEmptyGraph } from '../../../src/graph/index.js';
@@ -19,8 +21,8 @@ function mod(id: string, semanticHints?: ModuleInfo['semanticHints']): ModuleInf
   return {
     id,
     packageName: 'angular-nest-fixture',
-    filePath: `/repo/${id}.ts`,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(`/repo/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash: id,
     imports: [],
     exports: [],
@@ -33,7 +35,7 @@ function ctxFor(modules: ModuleInfo[]): InterpreterEntrypointContext {
   const snapshot: RepositoryFactsSnapshot = {
     repoRoot: '/repo',
     timestamp: '2026-06-18T00:00:00.000Z',
-    packages: [{ name: 'angular-nest-fixture', path: '.', sourcePluginId: 'typescript' }],
+    packages: [{ name: 'angular-nest-fixture', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'typescript' }],
     modules,
   };
   return {

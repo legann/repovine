@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -130,11 +132,11 @@ describe('core-laws producer emits semantics only (engine/producer boundary)', (
     // `facts` is the third semantic key: what the ecosystem knows about the document beyond the
     // canonical resource fields. Like the other two it says nothing about where the file sits.
     const SEMANTIC_KEYS = ['facts', 'kind', 'resources'];
-    const MECHANICAL_KEYS = ['contentHash', 'filePath', 'id', 'relativeFilePath'];
+    const MECHANICAL_KEYS = ['absPath', 'contentHash', 'id', 'repoRelPath'];
     const deltas = [
-      dockerfileParser.parse('/repo/Dockerfile', 'Dockerfile', 'FROM node:20\n'),
-      terraformParser.parse('/repo/main.tf', 'main.tf', 'resource "aws_s3_bucket" "b" {}\n'),
-      kubernetesParser.parse('/repo/dep.yaml', 'dep.yaml', {
+      dockerfileParser.parse(asHostPath('/repo/Dockerfile'), asRepoRelPath('Dockerfile'), 'FROM node:20\n'),
+      terraformParser.parse(asHostPath('/repo/main.tf'), asRepoRelPath('main.tf'), 'resource "aws_s3_bucket" "b" {}\n'),
+      kubernetesParser.parse(asHostPath('/repo/dep.yaml'), asRepoRelPath('dep.yaml'), {
         apiVersion: 'apps/v1',
         kind: 'Deployment',
         metadata: { name: 'web' },
@@ -160,8 +162,8 @@ describe('core-laws producer emits semantics only (engine/producer boundary)', (
       expect(snapshot.modules.length).toBeGreaterThan(0);
       for (const mod of snapshot.modules) {
         expect(mod.id).toMatch(/^mod:/);
-        expect(path.isAbsolute(mod.filePath)).toBe(true);
-        expect(mod.relativeFilePath.length).toBeGreaterThan(0);
+        expect(path.isAbsolute(mod.absPath)).toBe(true);
+        expect(mod.pkgRelPath.length).toBeGreaterThan(0);
         expect(mod.packageName.length).toBeGreaterThan(0);
         expect(mod.contentHash).toMatch(/^[0-9a-f]{16}$/);
         expect(mod.sourcePluginId).toBeDefined();
@@ -169,8 +171,8 @@ describe('core-laws producer emits semantics only (engine/producer boundary)', (
 
       expect((snapshot.infraModules ?? []).length).toBeGreaterThan(0);
       for (const infra of snapshot.infraModules ?? []) {
-        expect(infra.id).toBe(`infra:${infra.kind}:${infra.relativeFilePath}`);
-        expect(path.isAbsolute(infra.filePath)).toBe(true);
+        expect(infra.id).toBe(`infra:${infra.kind}:${infra.repoRelPath}`);
+        expect(path.isAbsolute(infra.absPath)).toBe(true);
         expect(infra.contentHash).toMatch(/^[0-9a-f]{16}$/);
       }
     } finally {

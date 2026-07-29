@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { terraformParser } from '../../packages/plugins/iac-terraform/src/parser.js';
 
@@ -20,7 +22,7 @@ resource "aws_s3_bucket" "after" {
 }
 `;
 
-    const delta = terraformParser.parse('/repo/main.tf', 'main.tf', content);
+    const delta = terraformParser.parse(asHostPath('/repo/main.tf'), asRepoRelPath('main.tf'), content);
 
     expect(delta).not.toBeNull();
     expect(delta?.resources.map(resource => resource.id)).toEqual(['scripted', 'quoted', 'after']);

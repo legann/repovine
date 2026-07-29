@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import { describe, it, expect } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -26,7 +27,7 @@ d('python-only discovery does not load the TypeScript extract chunk', () => {
     const pendingByPath = new Map<string, import('../../../../src/types.js').PendingModuleDraft>();
 
     for (const plugin of getSourcePlugins()) {
-      const { packages: found, pendingByPath: pending } = plugin.discover(repoRoot, {
+      const { packages: found, pendingByAbsPath: pending } = plugin.discover(asHostPath(repoRoot), {
         packageMarkers: packageMarkersFor(plugin.id),
       });
       packages.push(...found);

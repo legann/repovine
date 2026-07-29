@@ -294,14 +294,16 @@ describe('core-laws paths, labels and id minting', () => {
     }));
     const { snapshot } = await buildFixture(root);
 
-    expect(snapshot.packages.map(p => p.path).sort()).toEqual(['.', '.']);
+    expect(snapshot.packages.map(p => p.repoRelDir).sort()).toEqual(['.', '.']);
     expect(snapshot.modules.map(m => m.id).sort()).toEqual(['mod:skipfx-py/pysrc/mod', 'mod:skipfx/src/a']);
     expect(snapshot.templates ?? []).toEqual([]);
     // The infra walker prunes the same trees — and still finds the one Dockerfile that is not in one.
-    expect((snapshot.infraModules ?? []).map(m => m.relativeFilePath).sort()).toEqual(['infra/Dockerfile']);
+    expect((snapshot.infraModules ?? []).map(m => m.repoRelPath).sort()).toEqual(['infra/Dockerfile']);
     // Stated as a property too: nothing the snapshot holds sits under a pruned directory.
     for (const mod of snapshot.modules) {
-      expect(shouldWalkDiscoveryDir(mod.relativeFilePath)).toBe(true);
+      expect(shouldWalkDiscoveryDir(
+        repoRelativePosix(snapshot.repoRoot, mod.absPath),
+      )).toBe(true);
     }
   });
 

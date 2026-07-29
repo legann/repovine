@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Tests for staleness mechanics: domain contentHash roll-ups and importBaseline derived-stale.
  */
@@ -56,8 +58,8 @@ function makeMod(id: string, contentHash: string, relativeFilePath = `${id}.ts`)
   return {
     id,
     packageName: 'test',
-    filePath: `/abs/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/abs/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash,
     imports: [],
     exports: [],
@@ -129,8 +131,8 @@ describe('computeDomainContentHash', () => {
     const infra: InfraModuleInfo = {
       id: 'infra:sam:template.yaml',
       kind: 'sam',
-      filePath: '/abs/template.yaml',
-      relativeFilePath: 'template.yaml',
+      absPath: asHostPath('/abs/template.yaml'),
+      repoRelPath: asRepoRelPath('template.yaml'),
       contentHash: 'template-v1',
       resources: [{
         id: 'Worker',
@@ -339,8 +341,8 @@ describe('runtime-resource multi-declaration set-hash', () => {
     return {
       id,
       kind: 'sam',
-      filePath: `/abs/${id}.yaml`,
-      relativeFilePath: `${id}.yaml`,
+      absPath: asHostPath(`/abs/${id}.yaml`),
+      repoRelPath: asRepoRelPath(`${id}.yaml`),
       contentHash: fileHash,
       resources: [{
         id: 'Gateway',

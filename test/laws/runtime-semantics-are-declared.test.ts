@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { buildDeclarationCatalog } from '../../src/plugin-host/declaration-catalog.js';
 import { presetDeclarationCatalog } from '../../src/plugin-host/load.js';
@@ -64,8 +66,8 @@ function zephyrInfra(): InfraModuleInfo[] {
   return [{
     id: 'infra:zephyr:deploy.zephyr',
     kind: 'zephyr',
-    filePath: '/repo/deploy.zephyr',
-    relativeFilePath: 'deploy.zephyr',
+    absPath: asHostPath('/repo/deploy.zephyr'),
+    repoRelPath: asRepoRelPath('deploy.zephyr'),
     contentHash: 'z1',
     resources: [
       {
@@ -94,8 +96,8 @@ function handlerModule(): ModuleInfo {
   return {
     id: 'mod:app/handler',
     packageName: 'app',
-    filePath: '/repo/handler.ts',
-    relativeFilePath: 'handler.ts',
+    absPath: asHostPath('/repo/handler.ts'),
+    pkgRelPath: asPkgRelPath('handler.ts'),
     contentHash: 'h1',
     imports: [],
     exports: [],
@@ -111,7 +113,7 @@ function snapshotWith(declarations: StampedDeclarationCatalog[]): RepositoryFact
   return {
     repoRoot: '/repo',
     timestamp: new Date(0).toISOString(),
-    packages: [{ name: 'app', path: '.', sourcePluginId: 'typescript' }],
+    packages: [{ name: 'app', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'typescript' }],
     modules: [handlerModule()],
     infraModules: zephyrInfra(),
     declarations: buildDeclarationCatalog({ catalogs: declarations }),

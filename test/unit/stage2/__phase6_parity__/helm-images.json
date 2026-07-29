@@ -105,8 +105,8 @@
       "label": "…/demo-chart/Dockerfile",
       "description": "IaC dockerfile module helm/demo-chart/Dockerfile",
       "data": {
-        "filePath": "<FIXTURE>/helm/demo-chart/Dockerfile",
-        "relativeFilePath": "helm/demo-chart/Dockerfile"
+        "absPath": "<FIXTURE>/helm/demo-chart/Dockerfile",
+        "repoRelPath": "helm/demo-chart/Dockerfile"
       }
     },
     {
@@ -115,8 +115,8 @@
       "label": "…/demo-chart/Chart.yaml",
       "description": "IaC helm module helm/demo-chart/Chart.yaml",
       "data": {
-        "filePath": "<FIXTURE>/helm/demo-chart/Chart.yaml",
-        "relativeFilePath": "helm/demo-chart/Chart.yaml"
+        "absPath": "<FIXTURE>/helm/demo-chart/Chart.yaml",
+        "repoRelPath": "helm/demo-chart/Chart.yaml"
       }
     },
     {
@@ -125,8 +125,8 @@
       "label": "…/demo-chart/values.yaml",
       "description": "IaC helm module helm/demo-chart/values.yaml",
       "data": {
-        "filePath": "<FIXTURE>/helm/demo-chart/values.yaml",
-        "relativeFilePath": "helm/demo-chart/values.yaml"
+        "absPath": "<FIXTURE>/helm/demo-chart/values.yaml",
+        "repoRelPath": "helm/demo-chart/values.yaml"
       }
     },
     {
@@ -135,8 +135,8 @@
       "label": "src/placeholder",
       "description": "Module src/placeholder.ts in helm-images-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/placeholder.ts",
-        "relativeFilePath": "src/placeholder.ts",
+        "absPath": "<FIXTURE>/src/placeholder.ts",
+        "pkgRelPath": "src/placeholder.ts",
         "sourcePluginId": "typescript"
       }
     },

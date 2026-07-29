@@ -1,10 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type ts from 'typescript';
-import type { PackageInfo, PendingModuleDraft } from '@repovine/plugin-sdk';
+import type { HostPath, PackageInfo, PendingModuleDraft, PkgRelPath, RepoRelPath } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryOptions, SourceDiscoveryResult } from '@repovine/plugin-sdk';
 import { walkRepository } from '@repovine/plugin-sdk';
-import { compileScanPatterns, hostPathKey, repoRelativePosix, shouldScanSourcePath, shouldWalkDiscoveryDir, toPosixPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath, compileScanPatterns, hostPathKey, repoRelativePosix, shouldScanSourcePath, shouldWalkDiscoveryDir, toPosixPath } from '@repovine/plugin-sdk';
 import type { CompiledScanPatterns } from '@repovine/plugin-sdk';
 import type { SourceDiscoveryLogLevel } from '@repovine/plugin-sdk';
 import { discoverPackages } from './packages.js';
@@ -21,8 +21,8 @@ import { TYPESCRIPT_SOURCE_EXTENSIONS } from './extensions.js';
  */
 
 /** Whether any segment of a repo-relative path names a tree discovery leaves out. */
-export function shouldSkipRepoRelativePath(relFromRoot: string): boolean {
-  return !shouldWalkDiscoveryDir(toPosixPath(relFromRoot));
+export function shouldSkipRepoRelativePath(repoRelPath: RepoRelPath): boolean {
+  return !shouldWalkDiscoveryDir(repoRelPath);
 }
 
 /** Basename: conventional test files anywhere in the tree (e.g. foo.test.ts, bar.spec.tsx). */
@@ -34,7 +34,7 @@ const SKIP_MAP_FILE_RE = /\.(?:js|mjs|cjs|css|ts|tsx|jsx)\.map$/i;
 const SUPPORTED_EXTENSIONS = new Set(TYPESCRIPT_SOURCE_EXTENSIONS);
 
 interface DiscoveryContext {
-  repoRoot: string;
+  repoRoot: HostPath;
   scanPatterns: CompiledScanPatterns;
   /** Host diagnostic sink. Absent when the host asked for no diagnostics from this pass. */
   log?(level: SourceDiscoveryLogLevel, message: string): void;
@@ -57,33 +57,33 @@ function pathPrefixLength(pkgPath: string, relFromRoot: string): number {
 }
 
 interface DiscoveryResult {
-  pendingByPath: Map<string, PendingModuleDraft>;
+  pendingByAbsPath: Map<HostPath, PendingModuleDraft>;
   parsedOptionsByPkg: Map<string, ts.CompilerOptions>;
   sourceFilesDiscovered: number;
 }
 
 function registerPendingModule(
-  pendingByPath: Map<string, PendingModuleDraft>,
-  filePath: string,
+  pendingByAbsPath: Map<HostPath, PendingModuleDraft>,
+  absPath: HostPath,
   entry: PendingModuleDraft,
-  relFromRoot: string,
+  repoRelPath: RepoRelPath,
 ): void {
   // Canonical key: tsconfig enumeration, SFC discovery, and the tree
   // walk emit different absolute-path forms for one file on win32; a raw key
   // would miss the dedupe and register the file twice under two module ids.
-  const key = hostPathKey(filePath);
-  const existing = pendingByPath.get(key);
-  if (!existing || pathPrefixLength(entry.pkg.path, relFromRoot) > pathPrefixLength(existing.pkg.path, relFromRoot)) {
-    pendingByPath.set(key, entry);
+  const key = hostPathKey(absPath);
+  const existing = pendingByAbsPath.get(key);
+  if (!existing || pathPrefixLength(entry.pkg.repoRelDir, repoRelPath) > pathPrefixLength(existing.pkg.repoRelDir, repoRelPath)) {
+    pendingByAbsPath.set(key, entry);
   }
 }
 
-function pickPackageForPath(packages: PackageInfo[], relFromRoot: string): PackageInfo | undefined {
+function pickPackageForPath(packages: PackageInfo[], repoRelPath: RepoRelPath): PackageInfo | undefined {
   let best: PackageInfo | undefined;
   let bestLen = -1;
   for (const pkg of packages) {
-    const prefix = toPosixPath(pkg.path);
-    if (relFromRoot === prefix || relFromRoot.startsWith(`${prefix}/`)) {
+    const prefix = pkg.repoRelDir;
+    if (repoRelPath === prefix || repoRelPath.startsWith(`${prefix}/`)) {
       if (prefix.length > bestLen) {
         best = pkg;
         bestLen = prefix.length;
@@ -93,73 +93,74 @@ function pickPackageForPath(packages: PackageInfo[], relFromRoot: string): Packa
   return best;
 }
 
-function moduleRelPathFor(pkg: PackageInfo, filePath: string, repoRoot: string): string {
-  const pkgAbsPath = path.resolve(repoRoot, pkg.path);
-  const relFromPkg = path.relative(pkgAbsPath, filePath);
-  if (!relFromPkg.startsWith('..')) return toPosixPath(relFromPkg);
+function modulePkgRelPathFor(pkg: PackageInfo, absPath: HostPath, repoRoot: HostPath): PkgRelPath {
+  const pkgAbsPath = asHostPath(path.resolve(repoRoot, pkg.repoRelDir));
+  const relFromPkg = path.relative(pkgAbsPath, absPath);
+  if (!relFromPkg.startsWith('..')) return asPkgRelPath(toPosixPath(relFromPkg));
 
-  const relFromRoot = repoRelativePosix(repoRoot, filePath);
-  const pkgPrefix = toPosixPath(pkg.path);
-  if (relFromRoot === pkgPrefix || relFromRoot.startsWith(`${pkgPrefix}/`)) {
-    return relFromRoot.slice(pkgPrefix.length + (relFromRoot === pkgPrefix ? 0 : 1));
+  const repoRelPath = repoRelativePosix(repoRoot, absPath);
+  const pkgPrefix = pkg.repoRelDir;
+  if (repoRelPath === pkgPrefix || repoRelPath.startsWith(`${pkgPrefix}/`)) {
+    return asPkgRelPath(repoRelPath.slice(pkgPrefix.length + (repoRelPath === pkgPrefix ? 0 : 1)));
   }
 
   const parentPrefix = toPosixPath(path.dirname(pkgPrefix));
-  if (parentPrefix !== '.' && (relFromRoot === parentPrefix || relFromRoot.startsWith(`${parentPrefix}/`))) {
-    return relFromRoot.slice(parentPrefix.length + (relFromRoot === parentPrefix ? 0 : 1));
+  if (parentPrefix !== '.' && (repoRelPath === parentPrefix || repoRelPath.startsWith(`${parentPrefix}/`))) {
+    return asPkgRelPath(repoRelPath.slice(parentPrefix.length + (repoRelPath === parentPrefix ? 0 : 1)));
   }
 
-  return relFromRoot;
+  return asPkgRelPath(repoRelPath);
 }
 
 function shouldSkipFilePath(
-  filePath: string,
-  repoRoot: string,
+  absPath: HostPath,
+  repoRoot: HostPath,
   ctx: DiscoveryContext,
-): { skip: true } | { skip: false; relFromRoot: string } {
-  const relFromRoot = repoRelativePosix(repoRoot, filePath);
-  if (shouldSkipRepoRelativePath(relFromRoot)) return { skip: true };
-  if (SKIP_TEST_FILENAME_RE.test(path.basename(filePath))) return { skip: true };
-  if (SKIP_MAP_FILE_RE.test(path.basename(filePath))) return { skip: true };
-  if (!shouldScanSourcePath(relFromRoot, ctx.scanPatterns)) return { skip: true };
+): { skip: true } | { skip: false; repoRelPath: RepoRelPath } {
+  const repoRelPath = repoRelativePosix(repoRoot, absPath);
+  if (shouldSkipRepoRelativePath(repoRelPath)) return { skip: true };
+  if (SKIP_TEST_FILENAME_RE.test(path.basename(absPath))) return { skip: true };
+  if (SKIP_MAP_FILE_RE.test(path.basename(absPath))) return { skip: true };
+  if (!shouldScanSourcePath(repoRelPath, ctx.scanPatterns)) return { skip: true };
 
-  const ext = path.extname(filePath).toLowerCase();
+  const ext = path.extname(absPath).toLowerCase();
   if (!SUPPORTED_EXTENSIONS.has(ext)) return { skip: true };
 
-  return { skip: false, relFromRoot };
+  return { skip: false, repoRelPath };
 }
 
 function discoverPackageSourceFiles(
   pkg: PackageInfo,
-  pkgAbsPath: string,
-  repoRoot: string,
+  pkgAbsPath: HostPath,
+  repoRoot: HostPath,
   ctx: DiscoveryContext,
   fileNames: string[],
-  pendingByPath: Map<string, PendingModuleDraft>,
+  pendingByAbsPath: Map<HostPath, PendingModuleDraft>,
 ): number {
   let count = 0;
   for (const filePath of fileNames) {
-    const check = shouldSkipFilePath(filePath, repoRoot, ctx);
+    const absPath = asHostPath(filePath);
+    const check = shouldSkipFilePath(absPath, repoRoot, ctx);
     if (check.skip) continue;
 
-    const relPath = moduleRelPathFor(pkg, filePath, repoRoot);
-    const before = pendingByPath.size;
-    registerPendingModule(pendingByPath, filePath, {
-      filePath,
+    const pkgRelPath = modulePkgRelPathFor(pkg, absPath, repoRoot);
+    const before = pendingByAbsPath.size;
+    registerPendingModule(pendingByAbsPath, absPath, {
+      absPath,
       pkg,
-      relPath,
-    }, check.relFromRoot);
-    if (pendingByPath.size > before) count++;
+      pkgRelPath,
+    }, check.repoRelPath);
+    if (pendingByAbsPath.size > before) count++;
   }
   return count;
 }
 
 function discoverSfcFiles(
-  pkgAbsPath: string,
-  repoRoot: string,
+  pkgAbsPath: HostPath,
+  repoRoot: HostPath,
   pkg: PackageInfo,
   ctx: DiscoveryContext,
-  pendingByPath: Map<string, PendingModuleDraft>,
+  pendingByAbsPath: Map<HostPath, PendingModuleDraft>,
 ): number {
   let added = 0;
   // Starts inside the package, prunes by the path the graph knows — see the same split in the
@@ -167,14 +168,14 @@ function discoverSfcFiles(
   walkRepository(pkgAbsPath, {
     ...(ctx.onPruned === undefined ? {} : { onPruned: ctx.onPruned }),
     repoRoot,
-    onFile: ({ absPath: full, relFromRoot, name }) => {
+    onFile: ({ absPath: full, repoRelPath, name }) => {
       // Asked of the file as well as the directory: the walk starts inside the package, so a
       // package that itself sits under an ignored or test-layout tree would otherwise contribute
       // files no other producer would have reported.
-      if (shouldSkipRepoRelativePath(relFromRoot)) return;
+      if (shouldSkipRepoRelativePath(repoRelPath)) return;
       const ext = path.extname(name).toLowerCase();
       if (!SFC_EXTENSIONS.has(ext)) return;
-      if (!shouldScanSourcePath(relFromRoot, ctx.scanPatterns)) return;
+      if (!shouldScanSourcePath(repoRelPath, ctx.scanPatterns)) return;
 
       let content: string;
       try {
@@ -183,15 +184,15 @@ function discoverSfcFiles(
       const extracted = extractTypeScriptFromSfc(full, content);
       if (!extracted || extracted.ts.trim().length === 0) return;
 
-      const relPath = repoRelativePosix(pkgAbsPath, full);
-      const before = pendingByPath.size;
-      registerPendingModule(pendingByPath, full, {
-        filePath: full,
-        virtualPath: full + '.ts',
+      const pkgRelPath = asPkgRelPath(repoRelativePosix(pkgAbsPath, full));
+      const before = pendingByAbsPath.size;
+      registerPendingModule(pendingByAbsPath, full, {
+        absPath: full,
+        virtualAbsPath: asHostPath(full + '.ts'),
         pkg,
-        relPath,
-      }, relFromRoot);
-      if (pendingByPath.size > before) added++;
+        pkgRelPath,
+      }, repoRelPath);
+      if (pendingByAbsPath.size > before) added++;
     },
   });
   return added;
@@ -199,45 +200,45 @@ function discoverSfcFiles(
 
 function discoverExplicitIncludeFiles(
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   ctx: DiscoveryContext,
-  pendingByPath: Map<string, PendingModuleDraft>,
+  pendingByAbsPath: Map<HostPath, PendingModuleDraft>,
 ): number {
   if (ctx.scanPatterns.include.length === 0) return 0;
 
   let added = 0;
-  const visitFile = (absPath: string, relFromRoot: string): void => {
+  const visitFile = (absPath: HostPath, repoRelPath: RepoRelPath): void => {
     // Canonical key, like every other probe of this map. A raw-path probe answered differently per
     // platform — it matched on POSIX and missed on win32, where the key is case-folded — so an
     // explicit include re-opened an already-registered file there and `registerPendingModule` could
     // hand it to a package with a longer prefix, changing its relPath and its minted id.
-    if (pendingByPath.has(hostPathKey(absPath))) return;
-    if (shouldSkipRepoRelativePath(relFromRoot)) return;
+    if (pendingByAbsPath.has(hostPathKey(absPath))) return;
+    if (shouldSkipRepoRelativePath(repoRelPath)) return;
     if (SKIP_TEST_FILENAME_RE.test(path.basename(absPath))) return;
     if (SKIP_MAP_FILE_RE.test(path.basename(absPath))) return;
-    if (!shouldScanSourcePath(relFromRoot, ctx.scanPatterns)) return;
+    if (!shouldScanSourcePath(repoRelPath, ctx.scanPatterns)) return;
 
     const ext = path.extname(absPath).toLowerCase();
     if (!SUPPORTED_EXTENSIONS.has(ext)) return;
 
-    const pkg = pickPackageForPath(packages, relFromRoot);
+    const pkg = pickPackageForPath(packages, repoRelPath);
     if (!pkg) return;
-    const pkgAbsPath = path.resolve(repoRoot, pkg.path);
+    const pkgAbsPath = asHostPath(path.resolve(repoRoot, pkg.repoRelDir));
     if (!absPath.startsWith(pkgAbsPath + path.sep)) return;
 
-    const relPath = repoRelativePosix(pkgAbsPath, absPath);
-    const before = pendingByPath.size;
-    registerPendingModule(pendingByPath, absPath, {
-      filePath: absPath,
+    const pkgRelPath = asPkgRelPath(repoRelativePosix(pkgAbsPath, absPath));
+    const before = pendingByAbsPath.size;
+    registerPendingModule(pendingByAbsPath, absPath, {
+      absPath,
       pkg,
-      relPath,
-    }, relFromRoot);
-    if (pendingByPath.size > before) added++;
+      pkgRelPath,
+    }, repoRelPath);
+    if (pendingByAbsPath.size > before) added++;
   };
 
   walkRepository(repoRoot, {
     ...(ctx.onPruned === undefined ? {} : { onPruned: ctx.onPruned }),
-    onFile: ({ absPath, relFromRoot }) => visitFile(absPath, relFromRoot),
+    onFile: ({ absPath, repoRelPath }) => visitFile(absPath, repoRelPath),
   });
   return added;
 }
@@ -246,15 +247,15 @@ function discoverExplicitIncludeFiles(
  * the parsed compilerOptions so Pass 2 doesn't re-parse the tsconfig. */
 function discoverPendingModules(
   packages: PackageInfo[],
-  repoRoot: string,
+  repoRoot: HostPath,
   ctx: DiscoveryContext,
 ): DiscoveryResult {
-  const pendingByPath = new Map<string, PendingModuleDraft>();
+  const pendingByAbsPath = new Map<HostPath, PendingModuleDraft>();
   const parsedOptionsByPkg = new Map<string, ts.CompilerOptions>();
   let sourceFilesDiscovered = 0;
 
   for (const pkg of packages) {
-    const pkgAbsPath = path.resolve(repoRoot, pkg.path);
+    const pkgAbsPath = asHostPath(path.resolve(repoRoot, pkg.repoRelDir));
     let parsed;
     try {
       parsed = parsePackageTsConfig(pkgAbsPath);
@@ -264,12 +265,12 @@ function discoverPendingModules(
     }
     parsedOptionsByPkg.set(pkg.name, parsed.compilerOptions);
 
-    sourceFilesDiscovered += discoverPackageSourceFiles(pkg, pkgAbsPath, repoRoot, ctx, parsed.fileNames, pendingByPath);
-    discoverSfcFiles(pkgAbsPath, repoRoot, pkg, ctx, pendingByPath);
+    sourceFilesDiscovered += discoverPackageSourceFiles(pkg, pkgAbsPath, repoRoot, ctx, parsed.fileNames, pendingByAbsPath);
+    discoverSfcFiles(pkgAbsPath, repoRoot, pkg, ctx, pendingByAbsPath);
   }
 
-  sourceFilesDiscovered += discoverExplicitIncludeFiles(packages, repoRoot, ctx, pendingByPath);
-  return { pendingByPath, parsedOptionsByPkg, sourceFilesDiscovered };
+  sourceFilesDiscovered += discoverExplicitIncludeFiles(packages, repoRoot, ctx, pendingByAbsPath);
+  return { pendingByAbsPath, parsedOptionsByPkg, sourceFilesDiscovered };
 }
 
 /**
@@ -277,14 +278,14 @@ function discoverPendingModules(
  * absolute file path, and the parsed compilerOptions per package as the opaque `extractContext`
  * threaded into extract().
  */
-export function discoverTypeScript(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult {
+export function discoverTypeScript(repoRoot: HostPath, options: SourceDiscoveryOptions): SourceDiscoveryResult {
   const packages: PackageInfo[] = discoverPackages(repoRoot, options.packageMarkers, options.onPruned)
     .map(p => ({ ...p, sourcePluginId: 'typescript' }));
   const scanPatterns = options.scanPatterns ?? compileScanPatterns([], []);
   const ctx: DiscoveryContext = { repoRoot, scanPatterns, log: options.log, onPruned: options.onPruned };
 
-  const { pendingByPath, parsedOptionsByPkg } = discoverPendingModules(packages, repoRoot, ctx);
-  for (const pending of pendingByPath.values()) pending.sourcePluginId = 'typescript';
+  const { pendingByAbsPath, parsedOptionsByPkg } = discoverPendingModules(packages, repoRoot, ctx);
+  for (const pending of pendingByAbsPath.values()) pending.sourcePluginId = 'typescript';
 
-  return { packages, pendingByPath, extractContext: parsedOptionsByPkg };
+  return { packages, pendingByAbsPath, extractContext: parsedOptionsByPkg };
 }

@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from '@jest/globals';
@@ -26,8 +28,8 @@ function mod(id: string, semanticHints?: ModuleInfo['semanticHints']): ModuleInf
   return {
     id,
     packageName: 'tanstack-router-fixture',
-    filePath: `/repo/${id}.tsx`,
-    relativeFilePath: `${id}.tsx`,
+    absPath: asHostPath(`/repo/${id}.tsx`),
+    pkgRelPath: asPkgRelPath(`${id}.tsx`),
     contentHash: id,
     imports: [],
     exports: [],
@@ -40,7 +42,7 @@ function ctxFor(modules: ModuleInfo[]): InterpreterEntrypointContext {
   const snapshot: RepositoryFactsSnapshot = {
     repoRoot: FIXTURE_ROOT,
     timestamp: '2026-06-16T00:00:00.000Z',
-    packages: [{ name: 'tanstack-router-fixture', path: '.', sourcePluginId: 'typescript' }],
+    packages: [{ name: 'tanstack-router-fixture', repoRelDir: asRepoRelPath('.'), sourcePluginId: 'typescript' }],
     modules,
   };
   return {

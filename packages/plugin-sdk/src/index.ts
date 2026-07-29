@@ -45,6 +45,8 @@ export { resolveDottedPathHandlerToModule } from './source-plugin/handler-resolv
 export { extractPackageName, mintModuleId, packageNameFromId, packageNodeId, toPosixPath } from './source-plugin/module-id.js';
 
 /* ---- the path vocabulary a producer shares with the engine ---- */
+export { asHostPath, asPkgRelPath, asRepoRelPath } from './path-contract.js';
+export type { HostPath, PkgRelPath, RepoRelPath } from './path-contract.js';
 export { hostKeyedView, hostPathKey, lastPathSegment, normalizeRelPath, pathMatchKey, repoRelativePosix } from './paths.js';
 export { compareCodeUnits } from './ordering.js';
 

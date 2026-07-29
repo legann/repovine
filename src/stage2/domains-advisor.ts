@@ -314,10 +314,10 @@ function computeBasenameSuggestion(
   onDisk: DomainsConfigFile,
 ): DomainsSuggestionAddition | undefined {
   if (onDisk.basename?.pascalCase !== undefined) return undefined;
-  const codeModules = snapshot.modules.filter(mod => hasKnownSourceExtension(mod.relativeFilePath));
+  const codeModules = snapshot.modules.filter(mod => hasKnownSourceExtension(mod.pkgRelPath));
   if (codeModules.length === 0) return undefined;
   const pascalCase = codeModules.filter(mod => {
-    const basename = stripSourceExtension(lastPathSegment(mod.relativeFilePath));
+    const basename = stripSourceExtension(lastPathSegment(mod.pkgRelPath));
     return /^[A-Z]/.test(basename);
   }).length;
   const ratio = pascalCase / codeModules.length;
@@ -340,7 +340,7 @@ function computeInfraDomainPathSuggestions(
   const existingPaths = new Set(Object.values(onDisk.domains ?? {}).flatMap(entry => entry.paths ?? []));
   const counts = new Map<string, number>();
   for (const infraMod of snapshot.infraModules ?? []) {
-    const parts = infraMod.relativeFilePath.split('/').filter(Boolean);
+    const parts = infraMod.repoRelPath.split('/').filter(Boolean);
     if (parts[0] !== 'infrastructure' || !parts[1]) continue;
     const folder = domainSlug(parts[1]);
     if (!folder) continue;

@@ -58,17 +58,19 @@ jobs:
           node dist/mcp/index.js --help | grep -q 'repovine'
           echo "✓ bin entry OK"
 
-      # The two plugin examples are what a third-party author copies. Each wires its plugin the way
-      # an install does (resolved from the analyzed repo's node_modules), runs the conformance kit,
-      # and drives the real Stage-1 loader and core interpreters, exiting non-zero on a failed
-      # check. Running them here keeps the reference honest: a contract change that breaks an
-      # author breaks this job.
-      - name: Plugin examples (conformance + end-to-end)
-        run: |
-          set -o pipefail
-          node examples/repovine-plugin-go/run.mjs
-          node examples/repovine-plugin-iac/run.mjs
-          echo "✓ plugin examples OK"
+      # These are the packages a third-party author copies. Each runs conformance and the real
+      # Stage-1/Stage-2 path while asserting that absPath uses host spelling and relative paths stay
+      # POSIX. The same two steps run in core-native below, so the assertion executes on real win32.
+      - name: Go plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-go/run.mjs
+
+      - name: IaC plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-iac/run.mjs
+
+      # Stronger than the linked examples: pack the SDK and two plugins that are not workspaces,
+      # install them into a repo under a path with spaces and Unicode, and drive the real MCP.
+      - name: Packed external plugin canaries
+        run: node scripts/smoke-canary-plugins.mjs
 
       # Pack, install into a clean repo, and drive the MCP over stdio — the path
       # `npx -y repovine@<version>` takes. Catches runtime imports that resolve in the
@@ -117,6 +119,15 @@ jobs:
       - name: Client projections suite (node:test)
         shell: bash
         run: node --test test/integration/client-projections.test.mjs
+
+      - name: Go plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-go/run.mjs
+
+      - name: IaC plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-iac/run.mjs
+
+      - name: Packed external plugin canaries
+        run: node scripts/smoke-canary-plugins.mjs
 
       - name: Smoke test packed install
         run: node scripts/smoke-pack-install.mjs

@@ -183,25 +183,25 @@ export const dockerComposeParser: IaCParser = {
   fileMatch: { fileNamePatterns: [/^(docker-compose(\.[\w.-]+)?|compose(\.[\w.-]+)?)\.ya?ml$/i] },
   loaderId: 'yaml',
 
-  supports(filePath: string, doc: unknown): boolean {
-    const base = path.basename(filePath);
+  supports(absPath, doc): boolean {
+    const base = path.basename(absPath);
     if (!isDockerComposeFileName(base)) return false;
     if (!isRecord(doc)) return false;
     return isRecord(doc.services);
   },
 
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (!isRecord(doc) || !isRecord(doc.services)) return null;
     const root = doc;
     const services = root.services as Record<string, unknown>;
 
-    const domainPath = pathGroupingLabel(relPath);
+    const domainPath = pathGroupingLabel(repoRelPath);
 
     const secrets = collectComposeSecrets(root);
     const resources: InfraResource[] = [];
     for (const [serviceName, serviceVal] of Object.entries(services)) {
       if (!isRecord(serviceVal)) continue;
-      const attrs = { domainPath, ...dockerComposeServiceAttributes(relPath, serviceName, serviceVal) };
+      const attrs = { domainPath, ...dockerComposeServiceAttributes(repoRelPath, serviceName, serviceVal) };
       const envRefs = composeServiceSecretRefs(serviceVal, secrets);
       resources.push({
         id: serviceName,

@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { addEdge, addNode, createEmptyGraph } from '../../src/graph/index.js';
 import { analyzeImpact } from '../../src/mcp/lib/dependencies/impact.js';
@@ -30,8 +31,8 @@ function moduleInfo(id: string, imports: ModuleInfo['imports'] = []): ModuleInfo
   return {
     id,
     packageName: 'app',
-    filePath: `/repo/${id}.ts`,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(`/repo/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash: id,
     imports,
     exports: [],

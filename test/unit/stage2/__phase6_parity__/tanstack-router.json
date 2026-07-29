@@ -224,8 +224,8 @@
       "label": "…/admin/users",
       "description": "Module src/routes/admin/users.tsx in tanstack-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/admin/users.tsx",
-        "relativeFilePath": "src/routes/admin/users.tsx",
+        "absPath": "<FIXTURE>/src/routes/admin/users.tsx",
+        "pkgRelPath": "src/routes/admin/users.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -236,8 +236,8 @@
       "label": "…/files/$",
       "description": "Module src/routes/files/$.tsx in tanstack-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/files/$.tsx",
-        "relativeFilePath": "src/routes/files/$.tsx",
+        "absPath": "<FIXTURE>/src/routes/files/$.tsx",
+        "pkgRelPath": "src/routes/files/$.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -248,8 +248,8 @@
       "label": "…/posts/{-$category}",
       "description": "Module src/routes/posts/{-$category}.tsx in tanstack-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/posts/{-$category}.tsx",
-        "relativeFilePath": "src/routes/posts/{-$category}.tsx",
+        "absPath": "<FIXTURE>/src/routes/posts/{-$category}.tsx",
+        "pkgRelPath": "src/routes/posts/{-$category}.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -260,8 +260,8 @@
       "label": "…/posts/$postId",
       "description": "Module src/routes/posts/$postId.tsx in tanstack-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/posts/$postId.tsx",
-        "relativeFilePath": "src/routes/posts/$postId.tsx",
+        "absPath": "<FIXTURE>/src/routes/posts/$postId.tsx",
+        "pkgRelPath": "src/routes/posts/$postId.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -272,8 +272,8 @@
       "label": "src/routeTree",
       "description": "Module src/routeTree.tsx in tanstack-router-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routeTree.tsx",
-        "relativeFilePath": "src/routeTree.tsx",
+        "absPath": "<FIXTURE>/src/routeTree.tsx",
+        "pkgRelPath": "src/routeTree.tsx",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }

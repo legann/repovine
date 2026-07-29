@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { createEmptyGraph, emptyGraphDelta } from '../../../../src/graph/index.js';
 import type { Interpreter } from '../../../../src/interpreter/types.js';
@@ -12,8 +14,8 @@ function moduleInfo(
   return {
     id,
     packageName: 'pkg',
-    filePath: `/repo/${id}.ts`,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(`/repo/${id}.ts`),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash: id,
     imports: [],
     exports: [],
@@ -26,7 +28,7 @@ function snapshot(modules: ModuleInfo[], templates?: TemplateFileInfo[]): Reposi
   return {
     repoRoot: '/repo',
     timestamp: '2026-06-13T00:00:00.000Z',
-    packages: [{ name: 'pkg', path: '.', sourcePluginId: modules[0]?.sourcePluginId }],
+    packages: [{ name: 'pkg', repoRelDir: asRepoRelPath('.'), sourcePluginId: modules[0]?.sourcePluginId }],
     modules,
     ...(templates ? { templates } : {}),
   };

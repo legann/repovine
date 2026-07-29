@@ -4,7 +4,7 @@ import { totalmem } from 'node:os';
 import { Worker } from 'node:worker_threads';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
-import type { ReadonlyFactRecord } from '@repovine/plugin-sdk';
+import type { HostPath, ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import { packageJobKey } from './utils.js';
 import type { PluginLoadSpec } from '../plugin-host/load.js';
 
@@ -18,7 +18,7 @@ export interface PackageJob {
   /** Source plugin that owns this package's files; selects the extractor in the worker. */
   sourcePluginId: string;
   pendingModules: PendingModule[];
-  prevModuleEntries: [string, ModuleInfo][];
+  prevModuleEntries: [HostPath, ModuleInfo][];
   /** Sharding metadata: which slice of `pkg`'s pendingModules this job processes. */
   shardIndex: number;
   totalShards: number;
@@ -45,9 +45,9 @@ export interface PackageWorkerPoolOptions {
   /** Number of worker threads. >= 1. */
   size: number;
   packages: PackageInfo[];
-  absPathToId: Map<string, string>;
+  absPathToId: Map<HostPath, string>;
   /** Repo root, forwarded to workers for string-based specifier resolution. */
-  repoRoot: string;
+  repoRoot: HostPath;
   /** Opaque per-plugin extractContext (e.g. parsed compilerOptions), forwarded via workerData.
    * Values must be structured-clone-safe so they survive the worker boundary. */
   extractContextByPlugin: Map<string, unknown>;

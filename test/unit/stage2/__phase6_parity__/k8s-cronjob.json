@@ -104,8 +104,8 @@
       "label": "Dockerfile",
       "description": "IaC dockerfile module Dockerfile",
       "data": {
-        "filePath": "<FIXTURE>/Dockerfile",
-        "relativeFilePath": "Dockerfile"
+        "absPath": "<FIXTURE>/Dockerfile",
+        "repoRelPath": "Dockerfile"
       }
     },
     {
@@ -114,8 +114,8 @@
       "label": "manifests/cronjob.yaml",
       "description": "IaC kubernetes module manifests/cronjob.yaml",
       "data": {
-        "filePath": "<FIXTURE>/manifests/cronjob.yaml",
-        "relativeFilePath": "manifests/cronjob.yaml"
+        "absPath": "<FIXTURE>/manifests/cronjob.yaml",
+        "repoRelPath": "manifests/cronjob.yaml"
       }
     },
     {
@@ -124,8 +124,8 @@
       "label": "src/job",
       "description": "Module src/job.ts in k8s-cronjob-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/job.ts",
-        "relativeFilePath": "src/job.ts",
+        "absPath": "<FIXTURE>/src/job.ts",
+        "pkgRelPath": "src/job.ts",
         "sourcePluginId": "typescript"
       }
     },

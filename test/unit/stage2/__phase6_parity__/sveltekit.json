@@ -350,8 +350,8 @@
       "label": "…/server/auth",
       "description": "Module src/lib/server/auth.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/lib/server/auth.ts",
-        "relativeFilePath": "src/lib/server/auth.ts",
+        "absPath": "<FIXTURE>/src/lib/server/auth.ts",
+        "pkgRelPath": "src/lib/server/auth.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -361,8 +361,8 @@
       "label": "…/server/db",
       "description": "Module src/lib/server/db.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/lib/server/db.ts",
-        "relativeFilePath": "src/lib/server/db.ts",
+        "absPath": "<FIXTURE>/src/lib/server/db.ts",
+        "pkgRelPath": "src/lib/server/db.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -372,8 +372,8 @@
       "label": "…/about/+page.svelte",
       "description": "Module src/routes/(marketing)/about/+page.svelte in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/(marketing)/about/+page.svelte",
-        "relativeFilePath": "src/routes/(marketing)/about/+page.svelte",
+        "absPath": "<FIXTURE>/src/routes/(marketing)/about/+page.svelte",
+        "pkgRelPath": "src/routes/(marketing)/about/+page.svelte",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -384,8 +384,8 @@
       "label": "…/home/+page.svelte",
       "description": "Module src/routes/[[lang]]/home/+page.svelte in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/[[lang]]/home/+page.svelte",
-        "relativeFilePath": "src/routes/[[lang]]/home/+page.svelte",
+        "absPath": "<FIXTURE>/src/routes/[[lang]]/home/+page.svelte",
+        "pkgRelPath": "src/routes/[[lang]]/home/+page.svelte",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -396,8 +396,8 @@
       "label": "…/routes/+layout",
       "description": "Module src/routes/+layout.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/+layout.ts",
-        "relativeFilePath": "src/routes/+layout.ts",
+        "absPath": "<FIXTURE>/src/routes/+layout.ts",
+        "pkgRelPath": "src/routes/+layout.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -407,8 +407,8 @@
       "label": "…/routes/+page",
       "description": "Module src/routes/+page.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/+page.ts",
-        "relativeFilePath": "src/routes/+page.ts",
+        "absPath": "<FIXTURE>/src/routes/+page.ts",
+        "pkgRelPath": "src/routes/+page.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -418,8 +418,8 @@
       "label": "…/routes/+page.svelte",
       "description": "Module src/routes/+page.svelte in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/+page.svelte",
-        "relativeFilePath": "src/routes/+page.svelte",
+        "absPath": "<FIXTURE>/src/routes/+page.svelte",
+        "pkgRelPath": "src/routes/+page.svelte",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -430,8 +430,8 @@
       "label": "…/users/+server",
       "description": "Module src/routes/api/users/+server.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/api/users/+server.ts",
-        "relativeFilePath": "src/routes/api/users/+server.ts",
+        "absPath": "<FIXTURE>/src/routes/api/users/+server.ts",
+        "pkgRelPath": "src/routes/api/users/+server.ts",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -442,8 +442,8 @@
       "label": "…/[slug]/+page",
       "description": "Module src/routes/blog/[slug]/+page.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/blog/[slug]/+page.ts",
-        "relativeFilePath": "src/routes/blog/[slug]/+page.ts",
+        "absPath": "<FIXTURE>/src/routes/blog/[slug]/+page.ts",
+        "pkgRelPath": "src/routes/blog/[slug]/+page.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -453,8 +453,8 @@
       "label": "…/[slug]/+page.svelte",
       "description": "Module src/routes/blog/[slug]/+page.svelte in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/blog/[slug]/+page.svelte",
-        "relativeFilePath": "src/routes/blog/[slug]/+page.svelte",
+        "absPath": "<FIXTURE>/src/routes/blog/[slug]/+page.svelte",
+        "pkgRelPath": "src/routes/blog/[slug]/+page.svelte",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -465,8 +465,8 @@
       "label": "…/dashboard/+page",
       "description": "Module src/routes/dashboard/+page.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/dashboard/+page.ts",
-        "relativeFilePath": "src/routes/dashboard/+page.ts",
+        "absPath": "<FIXTURE>/src/routes/dashboard/+page.ts",
+        "pkgRelPath": "src/routes/dashboard/+page.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -476,8 +476,8 @@
       "label": "…/dashboard/+page.server",
       "description": "Module src/routes/dashboard/+page.server.ts in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/dashboard/+page.server.ts",
-        "relativeFilePath": "src/routes/dashboard/+page.server.ts",
+        "absPath": "<FIXTURE>/src/routes/dashboard/+page.server.ts",
+        "pkgRelPath": "src/routes/dashboard/+page.server.ts",
         "sourcePluginId": "typescript"
       }
     },
@@ -487,8 +487,8 @@
       "label": "…/dashboard/+page.svelte",
       "description": "Module src/routes/dashboard/+page.svelte in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/dashboard/+page.svelte",
-        "relativeFilePath": "src/routes/dashboard/+page.svelte",
+        "absPath": "<FIXTURE>/src/routes/dashboard/+page.svelte",
+        "pkgRelPath": "src/routes/dashboard/+page.svelte",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }
@@ -499,8 +499,8 @@
       "label": "…/[...path]/+page.svelte",
       "description": "Module src/routes/docs/[...path]/+page.svelte in sveltekit-fixture",
       "data": {
-        "filePath": "<FIXTURE>/src/routes/docs/[...path]/+page.svelte",
-        "relativeFilePath": "src/routes/docs/[...path]/+page.svelte",
+        "absPath": "<FIXTURE>/src/routes/docs/[...path]/+page.svelte",
+        "pkgRelPath": "src/routes/docs/[...path]/+page.svelte",
         "hasRoutes": true,
         "sourcePluginId": "typescript"
       }

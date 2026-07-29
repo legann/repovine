@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 /**
  * Unit tests for MCP handlers. Uses a small in-memory fixture graph + snapshot;
  * `node:fs/promises` readFile is mocked, so includeBody/grepBody read no bytes
@@ -78,8 +80,8 @@ function makeModuleInfo(id: string, filePath = `/repo/${id}.ts`): ModuleInfo {
   return {
     id,
     packageName: 'test',
-    filePath,
-    relativeFilePath: `${id}.ts`,
+    absPath: asHostPath(filePath),
+    pkgRelPath: asPkgRelPath(`${id}.ts`),
     contentHash: 'abc123',
     imports: [],
     exports: [],
@@ -141,9 +143,9 @@ function buildFixtureGraph(): { graph: RepositoryGraph; modulesById: Map<string,
   addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
   addNode(g, { id: 'pkg:test', type: 'package', label: 'test', description: '' });
   addNode(g, { id: 'mod:test/alpha', type: 'module', label: 'alpha', description: '',
-    data: { filePath: '/repo/alpha.ts', relativeFilePath: 'alpha.ts' } });
+    data: { absPath: asHostPath('/repo/alpha.ts'), pkgRelPath: asPkgRelPath('alpha.ts') } });
   addNode(g, { id: 'mod:test/beta', type: 'module', label: 'beta', description: '',
-    data: { filePath: '/repo/beta.ts', relativeFilePath: 'beta.ts' } });
+    data: { absPath: asHostPath('/repo/beta.ts'), pkgRelPath: asPkgRelPath('beta.ts') } });
   addNode(g, { id: 'export:test/alpha/Foo', type: 'export-symbol', label: 'Foo', description: '',
     data: { signature: 'function Foo(): void', symbolKind: 'function', lineRange: { start: 1, end: 5 } } });
 
@@ -205,13 +207,13 @@ function buildSearchModeFixture(): { graph: RepositoryGraph; modulesById: Map<st
       type: 'module',
       label: mod.label,
       description: '',
-      data: { filePath: mod.filePath, relativeFilePath: mod.relativeFilePath },
+      data: { absPath: asHostPath(mod.filePath), pkgRelPath: asPkgRelPath(mod.relativeFilePath) },
     });
     addEdge(g, 'pkg:app', mod.id, 'contains');
     for (const tag of mod.tags) addEdge(g, mod.id, tag, 'tagged');
     const info = makeModuleInfo(mod.id, mod.filePath);
     info.packageName = 'app';
-    info.relativeFilePath = mod.relativeFilePath;
+    info.pkgRelPath = asPkgRelPath(mod.relativeFilePath);
     modulesById.set(mod.id, info);
   }
 
@@ -245,12 +247,12 @@ function buildAnnotationEscalationFixture(): { graph: RepositoryGraph; modulesBy
       type: 'module',
       label: mod.label,
       description: '',
-      data: { filePath: mod.filePath, relativeFilePath: mod.relativeFilePath },
+      data: { absPath: asHostPath(mod.filePath), pkgRelPath: asPkgRelPath(mod.relativeFilePath) },
     });
     addEdge(g, 'pkg:app', mod.id, 'contains');
     const info = makeModuleInfo(mod.id, mod.filePath);
     info.packageName = 'app';
-    info.relativeFilePath = mod.relativeFilePath;
+    info.pkgRelPath = asPkgRelPath(mod.relativeFilePath);
     modulesById.set(mod.id, info);
   }
 
@@ -441,7 +443,7 @@ describe('inspect_node investigate tags', () => {
     addNode(g, { id: 'pkg:test', type: 'package', label: 'test', description: '' });
     for (const name of ['alpha', 'beta', 'gamma']) {
       addNode(g, { id: `mod:test/${name}`, type: 'module', label: name, description: '',
-        data: { filePath: `/repo/${name}.ts`, relativeFilePath: `${name}.ts` } });
+        data: { absPath: asHostPath(`/repo/${name}.ts`), pkgRelPath: asPkgRelPath(`${name}.ts`) } });
       addEdge(g, 'pkg:test', `mod:test/${name}`, 'contains');
     }
     addEdge(g, 'root', 'pkg:test', 'contains');
@@ -562,12 +564,12 @@ describe('inspect_node salience ordering + attention', () => {
     addEdge(g, 'root', 'pkg:test', 'contains');
     for (const name of ['alpha', 'shared', 'beta']) {
       addNode(g, { id: `mod:test/${name}`, type: 'module', label: name, description: '',
-        data: { filePath: `/repo/${name}.ts`, relativeFilePath: `${name}.ts` } });
+        data: { absPath: asHostPath(`/repo/${name}.ts`), pkgRelPath: asPkgRelPath(`${name}.ts`) } });
       addEdge(g, 'pkg:test', `mod:test/${name}`, 'contains');
     }
     for (let i = 0; i < 8; i++) {
       addNode(g, { id: `mod:test/imp${i}`, type: 'module', label: `imp${i}`, description: '',
-        data: { filePath: `/repo/imp${i}.ts`, relativeFilePath: `imp${i}.ts` } });
+        data: { absPath: asHostPath(`/repo/imp${i}.ts`), pkgRelPath: asPkgRelPath(`imp${i}.ts`) } });
       addEdge(g, `mod:test/imp${i}`, 'mod:test/alpha', 'imports');
       addEdge(g, `mod:test/imp${i}`, 'mod:test/shared', 'imports');
     }
@@ -698,7 +700,7 @@ describe('inspect_node salience ordering + attention', () => {
     addEdge(g, 'root', 'pkg:test', 'contains');
     for (const name of ['alpha', 'beta', 'gamma']) {
       addNode(g, { id: `mod:test/${name}`, type: 'module', label: name, description: '',
-        data: { filePath: `/repo/${name}.ts`, relativeFilePath: `${name}.ts` } });
+        data: { absPath: asHostPath(`/repo/${name}.ts`), pkgRelPath: asPkgRelPath(`${name}.ts`) } });
       addEdge(g, 'pkg:test', `mod:test/${name}`, 'contains');
     }
     addEdge(g, 'mod:test/gamma', 'mod:test/beta', 'imports');
@@ -854,8 +856,8 @@ describe('inspect_node runtime-resource freshness', () => {
   const makeStack = (id: string, fileHash: string, resourceHash: string): InfraModuleInfo => ({
     id,
     kind: 'sam',
-    filePath: `/repo/${id}.yaml`,
-    relativeFilePath: `${id}.yaml`,
+    absPath: asHostPath(`/repo/${id}.yaml`),
+    repoRelPath: asRepoRelPath(`${id}.yaml`),
     contentHash: fileHash,
     resources: [{
       id: 'Gateway',
@@ -1125,7 +1127,7 @@ describe('public v1 context tools', () => {
       type: 'module',
       label: '…/pages/TickPricingPage',
       description: '',
-      data: { filePath: '/repo/packages/client-ui/src/pages/TickPricingPage.tsx', relativeFilePath: 'src/pages/TickPricingPage.tsx' },
+      data: { absPath: asHostPath('/repo/packages/client-ui/src/pages/TickPricingPage.tsx'), pkgRelPath: asPkgRelPath('src/pages/TickPricingPage.tsx') },
     });
     addEdge(graph, 'root', 'pkg:@acme/client-ui', 'contains');
     addEdge(graph, 'pkg:@acme/client-ui', 'mod:@acme/client-ui/src/pages/TickPricingPage', 'contains');
@@ -1134,7 +1136,7 @@ describe('public v1 context tools', () => {
       '/repo/packages/client-ui/src/pages/TickPricingPage.tsx',
     );
     page.packageName = '@acme/client-ui';
-    page.relativeFilePath = 'src/pages/TickPricingPage.tsx';
+    page.pkgRelPath = asPkgRelPath('src/pages/TickPricingPage.tsx');
     modulesById.set(page.id, page);
     const ctx = makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]) });
 
@@ -1160,14 +1162,14 @@ describe('public v1 context tools', () => {
       type: 'module',
       label: '…/pages/TickPricingPage',
       description: '',
-      data: { filePath: '/repo/packages/client-ui/src/pages/TickPricingPage.tsx', relativeFilePath: 'src/pages/TickPricingPage.tsx' },
+      data: { absPath: asHostPath('/repo/packages/client-ui/src/pages/TickPricingPage.tsx'), pkgRelPath: asPkgRelPath('src/pages/TickPricingPage.tsx') },
     });
     addNode(graph, {
       id: 'mod:@acme/client-ui/src/components/Navbar',
       type: 'module',
       label: '…/components/Navbar',
       description: '',
-      data: { filePath: '/repo/packages/client-ui/src/components/Navbar.tsx', relativeFilePath: 'src/components/Navbar.tsx' },
+      data: { absPath: asHostPath('/repo/packages/client-ui/src/components/Navbar.tsx'), pkgRelPath: asPkgRelPath('src/components/Navbar.tsx') },
     });
     addEdge(graph, 'root', 'pkg:@acme/client-ui', 'contains');
     addEdge(graph, 'pkg:@acme/client-ui', 'mod:@acme/client-ui/src/pages/TickPricingPage', 'contains');
@@ -1180,13 +1182,13 @@ describe('public v1 context tools', () => {
       '/repo/packages/client-ui/src/pages/TickPricingPage.tsx',
     );
     page.packageName = '@acme/client-ui';
-    page.relativeFilePath = 'src/pages/TickPricingPage.tsx';
+    page.pkgRelPath = asPkgRelPath('src/pages/TickPricingPage.tsx');
     const navbar = makeModuleInfo(
       'mod:@acme/client-ui/src/components/Navbar',
       '/repo/packages/client-ui/src/components/Navbar.tsx',
     );
     navbar.packageName = '@acme/client-ui';
-    navbar.relativeFilePath = 'src/components/Navbar.tsx';
+    navbar.pkgRelPath = asPkgRelPath('src/components/Navbar.tsx');
     page.semanticHints = {
       routes: [{ path: '/TickPricingPage', component: '(file-route)', declaredIn: 'code', syntax: 'markup', kind: 'frontend' }],
       hasRoutes: true,
@@ -1376,12 +1378,12 @@ describe('public v1 context tools', () => {
       type: 'module',
       label: 'TopNeedle',
       description: '',
-      data: { filePath: '/repo/packages/app/src/TopNeedle.ts', relativeFilePath: 'src/TopNeedle.ts' },
+      data: { absPath: asHostPath('/repo/packages/app/src/TopNeedle.ts'), pkgRelPath: asPkgRelPath('src/TopNeedle.ts') },
     });
     addEdge(graph, 'pkg:app', 'mod:app/src/TopNeedle', 'contains');
     const topNeedle = makeModuleInfo('mod:app/src/TopNeedle', '/repo/packages/app/src/TopNeedle.ts');
     topNeedle.packageName = 'app';
-    topNeedle.relativeFilePath = 'src/TopNeedle.ts';
+    topNeedle.pkgRelPath = asPkgRelPath('src/TopNeedle.ts');
     modulesById.set(topNeedle.id, topNeedle);
     const searchIndex = buildAnnotatedSearchIndex(graph, {
       'mod:app/src/BetaNeedle': 'needle standing obligation',
@@ -2035,7 +2037,7 @@ describe('public v1 context tools', () => {
   it('explains empty dependency modes without pushing unrelated runtime scopes', async () => {
     const { graph, modulesById } = buildFixtureGraph();
     addNode(graph, { id: 'mod:test/gamma', type: 'module', label: 'gamma', description: '',
-      data: { filePath: '/repo/gamma.ts', relativeFilePath: 'gamma.ts' } });
+      data: { absPath: asHostPath('/repo/gamma.ts'), pkgRelPath: asPkgRelPath('gamma.ts') } });
     addEdge(graph, 'pkg:test', 'mod:test/gamma', 'contains');
     modulesById.set('mod:test/gamma', makeModuleInfo('mod:test/gamma', '/repo/gamma.ts'));
     const ctx = makeCtx({ graph, modulesById, snapshot: makeSnapshot([...modulesById.values()]) });
@@ -2248,7 +2250,7 @@ describe('public v1 context tools', () => {
       type: 'module',
       label: 'orders-handler',
       description: '',
-      data: { filePath: '/repo/orders-handler.ts', relativeFilePath: 'orders-handler.ts' },
+      data: { absPath: asHostPath('/repo/orders-handler.ts'), pkgRelPath: asPkgRelPath('orders-handler.ts') },
     });
     addEdge(graph, 'resource:aws-lambda:OrdersFunction', 'mod:test/orders-handler', 'infra');
     modulesById.set('mod:test/orders-handler', makeModuleInfo('mod:test/orders-handler', '/repo/orders-handler.ts'));
@@ -2323,7 +2325,7 @@ describe('public v1 context tools', () => {
       type: 'module',
       label: 'jobs-handler',
       description: '',
-      data: { filePath: '/repo/jobs-handler.ts', relativeFilePath: 'jobs-handler.ts' },
+      data: { absPath: asHostPath('/repo/jobs-handler.ts'), pkgRelPath: asPkgRelPath('jobs-handler.ts') },
     });
     addEdge(graph, 'resource:aws-lambda:JobsFunction', 'mod:test/jobs-handler', 'infra');
     modulesById.set('mod:test/jobs-handler', makeModuleInfo('mod:test/jobs-handler', '/repo/jobs-handler.ts'));
@@ -2544,9 +2546,9 @@ describe('get_refactoring_report', () => {
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'pkg:app', type: 'package', label: 'app', description: '' });
     addNode(g, { id: 'pkg:shared', type: 'package', label: 'shared', description: '' });
-    addNode(g, { id: 'mod:app/src/page', type: 'module', label: 'src/page', description: '', data: { relativeFilePath: 'src/page.tsx' } });
-    addNode(g, { id: 'mod:shared/src/index', type: 'module', label: 'src/index', description: '', data: { relativeFilePath: 'src/index.ts' } });
-    addNode(g, { id: 'mod:shared/src/internal/rules', type: 'module', label: 'src/internal/rules', description: '', data: { relativeFilePath: 'src/internal/rules.ts' } });
+    addNode(g, { id: 'mod:app/src/page', type: 'module', label: 'src/page', description: '', data: { pkgRelPath: asPkgRelPath('src/page.tsx') } });
+    addNode(g, { id: 'mod:shared/src/index', type: 'module', label: 'src/index', description: '', data: { pkgRelPath: asPkgRelPath('src/index.ts') } });
+    addNode(g, { id: 'mod:shared/src/internal/rules', type: 'module', label: 'src/internal/rules', description: '', data: { pkgRelPath: asPkgRelPath('src/internal/rules.ts') } });
     addNode(g, { id: 'resource:producer', type: 'runtime-resource', label: 'ProducerFn', description: 'lambda', data: { kind: 'lambda' } });
     addNode(g, { id: 'resource:consumer', type: 'runtime-resource', label: 'ConsumerFn', description: 'lambda', data: { kind: 'lambda' } });
     addNode(g, { id: 'resource:queue:jobs', type: 'runtime-resource', label: 'JobsQueue', description: 'queue', data: { kind: 'queue' } });
@@ -2561,7 +2563,7 @@ describe('get_refactoring_report', () => {
 
     const page = makeModuleInfo('mod:app/src/page', '/repo/packages/app/src/page.tsx');
     page.packageName = 'app';
-    page.relativeFilePath = 'src/page.tsx';
+    page.pkgRelPath = asPkgRelPath('src/page.tsx');
     page.imports = [{
       moduleSpecifier: 'shared/src/internal/rules',
       resolvedModuleId: 'mod:shared/src/internal/rules',
@@ -2571,10 +2573,10 @@ describe('get_refactoring_report', () => {
     }];
     const index = makeModuleInfo('mod:shared/src/index', '/repo/packages/shared/src/index.ts');
     index.packageName = 'shared';
-    index.relativeFilePath = 'src/index.ts';
+    index.pkgRelPath = asPkgRelPath('src/index.ts');
     const rules = makeModuleInfo('mod:shared/src/internal/rules', '/repo/packages/shared/src/internal/rules.ts');
     rules.packageName = 'shared';
-    rules.relativeFilePath = 'src/internal/rules.ts';
+    rules.pkgRelPath = asPkgRelPath('src/internal/rules.ts');
     rules.exports = Array.from({ length: 12 }, (_, i) => ({
       name: `rule${i}`,
       kind: 'function' as const,
@@ -2643,11 +2645,11 @@ describe('get_refactoring_report', () => {
 
     const modulesById = new Map<string, ModuleInfo>();
     const addMod = (id: string, rel: string, exports: ModuleInfo['exports'] = []): ModuleInfo => {
-      addNode(g, { id, type: 'module', label: rel, description: '', data: { relativeFilePath: rel } });
+      addNode(g, { id, type: 'module', label: rel, description: '', data: { pkgRelPath: asPkgRelPath(rel) } });
       addEdge(g, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${rel}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = rel;
+      mod.pkgRelPath = asPkgRelPath(rel);
       mod.exports = exports;
       modulesById.set(id, mod);
       return mod;
@@ -2950,11 +2952,11 @@ describe('get_refactoring_report', () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const modules: ModuleInfo[] = [];
     const addUiModule = (id: string, relativeFilePath: string, exportNames: string[], options?: { envVars?: string[] }): void => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relativeFilePath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exportNames.map((name, index) => ({
         name,
         kind: /^[A-Z]/.test(name) ? 'component' as const : 'function' as const,
@@ -2988,11 +2990,11 @@ describe('get_refactoring_report', () => {
   it('reports frontend flow convergence on shared/domain targets', async () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const addModule = (id: string, pkg: 'app' | 'shared', relativeFilePath: string, exportNames: string[]): ModuleInfo => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, `pkg:${pkg}`, id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/${pkg}/${relativeFilePath}`);
       mod.packageName = pkg;
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exportNames.map((name, index) => ({
         name,
         kind: /^[A-Z]/.test(name) ? 'component' as const : 'function' as const,
@@ -3038,11 +3040,11 @@ describe('get_refactoring_report', () => {
   it('keeps component-only flow entrypoints opt-in', async () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const addModule = (id: string, relativeFilePath: string, exportNames: string[]): ModuleInfo => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relativeFilePath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exportNames.map((name, index) => ({
         name,
         kind: /^[A-Z]/.test(name) ? 'component' as const : 'function' as const,
@@ -3076,11 +3078,11 @@ describe('get_refactoring_report', () => {
   it('groups sibling shared convergence targets and suppresses generic targets without prep overlap', async () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const addModule = (id: string, pkg: 'app' | 'shared', relativeFilePath: string, exportNames: string[]): ModuleInfo => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, `pkg:${pkg}`, id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/${pkg}/${relativeFilePath}`);
       mod.packageName = pkg;
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exportNames.map((name, index) => ({
         name,
         kind: /^[A-Z]/.test(name) ? 'component' as const : 'function' as const,
@@ -3121,11 +3123,11 @@ describe('get_refactoring_report', () => {
   it('reports state fragmentation across hooks stores and contexts in a feature', async () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const addModule = (id: string, relativeFilePath: string, exportNames: string[]): ModuleInfo => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relativeFilePath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exportNames.map((name, index) => ({
         name,
         kind: /^[A-Z]/.test(name) ? 'component' as const : 'function' as const,
@@ -3156,11 +3158,11 @@ describe('get_refactoring_report', () => {
   it('reports duplicated client policy across features', async () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const addModule = (id: string, relativeFilePath: string, exportNames: string[]): ModuleInfo => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relativeFilePath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exportNames.map((name, index) => ({
         name,
         kind: 'function' as const,
@@ -3191,11 +3193,11 @@ describe('get_refactoring_report', () => {
   it('keeps duplicated client policy focused on executable policy instead of static pages and pure types', async () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const addModule = (id: string, relativeFilePath: string, exports: Array<{ name: string; kind?: ModuleInfo['exports'][number]['kind'] }>): ModuleInfo => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relativeFilePath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exports.map((exp, index) => ({
         name: exp.name,
         kind: exp.kind ?? 'function' as const,
@@ -3231,11 +3233,11 @@ describe('get_refactoring_report', () => {
   it('uses annotations and export verbs to detect duplicated client policy', async () => {
     const { graph, modulesById } = buildRefactoringFixture();
     const addModule = (id: string, relativeFilePath: string, exportNames: string[]): ModuleInfo => {
-      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { relativeFilePath } });
+      addNode(graph, { id, type: 'module', label: relativeFilePath.replace(/\.(tsx?|jsx?)$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relativeFilePath) } });
       addEdge(graph, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relativeFilePath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relativeFilePath;
+      mod.pkgRelPath = asPkgRelPath(relativeFilePath);
       mod.exports = exportNames.map((name, index) => ({
         name,
         kind: 'function' as const,
@@ -3299,11 +3301,11 @@ describe('get_refactoring_report refactoringThresholds', () => {
     // 2 modules with same normalize key, same package → below "normal" thresholds (3 / 2)
     const addLogger = (relPath: string): void => {
       const id = `mod:app/${relPath.replace(/\.ts$/, '')}`;
-      addNode(g, { id, type: 'module', label: relPath.replace(/\.ts$/, ''), description: '', data: { relativeFilePath: relPath } });
+      addNode(g, { id, type: 'module', label: relPath.replace(/\.ts$/, ''), description: '', data: { pkgRelPath: asPkgRelPath(relPath) } });
       addEdge(g, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relPath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relPath;
+      mod.pkgRelPath = asPkgRelPath(relPath);
       modulesById.set(id, mod);
     };
     addLogger('src/lib/logger.ts');
@@ -3349,21 +3351,21 @@ describe('get_refactoring_report refactoringThresholds', () => {
     const targetId = 'mod:app/src/big-module';
     const importerId = 'mod:client/src/uses-big';
     addNode(g, { id: targetId, type: 'module', label: 'big-module', description: '',
-      data: { relativeFilePath: 'src/big-module.ts' } });
+      data: { pkgRelPath: asPkgRelPath('src/big-module.ts') } });
     addNode(g, { id: importerId, type: 'module', label: 'uses-big', description: '',
-      data: { relativeFilePath: 'src/uses-big.ts' } });
+      data: { pkgRelPath: asPkgRelPath('src/uses-big.ts') } });
     addEdge(g, 'pkg:app', targetId, 'contains');
     addEdge(g, 'pkg:client', importerId, 'contains');
     addEdge(g, importerId, targetId, 'imports');
     const target = makeModuleInfo(targetId, '/repo/packages/app/src/big-module.ts');
     target.packageName = 'app';
-    target.relativeFilePath = 'src/big-module.ts';
+    target.pkgRelPath = asPkgRelPath('src/big-module.ts');
     target.exports = Array.from({ length: 12 }, (_, i) => ({
       name: `fn${i}`, kind: 'function' as const, lineRange: { start: i * 5 + 1, end: i * 5 + 4 }, isDefault: false,
     }));
     const importer = makeModuleInfo(importerId, '/repo/packages/client/src/uses-big.ts');
     importer.packageName = 'client';
-    importer.relativeFilePath = 'src/uses-big.ts';
+    importer.pkgRelPath = asPkgRelPath('src/uses-big.ts');
     const modulesById = new Map<string, ModuleInfo>([[target.id, target], [importer.id, importer]]);
 
     // Default thresholds → finding emitted (score 19 >= 18)
@@ -3411,12 +3413,12 @@ describe('get_refactoring_report annotationReasoning mode', () => {
         type: 'module',
         label: relPath.replace(/\.ts$/, ''),
         description: '',
-        data: { relativeFilePath: relPath },
+        data: { pkgRelPath: asPkgRelPath(relPath) },
       });
       addEdge(g, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relPath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relPath;
+      mod.pkgRelPath = asPkgRelPath(relPath);
       modulesById.set(id, mod);
       return mod;
     };
@@ -3523,7 +3525,7 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     addEdge(g, 'root', 'pkg:external', 'contains');
     addNode(g, { id: 'domain:billing', type: 'domain', label: 'billing', description: '' });
     addNode(g, { id: 'mod:external/lib', type: 'module', label: 'lib', description: '',
-      data: { relativeFilePath: 'lib.ts' } });
+      data: { pkgRelPath: asPkgRelPath('lib.ts') } });
     addEdge(g, 'pkg:external', 'mod:external/lib', 'contains');
 
     const modulesById = new Map<string, ModuleInfo>();
@@ -3531,13 +3533,13 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     for (let i = 0; i < 8; i++) {
       const id = `mod:app/src/billing/m${i}`;
       addNode(g, { id, type: 'module', label: `m${i}`, description: '',
-        data: { relativeFilePath: `src/billing/m${i}.ts` } });
+        data: { pkgRelPath: asPkgRelPath(`src/billing/m${i}.ts`) } });
       addEdge(g, 'pkg:app', id, 'contains');
       addEdge(g, id, 'domain:billing', 'tagged');
       addEdge(g, id, 'mod:external/lib', 'imports');  // 1 external import each, 0 internal
       const mod = makeModuleInfo(id, `/repo/packages/app/src/billing/m${i}.ts`);
       mod.packageName = 'app';
-      mod.relativeFilePath = `src/billing/m${i}.ts`;
+      mod.pkgRelPath = asPkgRelPath(`src/billing/m${i}.ts`);
       modulesById.set(id, mod);
       moduleIds.push(id);
     }
@@ -3588,11 +3590,11 @@ describe('get_refactoring_report annotationReasoning mode', () => {
 
     const modulesById = new Map<string, ModuleInfo>();
     const addStateModule = (id: string, relPath: string, exportNames: string[]): void => {
-      addNode(g, { id, type: 'module', label: id, description: '', data: { relativeFilePath: relPath } });
+      addNode(g, { id, type: 'module', label: id, description: '', data: { pkgRelPath: asPkgRelPath(relPath) } });
       addEdge(g, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relPath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relPath;
+      mod.pkgRelPath = asPkgRelPath(relPath);
       mod.exports = exportNames.map((name, i) => ({
         name,
         kind: /^[A-Z]/.test(name) ? 'component' as const : 'function' as const,
@@ -3649,11 +3651,11 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     addEdge(g, 'root', 'pkg:app', 'contains');
     const id = 'mod:app/src/features/orders/rules';
     addNode(g, { id, type: 'module', label: 'rules', description: '',
-      data: { relativeFilePath: 'src/features/orders/rules.ts' } });
+      data: { pkgRelPath: asPkgRelPath('src/features/orders/rules.ts') } });
     addEdge(g, 'pkg:app', id, 'contains');
     const mod = makeModuleInfo(id, '/repo/packages/app/src/features/orders/rules.ts');
     mod.packageName = 'app';
-    mod.relativeFilePath = 'src/features/orders/rules.ts';
+    mod.pkgRelPath = asPkgRelPath('src/features/orders/rules.ts');
     mod.exports = ['validateOrder', 'priceOrder', 'mapOrder', 'canSubmit', 'normalizeOrder'].map((name, i) => ({
       name, kind: 'function' as const, lineRange: { start: i + 1, end: i + 1 }, isDefault: false,
     }));
@@ -3692,11 +3694,11 @@ describe('get_refactoring_report annotationReasoning mode', () => {
       addNode(g, { id: 'pkg:app', type: 'package', label: 'app', description: '' });
       addNode(g, { id: 'pkg:shared', type: 'package', label: 'shared', description: '' });
       addNode(g, { id: 'mod:app/src/page', type: 'module', label: 'src/page', description: '',
-        data: { relativeFilePath: 'src/page.tsx' } });
+        data: { pkgRelPath: asPkgRelPath('src/page.tsx') } });
       addNode(g, { id: 'mod:shared/src/index', type: 'module', label: 'src/index', description: '',
-        data: { relativeFilePath: 'src/index.ts' } });
+        data: { pkgRelPath: asPkgRelPath('src/index.ts') } });
       addNode(g, { id: 'mod:shared/src/internal/rules', type: 'module', label: 'src/internal/rules', description: '',
-        data: { relativeFilePath: 'src/internal/rules.ts' } });
+        data: { pkgRelPath: asPkgRelPath('src/internal/rules.ts') } });
       addEdge(g, 'root', 'pkg:app', 'contains');
       addEdge(g, 'root', 'pkg:shared', 'contains');
       addEdge(g, 'pkg:app', 'mod:app/src/page', 'contains');
@@ -3706,15 +3708,15 @@ describe('get_refactoring_report annotationReasoning mode', () => {
 
       const page = makeModuleInfo('mod:app/src/page', '/repo/packages/app/src/page.tsx');
       page.packageName = 'app';
-      page.relativeFilePath = 'src/page.tsx';
+      page.pkgRelPath = asPkgRelPath('src/page.tsx');
       page.imports = [{ moduleSpecifier: 'shared/src/internal/rules', resolvedModuleId: 'mod:shared/src/internal/rules',
         importedNames: ['applyRules'], isTypeOnly: false, isExternal: false }];
       const index = makeModuleInfo('mod:shared/src/index', '/repo/packages/shared/src/index.ts');
       index.packageName = 'shared';
-      index.relativeFilePath = 'src/index.ts';
+      index.pkgRelPath = asPkgRelPath('src/index.ts');
       const rules = makeModuleInfo('mod:shared/src/internal/rules', '/repo/packages/shared/src/internal/rules.ts');
       rules.packageName = 'shared';
-      rules.relativeFilePath = 'src/internal/rules.ts';
+      rules.pkgRelPath = asPkgRelPath('src/internal/rules.ts');
       return { graph: g, modulesById: new Map<string, ModuleInfo>([[page.id, page], [index.id, index], [rules.id, rules]]) };
     })();
 
@@ -3751,11 +3753,11 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     addEdge(g, 'root', 'pkg:app', 'contains');
     const id = 'mod:app/src/types';
     addNode(g, { id, type: 'module', label: 'types', description: '',
-      data: { relativeFilePath: 'src/types.ts' } });
+      data: { pkgRelPath: asPkgRelPath('src/types.ts') } });
     addEdge(g, 'pkg:app', id, 'contains');
     const mod = makeModuleInfo(id, '/repo/packages/app/src/types.ts');
     mod.packageName = 'app';
-    mod.relativeFilePath = 'src/types.ts';
+    mod.pkgRelPath = asPkgRelPath('src/types.ts');
     mod.exports = Array.from({ length: 20 }, (_, i) => ({
       name: `Type${i}`, kind: 'type' as const, lineRange: { start: i + 1, end: i + 1 }, isDefault: false,
     }));
@@ -3793,11 +3795,11 @@ describe('get_refactoring_report annotationReasoning mode', () => {
 
     const modulesById = new Map<string, ModuleInfo>();
     const addPolicy = (id: string, relPath: string, exportName: string): void => {
-      addNode(g, { id, type: 'module', label: id, description: '', data: { relativeFilePath: relPath } });
+      addNode(g, { id, type: 'module', label: id, description: '', data: { pkgRelPath: asPkgRelPath(relPath) } });
       addEdge(g, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relPath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relPath;
+      mod.pkgRelPath = asPkgRelPath(relPath);
       mod.exports = [{ name: exportName, kind: 'function', lineRange: { start: 1, end: 1 }, isDefault: false }];
       modulesById.set(id, mod);
     };
@@ -3844,19 +3846,19 @@ describe('get_refactoring_report annotationReasoning mode', () => {
     addEdge(g, 'root', 'pkg:app', 'contains');
     addEdge(g, 'root', 'pkg:shared', 'contains');
     addNode(g, { id: 'mod:shared/src/internal/rules', type: 'module', label: 'rules', description: '',
-      data: { relativeFilePath: 'src/internal/rules.ts' } });
+      data: { pkgRelPath: asPkgRelPath('src/internal/rules.ts') } });
     addEdge(g, 'pkg:shared', 'mod:shared/src/internal/rules', 'contains');
     const rulesInfo = makeModuleInfo('mod:shared/src/internal/rules', '/repo/packages/shared/src/internal/rules.ts');
     rulesInfo.packageName = 'shared';
-    rulesInfo.relativeFilePath = 'src/internal/rules.ts';
+    rulesInfo.pkgRelPath = asPkgRelPath('src/internal/rules.ts');
     const modulesById = new Map<string, ModuleInfo>([[rulesInfo.id, rulesInfo]]);
 
     const addAppMod = (id: string, relPath: string, exportNames: string[]): ModuleInfo => {
-      addNode(g, { id, type: 'module', label: id, description: '', data: { relativeFilePath: relPath } });
+      addNode(g, { id, type: 'module', label: id, description: '', data: { pkgRelPath: asPkgRelPath(relPath) } });
       addEdge(g, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relPath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relPath;
+      mod.pkgRelPath = asPkgRelPath(relPath);
       mod.exports = exportNames.map((name, i) => ({
         name, kind: /^[A-Z]/.test(name) ? 'component' as const : 'function' as const,
         lineRange: { start: i + 1, end: i + 1 }, isDefault: false,
@@ -3916,11 +3918,11 @@ describe('get_refactoring_report annotationReasoning mode', () => {
 
     const modulesById = new Map<string, ModuleInfo>();
     const addComponentModule = (id: string, relPath: string, exportName: string): ModuleInfo => {
-      addNode(g, { id, type: 'module', label: relPath, description: '', data: { relativeFilePath: relPath } });
+      addNode(g, { id, type: 'module', label: relPath, description: '', data: { pkgRelPath: asPkgRelPath(relPath) } });
       addEdge(g, 'pkg:app', id, 'contains');
       const mod = makeModuleInfo(id, `/repo/packages/app/${relPath}`);
       mod.packageName = 'app';
-      mod.relativeFilePath = relPath;
+      mod.pkgRelPath = asPkgRelPath(relPath);
       mod.exports = [{ name: exportName, kind: 'component', lineRange: { start: 1, end: 80 }, isDefault: false }];
       modulesById.set(id, mod);
       return mod;
@@ -4089,7 +4091,7 @@ describe('get_context_detail', () => {
 
   it('refuses to include source body outside the repo root', async () => {
     const ctx = makeCtx();
-    ctx.getState().modulesById.get('mod:test/alpha')!.filePath = '/tmp/outside.ts';
+    ctx.getState().modulesById.get('mod:test/alpha')!.absPath = asHostPath('/tmp/outside.ts');
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
       const result = await buildInspectNodeDetail(ctx, { nodeId: 'mod:test/alpha', includeBody: true }) as Record<string, unknown>;
@@ -4430,7 +4432,7 @@ describe('analyze_dependencies output bounding', () => {
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'pkg:app', type: 'package', label: 'app', description: '' });
     addNode(g, { id: 'mod:app/validator', type: 'module', label: 'validator.ts', description: '',
-      data: { filePath: '/repo/src/validator.ts', relativeFilePath: 'src/validator.ts' } });
+      data: { absPath: asHostPath('/repo/src/validator.ts'), pkgRelPath: asPkgRelPath('src/validator.ts') } });
     addNode(g, { id: 'export:app/validator/validateMonitor', type: 'export-symbol', label: 'validateMonitor', description: '',
       data: { signature: 'function validateMonitor(): void', symbolKind: 'function', lineRange: { start: 1, end: 3 } } });
     addEdge(g, 'root', 'pkg:app', 'contains');
@@ -4439,7 +4441,7 @@ describe('analyze_dependencies output bounding', () => {
 
     const validator = makeModuleInfo('mod:app/validator', '/repo/src/validator.ts');
     validator.packageName = 'app';
-    validator.relativeFilePath = 'src/validator.ts';
+    validator.pkgRelPath = asPkgRelPath('src/validator.ts');
     validator.exports = [{
       name: 'validateMonitor',
       kind: 'function',
@@ -4453,12 +4455,12 @@ describe('analyze_dependencies output bounding', () => {
 
     if (options.includeResolvedCaller) {
       addNode(g, { id: 'mod:app/resolved-caller', type: 'module', label: 'resolved-caller.ts', description: '',
-        data: { filePath: '/repo/src/resolved-caller.ts', relativeFilePath: 'src/resolved-caller.ts' } });
+        data: { absPath: asHostPath('/repo/src/resolved-caller.ts'), pkgRelPath: asPkgRelPath('src/resolved-caller.ts') } });
       addEdge(g, 'pkg:app', 'mod:app/resolved-caller', 'contains');
       addEdge(g, 'mod:app/resolved-caller', 'mod:app/validator', 'imports');
       const resolved = makeModuleInfo('mod:app/resolved-caller', '/repo/src/resolved-caller.ts');
       resolved.packageName = 'app';
-      resolved.relativeFilePath = 'src/resolved-caller.ts';
+      resolved.pkgRelPath = asPkgRelPath('src/resolved-caller.ts');
       resolved.imports = [{
         moduleSpecifier: './validator',
         resolvedModuleId: 'mod:app/validator',
@@ -4472,11 +4474,11 @@ describe('analyze_dependencies output bounding', () => {
     for (let i = 0; i < nameMatchedCount; i++) {
       const id = `mod:app/formatter-${i}`;
       addNode(g, { id, type: 'module', label: `formatter-${i}.ts`, description: '',
-        data: { filePath: `/repo/src/formatter-${i}.ts`, relativeFilePath: `src/formatter-${i}.ts` } });
+        data: { absPath: asHostPath(`/repo/src/formatter-${i}.ts`), pkgRelPath: asPkgRelPath(`src/formatter-${i}.ts`) } });
       addEdge(g, 'pkg:app', id, 'contains');
       const formatter = makeModuleInfo(id, `/repo/src/formatter-${i}.ts`);
       formatter.packageName = 'app';
-      formatter.relativeFilePath = `src/formatter-${i}.ts`;
+      formatter.pkgRelPath = asPkgRelPath(`src/formatter-${i}.ts`);
       formatter.exports = [{
         name: `ProjectMonitorFormatter${i}`,
         kind: 'function',
@@ -4493,13 +4495,13 @@ describe('analyze_dependencies output bounding', () => {
   function highFanCtx(importerCount: number): McpToolRuntime {
     const { graph, modulesById } = buildFixtureGraph();
     addNode(graph, { id: 'mod:test/hub', type: 'module', label: 'hub', description: '',
-      data: { filePath: '/repo/hub.ts', relativeFilePath: 'hub.ts' } });
+      data: { absPath: asHostPath('/repo/hub.ts'), pkgRelPath: asPkgRelPath('hub.ts') } });
     addEdge(graph, 'pkg:test', 'mod:test/hub', 'contains');
     modulesById.set('mod:test/hub', makeModuleInfo('mod:test/hub', '/repo/hub.ts'));
     for (let i = 0; i < importerCount; i++) {
       const id = `mod:test/importer-${i}`;
       addNode(graph, { id, type: 'module', label: `importer-${i}`, description: '',
-        data: { filePath: `/repo/importer-${i}.ts`, relativeFilePath: `importer-${i}.ts` } });
+        data: { absPath: asHostPath(`/repo/importer-${i}.ts`), pkgRelPath: asPkgRelPath(`importer-${i}.ts`) } });
       addEdge(graph, 'pkg:test', id, 'contains');
       addEdge(graph, id, 'mod:test/hub', 'imports');
       const info = makeModuleInfo(id, `/repo/importer-${i}.ts`);
@@ -4514,7 +4516,7 @@ describe('analyze_dependencies output bounding', () => {
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'pkg:test', type: 'package', label: 'test', description: '' });
     addNode(g, { id: 'mod:test/contracts', type: 'module', label: 'contracts', description: '',
-      data: { filePath: '/repo/contracts.ts', relativeFilePath: 'contracts.ts' } });
+      data: { absPath: asHostPath('/repo/contracts.ts'), pkgRelPath: asPkgRelPath('contracts.ts') } });
     addNode(g, { id: 'export:test/contracts/IThing', type: 'export-symbol', label: 'IThing', description: '',
       data: { signature: 'interface IThing', symbolKind: 'interface', lineRange: { start: 1, end: 3 } } });
     addEdge(g, 'root', 'pkg:test', 'contains');
@@ -4524,7 +4526,7 @@ describe('analyze_dependencies output bounding', () => {
       const modId = `mod:test/impl-${i}`;
       const clsId = `export:test/impl-${i}/Impl${i}`;
       addNode(g, { id: modId, type: 'module', label: `impl-${i}`, description: '',
-        data: { filePath: `/repo/impl-${i}.ts`, relativeFilePath: `impl-${i}.ts` } });
+        data: { absPath: asHostPath(`/repo/impl-${i}.ts`), pkgRelPath: asPkgRelPath(`impl-${i}.ts`) } });
       addNode(g, { id: clsId, type: 'export-symbol', label: `Impl${i}`, description: '',
         data: { signature: `class Impl${i} implements IThing`, symbolKind: 'class', lineRange: { start: 1, end: 5 } } });
       addEdge(g, 'pkg:test', modId, 'contains');
@@ -4544,7 +4546,7 @@ describe('analyze_dependencies output bounding', () => {
     const mk = (pkg: string, name: string): string => {
       const id = `mod:${pkg}/src/${name}`;
       addNode(g, { id, type: 'module', label: `src/${name}`, description: '',
-        data: { filePath: `/repo/packages/${pkg}/src/${name}.ts`, relativeFilePath: `src/${name}.ts` } });
+        data: { absPath: asHostPath(`/repo/packages/${pkg}/src/${name}.ts`), pkgRelPath: asPkgRelPath(`src/${name}.ts`) } });
       addEdge(g, `pkg:${pkg}`, id, 'contains');
       return id;
     };
@@ -4721,8 +4723,8 @@ describe('analyze_architecture report node bounding', () => {
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'pkg:app', type: 'package', label: 'app', description: '' });
     addNode(g, { id: 'pkg:shared', type: 'package', label: 'shared', description: '' });
-    addNode(g, { id: 'mod:shared/src/index', type: 'module', label: 'src/index', description: '', data: { relativeFilePath: 'src/index.ts' } });
-    addNode(g, { id: 'mod:shared/src/internal/rules', type: 'module', label: 'src/internal/rules', description: '', data: { relativeFilePath: 'src/internal/rules.ts' } });
+    addNode(g, { id: 'mod:shared/src/index', type: 'module', label: 'src/index', description: '', data: { pkgRelPath: asPkgRelPath('src/index.ts') } });
+    addNode(g, { id: 'mod:shared/src/internal/rules', type: 'module', label: 'src/internal/rules', description: '', data: { pkgRelPath: asPkgRelPath('src/internal/rules.ts') } });
     addEdge(g, 'root', 'pkg:app', 'contains');
     addEdge(g, 'root', 'pkg:shared', 'contains');
     addEdge(g, 'pkg:shared', 'mod:shared/src/index', 'contains');
@@ -4730,20 +4732,20 @@ describe('analyze_architecture report node bounding', () => {
     const modulesById = new Map<string, ModuleInfo>();
     const rules = makeModuleInfo('mod:shared/src/internal/rules', '/repo/packages/shared/src/internal/rules.ts');
     rules.packageName = 'shared';
-    rules.relativeFilePath = 'src/internal/rules.ts';
+    rules.pkgRelPath = asPkgRelPath('src/internal/rules.ts');
     modulesById.set(rules.id, rules);
     const index = makeModuleInfo('mod:shared/src/index', '/repo/packages/shared/src/index.ts');
     index.packageName = 'shared';
-    index.relativeFilePath = 'src/index.ts';
+    index.pkgRelPath = asPkgRelPath('src/index.ts');
     modulesById.set(index.id, index);
     for (let i = 0; i < importerCount; i++) {
       const id = `mod:app/src/consumer-${i}`;
-      addNode(g, { id, type: 'module', label: `src/consumer-${i}`, description: '', data: { relativeFilePath: `src/consumer-${i}.ts` } });
+      addNode(g, { id, type: 'module', label: `src/consumer-${i}`, description: '', data: { pkgRelPath: asPkgRelPath(`src/consumer-${i}.ts`) } });
       addEdge(g, 'pkg:app', id, 'contains');
       addEdge(g, id, 'mod:shared/src/internal/rules', 'imports');
       const info = makeModuleInfo(id, `/repo/packages/app/src/consumer-${i}.ts`);
       info.packageName = 'app';
-      info.relativeFilePath = `src/consumer-${i}.ts`;
+      info.pkgRelPath = asPkgRelPath(`src/consumer-${i}.ts`);
       info.imports = [{ moduleSpecifier: 'shared/src/internal/rules', resolvedModuleId: 'mod:shared/src/internal/rules', importedNames: ['applyRules'], isTypeOnly: false, isExternal: false }];
       modulesById.set(id, info);
     }
@@ -4858,9 +4860,9 @@ describe('get_domain_modules_slice — primary vs secondary tags', () => {
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'pkg:test', type: 'package', label: 'test', description: '' });
     addNode(g, { id: 'mod:test/auth-mod', type: 'module', label: 'auth-mod', description: '',
-      data: { filePath: '/repo/auth-mod.ts', relativeFilePath: 'auth-mod.ts' } });
+      data: { absPath: asHostPath('/repo/auth-mod.ts'), pkgRelPath: asPkgRelPath('auth-mod.ts') } });
     addNode(g, { id: 'mod:test/utils-mod', type: 'module', label: 'utils-mod', description: '',
-      data: { filePath: '/repo/utils-mod.ts', relativeFilePath: 'utils-mod.ts' } });
+      data: { absPath: asHostPath('/repo/utils-mod.ts'), pkgRelPath: asPkgRelPath('utils-mod.ts') } });
     addNode(g, { id: 'domain:auth', type: 'domain', label: 'auth', description: '' });
     addEdge(g, 'root', 'pkg:test', 'contains');
     addEdge(g, 'pkg:test', 'mod:test/auth-mod', 'contains');
@@ -4957,9 +4959,9 @@ describe('get_domain_or_focus_context — pagination', () => {
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'pkg:test', type: 'package', label: 'test', description: '' });
     addNode(g, { id: 'mod:test/low', type: 'module', label: 'low', description: '',
-      data: { filePath: '/repo/low.ts', relativeFilePath: 'low.ts' } });
+      data: { absPath: asHostPath('/repo/low.ts'), pkgRelPath: asPkgRelPath('low.ts') } });
     addNode(g, { id: 'mod:test/high', type: 'module', label: 'high', description: '',
-      data: { filePath: '/repo/high.ts', relativeFilePath: 'high.ts' } });
+      data: { absPath: asHostPath('/repo/high.ts'), pkgRelPath: asPkgRelPath('high.ts') } });
     addNode(g, { id: 'domain:auth', type: 'domain', label: 'auth', description: '', data: { tier: 'business' } });
     addEdge(g, 'root', 'pkg:test', 'contains');
     addEdge(g, 'pkg:test', 'mod:test/low', 'contains');
@@ -5006,7 +5008,7 @@ describe('get_annotation_status coverage — compact response', () => {
   function buildStatsCtx(getStatsImpl: () => unknown): McpToolRuntime {
     const g = createEmptyGraph();
     addNode(g, { id: 'mod:test/x', type: 'module', label: 'x', description: '',
-      data: { filePath: '/repo/x.ts', relativeFilePath: 'x.ts' } });
+      data: { absPath: asHostPath('/repo/x.ts'), pkgRelPath: asPkgRelPath('x.ts') } });
 
     const annotations = {
       get: () => undefined,
@@ -5020,7 +5022,7 @@ describe('get_annotation_status coverage — compact response', () => {
     const state: RepovineState = {
       graph: g,
       snapshot: { repoRoot: '/repo', timestamp: '2024-01-01', packages: [],
-        modules: [{ id: 'mod:test/x', packageName: 'test', filePath: '/repo/x.ts', relativeFilePath: 'x.ts', contentHash: 'h', imports: [], exports: [] }] },
+        modules: [{ id: 'mod:test/x', packageName: 'test', absPath: asHostPath('/repo/x.ts'), pkgRelPath: asPkgRelPath('x.ts'), contentHash: 'h', imports: [], exports: [] }] },
       modulesById: new Map(),
       searchIndex: { tokens: new Map(), annotationText: new Map() },
       semanticIndex: null,
@@ -5061,9 +5063,9 @@ describe('get_annotation_status coverage — compact response', () => {
   it('reports an advisory inconsistent count over a module note with drifted keyExports', () => {
     const g = createEmptyGraph();
     addNode(g, { id: 'mod:test/drift', type: 'module', label: 'drift', description: '',
-      data: { filePath: '/repo/drift.ts', relativeFilePath: 'drift.ts' } });
+      data: { absPath: asHostPath('/repo/drift.ts'), pkgRelPath: asPkgRelPath('drift.ts') } });
     const mod: ModuleInfo = {
-      id: 'mod:test/drift', packageName: 'test', filePath: '/repo/drift.ts', relativeFilePath: 'drift.ts',
+      id: 'mod:test/drift', packageName: 'test', absPath: asHostPath('/repo/drift.ts'), pkgRelPath: asPkgRelPath('drift.ts'),
       contentHash: 'h', imports: [],
       exports: [{ name: 'realFn', kind: 'function', lineRange: { start: 1, end: 5 }, isDefault: false }],
     } as unknown as ModuleInfo;
@@ -5085,7 +5087,7 @@ describe('get_annotation_status coverage — compact response', () => {
     } as unknown as RepovineState['annotations'];
     // env module: has a captured export + no detected env vars, so its only issue is env (advisory)
     modulesById.set('mod:test/env', {
-      id: 'mod:test/env', packageName: 'test', filePath: '/repo/env.ts', relativeFilePath: 'env.ts',
+      id: 'mod:test/env', packageName: 'test', absPath: asHostPath('/repo/env.ts'), pkgRelPath: asPkgRelPath('env.ts'),
       contentHash: 'h', imports: [],
       exports: [{ name: 'cfg', kind: 'const', lineRange: { start: 1, end: 2 }, isDefault: false }],
     } as unknown as ModuleInfo);
@@ -5397,18 +5399,18 @@ describe('get_cross_package_dependencies — grouped boundary violations + sugge
 
     // shared/src/index — package public API
     addNode(g, { id: 'mod:shared/src/index', type: 'module', label: '…/shared/index', description: '',
-      data: { filePath: '/repo/packages/shared/src/index.ts', relativeFilePath: 'src/index.ts' } });
+      data: { absPath: asHostPath('/repo/packages/shared/src/index.ts'), pkgRelPath: asPkgRelPath('src/index.ts') } });
     // shared/src/auth/index — auth/ sibling-index (the heuristic checks for one of these)
     addNode(g, { id: 'mod:shared/src/auth/index', type: 'module', label: '…/auth/index', description: '',
-      data: { filePath: '/repo/packages/shared/src/auth/index.ts', relativeFilePath: 'src/auth/index.ts' } });
+      data: { absPath: asHostPath('/repo/packages/shared/src/auth/index.ts'), pkgRelPath: asPkgRelPath('src/auth/index.ts') } });
     // shared/src/auth/middleware — deep target
     addNode(g, { id: 'mod:shared/src/auth/middleware', type: 'module', label: '…/auth/middleware', description: '',
-      data: { filePath: '/repo/packages/shared/src/auth/middleware.ts', relativeFilePath: 'src/auth/middleware.ts' } });
+      data: { absPath: asHostPath('/repo/packages/shared/src/auth/middleware.ts'), pkgRelPath: asPkgRelPath('src/auth/middleware.ts') } });
     // Two importers in `app` both reaching the same deep module
     addNode(g, { id: 'mod:app/src/handler-a', type: 'module', label: 'handler-a', description: '',
-      data: { filePath: '/repo/packages/app/src/handler-a.ts', relativeFilePath: 'src/handler-a.ts' } });
+      data: { absPath: asHostPath('/repo/packages/app/src/handler-a.ts'), pkgRelPath: asPkgRelPath('src/handler-a.ts') } });
     addNode(g, { id: 'mod:app/src/handler-b', type: 'module', label: 'handler-b', description: '',
-      data: { filePath: '/repo/packages/app/src/handler-b.ts', relativeFilePath: 'src/handler-b.ts' } });
+      data: { absPath: asHostPath('/repo/packages/app/src/handler-b.ts'), pkgRelPath: asPkgRelPath('src/handler-b.ts') } });
 
     addEdge(g, 'pkg:shared', 'mod:shared/src/index', 'contains');
     addEdge(g, 'pkg:shared', 'mod:shared/src/auth/index', 'contains');
@@ -5419,8 +5421,8 @@ describe('get_cross_package_dependencies — grouped boundary violations + sugge
     addEdge(g, 'mod:app/src/handler-b', 'mod:shared/src/auth/middleware', 'imports');
 
     const modulesById = new Map<string, ModuleInfo>([
-      ['mod:app/src/handler-a', { id: 'mod:app/src/handler-a', packageName: 'app', filePath: '/repo/packages/app/src/handler-a.ts', relativeFilePath: 'src/handler-a.ts', contentHash: 'h1', imports: [{ moduleSpecifier: '../../shared/src/auth/middleware', resolvedModuleId: 'mod:shared/src/auth/middleware', importedNames: ['authMiddleware', 'checkAuth'], isTypeOnly: false, isExternal: false }], exports: [] }],
-      ['mod:app/src/handler-b', { id: 'mod:app/src/handler-b', packageName: 'app', filePath: '/repo/packages/app/src/handler-b.ts', relativeFilePath: 'src/handler-b.ts', contentHash: 'h2', imports: [{ moduleSpecifier: '../../shared/src/auth/middleware', resolvedModuleId: 'mod:shared/src/auth/middleware', importedNames: ['getCorsHeaders'], isTypeOnly: false, isExternal: false }], exports: [] }],
+      ['mod:app/src/handler-a', { id: 'mod:app/src/handler-a', packageName: 'app', absPath: asHostPath('/repo/packages/app/src/handler-a.ts'), pkgRelPath: asPkgRelPath('src/handler-a.ts'), contentHash: 'h1', imports: [{ moduleSpecifier: '../../shared/src/auth/middleware', resolvedModuleId: 'mod:shared/src/auth/middleware', importedNames: ['authMiddleware', 'checkAuth'], isTypeOnly: false, isExternal: false }], exports: [] }],
+      ['mod:app/src/handler-b', { id: 'mod:app/src/handler-b', packageName: 'app', absPath: asHostPath('/repo/packages/app/src/handler-b.ts'), pkgRelPath: asPkgRelPath('src/handler-b.ts'), contentHash: 'h2', imports: [{ moduleSpecifier: '../../shared/src/auth/middleware', resolvedModuleId: 'mod:shared/src/auth/middleware', importedNames: ['getCorsHeaders'], isTypeOnly: false, isExternal: false }], exports: [] }],
     ]);
 
     const annotations = {
@@ -5484,7 +5486,7 @@ describe('get_cross_package_dependencies — grouped boundary violations + sugge
       type: 'module',
       label: '…/shared/setup',
       description: '',
-      data: { filePath: '/repo/packages/shared/src/setup.ts', relativeFilePath: 'src/setup.ts' },
+      data: { absPath: asHostPath('/repo/packages/shared/src/setup.ts'), pkgRelPath: asPkgRelPath('src/setup.ts') },
     });
     addEdge(graph, 'pkg:shared', 'mod:shared/src/setup', 'contains');
     addEdge(graph, 'mod:app/src/handler-a', 'mod:shared/src/setup', 'imports');
@@ -5541,8 +5543,8 @@ describe('inferFileBasedRoutes — file-based routes across frameworks', () => {
     return {
       id,
       packageName: 'app',
-      filePath: `/repo/${relativeFilePath}`,
-      relativeFilePath,
+      absPath: asHostPath(`/repo/${relativeFilePath}`),
+      pkgRelPath: asPkgRelPath(relativeFilePath),
       contentHash: 'h',
       imports: [],
       exports: [],
@@ -5551,10 +5553,10 @@ describe('inferFileBasedRoutes — file-based routes across frameworks', () => {
   }
   function mkFileRouteMod(
     id: string,
-    relativeFilePath: string,
+    pkgRelPath: string,
     route: { path: string; framework: string; fileType: string; kind?: 'frontend' | 'api' },
   ): ModuleInfo {
-    return mkMod(id, relativeFilePath, {
+    return mkMod(id, pkgRelPath, {
       semanticHints: {
         hasRoutes: true,
         routes: [{

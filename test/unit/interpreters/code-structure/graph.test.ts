@@ -1,3 +1,5 @@
+import { asRepoRelPath } from '@repovine/plugin-sdk';
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it } from '@jest/globals';
 import { createEmptyGraph } from '../../../../src/graph/index.js';
 import { contributeStructural } from '../../../../src/interpreters/code-structure/graph.js';
@@ -7,7 +9,7 @@ function snapshotOf(modules: ModuleInfo[]): RepositoryFactsSnapshot {
   return {
     repoRoot: '/repo',
     timestamp: '2026-06-13T00:00:00.000Z',
-    packages: [{ name: 'app', path: 'packages/app', sourcePluginId: 'typescript' }],
+    packages: [{ name: 'app', repoRelDir: asRepoRelPath('packages/app'), sourcePluginId: 'typescript' }],
     modules,
   };
 }
@@ -17,8 +19,8 @@ describe('code-structure graph contribution', () => {
     const alpha: ModuleInfo = {
       id: 'mod:app/alpha',
       packageName: 'app',
-      filePath: '/repo/packages/app/alpha.ts',
-      relativeFilePath: 'alpha.ts',
+      absPath: asHostPath('/repo/packages/app/alpha.ts'),
+      pkgRelPath: asPkgRelPath('alpha.ts'),
       contentHash: 'a',
       imports: [],
       exports: [{ name: 'Foo', kind: 'function', signature: 'function Foo(): void', lineRange: { start: 1, end: 3 }, isDefault: false }],
@@ -27,8 +29,8 @@ describe('code-structure graph contribution', () => {
     const beta: ModuleInfo = {
       id: 'mod:app/beta',
       packageName: 'app',
-      filePath: '/repo/packages/app/beta.ts',
-      relativeFilePath: 'beta.ts',
+      absPath: asHostPath('/repo/packages/app/beta.ts'),
+      pkgRelPath: asPkgRelPath('beta.ts'),
       contentHash: 'b',
       imports: [{ moduleSpecifier: './alpha', resolvedModuleId: 'mod:app/alpha', importedNames: ['Foo'], isTypeOnly: false, isExternal: false }],
       exports: [],
@@ -51,18 +53,18 @@ describe('code-structure graph contribution', () => {
       { from: 'mod:app/beta', to: 'mod:app/alpha', kind: 'imports' },
     ]));
 
-    // Module node preserves the data fields the handoff requires to stay byte-identical.
+    // Module node keeps the same three-base vocabulary as the public module contract.
     expect(graph.nodes.get('mod:app/alpha')?.data).toMatchObject({
-      filePath: '/repo/packages/app/alpha.ts',
-      relativeFilePath: 'alpha.ts',
+      absPath: '/repo/packages/app/alpha.ts',
+      pkgRelPath: 'alpha.ts',
       sourcePluginId: 'typescript',
     });
   });
 
   it('flags a pure `import type` edge with metadata.isTypeOnly; a mixed value+type edge stays runtime', () => {
     const target: ModuleInfo = {
-      id: 'mod:app/target', packageName: 'app', filePath: '/repo/packages/app/target.ts',
-      relativeFilePath: 'target.ts', contentHash: 't', imports: [],
+      id: 'mod:app/target', packageName: 'app', absPath: asHostPath('/repo/packages/app/target.ts'),
+      pkgRelPath: asPkgRelPath('target.ts'), contentHash: 't', imports: [],
       exports: [
         { name: 'TVal', kind: 'function', signature: 'function TVal(): void', lineRange: { start: 1, end: 3 }, isDefault: false },
         { name: 'TType', kind: 'type', signature: 'type TType = number', lineRange: { start: 5, end: 5 }, isDefault: false },
@@ -70,14 +72,14 @@ describe('code-structure graph contribution', () => {
       sourcePluginId: 'typescript',
     };
     const typeOnly: ModuleInfo = {
-      id: 'mod:app/type-only', packageName: 'app', filePath: '/repo/packages/app/type-only.ts',
-      relativeFilePath: 'type-only.ts', contentHash: 'to',
+      id: 'mod:app/type-only', packageName: 'app', absPath: asHostPath('/repo/packages/app/type-only.ts'),
+      pkgRelPath: asPkgRelPath('type-only.ts'), contentHash: 'to',
       imports: [{ moduleSpecifier: './target', resolvedModuleId: 'mod:app/target', importedNames: ['TType'], isTypeOnly: true, isExternal: false }],
       exports: [], sourcePluginId: 'typescript',
     };
     const mixed: ModuleInfo = {
-      id: 'mod:app/mixed', packageName: 'app', filePath: '/repo/packages/app/mixed.ts',
-      relativeFilePath: 'mixed.ts', contentHash: 'mx',
+      id: 'mod:app/mixed', packageName: 'app', absPath: asHostPath('/repo/packages/app/mixed.ts'),
+      pkgRelPath: asPkgRelPath('mixed.ts'), contentHash: 'mx',
       imports: [
         { moduleSpecifier: './target', resolvedModuleId: 'mod:app/target', importedNames: ['TType'], isTypeOnly: true, isExternal: false },
         { moduleSpecifier: './target', resolvedModuleId: 'mod:app/target', importedNames: ['TVal'], isTypeOnly: false, isExternal: false },
@@ -100,8 +102,8 @@ describe('code-structure graph contribution', () => {
     const ports: ModuleInfo = {
       id: 'mod:app/ports',
       packageName: 'app',
-      filePath: '/repo/packages/app/ports.ts',
-      relativeFilePath: 'ports.ts',
+      absPath: asHostPath('/repo/packages/app/ports.ts'),
+      pkgRelPath: asPkgRelPath('ports.ts'),
       contentHash: 'p',
       imports: [],
       exports: [
@@ -112,8 +114,8 @@ describe('code-structure graph contribution', () => {
     const repo: ModuleInfo = {
       id: 'mod:app/repo',
       packageName: 'app',
-      filePath: '/repo/packages/app/repo.ts',
-      relativeFilePath: 'repo.ts',
+      absPath: asHostPath('/repo/packages/app/repo.ts'),
+      pkgRelPath: asPkgRelPath('repo.ts'),
       contentHash: 'r',
       imports: [
         { moduleSpecifier: './ports', resolvedModuleId: 'mod:app/ports', importedNames: ['IRepo'], isTypeOnly: false, isExternal: false },

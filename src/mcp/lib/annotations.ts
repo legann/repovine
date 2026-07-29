@@ -489,7 +489,7 @@ export function getAnnotationsStats(ctx: McpToolRuntime, args: Record<string, un
     for (const mod of snapshot.modules) {
       if (annotationsData[mod.id]) continue;
       const downstreamCount = importerCount(graph, mod.id);
-      const label = moduleLabelOf(graph, mod);
+      const label = moduleLabelOf(graph, mod, mod.pkgRelPath);
       scored.push({ nodeId: mod.id, label, downstreamCount });
     }
     scored.sort((a, b) => b.downstreamCount - a.downstreamCount);

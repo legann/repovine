@@ -15,7 +15,7 @@ import type { RepositoryFactsSnapshot, RepositoryGraph } from '../../src/types.j
 
 function relativeModulePaths(root: string, snapshot: RepositoryFactsSnapshot): string[] {
   return snapshot.modules
-    .map(module => path.relative(root, module.filePath).split(path.sep).join('/'))
+    .map(module => path.relative(root, module.absPath).split(path.sep).join('/'))
     .sort();
 }
 
@@ -66,7 +66,7 @@ describe('harness brief behavioral contracts', () => {
 
   it('does not equate package identity with the presence of package.json', () => {
     expect(fs.existsSync(path.join(repoRoot, 'package.json'))).toBe(false);
-    const rootPackage = snapshot.packages.find(pkg => pkg.path === '.');
+    const rootPackage = snapshot.packages.find(pkg => pkg.repoRelDir === '.');
     expect(rootPackage).toBeDefined();
     expect(graph.nodes.has(`pkg:${rootPackage!.name}`)).toBe(true);
     expect(brief).toContain('a workspace root with tsconfig.json or pyproject.toml may have a pkg: node');

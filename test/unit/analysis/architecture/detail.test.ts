@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import {
   nodeFreshnessLookup,
   runRefactoringOpportunityDetail,
@@ -37,8 +38,8 @@ function makeMod(
   return {
     id,
     packageName,
-    filePath: `/repo/packages/${packageName}/${relativeFilePath}`,
-    relativeFilePath,
+    absPath: asHostPath(`/repo/packages/${packageName}/${relativeFilePath}`),
+    pkgRelPath: asPkgRelPath(relativeFilePath),
     contentHash: 'h1',
     imports: [],
     exports: [],
@@ -91,11 +92,11 @@ function buildState(modules: ModuleInfo[], annotations: StoredAnnotation[] = [])
     addNode(graph, {
       id: mod.id,
       type: 'module',
-      label: mod.relativeFilePath,
+      label: mod.pkgRelPath,
       description: '',
       data: {
-        filePath: mod.filePath,
-        relativeFilePath: mod.relativeFilePath,
+        absPath: asHostPath(mod.absPath),
+        pkgRelPath: asPkgRelPath(mod.pkgRelPath),
         envVars: mod.semanticHints?.envVars,
         ssr: mod.semanticHints?.ssr,
       },

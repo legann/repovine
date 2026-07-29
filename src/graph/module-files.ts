@@ -10,7 +10,7 @@ import { lastPathSegment } from '../platform/paths.js';
  * parsed. Analyses that used to ask a label "does this path end in `/index`" answered differently
  * for two repositories whose only difference was whether the barrel was written `index.ts` or
  * `index.mjs`, and answered `false` for every Python barrel, because `__init__.py` is not spelled
- * `index`. The questions below read `relativeFilePath` and the registry instead, so the answer
+ * `index`. The questions below read `pkgRelPath` and the registry instead, so the answer
  * depends on the repository rather than on how the display string came out.
  */
 
@@ -18,7 +18,7 @@ import { lastPathSegment } from '../platform/paths.js';
 export function moduleRelPath(graph: RepositoryGraph, moduleId: string): string | undefined {
   const node = graph.nodes.get(moduleId);
   if (node?.type !== 'module') return undefined;
-  return node.data?.relativeFilePath;
+  return node.data?.pkgRelPath;
 }
 
 /** The directory the module's file sits in, package-relative. `''` for a file at the package root. */

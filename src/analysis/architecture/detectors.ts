@@ -87,7 +87,7 @@ export function detectDuplicateLike(
   const groups = new Map<string, string[]>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    const key = normalizeResponsibilityKey(mod?.relativeFilePath ?? nodeLabel(graph, modId));
+    const key = normalizeResponsibilityKey(mod?.pkgRelPath ?? nodeLabel(graph, modId));
     if (!key || key.length < 3) continue;
     let group = groups.get(key);
     if (!group) { group = []; groups.set(key, group); }
@@ -272,7 +272,7 @@ export function detectServerHandlerOrchestration(
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
     if (!mod) continue;
-    const rel = pathMatchKey(mod.relativeFilePath);
+    const rel = pathMatchKey(mod.pkgRelPath);
     if (isBuildOrToolingModule(rel) || isPureTypesModule(mod)) continue;
     if (!isBackendContext(mod) && !hasHttpHandlerSignals(mod)) continue;
 
@@ -319,7 +319,7 @@ export function detectServerHandlerOrchestration(
       confidence,
       nodes: [modId, ...targetIds.slice(0, 8)],
       evidence: [
-        `Server handler: ${mod.relativeFilePath}`,
+        `Server handler: ${mod.pkgRelPath}`,
         `Surface score ${score}: ${exportCount} export(s), fan-out ${importEdges.length}, ${envCount} env var reference(s), ${runtimeActionCount} runtime action(s)`,
         `Orchestration target roles: ${[...targetRoles].sort().join(', ') || 'none'}`,
         routeCount > 0 ? `${routeCount} API route marker(s)` : 'No API route marker; matched backend/handler heuristics',
@@ -427,7 +427,7 @@ export function detectClientBusinessLogic(
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
     if (!mod) continue;
-    const rel = pathMatchKey(mod.relativeFilePath);
+    const rel = pathMatchKey(mod.pkgRelPath);
     if (isBuildOrToolingModule(rel)) continue;
     if (!isFrontendSurfaceModule(mod)) continue;
     // An author-declared `pure` side-effect set is an explicit assertion of zero
@@ -447,7 +447,7 @@ export function detectClientBusinessLogic(
       confidence: detectorConfidence({ base: 0.5, ceiling: 0.86, add: [businessExports.length * 0.04, sideEffectHints * 0.08] }),
       nodes: [modId],
       evidence: [
-        `Client/UI path or marker: ${mod.relativeFilePath}`,
+        `Client/UI path or marker: ${mod.pkgRelPath}`,
         `${businessExports.length} non-component export(s)`,
         sideEffectHints > 0 ? `${sideEffectHints} side-effect hint(s)` : 'No side-effect hints detected',
       ],
@@ -756,7 +756,7 @@ export function detectUiDomainCoupling(
       confidence: detectorConfidence({ base: 0.58, ceiling: 0.9, add: [targets.length * 0.07, roles.length * 0.04, highRisk ? 0.08 : 0] }),
       nodes: [modId, ...targets.map(target => target.id)],
       evidence: [
-        `Frontend module: ${mod.relativeFilePath}`,
+        `Frontend module: ${mod.pkgRelPath}`,
         `${targets.length} direct coupled import(s): ${targets.map(target => `${target.role}:${nodeLabel(graph, target.id)}`).slice(0, 8).join(', ')}`,
         `Imported symbols: ${targets.flatMap(target => target.importedNames).slice(0, 12).join(', ') || 'unknown'}`,
       ],
@@ -844,7 +844,7 @@ export function detectDesignSystemLeakage(
       confidence: detectorConfidence({ base: 0.62, ceiling: 0.92, add: [targets.length * 0.08, dataAccess.length * 0.1] }),
       nodes: [modId, ...targets.map(target => target.id)],
       evidence: [
-        `Design-system module: ${mod.relativeFilePath}`,
+        `Design-system module: ${mod.pkgRelPath}`,
         targets.length > 0 ? `Leaked target roles: ${roles.join(', ')}` : 'No coupled imports, but data-access calls were detected',
         dataAccess.length > 0 ? `Data access calls: ${dataAccess.map(item => item.callee).slice(0, 6).join(', ')}` : `Imported symbols: ${targets.flatMap(target => target.importedNames).slice(0, 12).join(', ') || 'unknown'}`,
       ],
@@ -954,7 +954,7 @@ export function detectRouteConvergence(
     const routePaths = (mod.semanticHints?.routes ?? [])
       .filter(route => route.kind !== 'api')
       .map(route => route.path);
-    const entryRoutes = routePaths.length > 0 ? routePaths : [mod.relativeFilePath];
+    const entryRoutes = routePaths.length > 0 ? routePaths : [mod.pkgRelPath];
 
     const queue: Array<{ id: string; depth: number }> = [{ id: modId, depth: 0 }];
     const seen = new Set<string>([modId]);
@@ -975,7 +975,7 @@ export function detectRouteConvergence(
         const target = modulesById.get(imp.resolvedModuleId);
         if (!target) continue;
         const role = coupledTargetRole(target);
-        const targetRel = pathMatchKey(target.relativeFilePath);
+        const targetRel = pathMatchKey(target.pkgRelPath);
         if (role === 'api' || role === 'server' || /(mutation|action|client|service|api)/.test(targetRel)) {
           addTarget(`module:${target.id}`, modId, entryRoutes, role ?? 'module', target.id);
         }
@@ -1031,7 +1031,7 @@ export function detectStateFragmentation(
   const groups = new Map<string, StateGroup>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.pkgRelPath))) continue;
     const feature = frontendFeatureKey(mod);
     const kind = stateModuleKind(mod);
     if (!feature || !kind) continue;
@@ -1094,7 +1094,7 @@ export function detectDuplicatedClientPolicy(
   const groups = new Map<string, PolicyGroup>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.pkgRelPath))) continue;
     if (isDesignSystemPrimitive(mod)) continue;
     const tokens = policyTokens(mod, annotations.get(modId));
     const feature = frontendFeatureKey(mod);
@@ -1216,7 +1216,7 @@ export function detectSecretConfigBoundary(
       confidence,
       nodes: [modId, ...clientImporters],
       evidence: [
-        `Module: ${mod.relativeFilePath}`,
+        `Module: ${mod.pkgRelPath}`,
         `Secret-like env name(s): ${envNames.slice(0, 8).join(', ')}`,
         clientSurface ? 'Module is client/frontend-facing' : `${clientImporters.length} client/frontend importer(s) reach this module`,
         publicSecretEnv.length > 0 ? `${publicSecretEnv.length} public env var(s) have secret-like names` : 'No public env var names with secret-like tokens detected',
@@ -1244,7 +1244,7 @@ export function detectAuthorizationPolicyDrift(
   const groups = new Map<string, PolicyModule[]>();
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath)) || isPureTypesModule(mod)) continue;
+    if (!mod || isBuildOrToolingModule(pathMatchKey(mod.pkgRelPath)) || isPureTypesModule(mod)) continue;
     const ann = annotations.get(modId);
     const tokens = new Set(policyTokens(mod, ann).filter(token => token === 'permissions' || token === 'policy-rules'));
     const hasAuthzSignal = securitySignals(mod, 'authz').length > 0;
@@ -1325,7 +1325,7 @@ export function detectTrustBoundaryValidation(
       confidence,
       nodes: [modId],
       evidence: [
-        `Trust-boundary path or export: ${mod.relativeFilePath}`,
+        `Trust-boundary path or export: ${mod.pkgRelPath}`,
         routeCount > 0 ? `${routeCount} API route marker(s)` : `Exports: ${mod.exports.map(exp => exp.name).slice(0, 8).join(', ') || 'unknown'}`,
         'No direct schema/validator/guard import or validation call was detected',
         hasSideEffects ? 'Boundary also appears to perform mutation/runtime side effects' : 'No mutation/runtime side-effect hint detected',
@@ -1352,7 +1352,7 @@ export function detectPrivilegedClientSideEffect(
   const findings: RefactoringFinding[] = [];
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.pkgRelPath))) continue;
     const coupledTargets = privilegedClientTargets(mod, modulesById, t.allowGenericStorageName);
     const runtimeActions = mod.semanticHints?.runtimeActions ?? [];
     const secretSignals = securitySignals(mod, 'secret-env');
@@ -1387,7 +1387,7 @@ export function detectPrivilegedClientSideEffect(
       confidence,
       nodes: [modId, ...coupledTargets.map(target => target.id)],
       evidence: [
-        `Client/UI module: ${mod.relativeFilePath}`,
+        `Client/UI module: ${mod.pkgRelPath}`,
         coupledTargets.length > 0 ? `Privileged imports: ${coupledTargets.map(target => `${target.role}:${nodeLabel(graph, target.id)}`).slice(0, 8).join(', ')}` : 'No privileged imports detected',
         runtimeActions.length > 0 ? `${runtimeActions.length} runtime action hint(s)` : 'No runtime action hints',
         mutationAccess.length > 0 ? `${mutationAccess.length} mutation/API-client data access call(s)` : 'No mutation/API-client data access calls',
@@ -1437,7 +1437,7 @@ export function detectSensitiveBrowserStorage(
       confidence,
       nodes: [modId],
       evidence: [
-        `Frontend module: ${mod.relativeFilePath}`,
+        `Frontend module: ${mod.pkgRelPath}`,
         `${storageSignals.length} browser-storage/cookie signal(s)`,
         targets.length > 0 ? `Storage key(s): ${targets.slice(0, 8).join(', ')}` : 'Storage key names were not statically resolved',
         annotationSensitive ? 'Annotation mentions sensitive state/data flow' : 'Sensitive key name detected syntactically',
@@ -1464,7 +1464,7 @@ export function detectServerClientBoundary(
   const findings: RefactoringFinding[] = [];
   for (const modId of scope.moduleIds) {
     const mod = modulesById.get(modId);
-    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.relativeFilePath))) continue;
+    if (!mod || !isFrontendSurfaceModule(mod) || isBuildOrToolingModule(pathMatchKey(mod.pkgRelPath))) continue;
     const leakedTargets = mod.imports
       .filter(imp => !imp.isTypeOnly && imp.resolvedModuleId)
       .map(imp => ({ imp, target: modulesById.get(imp.resolvedModuleId!) }))
@@ -1486,7 +1486,7 @@ export function detectServerClientBoundary(
       // secret/ssr-server/.server-file leak (which coupledTargetRole does not classify as server) is
       // rated high, not medium. Medium is reserved for a leak admitted only via a generic storage name.
       impact: leakedTargets.some(item => {
-        const targetRel = pathMatchKey(item.target.relativeFilePath);
+        const targetRel = pathMatchKey(item.target.pkgRelPath);
         return securityTargetRole(item.target, t.allowGenericStorageName) === 'server'
           || item.target.semanticHints?.ssr?.useServer === true
           || /(^|\/)secrets?(\/|$)/.test(targetRel)
@@ -1496,7 +1496,7 @@ export function detectServerClientBoundary(
       confidence,
       nodes: [modId, ...targetIds],
       evidence: [
-        `Client module: ${mod.relativeFilePath}`,
+        `Client module: ${mod.pkgRelPath}`,
         `${targetIds.length} server/privileged target(s): ${targetIds.map(id => nodeLabel(graph, id)).slice(0, 8).join(', ')}`,
         `Imported symbols: ${leakedTargets.flatMap(item => item.imp.importedNames).slice(0, 12).join(', ') || 'unknown'}`,
       ],
@@ -1535,7 +1535,7 @@ export function detectSourceDisclosureSurface(
       confidence,
       nodes: [modId],
       evidence: [
-        `Module: ${mod.relativeFilePath}`,
+        `Module: ${mod.pkgRelPath}`,
         `${signals.length} source-disclosure signal(s)`,
         `Signal lines: ${signals.map(signal => signal.lineRange?.start).filter((line): line is number => line != null).slice(0, 8).join(', ') || 'unknown'}`,
         `Exports: ${mod.exports.map(exp => exp.name).slice(0, 8).join(', ') || 'unknown'}`,
@@ -1575,7 +1575,7 @@ export function detectAnnotationSecretHygiene(
       confidence: 0.86,
       nodes: [modId],
       evidence: [
-        `Node: ${mod ? moduleLabelOf(graph, mod) : nodeLabel(graph, modId)}`,
+        `Node: ${mod ? moduleLabelOf(graph, mod, mod.pkgRelPath) : nodeLabel(graph, modId)}`,
         `${fieldPaths.length} annotation field(s) contain secret-like material`,
         `Field paths: ${fieldPaths.slice(0, 8).join(', ')}`,
         'Evidence intentionally omits the suspected value',
@@ -1618,7 +1618,7 @@ function rootDomainOf(graph: RepositoryGraph, modId: string): string | undefined
 }
 
 function isTrustBoundaryModule(mod: ModuleInfo): boolean {
-  const rel = pathMatchKey(mod.relativeFilePath);
+  const rel = pathMatchKey(mod.pkgRelPath);
   if ((mod.semanticHints?.routes ?? []).some(route => route.kind === 'api')) return true;
   if (/(^|\/)(api|apis|routes|controllers?|handlers?|webhooks?|lambda|functions|server)(\/|$)/.test(rel)) return true;
   if (SERVER_ROUTE_FILE_RE.test(rel)) return true;
@@ -1633,7 +1633,7 @@ function hasValidationCoverage(mod: ModuleInfo, modulesById: Map<string, ModuleI
     const spec = imp.moduleSpecifier.toLowerCase();
     if (/(zod|yup|joi|valibot|superstruct|schema|schemas|validator|validators|validation|guards?)/.test(spec)) return true;
     const target = imp.resolvedModuleId ? modulesById.get(imp.resolvedModuleId) : undefined;
-    if (target && /(^|\/)(schemas?|validators?|validation|guards?)(\/|\.|$)/.test(pathMatchKey(target.relativeFilePath))) return true;
+    if (target && /(^|\/)(schemas?|validators?|validation|guards?)(\/|\.|$)/.test(pathMatchKey(target.pkgRelPath))) return true;
   }
   return false;
 }
@@ -1662,7 +1662,7 @@ function securityTargetRole(target: ModuleInfo, allowGenericStorageName: boolean
 }
 
 function isStrongStorageTarget(target: ModuleInfo): boolean {
-  const rel = pathMatchKey(target.relativeFilePath);
+  const rel = pathMatchKey(target.pkgRelPath);
   if (isFrontendSurfaceModule(target)) return false;
   return /(^|\/)(server|servers|backend|lambda|lambdas|functions|db|database|repositories?|repository|persistence)(\/|$)/.test(rel)
     || isStorageNamedSourceFile(rel);
@@ -1710,7 +1710,7 @@ function isSensitiveStorageKey(key: string): boolean {
 }
 
 function isServerOnlyOrPrivilegedTarget(target: ModuleInfo, allowGenericStorageName: boolean): boolean {
-  const rel = pathMatchKey(target.relativeFilePath);
+  const rel = pathMatchKey(target.pkgRelPath);
   const role = securityTargetRole(target, allowGenericStorageName);
   // Storage-family dirs (db/database/repository/persistence) are intentionally NOT matched here:
   // they resolve to role 'storage', which securityTargetRole already gates on allowGenericStorageName

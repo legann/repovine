@@ -1,5 +1,7 @@
 import * as path from 'node:path';
 import { toPosixPath } from './source-plugin/module-id.js';
+import { asHostPath, asRepoRelPath } from './path-contract.js';
+import type { HostPath, RepoRelPath } from './path-contract.js';
 
 /**
  * The path vocabulary a producer shares with the engine.
@@ -21,8 +23,8 @@ import { toPosixPath } from './source-plugin/module-id.js';
  * A path outside the root answers with the `..` segments `path.relative` produces; containment is
  * the caller's question.
  */
-export function repoRelativePosix(root: string, absPath: string): string {
-  return toPosixPath(path.relative(root, absPath));
+export function repoRelativePosix(repoRoot: string, absPath: string): RepoRelPath {
+  return asRepoRelPath(toPosixPath(path.relative(repoRoot, absPath)));
 }
 
 /**
@@ -30,8 +32,8 @@ export function repoRelativePosix(root: string, absPath: string): string {
  * runs of `/` collapsed, no leading `/`. Dot segments are left alone: a config glob is matched
  * against what the user typed, so `a/../b` stays `a/../b`.
  */
-export function normalizeRelPath(value: string): string {
-  return toPosixPath(value).replace(/\/+/g, '/').replace(/^\//, '');
+export function normalizeRelPath(value: string): RepoRelPath {
+  return asRepoRelPath(toPosixPath(value).replace(/\/+/g, '/').replace(/^\//, ''));
 }
 
 /**
@@ -72,18 +74,18 @@ export function pathMatchKey(value: string): string {
  * walkers emit native ones, and on win32 NTFS lookups are case-insensitive. `path.resolve` unifies
  * separators and drive-qualifies; win32 additionally case-folds. A producer that probed the map with
  * a raw `path.join` result would miss whichever form it did not happen to build. The same key belongs
- * on the WRITE side: a producer keying its own `pendingByPath` raw hands the engine two entries for
+ * on the WRITE side: a producer keying its own `pendingByAbsPath` raw hands the engine two entries for
  * one file on a host whose spelling differs from its own.
  *
  * Scope: resolver/map identity only. Security-sensitive containment keeps its own strict
  * case-sensitive comparison and must not adopt this relaxed form.
  */
-export function hostPathKey(p: string): string {
+export function hostPathKey(p: string): HostPath {
   const resolved = path.resolve(p);
-  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  return asHostPath(process.platform === 'win32' ? resolved.toLowerCase() : resolved);
 }
 
-const hostKeyedViews = new WeakMap<ReadonlyMap<string, string>, Map<string, string>>();
+const hostKeyedViews = new WeakMap<ReadonlyMap<string, string>, Map<HostPath, string>>();
 const hostKeyedViewSizes = new WeakMap<ReadonlyMap<string, string>, number>();
 const producedViews = new WeakSet<ReadonlyMap<string, string>>();
 
@@ -100,14 +102,14 @@ const producedViews = new WeakSet<ReadonlyMap<string, string>>();
  * case-sensitive vs case-insensitive filesystems, and the scanner-level case-collision diagnostic is
  * the durable answer.
  */
-export function hostKeyedView(m: ReadonlyMap<string, string>): Map<string, string> {
+export function hostKeyedView(m: ReadonlyMap<string, string>): Map<HostPath, string> {
   // A view is already folded, and folding it again would answer the same but cost a second pass and
   // a second copy of the map. Callers legitimately fold at their entry AND hand the result to a
   // helper that folds defensively — that is what makes the helper safe for a producer that did not.
-  if (producedViews.has(m)) return m as Map<string, string>;
+  if (producedViews.has(m)) return m as unknown as Map<HostPath, string>;
   let view = hostKeyedViews.get(m);
   if (!view || hostKeyedViewSizes.get(m) !== m.size) {
-    view = new Map<string, string>();
+    view = new Map<HostPath, string>();
     for (const [k, v] of m) {
       const key = hostPathKey(k);
       const existing = view.get(key);

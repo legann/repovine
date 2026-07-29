@@ -100,17 +100,17 @@ export const helmValuesParser: IaCParser = {
   fileMatch: { fileNamePatterns: [/^values(-[\w.-]+)?\.ya?ml$/i] },
   loaderId: 'yaml',
 
-  supports(filePath: string, doc: unknown): boolean {
+  supports(absPath, doc): boolean {
     if (!isRecord(doc)) return false;
-    if (!isHelmValuesFileName(filePath)) return false;
-    if (!isUnderHelmChart(filePath)) return false;
+    if (!isHelmValuesFileName(absPath)) return false;
+    if (!isUnderHelmChart(absPath)) return false;
     if (typeof doc.apiVersion === 'string' && doc.apiVersion.startsWith('v2') && typeof doc.name === 'string') {
       return false;
     }
     return collectHelmImages(doc).length > 0 || collectHelmSecrets(doc).length > 0;
   },
 
-  parse(filePath: string, relPath: string, doc: unknown): SemanticInfraDelta | null {
+  parse(absPath, repoRelPath, doc): SemanticInfraDelta | null {
     if (!isRecord(doc)) return null;
     const images = collectHelmImages(doc);
     const secretRefs = collectHelmSecrets(doc);

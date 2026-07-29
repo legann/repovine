@@ -2,6 +2,7 @@ import type { ModuleInfo, PackageInfo, PendingModule, PendingModuleDraft, Semant
 import type { PluginRequirements, PluginAvailability } from '../runtime.js';
 import type { ReadonlyFactRecord } from '../plugin/projection.js';
 import type { PrunedDir } from './discovery-walk.js';
+import type { HostPath, RepoRelPath } from '../path-contract.js';
 
 /**
  * Source plugin contract types.
@@ -36,19 +37,19 @@ export interface HandlerResolveContext {
   /** Modules discovered by this source plugin, keyed by module id. */
   modulesById: ReadonlyMap<string, ModuleInfo>;
   /** Repo-relative roots to try for artifact/config-specific handler resolution. */
-  searchRoots: readonly string[];
+  repoRelSearchRoots: readonly RepoRelPath[];
   /** Repo-relative artifact root from IaC CodeUri/filename, if the host could derive one. */
-  artifactRoot?: string;
+  repoRelArtifactRoot?: RepoRelPath;
   /** Raw IaC resource attributes, if available (for example CodeUri, runtime, filename). */
   attributes?: Readonly<Record<string, string>>;
   /** Repo-relative IaC file path that declared the handler, if available. */
-  infraRelPath?: string;
+  infraRepoRelPath?: RepoRelPath;
   /** Host-provided handler path aliases, e.g. bundle handler path -> source path. */
-  handlerPathMap?: Readonly<Record<string, string>>;
+  repoRelHandlerPathMap?: Readonly<Record<string, RepoRelPath>>;
   /** Resolve a repo-relative source path to a module id owned by this plugin. */
-  resolveModuleByRepoPath(candidate: string): string | undefined;
+  resolveModuleByRepoRelPath(candidate: RepoRelPath): string | undefined;
   /** Normalize slashes/dot segments the same way the host resolver does. */
-  normalizeRelPath(value: string): string;
+  normalizeRepoRelPath(value: string): RepoRelPath;
 }
 
 export type HandlerResolver = (handlerRef: string, ctx: HandlerResolveContext) => string | undefined;
@@ -149,8 +150,8 @@ export interface SourceDiscoveryOptions {
 export interface SourceDiscoveryResult {
   packages: PackageInfo[];
   /** Candidate modules keyed by absolute file path, without ids: the engine mints `moduleId` from
-   * `pkg` + `relPath` before anything downstream sees them. The orchestrator dedups across plugins. */
-  pendingByPath: Map<string, PendingModuleDraft>;
+   * `pkg` + `pkgRelPath` before anything downstream sees them. The orchestrator dedups across plugins. */
+  pendingByAbsPath: Map<HostPath, PendingModuleDraft>;
   /** Opaque per-plugin payload threaded into extract() (e.g. parsed compilerOptions). Must be
    * structured-clone-safe so it can cross a worker_threads boundary. */
   extractContext?: unknown;
@@ -170,13 +171,13 @@ export interface SourceFileText {
 }
 
 export interface SourceExtractInput {
-  repoRoot: string;
+  repoRoot: HostPath;
   packages: PackageInfo[];
   pendingModules: PendingModule[];
-  /** Previous-snapshot modules keyed by filePath, for incremental reuse. May be empty. */
-  prevByPath: Map<string, ModuleInfo>;
+  /** Previous-snapshot modules keyed by absolute host path, for incremental reuse. May be empty. */
+  prevByAbsPath: Map<HostPath, ModuleInfo>;
   /** Frozen abs-path → moduleId map covering all packages (read-only). */
-  absPathToId: Map<string, string>;
+  absPathToId: Map<HostPath, string>;
   /** Engine-provided raw content + content hash per pending module, keyed by `moduleId`. The
    * producer uses the hash for reuse decisions and the content for parsing; it never reads files
    * for source text or computes the fingerprint itself (engine-owned IO/hash). */
@@ -232,7 +233,7 @@ export interface SourcePlugin {
    *  external plugins authored before this field keep working (they advertise nothing). */
   capabilities?: SourcePluginCapabilities;
   /** Pass 1: find packages + candidate files (no AST). Called once per plugin per repo scan. */
-  discover(repoRoot: string, options: SourceDiscoveryOptions): SourceDiscoveryResult;
+  discover(repoRoot: HostPath, options: SourceDiscoveryOptions): SourceDiscoveryResult;
   /** Pass 2: extract ModuleInfo for a shard of pending modules. Must be worker_threads-safe.
    * May return a Promise when the plugin lazy-loads heavy parser deps (TypeScript). */
   extract(input: SourceExtractInput): SourceExtractResult | Promise<SourceExtractResult>;

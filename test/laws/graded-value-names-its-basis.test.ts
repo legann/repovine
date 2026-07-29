@@ -1,3 +1,4 @@
+import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -42,8 +43,8 @@ function moduleInfo(id: string): ModuleInfo {
   return {
     id,
     packageName: rel.split('/')[0] ?? 'pkg',
-    filePath: `/repo/${rel}.ts`,
-    relativeFilePath: `${rel}.ts`,
+    absPath: asHostPath(`/repo/${rel}.ts`),
+    pkgRelPath: asPkgRelPath(`${rel}.ts`),
     contentHash: `${id}:hash`,
     imports: [],
     exports: [],
@@ -52,7 +53,7 @@ function moduleInfo(id: string): ModuleInfo {
 
 function moduleNode(id: string): GraphNode {
   const rel = id.replace(/^mod:/, '');
-  return { id, type: 'module', label: rel, description: `Module ${rel}`, data: { relativeFilePath: `${rel}.ts` } };
+  return { id, type: 'module', label: rel, description: `Module ${rel}`, data: { pkgRelPath: asPkgRelPath(`${rel}.ts`) } };
 }
 
 function runtime(repoRoot: string, annotations: AnnotationStoreType): McpToolRuntime {

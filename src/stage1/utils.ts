@@ -16,8 +16,8 @@ export { mintModuleId as makeModuleId } from '@repovine/plugin-sdk';
 export { extractPackageName } from '@repovine/plugin-sdk';
 
 /** Unique identity for a discovered package entry across source plugins. */
-export function packageJobKey(pkg: Pick<PackageInfo, 'name' | 'path' | 'sourcePluginId'>): string {
-  return `${pkg.sourcePluginId ?? ''}\u0000${pkg.name}\u0000${pkg.path}`;
+export function packageJobKey(pkg: Pick<PackageInfo, 'name' | 'repoRelDir' | 'sourcePluginId'>): string {
+  return `${pkg.sourcePluginId ?? ''}\u0000${pkg.name}\u0000${pkg.repoRelDir}`;
 }
 
 /**

@@ -1,3 +1,4 @@
+import { asHostPath } from '@repovine/plugin-sdk';
 import { describe, expect, it, jest } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -84,7 +85,7 @@ describe('core-laws plugin author surface (the SDK carries the mechanics)', () =
       const { walkRepository } = await import('@repovine/plugin-sdk');
 
       const seen: string[] = [];
-      walkRepository(tmpRoot, { onFile: file => seen.push(file.relFromRoot) });
+      walkRepository(asHostPath(tmpRoot), { onFile: file => seen.push(file.repoRelPath) });
 
       // The order a code-unit comparison gives, with directories descended in place — which is the
       // order the graph is built in.
