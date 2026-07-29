@@ -1854,7 +1854,9 @@ export function detectUnclearArchitecture(
   }
   for (const svcId of scope.serviceIds) {
     const node = graph.nodes.get(svcId);
-    if (node?.type !== 'runtime-resource' || node.data?.kind !== 'lambda') continue;
+    // A resource whose plugin declared its kind to carry code, with no code found for it. Kinds
+    // that never carry a handler are not a gap, and which kinds those are is declared.
+    if (node?.type !== 'runtime-resource' || node.data?.hasCodeHandler !== true) continue;
     if (infraTargetIds(graph, svcId).length > 0 || node.data.handler) continue;
     findings.push(build({
       id: `unclear-architecture:${svcId}:handler`,

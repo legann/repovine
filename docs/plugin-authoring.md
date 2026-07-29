@@ -123,6 +123,7 @@ that spells its own `declaredBy` is refused.
 | `values` | values this plugin adds to a canonical or namespaced axis |
 | `resourceKinds` | resource metadata keyed by `(namespace, provider, kind)` |
 | `triggerTypes` | trigger metadata and the canonical entrypoint kind it projects into |
+| `runtimeActions` | the identity namespace a runtime call named in semantic hints writes to |
 
 | Capability | Provides |
 |---|---|
@@ -225,22 +226,22 @@ interpreters that read them are gated by source plugin id: `server-entrypoints` 
 | `security` | web — `kind` is a closed set of eight, three of them browser storage and cookies | TypeScript | config surface, architecture detail |
 | `ssr` | JavaScript — eight of its ten fields name JS directives and exports | TypeScript | module kind, architecture heuristics |
 | `ui` | JavaScript — component trees, lifecycle effects | TypeScript | UI entrypoints |
-| `runtimeActions` | AWS — `action` is a closed set of four AWS calls | TypeScript | side-effect vocabulary, module kind |
+| `runtimeActions` | any ecosystem — `action` is an open string paired with a declaration | TypeScript | side-effect vocabulary, module kind, publish edges |
 
 Five qualifications the table cannot hold:
 
-- `runtimeActions.action` is a closed union in the type **and** the schema. A non-AWS producer that
-  fills the slot fails fact validation.
+- `runtimeActions.action` is an open string. What a producer names there reaches a resource only
+  through a `runtimeActions` declaration that states the namespace the call writes to.
 - `ssr.runsOn` and `ssr.dataLoader` read as ecosystem-neutral and are derived from the eight
   JavaScript markers beside them. Nothing in the engine branches on either; only `useServer` and
   `useClient` are read.
 - `ui` validates as any object. The `Ui*` types describe what a producer may emit, not what the
   schema checks.
-- `routes` projects into an API entrypoint only when `source` is `decorator` or `ast` and `kind` is
+- `routes` projects into an API entrypoint only when `syntax` is `decorator` or `call` and `kind` is
   `api`. A route with any other provenance is carried but not projected.
-- A `routes` entry with `kind` `frontend` and `source` `ast` projects only when `framework` is
-  `tanstack-router` or `angular`. Ecosystem-neutral frontend provenance is `jsx`, `config`, or
-  `file` — the last also needs `framework` and `fileType`.
+- A `routes` entry with `kind` `frontend` and `syntax` `call` projects only when `framework` is
+  `tanstack-router` or `angular`. `markup` and `table` project on their own; a `layout` route also
+  needs `framework` and `fileType`.
 
 `imports` and `exports` are not slots — they are required fields of `SemanticModuleDelta`, beside
 `semanticHints` rather than inside it.
@@ -277,6 +278,9 @@ Resource and trigger metadata are declarations, not code — they belong in `pac
   ],
   "triggerTypes": [
     { "type": "pulumi-http", "namespace": "pulumi", "provider": "pulumi", "entrypointKind": "api" }
+  ],
+  "runtimeActions": [
+    { "action": "pulumi.publish", "namespace": "pulumi" }
   ]
 }
 ```
@@ -284,14 +288,31 @@ Resource and trigger metadata are declarations, not code — they belong in `pac
 A kind with no declared domain lands in `domain:infra-<kind>`, so an unlisted kind gets its own
 bucket rather than another plugin's.
 
+What each declaration buys:
+
+| Declared | The host then |
+|---|---|
+| `hasCodeHandler` | resolves the resource's `handler` attribute to a module, and gives that module the resource's env bindings |
+| `service` | publishes the label beside a `publishes` edge in runtime topology |
+| `isStreamLike` | draws `consumes` from the trigger source to the resource it drives |
+| `entrypointKind` | projects the trigger into that canonical entrypoint |
+| `runtimeActions` | pairs a `runtimeActions` hint from any producer with a resource in the named namespace |
+
+A trigger type declared with a `provider` and no `namespace` answers for every namespace that
+provider mints; one declared with both answers only for that pair. Nothing is inferred from a
+resource id: an undeclared kind is a node with no linking, not a guess.
+
 ### Built-in parity (0.1.0)
 
-Bundled plugins may import engine internals the SDK does not export — the shared IaC helpers
-(`src/stage1/iac/utils`) and, for Kubernetes, workload attribute enrichment
-(`enrichK8sResourceAttributes`). An out-of-tree IaC plugin emits the same `InfraResource` facts and
-reaches the same node/edge schema, but does not reproduce that Kubernetes enrichment in 0.1.0.
-Exposing those helpers through the SDK is a post-0.1.0 API decision; the privileged boundary is a
-documented limitation, not a frozen contract.
+Bundled plugins compile against the published SDK alone: each lives in its own package under
+`packages/plugins/`, and a boundary law fails the build on an import of engine or SDK internals.
+Kubernetes workload enrichment moved into the Kubernetes package with the rest of that vertical, so
+it is that plugin's code rather than a privilege the SDK grants it.
+
+Two engine paths still hold ecosystem semantics an out-of-tree plugin cannot state: Kubernetes
+Ingress-to-Service routing and the namespace comparison behind infra-reference resolution. They are
+listed in `docs/plugin-boundary-legacy-paths.md` and move to plugin projections with the single
+plugin-loading path.
 
 ## Enabling plugins (`repovine.config.json`)
 

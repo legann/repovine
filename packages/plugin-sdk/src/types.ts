@@ -191,8 +191,23 @@ export type RouteDeclarationSite = 'code' | 'layout';
 /** The code form a route declaration takes: markup element, table entry, decorator, or call. */
 export type RouteDeclarationSyntax = 'markup' | 'table' | 'decorator' | 'call';
 
+/**
+ * The runtime calls the built-in JavaScript producer recognises. Listed for autocomplete only.
+ *
+ * Open: a producer names the call in its own ecosystem's spelling, and the host pairs it with a
+ * resource through a `runtimeActions` declaration that states which identity namespace the call
+ * writes to. Nothing branches on the string.
+ */
+export type KnownRuntimeActionName =
+  | 'sqs.sendMessage'
+  | 'sns.publish'
+  | 'eventbridge.putEvents'
+  | 'lambda.invoke';
+
+export type RuntimeActionName = KnownRuntimeActionName | (string & {});
+
 export interface RuntimeAction {
-  action: 'sqs.sendMessage' | 'sns.publish' | 'eventbridge.putEvents' | 'lambda.invoke';
+  action: RuntimeActionName;
   envVar?: string;
   lineRange?: { start: number; end: number };
 }

@@ -8,7 +8,7 @@
  */
 
 import type { SourcePlugin } from './source-plugin/types.js';
-import type { IaCParser, InfraKindDomain, ResourceKindMeta, TriggerTypeMeta } from './types.js';
+import type { IaCParser, InfraKindDomain } from './types.js';
 import type { DocumentLoader } from './plugin/document-loader.js';
 import { PLUGIN_API_VERSION } from './runtime.js';
 import type { PluginRequirements, PluginAvailability } from './runtime.js';
@@ -30,11 +30,13 @@ export function defineIaCParser(parser: IaCParser): IaCParser {
 }
 
 /**
- * Declarative descriptor for an IaC plugin: one or more parsers plus the kind/resource/trigger
- * metadata those parsers rely on. The engine registers the descriptor as a unit (bootstrap today,
- * the loader later), so a plugin author never calls `registerParser`/`registerInfraKindDomain`
- * directly. This keeps the IaC authoring surface symmetric with source plugins (one declarative
- * object) and the SDK boundary clean.
+ * Declarative descriptor for an IaC plugin: the parsers it contributes and the loaders they read
+ * through. The engine registers the descriptor as a unit (bootstrap today, the loader later), so a
+ * plugin author never calls `registerParser` directly.
+ *
+ * Resource-kind, trigger-type and runtime-action metadata is not here: it is data, and it lives in
+ * the package's `package.json#repovine.declarations`, where the host reads it before importing any
+ * plugin code and keeps it in force while the capability is disabled.
  */
 export interface IaCPluginDescriptor {
   /** Stable plugin id, e.g. 'sam', 'helm'. Used for diagnostics and (later) disable/dedup. */
@@ -51,10 +53,6 @@ export interface IaCPluginDescriptor {
   loaders?: DocumentLoader[];
   /** InfraKind → graph-domain registrations this plugin owns. */
   kindDomains?: Array<{ kind: string; meta: InfraKindDomain }>;
-  /** InfraResourceKind → metadata (e.g. lambda hasCodeHandler) this plugin contributes. */
-  resourceKindMeta?: Array<{ kind: string; meta: ResourceKindMeta }>;
-  /** InfraTriggerType → metadata (entrypoint kind, stream-like) this plugin contributes. */
-  triggerTypeMeta?: Array<{ type: string; meta: TriggerTypeMeta }>;
 }
 
 /**

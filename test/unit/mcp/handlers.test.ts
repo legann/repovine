@@ -15,6 +15,7 @@ jest.unstable_mockModule('node:fs/promises', () => ({
 
 import { ToolResponseSchema, type ToolResponse } from '../../../src/mcp/response/envelope.js';
 import type { ToolHandler, McpToolRuntime, RepovineState } from '../../../src/mcp/types.js';
+import { builtinDeclarationCatalog } from '../../helpers/declarations.js';
 import { CONFIG_DEFAULTS, DEFAULT_PROPAGATION_CONFIG } from '../../../src/config.js';
 import { resolveScope } from '../../../src/mcp/scope/resolve.js';
 import { resolveDomainContentHash } from '../../../src/annotations/content-hash.js';
@@ -62,7 +63,15 @@ beforeAll(async () => {
 // ── Fixture builders ──
 
 function makeSnapshot(modules: ModuleInfo[] = []): RepositoryFactsSnapshot {
-  return { repoRoot: '/repo', timestamp: '2024-01-01', packages: [], modules };
+  // Carries the declarations a real build carries: trigger metadata and resource-kind metadata are
+  // what this build's plugins declared, and MCP answers read them off the snapshot.
+  return {
+    repoRoot: '/repo',
+    timestamp: '2024-01-01',
+    packages: [],
+    modules,
+    declarations: builtinDeclarationCatalog(),
+  };
 }
 
 function makeModuleInfo(id: string, filePath = `/repo/${id}.ts`): ModuleInfo {

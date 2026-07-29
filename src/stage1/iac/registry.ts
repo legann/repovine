@@ -2,9 +2,7 @@ import type { IaCParser } from '../../types.js';
 import type {
   DocumentLoader,
   IaCPluginDescriptor,
-  ResourceKindMeta,
   TriggerEntryKind,
-  TriggerTypeMeta,
 } from '@repovine/plugin-sdk';
 import { compareCodeUnits } from '@repovine/plugin-sdk';
 import { domainNodeId } from '../../graph/node-ids.js';
@@ -29,9 +27,8 @@ export function getParsers(): readonly IaCParser[] {
 }
 
 /** Parsers registered by each IaC plugin id, so the loader can remove a plugin's parsers on
- *  `plugins.disable` / `plugins.defaults:false`. Kind/resource/trigger metadata is left registered:
- *  it is additive and inert when no parser emits the matching kind, and an external plugin may rely
- *  on a built-in's resource meta (e.g. lambda `hasCodeHandler`) even when that built-in is disabled. */
+ *  `plugins.disable` / `plugins.defaults:false`. Kind→domain registrations are left in place: they
+ *  are additive and inert when no parser emits the matching kind. */
 const parsersByPluginId = new Map<string, IaCParser[]>();
 
 /**
@@ -72,7 +69,7 @@ export function getLoaderRegistrationConflicts(): readonly LoaderRegistrationCon
 
 /**
  * Register a declarative IaC plugin descriptor (from `defineIaCPlugin`) as a unit: its loaders, its
- * parsers, then its kind/resource/trigger metadata. This is the engine-side counterpart to the
+ * parsers, then its kind→domain registrations. This is the engine-side counterpart to the
  * authoring factory — built-in bootstrap and the external loader both go through here, so a plugin
  * author never calls the individual `register*` functions directly (keeps the SDK boundary clean).
  */
@@ -96,8 +93,6 @@ export function registerIaCPlugin(descriptor: IaCPluginDescriptor): void {
   }
   parsersByPluginId.set(descriptor.id, owned);
   for (const { kind, meta } of descriptor.kindDomains ?? []) registerInfraKindDomain(kind, meta);
-  for (const { kind, meta } of descriptor.resourceKindMeta ?? []) registerResourceKindMeta(kind, meta);
-  for (const { type, meta } of descriptor.triggerTypeMeta ?? []) registerTriggerTypeMeta(type, meta);
 }
 
 /** Remove all parsers registered by an IaC plugin id (loader: disable / defaults:false). Returns
@@ -118,10 +113,10 @@ export function getRegisteredIaCPluginIds(): string[] {
   return [...parsersByPluginId.keys()];
 }
 
-/** Clear all registered parsers, per-plugin tracking and plugin-registered loaders (kind/resource/
- *  trigger metadata is left in place — it is additive/inert). The loader uses this via the IaC
- *  bootstrap to rebuild a clean built-in baseline before applying `plugins.{defaults,add,disable}`
- *  on each build. */
+/** Clear all registered parsers, per-plugin tracking and plugin-registered loaders (kind→domain
+ *  registrations stay — they are additive/inert). The loader uses this via the IaC bootstrap to
+ *  rebuild a clean built-in baseline before applying `plugins.{defaults,add,disable}` on each
+ *  build. */
 export function resetIaCParsers(): void {
   parsers.splice(0, parsers.length);
   parsersByPluginId.clear();
@@ -254,30 +249,6 @@ export function getAllRegisteredKindDomains(): Array<{ kind: string; meta: Infra
   return [...kindDomains.entries()].map(([kind, meta]) => ({ kind, meta }));
 }
 
-/* ---------------------- InfraResourceKind metadata ---------------------- */
-
 // Declared once in the SDK, which is the published contract a plugin writes against; re-exported so
 // engine callers keep reading this vocabulary from the registry that applies it.
-export type { ResourceKindMeta, TriggerEntryKind, TriggerTypeMeta };
-
-const resourceKindMeta = new Map<string, ResourceKindMeta>();
-
-export function registerResourceKindMeta(kind: string, meta: ResourceKindMeta): void {
-  resourceKindMeta.set(kind, meta);
-}
-
-export function getResourceKindMeta(kind: string): ResourceKindMeta | undefined {
-  return resourceKindMeta.get(kind);
-}
-
-/* ---------------------- InfraTrigger type metadata ---------------------- */
-
-const triggerTypeMeta = new Map<string, TriggerTypeMeta>();
-
-export function registerTriggerTypeMeta(type: string, meta: TriggerTypeMeta): void {
-  triggerTypeMeta.set(type, meta);
-}
-
-export function getTriggerTypeMeta(type: string): TriggerTypeMeta | undefined {
-  return triggerTypeMeta.get(type);
-}
+export type { TriggerEntryKind };

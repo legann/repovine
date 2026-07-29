@@ -6,6 +6,7 @@ import type { DomainsConfig } from '../../../../src/stage2/domains.js';
 import type { InfraModuleInfo, ModuleInfo, RepositoryFactsSnapshot } from '../../../../src/types.js';
 import { setSourcePluginsForTest } from '../../../../src/stage1/source/registry.js';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
+import { builtinDeclarationCatalog } from '../../../helpers/declarations.js';
 
 let restoreSourcePlugins: (() => void) | undefined;
 
@@ -77,6 +78,9 @@ function snapshotWith(
     packages,
     modules,
     infraModules: infra,
+    // What the bundled plugins declare, as Stage 1 carries it on every build. Linking reads the
+    // catalog, so a snapshot without one links nothing.
+    declarations: builtinDeclarationCatalog(),
   };
 }
 

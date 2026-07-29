@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { applyPluginConfig, getActivePluginIds } from '../../src/stage1/plugin-loader.js';
 import { getSourcePlugin } from '../../src/stage1/source/registry.js';
-import { getParsers, getTriggerTypeMeta } from '../../src/stage1/iac/registry.js';
+import { getParsers } from '../../src/stage1/iac/registry.js';
 import { catalogTriggerTypeMeta } from '../../src/plugins/declaration-catalog.js';
 import type { SourceExtractInput } from '@repovine/plugin-sdk';
 import '../../src/stage1/source/bootstrap.js';
@@ -197,10 +197,10 @@ describe('plugin-loader', () => {
       role: 'tool-output',
       declaredBy: { pluginId: 'declaring', packageName: 'repovine-plugin-declaring', packageVersion: '2.3.4' },
     });
-    // Declared trigger metadata reaches the per-run catalog that projects entrypoints, and not the
-    // process-global registry: a declaration must not survive into the next build in this process.
-    expect(catalogTriggerTypeMeta(report.runtime.catalog, 'edge-http')).toEqual({ entrypointKind: 'api' });
-    expect(getTriggerTypeMeta('edge-http')).toBeUndefined();
+    // Declared trigger metadata reaches the per-run catalog that projects entrypoints. There is no
+    // process-global metadata registry for it to leak into: the catalog is the only reader.
+    expect(catalogTriggerTypeMeta(report.runtime.catalog, { type: 'edge-http', namespace: 'edge', provider: 'edge' }))
+      .toEqual({ entrypointKind: 'api' });
   });
 
   it('refuses a manifest whose declaration claims its own owner', async () => {

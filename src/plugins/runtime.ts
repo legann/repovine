@@ -7,14 +7,10 @@ import type {
 } from '@repovine/plugin-sdk';
 import { compareCodeUnits } from '../platform/ordering.js';
 import { refusal, type Refusal } from '../response/refusal.js';
-import {
-  DECLARATION_AMBIGUOUS_REFUSAL,
-  DECLARATION_CONFLICT_REFUSAL,
-} from '../stage1/refusal-kinds.js';
+import { DECLARATION_CONFLICT_REFUSAL } from '../stage1/refusal-kinds.js';
 import type { ProjectionContributorRegistration } from '../stage2/projection/compose.js';
 import {
   buildDeclarationCatalog,
-  catalogAmbiguities,
   declarationCatalogIdentity,
   type DeclarationCatalog,
 } from './declaration-catalog.js';
@@ -48,7 +44,7 @@ export interface PluginRuntime {
   catalog: DeclarationCatalog;
   contributors: ProjectionContributorRegistration[];
   loaders: RegisteredDocumentLoader[];
-  /** What assembling the runtime refused: conflicting and unnarrowable declarations. */
+  /** What assembling the runtime refused: declarations two plugins stated differently. */
   refusals: Refusal[];
 }
 
@@ -114,9 +110,8 @@ export function buildPluginRuntime(input: PluginRuntimeInput): PluginRuntime {
 /**
  * What the merged catalog refused, as refusals a reader sees.
  *
- * A conflict means neither declaration is in force, and an ambiguity means a single-component lookup
- * has two answers and therefore gives none. Both change what the build knows, so both are published
- * rather than resolved by picking a side.
+ * A conflict means neither declaration is in force. That changes what the build knows, so it is
+ * published rather than resolved by picking a side.
  */
 function declarationRefusals(catalog: DeclarationCatalog): Refusal[] {
   const out: Refusal[] = [];
@@ -128,15 +123,6 @@ function declarationRefusals(catalog: DeclarationCatalog): Refusal[] {
       `${owners} declared "${conflict.key}" with different effects, so neither declaration is in `
       + 'force. Make the declarations agree, or drop one from the plugin set.',
       { key: conflict.key, family: conflict.family, sides: conflict.sides },
-    ));
-  }
-  for (const ambiguity of catalogAmbiguities(catalog)) {
-    out.push(refusal(
-      'conflict',
-      DECLARATION_AMBIGUOUS_REFUSAL,
-      `${ambiguity.keys.join(' and ')} both narrow onto "${ambiguity.component}" with different `
-      + 'effects, so the lookup for it answers nothing. Make the declarations agree, or drop one.',
-      { component: ambiguity.component, family: ambiguity.family, keys: ambiguity.keys },
     ));
   }
   return out;

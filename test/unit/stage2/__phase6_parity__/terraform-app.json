@@ -298,6 +298,8 @@
         "contentHash": "ecafdad9c8f51e59",
         "kind": "lambda",
         "provider": "terraform",
+        "service": "lambda",
+        "hasCodeHandler": true,
         "declaredIn": [
           "infrastructure/main.tf"
         ]

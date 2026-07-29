@@ -5,6 +5,7 @@ import { collectUiRouteEntrypoints } from '../../../src/interpreters/ui-entrypoi
 import { collectServiceTriggerEntrypoints } from '../../../src/interpreters/infra-runtime-links/entrypoints.js';
 import { collectEntrypoints } from '../../../src/mcp/lib/entrypoints.js';
 import type { InterpreterEntrypointContext } from '../../../src/interpreter/types.js';
+import { builtinDeclarationCatalog } from '../../helpers/declarations.js';
 import type { McpToolRuntime } from '../../../src/mcp/types.js';
 import { rememberInterpreterEntrypoints } from '../../../src/stage2/interpreter/entrypoint-store.js';
 import type { ModuleInfo, RepositoryFactsSnapshot } from '../../../src/types.js';
@@ -75,6 +76,9 @@ describe('collectEntrypoints layer parity', () => {
       timestamp: '2026-06-13T00:00:00.000Z',
       packages: [{ name: 'pkg', path: '.', sourcePluginId: 'typescript' }],
       modules,
+      // A trigger's entrypoint kind is what its ecosystem declared, so the snapshot carries the
+      // declarations a real build carries.
+      declarations: builtinDeclarationCatalog(),
     };
     const graph = createEmptyGraph();
     addNode(graph, {

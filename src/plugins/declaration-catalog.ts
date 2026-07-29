@@ -1,10 +1,11 @@
-import { canonicalJson } from '@repovine/plugin-sdk';
+import { canonicalJson, resourceKindMetaKey, triggerTypeMetaKey } from '@repovine/plugin-sdk';
 import type {
   Declared,
   EcosystemDirFact,
   PluginOwnerIdentity,
   PluginValueDeclaration,
   ResourceKindDeclaration,
+  RuntimeActionDeclaration,
   StampedDeclarationCatalog,
   TriggerEntryKind,
   TriggerTypeDeclaration,
@@ -33,7 +34,13 @@ import { compareCodeUnits } from '../platform/ordering.js';
 
 /* ---------------------------------- keys ---------------------------------- */
 
-export const DECLARATION_FAMILIES = ['dir', 'value', 'resource-kind', 'trigger-type'] as const;
+export const DECLARATION_FAMILIES = [
+  'dir',
+  'value',
+  'resource-kind',
+  'trigger-type',
+  'runtime-action',
+] as const;
 export type DeclarationFamily = typeof DECLARATION_FAMILIES[number];
 
 /** Textual key for one dir declaration. Also the spelling `plugins.retract` accepts. */
@@ -45,17 +52,22 @@ export function valueKey(axis: string, value: string): string {
   return `value:${axis}=${value}`;
 }
 
+/** Composite key of a resource kind. The component spelling is the SDK's, so the key a plugin
+ *  computes and the key the host stores are one function. */
 export function resourceKindKey(
   declaration: Pick<ResourceKindDeclaration, 'namespace' | 'provider' | 'kind'>,
 ): string {
-  return `resource-kind:${declaration.namespace}/${declaration.provider}/${declaration.kind}`;
+  return `resource-kind:${resourceKindMetaKey(declaration)}`;
 }
 
-/** A trigger type may be global, so an absent namespace/provider is spelled `*` rather than empty. */
 export function triggerTypeKey(
   declaration: Pick<TriggerTypeDeclaration, 'type' | 'namespace' | 'provider'>,
 ): string {
-  return `trigger-type:${declaration.namespace ?? '*'}/${declaration.provider ?? '*'}/${declaration.type}`;
+  return `trigger-type:${triggerTypeMetaKey(declaration)}`;
+}
+
+export function runtimeActionKey(declaration: Pick<RuntimeActionDeclaration, 'action'>): string {
+  return `runtime-action:${declaration.action}`;
 }
 
 /* --------------------------------- records --------------------------------- */
@@ -81,21 +93,6 @@ export interface DeclarationConflict {
   sides: Array<{ declaredBy: PluginOwnerIdentity; effect: Record<string, unknown> }>;
 }
 
-/**
- * Two declarations the composite key separates but a single-component lookup cannot.
- *
- * The pre-boundary registries still key resource metadata by `kind` and trigger metadata by `type`.
- * When two composite keys narrow onto one component with different effects, the narrowed lookup
- * answers nothing and says so here, instead of returning whichever declaration arrived first.
- */
-export interface CatalogAmbiguity {
-  family: DeclarationFamily;
-  /** The single component the lookup has: a resource `kind` or a trigger `type`. */
-  component: string;
-  /** Composite keys that narrow onto it. */
-  keys: string[];
-}
-
 export interface RetractionOutcome {
   selector: string;
   /** Keys the selector removed. Empty when it matched nothing. */
@@ -107,8 +104,8 @@ export interface DeclarationCatalog {
   values: CatalogRecord<PluginValueDeclaration>[];
   resourceKinds: CatalogRecord<ResourceKindDeclaration>[];
   triggerTypes: CatalogRecord<TriggerTypeDeclaration>[];
+  runtimeActions: CatalogRecord<RuntimeActionDeclaration>[];
   conflicts: DeclarationConflict[];
-  ambiguities: CatalogAmbiguity[];
   retractions: RetractionOutcome[];
 }
 
@@ -118,8 +115,8 @@ export function emptyDeclarationCatalog(): DeclarationCatalog {
     values: [],
     resourceKinds: [],
     triggerTypes: [],
+    runtimeActions: [],
     conflicts: [],
-    ambiguities: [],
     retractions: [],
   };
 }
@@ -148,6 +145,12 @@ function triggerTypeEffect(declaration: TriggerTypeDeclaration): Record<string, 
     isStreamLike: declaration.isStreamLike ?? null,
     entrypointKind: declaration.entrypointKind ?? null,
   };
+}
+
+/** Where the action writes. Two plugins naming different namespaces for one action disagree about
+ *  the same fact, so the key is the action alone and the namespace is what they must agree on. */
+function runtimeActionEffect(declaration: RuntimeActionDeclaration): Record<string, unknown> {
+  return { namespace: declaration.namespace };
 }
 
 /* ---------------------------------- merge ---------------------------------- */
@@ -180,6 +183,12 @@ const TRIGGER_TYPE_SPEC: FamilySpec<TriggerTypeDeclaration> = {
   family: 'trigger-type',
   key: triggerTypeKey,
   effect: triggerTypeEffect,
+};
+
+const RUNTIME_ACTION_SPEC: FamilySpec<RuntimeActionDeclaration> = {
+  family: 'runtime-action',
+  key: runtimeActionKey,
+  effect: runtimeActionEffect,
 };
 
 function ownerOrder(a: PluginOwnerIdentity, b: PluginOwnerIdentity): number {
@@ -243,45 +252,6 @@ function mergeFamily<TDecl>(
   return records;
 }
 
-/* -------------------------------- narrowing -------------------------------- */
-
-/**
- * Component a composite key narrows onto for the pre-boundary single-key lookups.
- *
- * Resource metadata is looked up by `kind` and trigger metadata by `type` until the registries take
- * the composite key. Narrowing is computed once here, with every collision named, so the read path
- * never has to choose between two declarations.
- */
-function narrowByComponent<TDecl>(
-  records: ReadonlyArray<CatalogRecord<TDecl>>,
-  component: (record: CatalogRecord<TDecl>) => string,
-  ambiguities: CatalogAmbiguity[],
-): Array<[string, Record<string, unknown>]> {
-  const byComponent = new Map<string, CatalogRecord<TDecl>[]>();
-  for (const record of records) {
-    const name = component(record);
-    const bucket = byComponent.get(name);
-    if (bucket) bucket.push(record);
-    else byComponent.set(name, [record]);
-  }
-
-  const out: Array<[string, Record<string, unknown>]> = [];
-  for (const name of [...byComponent.keys()].sort(compareCodeUnits)) {
-    const bucket = byComponent.get(name)!;
-    const distinct = new Set(bucket.map(record => canonicalJson(record.effect)));
-    if (distinct.size > 1) {
-      ambiguities.push({
-        family: bucket[0].family,
-        component: name,
-        keys: bucket.map(record => record.key).sort(compareCodeUnits),
-      });
-      continue;
-    }
-    out.push([name, bucket[0].effect]);
-  }
-  return out;
-}
-
 /* -------------------------------- retraction -------------------------------- */
 
 function applyRetractions(
@@ -300,6 +270,7 @@ function applyRetractions(
     catalog.values = drop(catalog.values);
     catalog.resourceKinds = drop(catalog.resourceKinds);
     catalog.triggerTypes = drop(catalog.triggerTypes);
+    catalog.runtimeActions = drop(catalog.runtimeActions);
     catalog.retractions.push({ selector, removed: removed.sort(compareCodeUnits) });
   }
 }
@@ -327,8 +298,8 @@ export function buildDeclarationCatalog(input: BuildDeclarationCatalogInput): De
     values: mergeFamily(VALUE_SPEC, input.catalogs.flatMap(c => c.values), conflicts),
     resourceKinds: mergeFamily(RESOURCE_KIND_SPEC, input.catalogs.flatMap(c => c.resourceKinds), conflicts),
     triggerTypes: mergeFamily(TRIGGER_TYPE_SPEC, input.catalogs.flatMap(c => c.triggerTypes), conflicts),
+    runtimeActions: mergeFamily(RUNTIME_ACTION_SPEC, input.catalogs.flatMap(c => c.runtimeActions), conflicts),
     conflicts: conflicts.sort((a, b) => compareCodeUnits(a.key, b.key)),
-    ambiguities: [],
     retractions: [],
   };
   applyRetractions(catalog, input.retract ?? []);
@@ -337,38 +308,21 @@ export function buildDeclarationCatalog(input: BuildDeclarationCatalogInput): De
 
 /* ---------------------------------- reads ---------------------------------- */
 
-interface NarrowedLookups {
-  resourceKindByKind: Map<string, Record<string, unknown>>;
-  triggerTypeByType: Map<string, Record<string, unknown>>;
-  ambiguities: CatalogAmbiguity[];
-}
-
 /**
- * Narrowed lookups are derived, not stored: a catalog crosses the worker boundary and the cache as
- * data, and a Map does neither. Memoized per catalog object so a build derives them once.
+ * Key-addressed lookups are derived, not stored: a catalog crosses the worker boundary and the cache
+ * as data, and a Map does neither. Memoized per catalog object so a build derives them once.
  */
-const narrowedByCatalog = new WeakMap<DeclarationCatalog, NarrowedLookups>();
+const lookupsByCatalog = new WeakMap<DeclarationCatalog, Map<string, Record<string, unknown>>>();
 
-function narrowed(catalog: DeclarationCatalog): NarrowedLookups {
-  const cached = narrowedByCatalog.get(catalog);
+function lookups(catalog: DeclarationCatalog): Map<string, Record<string, unknown>> {
+  const cached = lookupsByCatalog.get(catalog);
   if (cached) return cached;
-  const ambiguities: CatalogAmbiguity[] = [];
-  const derived: NarrowedLookups = {
-    resourceKindByKind: new Map(
-      narrowByComponent(catalog.resourceKinds, record => record.declarations[0].kind, ambiguities),
-    ),
-    triggerTypeByType: new Map(
-      narrowByComponent(catalog.triggerTypes, record => record.declarations[0].type, ambiguities),
-    ),
-    ambiguities,
-  };
-  narrowedByCatalog.set(catalog, derived);
-  return derived;
-}
-
-/** Collisions the single-component lookups cannot answer. Derived from the catalog on first read. */
-export function catalogAmbiguities(catalog: DeclarationCatalog): readonly CatalogAmbiguity[] {
-  return narrowed(catalog).ambiguities;
+  const byKey = new Map<string, Record<string, unknown>>();
+  for (const records of [catalog.resourceKinds, catalog.triggerTypes, catalog.runtimeActions]) {
+    for (const record of records) byKey.set(record.key, record.effect);
+  }
+  lookupsByCatalog.set(catalog, byKey);
+  return byKey;
 }
 
 export interface CatalogResourceKindMeta {
@@ -381,12 +335,19 @@ export interface CatalogTriggerTypeMeta {
   entrypointKind?: TriggerEntryKind;
 }
 
-/** Resource metadata a plugin declared for this `kind`, or undefined when none did unambiguously. */
+/** The resource this metadata is asked about, in the components the composite key is made of. */
+export interface ResourceKindQuery {
+  namespace: string;
+  provider: string;
+  kind: string;
+}
+
+/** Resource metadata a plugin declared for this exact `(namespace, provider, kind)`. */
 export function catalogResourceKindMeta(
   catalog: DeclarationCatalog,
-  kind: string,
+  query: ResourceKindQuery,
 ): CatalogResourceKindMeta | undefined {
-  const effect = narrowed(catalog).resourceKindByKind.get(kind);
+  const effect = lookups(catalog).get(resourceKindKey(query));
   if (!effect) return undefined;
   return {
     ...(effect.service === null ? {} : { service: effect.service as string }),
@@ -394,17 +355,54 @@ export function catalogResourceKindMeta(
   };
 }
 
-/** Trigger metadata a plugin declared for this `type`, or undefined when none did unambiguously. */
+/** The trigger this metadata is asked about, with the identity of the resource carrying it. */
+export interface TriggerTypeQuery {
+  type: string;
+  namespace?: string;
+  provider?: string;
+}
+
+/**
+ * Trigger metadata a plugin declared for this type.
+ *
+ * A trigger type may be declared for one namespace, for a whole provider, or globally, so the
+ * lookup tries the three keys from most to least specific. Declaring by provider is what lets one
+ * ecosystem's trigger answer for every namespace its resources are minted into.
+ */
 export function catalogTriggerTypeMeta(
   catalog: DeclarationCatalog,
-  type: string,
+  query: TriggerTypeQuery,
 ): CatalogTriggerTypeMeta | undefined {
-  const effect = narrowed(catalog).triggerTypeByType.get(type);
-  if (!effect) return undefined;
-  return {
-    ...(effect.isStreamLike === null ? {} : { isStreamLike: effect.isStreamLike as boolean }),
-    ...(effect.entrypointKind === null ? {} : { entrypointKind: effect.entrypointKind as TriggerEntryKind }),
-  };
+  const byKey = lookups(catalog);
+  const candidates = [
+    triggerTypeKey(query),
+    triggerTypeKey({ type: query.type, ...(query.provider === undefined ? {} : { provider: query.provider }) }),
+    triggerTypeKey({ type: query.type }),
+  ];
+  for (const key of candidates) {
+    const effect = byKey.get(key);
+    if (!effect) continue;
+    return {
+      ...(effect.isStreamLike === null ? {} : { isStreamLike: effect.isStreamLike as boolean }),
+      ...(effect.entrypointKind === null ? {} : { entrypointKind: effect.entrypointKind as TriggerEntryKind }),
+    };
+  }
+  return undefined;
+}
+
+/**
+ * The identity namespace a plugin declared this runtime action writes to.
+ *
+ * The host compares the answer with the namespace encoded in a candidate resource id, so pairing a
+ * call with the resource it writes to reads two declared strings and recognises neither.
+ */
+export function catalogRuntimeActionNamespace(
+  catalog: DeclarationCatalog,
+  action: string,
+): string | undefined {
+  const effect = lookups(catalog).get(runtimeActionKey({ action }));
+  const namespace = effect?.namespace;
+  return typeof namespace === 'string' ? namespace : undefined;
 }
 
 /**
@@ -430,6 +428,7 @@ export function declarationCatalogIdentity(catalog: DeclarationCatalog): unknown
     values: foldRecords(catalog.values),
     resourceKinds: foldRecords(catalog.resourceKinds),
     triggerTypes: foldRecords(catalog.triggerTypes),
+    runtimeActions: foldRecords(catalog.runtimeActions),
     conflicts: catalog.conflicts.map(conflict => [conflict.key, conflict.sides.length]),
     retractions: catalog.retractions.map(retraction => [retraction.selector, retraction.removed]),
   };

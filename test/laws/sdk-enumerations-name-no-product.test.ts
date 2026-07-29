@@ -56,18 +56,7 @@ function members(...values: string[]): ReadonlySet<string> {
  * Identity includes the declaration owner: two properties in one file may carry the same member
  * without sharing an exemption.
  */
-const EXEMPT = new Map<string, ExemptionRecord>([
-  ['source-plugin/semantic-hints-schema.ts::zRuntimeAction.action', {
-    members: members('sqs.sendMessage', 'sns.publish', 'eventbridge.putEvents', 'lambda.invoke'),
-    reason: 'The versioned schema still exposes a closed set of AWS-specific runtime actions.',
-    retirement: 'Remove when runtime action kinds become an open producer-declared vocabulary.',
-  }],
-  ['types.ts::RuntimeAction.action', {
-    members: members('sqs.sendMessage', 'sns.publish', 'eventbridge.putEvents', 'lambda.invoke'),
-    reason: 'The public fact type mirrors the closed AWS-specific runtime-action schema.',
-    retirement: 'Remove with the schema exemption when runtime action kinds become open.',
-  }],
-]);
+const EXEMPT = new Map<string, ExemptionRecord>([]);
 
 /**
  * Literal lists that are implementation data rather than values a plugin chooses on an axis.

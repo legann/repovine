@@ -73,11 +73,23 @@ function probeInstalledPluginPackages(installed) {
         const resolved = anchoredRequire.resolve(name);
         const mod = await import(pathToFileURL(resolved).href);
         direct.set(name, mod.default);
+        // The engine reads a bundled plugin's declarations from its own package.json, exactly as it
+        // reads an external package's. A layout npm chose that hides package.json would leave every
+        // built-in declaring nothing, and the graph would lose handler links without an error.
+        let manifest;
+        try {
+          const { readFileSync } = await import('node:fs');
+          const pkg = JSON.parse(readFileSync(anchoredRequire.resolve(name + '/package.json'), 'utf-8'));
+          manifest = { id: pkg.repovine?.id, apiVersion: pkg.repovine?.apiVersion, version: pkg.version };
+        } catch (error) {
+          manifest = { error: error?.code ?? error?.message ?? String(error) };
+        }
         packages[name] = {
           resolved,
           pluginId: mod.default?.pluginId,
           activation: mod.default?.activation,
           expectedPluginId: pluginId,
+          manifest,
         };
       } catch (error) {
         packages[name] = { error: error?.code ?? error?.message ?? String(error) };
@@ -215,6 +227,12 @@ try {
       result?.pluginId === pluginId && result?.activation === activation,
       `${packageName} public entrypoint imports from the installed tarball (${activation})`,
     );
+    if (activation === 'iac-plugin') {
+      check(
+        result?.manifest?.id === pluginId && result?.manifest?.apiVersion === 1,
+        `${packageName} declares its manifest where the engine reads it (package.json#repovine)`,
+      );
+    }
   }
   check(
     resolvesInsideInstalledTree(pluginProbe.preset?.resolved),

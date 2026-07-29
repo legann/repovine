@@ -13,6 +13,24 @@
     },
     "./package.json": "./package.json"
   },
+  "repovine": {
+    "kind": "plugin",
+    "id": "terraform",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "terraform",
+      "resourceKinds": [
+        {
+          "namespace": "terraform",
+          "provider": "terraform",
+          "kind": "lambda",
+          "service": "lambda",
+          "hasCodeHandler": true
+        }
+      ]
+    }
+  },
   "files": [
     "dist"
   ],

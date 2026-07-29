@@ -5,6 +5,7 @@ import {
   type SlottedEntrypointFragment,
 } from '../../stage2/interpreter/entrypoint-slots.js';
 import { triggerEntryKind } from '../../stage2/runtime/trigger-entry-kind.js';
+import { runtimeResourceIdentity } from '../../graph/make-runtime-resource-id.js';
 
 export const INFRA_RUNTIME_LINKS_INTERPRETER_ID = 'infra-runtime-links';
 
@@ -21,8 +22,9 @@ export function collectServiceTriggerEntrypoints(ctx: InterpreterEntrypointConte
     const node = graph.nodes.get(svcId);
     if (!node || node.type !== 'runtime-resource') continue;
     const [handlerModule] = infraTargetIds(graph, svcId);
+    const carrier = runtimeResourceIdentity(svcId, node.data?.provider);
     for (const trigger of node.data?.triggers ?? []) {
-      const kind = triggerEntryKind(trigger, ctx.snapshot.declarations);
+      const kind = triggerEntryKind(trigger, ctx.snapshot.declarations, carrier);
       out.push({
         [LAYER_ENTRYPOINT_SLOT_KEY]: 'service-trigger',
         id: `entrypoint:${kind}:${svcId}:${trigger.name ?? trigger.path ?? trigger.queueRef ?? trigger.schedule ?? 'trigger'}`,

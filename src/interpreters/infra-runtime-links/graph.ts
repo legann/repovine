@@ -10,9 +10,14 @@ import type {
 import type { HandlerResolveContext } from '@repovine/plugin-sdk';
 import { addEdge, addNode, hasEdge, infraTargetIds } from '../../graph/index.js';
 import { makeRuntimeResourceId } from '../../graph/make-runtime-resource-id.js';
+import { parseResourceId } from '@repovine/plugin-sdk';
 import { resolveInfraRef, type InfraRefScope } from '../../graph/resolve-infra-ref.js';
 import type { DeclarationCatalog } from '../../plugins/declaration-catalog.js';
-import { resolveResourceKindMeta, resolveTriggerTypeMeta } from '../../stage2/runtime/declared-meta.js';
+import {
+  catalogResourceKindMeta,
+  catalogRuntimeActionNamespace,
+  catalogTriggerTypeMeta,
+} from '../../plugins/declaration-catalog.js';
 import { matchesInfraResourceExclude, type DomainsConfig } from '../../stage2/domains.js';
 import {
   linkContainerRuntimeTargets,
@@ -35,6 +40,44 @@ import { stripIndexBasename } from '../../stage1/source/registry.js';
 import { infraNodeId } from '../../graph/node-ids.js';
 
 type RuntimeActionName = RuntimeAction['action'];
+
+/** What this build's plugins declared about the kind of one resource. */
+function declaredResourceMeta(
+  res: InfraResource,
+  declarations: DeclarationCatalog | undefined,
+): { service?: string; hasCodeHandler?: boolean } | undefined {
+  if (!declarations) return undefined;
+  return catalogResourceKindMeta(declarations, {
+    namespace: res.identity.namespace,
+    provider: res.provider,
+    kind: res.kind,
+  });
+}
+
+/**
+ * True when the resource's kind was declared to carry code.
+ *
+ * Three passes need it: the handler edge, the env bindings a handler module inherits, and the
+ * publish edges its calls imply. All three ask the same question, and none of them names an
+ * ecosystem's kind to answer it.
+ */
+function hasCodeHandler(res: InfraResource, declarations: DeclarationCatalog | undefined): boolean {
+  return declaredResourceMeta(res, declarations)?.hasCodeHandler === true;
+}
+
+/** Trigger metadata under the identity of the resource carrying the trigger. */
+function declaredTriggerMeta(
+  res: InfraResource,
+  type: string | undefined,
+  declarations: DeclarationCatalog | undefined,
+): { isStreamLike?: boolean } | undefined {
+  if (!declarations || type === undefined) return undefined;
+  return catalogTriggerTypeMeta(declarations, {
+    type,
+    namespace: res.identity.namespace,
+    provider: res.provider,
+  });
+}
 
 /**
  * Infra-link graph contribution: infra modules + runtime-resource nodes + handler/runtime/container/k8s
@@ -188,10 +231,11 @@ function linkDeferredInfraEdges(
 
       const scope = refScopeFor(infraMod, res);
 
-      if (res.kind === 'lambda' && res.triggers) {
+      if (res.triggers) {
         for (const trigger of res.triggers) {
-          // Sources that drive a consumer Lambda: SQS queue, DynamoDB stream, Kinesis stream.
-          const isStreamLike = !!resolveTriggerTypeMeta(declarations, trigger.type)?.isStreamLike;
+          // A stream-like trigger names the source that drives this resource: a queue, a change
+          // stream, an event bus. Which types those are is declared, not recognised here.
+          const isStreamLike = declaredTriggerMeta(res, trigger.type, declarations)?.isStreamLike === true;
           if (!isStreamLike || !trigger.queueRef) continue;
           const queueServiceId = findServiceIdByLogicalId(graph, trigger.queueRef, serviceId, scope);
           if (queueServiceId && graph.nodes.has(queueServiceId) && !hasEdge(graph, queueServiceId, 'consumes', serviceId)) {
@@ -218,10 +262,14 @@ function linkDeferredInfraEdges(
  * Handler TS modules inherit Lambda env bindings: module → service (binds_to) for each resolved envRef target.
  * Lets domain slices reach DynamoDB/SQS/etc. via code modules, not only via Lambda in the slice.
  */
-function linkHandlerModuleEnvBindings(graph: RepositoryGraph, infraModules: InfraModuleInfo[]): void {
+function linkHandlerModuleEnvBindings(
+  graph: RepositoryGraph,
+  infraModules: InfraModuleInfo[],
+  declarations: DeclarationCatalog | undefined,
+): void {
   for (const infraMod of infraModules) {
     for (const res of infraMod.resources) {
-      if (res.kind !== 'lambda' || !res.envRefs?.length) continue;
+      if (!hasCodeHandler(res, declarations) || !res.envRefs?.length) continue;
       const serviceId = makeRuntimeResourceId(res);
       if (!graph.nodes.has(serviceId)) continue;
 
@@ -248,10 +296,11 @@ function linkRuntimePublishes(
   graph: RepositoryGraph,
   infraModules: InfraModuleInfo[],
   modulesById: Map<string, ModuleInfo>,
+  declarations: DeclarationCatalog | undefined,
 ): void {
   for (const infraMod of infraModules) {
     for (const res of infraMod.resources) {
-      if (res.kind !== 'lambda') continue;
+      if (!hasCodeHandler(res, declarations)) continue;
       const serviceId = makeRuntimeResourceId(res);
       if (!graph.nodes.has(serviceId)) continue;
 
@@ -262,7 +311,7 @@ function linkRuntimePublishes(
 
       const scope = refScopeFor(infraMod, res);
       for (const action of actions) {
-        const targetServiceId = findPublishTargetForAction(graph, serviceId, scope, res.envRefs ?? [], action.action, action.envVar);
+        const targetServiceId = findPublishTargetForAction(graph, serviceId, scope, res.envRefs ?? [], action.action, declarations, action.envVar);
         if (!targetServiceId || hasEdge(graph, serviceId, 'publishes', targetServiceId)) continue;
         addEdge(graph, serviceId, targetServiceId, 'publishes');
       }
@@ -303,25 +352,34 @@ function findPublishTargetForAction(
   scope: InfraRefScope,
   envRefs: NonNullable<InfraModuleInfo['resources'][number]['envRefs']>,
   action: RuntimeActionName,
+  declarations: DeclarationCatalog | undefined,
   envVar?: string,
 ): string | undefined {
   const refs = envVar ? envRefs.filter(ref => ref.varName === envVar) : envRefs;
   for (const ref of refs) {
     if (!ref.targetLogicalId) continue;
     const targetServiceId = findServiceIdByLogicalId(graph, ref.targetLogicalId, fromServiceId, scope, ref.varName);
-    if (targetServiceId && serviceMatchesRuntimeAction(targetServiceId, action)) return targetServiceId;
+    if (targetServiceId && serviceMatchesRuntimeAction(targetServiceId, action, declarations)) return targetServiceId;
   }
   return undefined;
 }
 
-function serviceMatchesRuntimeAction(serviceId: string, action: RuntimeActionName): boolean {
-  switch (action) {
-    case 'sqs.sendMessage': return serviceId.startsWith('resource:aws-sqs:');
-    case 'sns.publish': return serviceId.startsWith('resource:aws-sns:');
-    case 'lambda.invoke': return serviceId.startsWith('resource:aws-lambda:');
-    case 'eventbridge.putEvents': return serviceId.startsWith('resource:aws-eventbridge:') || serviceId.startsWith('resource:aws-events:');
-  }
-  return false;
+/**
+ * True when the resource this id names is where the action writes.
+ *
+ * Both sides are declared: the producer names the call, its namespace owner declares which identity
+ * namespace that call targets, and the namespace of a candidate is read back out of its id. No
+ * ecosystem's id spelling is recognised here, so a plugin adds a service by declaring one.
+ */
+function serviceMatchesRuntimeAction(
+  serviceId: string,
+  action: RuntimeActionName,
+  declarations: DeclarationCatalog | undefined,
+): boolean {
+  if (!declarations) return false;
+  const declared = catalogRuntimeActionNamespace(declarations, action);
+  if (declared === undefined) return false;
+  return parseResourceId(serviceId)?.namespace === declared;
 }
 
 function pass2Infra(
@@ -391,6 +449,10 @@ function pass2Infra(
       const previouslyDeclaredIn = previous?.type === 'runtime-resource'
         ? previous.data?.declaredIn ?? []
         : [];
+      // Read once here and carried on the node: a query layer holds a node, not the declaration
+      // catalog that built it, and re-deriving `service` from an id spelling is how ecosystem
+      // knowledge gets back into the MCP shell.
+      const declaredMeta = declaredResourceMeta(res, declarations);
       addNode(graph, {
         id: serviceId,
         type: 'runtime-resource',
@@ -405,6 +467,8 @@ function pass2Infra(
           kind: res.kind,
           k8sKind: res.provider === 'k8s' ? res.attributes.kind : undefined,
           provider: res.provider,
+          service: declaredMeta?.service,
+          hasCodeHandler: declaredMeta?.hasCodeHandler,
           declaredIn: uniqueStrings([...previouslyDeclaredIn, infraMod.relativeFilePath]),
           namespace: res.attributes.namespace,
         },
@@ -412,7 +476,7 @@ function pass2Infra(
       addEdge(graph, infraModuleId, serviceId, 'contains');
       addEdge(graph, serviceId, domainId, 'tagged');
 
-      if (resolveResourceKindMeta(declarations, res.kind)?.hasCodeHandler && res.attributes.handler) {
+      if (declaredMeta?.hasCodeHandler && res.attributes.handler) {
         const modId = resolveHandlerToModuleId(
           res.attributes.handler,
           snapshot,
@@ -435,7 +499,7 @@ function pass2Infra(
 
       if (res.triggers) {
         for (const trigger of res.triggers) {
-          const isStreamLike = !!resolveTriggerTypeMeta(declarations, trigger.type)?.isStreamLike;
+          const isStreamLike = declaredTriggerMeta(res, trigger.type, declarations)?.isStreamLike === true;
           if (isStreamLike && trigger.queueRef) {
             deferredLogicalIdRefs.push({ logicalId: trigger.queueRef, serviceId, scope, kind: 'consumes' });
           }
@@ -492,8 +556,8 @@ function pass2Infra(
   }
 
   linkDeferredInfraEdges(graph, infraModules, declarations);
-  linkHandlerModuleEnvBindings(graph, infraModules);
-  linkRuntimePublishes(graph, infraModules, modulesById);
+  linkHandlerModuleEnvBindings(graph, infraModules, declarations);
+  linkRuntimePublishes(graph, infraModules, modulesById, declarations);
   linkContainerRuntimeTargets(graph, snapshot);
   linkK8sIngressRoutes(graph, snapshot);
 }

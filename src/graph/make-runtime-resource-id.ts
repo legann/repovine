@@ -1,4 +1,4 @@
-import { makeResourceId } from '@repovine/plugin-sdk';
+import { makeResourceId, parseResourceId } from '@repovine/plugin-sdk';
 import type { InfraResource } from '../types.js';
 
 /**
@@ -11,4 +11,23 @@ import type { InfraResource } from '../types.js';
  */
 export function makeRuntimeResourceId(res: InfraResource): string {
   return makeResourceId(res.identity);
+}
+
+/**
+ * The declaration key components of an already-minted resource node: the namespace read back out of
+ * its id, beside the provider the node carries.
+ *
+ * A query layer holds an id and a node, not the `InfraResource` a plugin emitted. The encoding is
+ * lossless, so the namespace a declaration is keyed by is recoverable rather than re-derived from
+ * the id's spelling.
+ */
+export function runtimeResourceIdentity(
+  serviceId: string,
+  provider?: string,
+): { namespace?: string; provider?: string } {
+  const parsed = parseResourceId(serviceId);
+  return {
+    ...(parsed === undefined ? {} : { namespace: parsed.namespace }),
+    ...(provider === undefined ? {} : { provider }),
+  };
 }

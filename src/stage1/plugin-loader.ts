@@ -37,8 +37,13 @@ import {
   getRegisteredIaCPluginIds,
 } from './iac/registry.js';
 import { getBuiltinSourcePluginIds, resetToBuiltinSourcePlugins } from './source/bootstrap.js';
-import { getBuiltinIaCPluginIds, resetToBuiltinIaCPlugins } from './iac/bootstrap.js';
-import { buildPluginRuntime, emptyPluginRuntime, type PluginRuntime } from '../plugins/runtime.js';
+import {
+  builtinIaCDeclarations,
+  getBuiltinIaCPluginIds,
+  resetToBuiltinIaCPlugins,
+  type BuiltinDeclarationProblem,
+} from './iac/bootstrap.js';
+import { buildPluginRuntime, type PluginRuntime } from '../plugins/runtime.js';
 
 /**
  * Plugin loader.
@@ -306,6 +311,35 @@ async function loadExternalPlugin(
 }
 
 /**
+ * The bundled preset as runtime candidates: what each built-in package declares, under its own
+ * package identity.
+ *
+ * Built-in declarations reach the per-run catalog on every build, not only on builds that name
+ * plugins in config. A build whose catalog is empty knows nothing about any resource kind, and the
+ * defaults are exactly the plugin set the tarball ships.
+ */
+function builtinCandidates(): { candidates: RuntimeCandidate[]; problems: BuiltinDeclarationProblem[] } {
+  const { entries, problems } = builtinIaCDeclarations();
+  return {
+    candidates: entries.map(entry => ({
+      owner: entry.owner,
+      capabilities: ['iac'] as const,
+      declarations: entry.declarations,
+    })),
+    problems,
+  };
+}
+
+/** The runtime a build with no `plugins` config gets: the bundled preset's declarations, nothing else. */
+export function builtinPluginRuntime(): {
+  runtime: PluginRuntime;
+  problems: BuiltinDeclarationProblem[];
+} {
+  const { candidates, problems } = builtinCandidates();
+  return { runtime: buildPluginRuntime({ plugins: candidates }), problems };
+}
+
+/**
  * Apply `config.plugins` to the global registries for one build. Re-derives the active set from the
  * built-in baseline each call (idempotent), loads external `add[]` plugins from the analyzed repo,
  * and removes `disable[]` ids (and all built-ins when `defaults:false`).
@@ -320,20 +354,27 @@ export async function applyPluginConfig(args: {
   resetToBuiltinSourcePlugins();
   resetToBuiltinIaCPlugins();
 
+  const builtins = builtinCandidates();
   const report: PluginLoadReport = {
     loaded: [],
     refused: [],
     disabled: [],
     defaultsOff: config.defaults === false,
     externalSourceIds: new Set(),
-    runtime: emptyPluginRuntime(),
+    runtime: buildPluginRuntime({ plugins: [] }),
   };
+  for (const problem of builtins.problems) {
+    report.refused.push({ name: problem.packageName, reason: problem.reason });
+  }
   const candidates = new Map<string, RuntimeCandidate>();
 
   // defaults:false → drop the entire bundled preset; the user must supply everything via `add`.
+  // Declarations go with it: a preset that is not loaded declares nothing.
   if (config.defaults === false) {
     for (const id of getBuiltinSourcePluginIds()) unregisterSourcePlugin(id);
     for (const id of getBuiltinIaCPluginIds()) unregisterIaCPlugin(id);
+  } else {
+    for (const candidate of builtins.candidates) candidates.set(candidate.owner.pluginId, candidate);
   }
 
   // add[] → resolve + validate + register external plugins from the analyzed repo.

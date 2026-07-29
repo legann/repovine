@@ -617,6 +617,7 @@
         "contentHash": "83b968ddc0c46bbb",
         "kind": "vercel-function",
         "provider": "vercel",
+        "hasCodeHandler": true,
         "declaredIn": [
           "vercel.json"
         ]

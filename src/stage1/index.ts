@@ -20,14 +20,10 @@ import {
 } from './calibration.js';
 import { getSourcePlugin, getSourcePlugins } from './source/registry.js';
 import { runSourceExtraction } from './source/extract-runner.js';
-import { applyPluginConfig, type PluginsConfigInput } from './plugin-loader.js';
+import { applyPluginConfig, builtinPluginRuntime, type PluginsConfigInput } from './plugin-loader.js';
 import { currentEngineBuildId, engineBuildMatches } from './engine-build-id.js';
 import { computeExtractionConfigFingerprint } from './extraction-config-fingerprint.js';
-import {
-  emptyPluginRuntime,
-  pluginRuntimeIdentity,
-  type PluginRuntime,
-} from '../plugins/runtime.js';
+import { pluginRuntimeIdentity, type PluginRuntime } from '../plugins/runtime.js';
 import { rememberPluginRuntime } from '../plugins/runtime-store.js';
 import type { DeclarationCatalog } from '../plugins/declaration-catalog.js';
 import { getRegisteredIaCPluginIds } from './iac/registry.js';
@@ -828,26 +824,31 @@ export async function collectRepositoryFactsAsync(
   // any external SOURCE plugin is active, force inline extraction — worker isolates only carry the
   // bundled preset, so an external source plugin's extract() must run on the main thread.
   let forceInlineExtraction = false;
-  const pluginRefusals: Refusal[] = [];
   // Assembled fresh here every call: the runtime is what this build's plugin set declares and
-  // contributes, and it is handed on rather than left in module state.
-  let pluginRuntime = emptyPluginRuntime();
+  // contributes, and it is handed on rather than left in module state. The bundled preset declares
+  // on every build, including one that names no plugins in config — its metadata is what its
+  // packages state, not what a process-global registry accumulated.
+  let pluginRuntime: PluginRuntime;
+  let unloadable: Array<{ name: string; reason: string }>;
   if (resolvedOptions?.plugins) {
     const report = await applyPluginConfig({ repoRoot, config: resolvedOptions.plugins });
     forceInlineExtraction = report.externalSourceIds.size > 0;
     pluginRuntime = report.runtime;
-    for (const { name, reason } of report.refused) {
-      pluginRefusals.push(refusal(
-        'unreadable',
-        PLUGIN_UNLOADABLE_REFUSAL,
-        `Plugin "${name}" from repovine.config.json could not be loaded: ${reason}. What it would have contributed is absent from the graph.`,
-        { plugin: name },
-      ));
-    }
-    // Conflicting and unnarrowable declarations change what the build knows, so they reach the
-    // reader beside the plugins that could not be loaded at all.
-    pluginRefusals.push(...pluginRuntime.refusals);
+    unloadable = report.refused;
+  } else {
+    const builtins = builtinPluginRuntime();
+    pluginRuntime = builtins.runtime;
+    unloadable = builtins.problems.map(p => ({ name: p.packageName, reason: p.reason }));
   }
+  const pluginRefusals: Refusal[] = unloadable.map(({ name, reason }) => refusal(
+    'unreadable',
+    PLUGIN_UNLOADABLE_REFUSAL,
+    `Plugin "${name}" could not be loaded: ${reason}. What it would have contributed is absent from the graph.`,
+    { plugin: name },
+  ));
+  // Conflicting declarations change what the build knows, so they reach the reader beside the
+  // plugins that could not be loaded at all.
+  pluginRefusals.push(...pluginRuntime.refusals);
 
   const signal = resolvedOptions?.signal;
   const prep = await prepareRun(repoRoot, resolvedOptions, pluginRuntime);

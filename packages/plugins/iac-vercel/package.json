@@ -13,6 +13,30 @@
     },
     "./package.json": "./package.json"
   },
+  "repovine": {
+    "kind": "plugin",
+    "id": "vercel",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "vercel",
+      "resourceKinds": [
+        {
+          "namespace": "vercel",
+          "provider": "vercel",
+          "kind": "vercel-function",
+          "hasCodeHandler": true
+        }
+      ],
+      "triggerTypes": [
+        {
+          "type": "schedule",
+          "provider": "vercel",
+          "entrypointKind": "schedule"
+        }
+      ]
+    }
+  },
   "files": [
     "dist"
   ],

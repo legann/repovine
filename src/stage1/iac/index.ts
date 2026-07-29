@@ -17,15 +17,9 @@ export {
   registerInfraKindDomain,
   getInfraKindDomain,
   getAllRegisteredKindDomains,
-  registerResourceKindMeta,
-  getResourceKindMeta,
-  registerTriggerTypeMeta,
-  getTriggerTypeMeta,
 } from './registry.js';
 export type {
   InfraKindDomain,
-  ResourceKindMeta,
-  TriggerTypeMeta,
   TriggerEntryKind,
 } from './registry.js';
 

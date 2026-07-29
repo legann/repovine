@@ -1,16 +1,20 @@
 import type { McpToolRuntime } from '../types.js';
-import type { EdgeKind } from '../../types.js';
+import type { EdgeKind, RepositoryGraph } from '../../types.js';
 import { ALL_SCOPE, type ResolvedScope, type ScopeKind } from '../../scope/resolved.js';
 import { handlerModuleIds, infraTargetIds, isTaggedInto, modulePackageId, nodeLabel, nodesOfType, taggedDomains } from '../../graph/index.js';
 import { resolveInfraRef } from '../../graph/resolve-infra-ref.js';
 import { provenance } from '../../response/provenance.js';
 
-export function publishTypeForRuntimeResource(serviceId: string): string {
-  if (serviceId.startsWith('resource:aws-sqs:')) return 'sqs';
-  if (serviceId.startsWith('resource:aws-sns:')) return 'sns';
-  if (serviceId.startsWith('resource:aws-lambda:')) return 'lambda';
-  if (serviceId.startsWith('resource:aws-eventbridge:') || serviceId.startsWith('resource:aws-events:')) return 'eventbridge';
-  return 'resource';
+/**
+ * The service label published beside a publish edge.
+ *
+ * The graph carries what the resource's plugin declared its kind to be. A resource whose ecosystem
+ * declared no service label is reported as a plain resource rather than guessed at from its id.
+ */
+export function publishTypeForRuntimeResource(graph: RepositoryGraph, serviceId: string): string {
+  const node = graph.nodes.get(serviceId);
+  const service = node?.type === 'runtime-resource' ? node.data?.service : undefined;
+  return service ?? 'resource';
 }
 
 /**
@@ -191,7 +195,7 @@ export function projectRuntimeTopology(
     for (const edge of producesTo) {
       const targetNode = graph.nodes.get(edge.to);
       if (!targetNode) continue;
-      publishes.push({ type: publishTypeForRuntimeResource(edge.to), target: edge.to, label: targetNode.label });
+      publishes.push({ type: publishTypeForRuntimeResource(graph, edge.to), target: edge.to, label: targetNode.label });
       if (!resourceMap.has(edge.to)) {
         resourceMap.set(edge.to, { id: edge.to, type: targetNode.description, consumers: [], producers: [], flowConsumers: [] });
       }

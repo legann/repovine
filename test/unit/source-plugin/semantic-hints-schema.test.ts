@@ -67,6 +67,16 @@ describe('zSemanticHints — open webFramework + forward-compatible passthrough'
     expect(parsed.success && parsed.data.webFramework).toBe('spring');
   });
 
+  it('accepts a runtime action no built-in producer emits', () => {
+    // Where the call writes is a declaration, not a member of a list here: a producer for another
+    // cloud names its own call and its namespace owner declares the target.
+    const parsed = zSemanticHints.safeParse({
+      runtimeActions: [{ action: 'pubsub.publishMessage', envVar: 'TOPIC_ID' }],
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.runtimeActions?.[0]?.action).toBe('pubsub.publishMessage');
+  });
+
   it('preserves an unknown top-level slot (an interpreter reads it before core knows it)', () => {
     const value = { graphql: { resolvers: ['Query.me'] } };
     const parsed = zSemanticHints.safeParse(value);
@@ -81,7 +91,8 @@ describe('zSemanticHints — drops structurally-broken known slots', () => {
     ['envVars not strings', { envVars: [1, 2] }],
     ['ssr not an object', { ssr: 'server' }],
     ['route missing component', { routes: [{ path: '/x' }] }],
-    ['runtimeAction unknown action', { runtimeActions: [{ action: 'fs.write' }] }],
+    ['runtimeAction with no action name', { runtimeActions: [{ envVar: 'QUEUE_URL' }] }],
+    ['runtimeAction action not a string', { runtimeActions: [{ action: 42 }] }],
   ])('rejects %s', (_label, value) => {
     expect(zSemanticHints.safeParse(value).success).toBe(false);
     expect(validateSemanticHints(value).ok).toBe(false);

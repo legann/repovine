@@ -1,6 +1,6 @@
 # Plugin boundary migration inventory
 
-Status: recorded 2026-07-29, after stage 6. Both producer verticals ship as
+Status: recorded 2026-07-29, after stage 6-b. Both producer verticals ship as
 workspace packages under `packages/plugins/*`. What remains is the loading path:
 core reaches those packages through two named bootstrap files instead of
 config-driven plugin loading.
@@ -25,9 +25,9 @@ absence rather than the emptiness of a scan over them.
 | Path | Legacy responsibility |
 |---|---|
 | `src/stage1/source/bootstrap.ts` | Names the two source packages, owns `INTERNAL_SOURCE_PLUGINS`, registers them as an import side effect, and resets the global source registry. |
-| `src/stage1/iac/bootstrap.ts` | Names the seven IaC packages, owns `INTERNAL_IAC_PLUGINS`, registers them as an import side effect, and rebuilds the global IaC registry. |
+| `src/stage1/iac/bootstrap.ts` | Names the seven IaC packages, owns `INTERNAL_IAC_PLUGINS`, registers them as an import side effect, rebuilds the global IaC registry, and reads their manifests from disk instead of receiving them from the plugin loader. |
 | `src/stage1/source/registry.ts` | Holds the process-global ordered source-plugin array and first-registered-wins file routing. |
-| `src/stage1/iac/registry.ts` | Holds the process-global parser array, plugin ownership map, document-loader table, and kind/resource/trigger metadata maps. |
+| `src/stage1/iac/registry.ts` | Holds the process-global parser array, plugin ownership map, document-loader table, and kind→domain map. |
 | `src/stage1/plugin-loader.ts` | Resets both registries to the built-in arrays and adds external packages to those global registries. |
 
 Both bootstrap files are named in `PRE_BOUNDARY_COMPOSITION_ROOTS` in
@@ -58,8 +58,6 @@ these files: config-driven loading is stage 7.
 | `src/stage2/domains.ts` | Imports the source bootstrap and strips source suffixes through the registry. |
 | `src/stage2/index.ts` | Reads registry-owned source index-basename and suffix normalization during Stage 2 projection. |
 | `src/stage2/module-label.ts` | Imports the source bootstrap and strips module-id suffixes through the registry. |
-| `src/stage2/runtime/trigger-entry-kind.ts` | Imports the IaC bootstrap and reads trigger-type metadata from the IaC registry. |
-| `src/stage2/runtime/declared-meta.ts` | Reads the per-run catalog first and the process-global registry second, for built-ins that register metadata rather than declaring it. |
 | `src/mcp/scope/resolve.ts` | Side-effect imports the source bootstrap before using registry-derived suffix and naming rules. |
 | `src/mcp/index.ts` | Reads source-plugin lifecycle hooks from the global registry during shutdown. |
 | `src/mcp/lib/dependencies/package-boundaries.ts` | Reads source normalization from the global registry. |
@@ -70,11 +68,20 @@ These are not loading paths; they are the semantics stage 6 did not move.
 
 | Path | What it still knows |
 |---|---|
-| `src/stage2/runtime-links.ts` | Kubernetes Ingress-to-Service routing, including the namespace prefix an id shares. |
-| `src/interpreters/infra-runtime-links/graph.ts` | `kind === 'lambda'` gates on trigger, env and publish linking; AWS service prefixes behind `RuntimeAction`. |
-| `src/mcp/lib/topology.ts` | AWS service prefixes behind the published `type` of a runtime resource. |
+| `src/stage2/runtime-links.ts` | Kubernetes Ingress-to-Service routing, including the namespace prefix an id shares, and the two Kubernetes kinds `shouldLinkResource` names. |
 | `src/graph/resolve-infra-ref.ts` | A Kubernetes namespace comparison when resolving an infra scope. |
-| `src/analysis/architecture/detectors.ts` | One `kind === 'lambda'` detector branch. |
+| `src/interpreters/infra-runtime-links/graph.ts` | Two node-data fields keyed on a provider: `k8sKind` and the Compose `dockerfile` attribute. |
+
+Resource-kind, trigger-type and runtime-action semantics left core in stage 6-b:
+what carries code, where a runtime call writes, and the service label a topology
+publishes are declarations the owning package states in
+`package.json#repovine.declarations`.
+
+The rows above are one piece of work. Their honest form is a plugin projection —
+`routes-to` is already a canonical SDK contribution — and a built-in that
+declares a projector moves Stage 2 composition off the worker for every default
+build (`src/stage2/index.ts`, `composeRepositoryGraphAsync`). The single
+plugin-loading path in stage 7 removes that cost; these move then.
 
 ## Direct core-to-implementation imports
 

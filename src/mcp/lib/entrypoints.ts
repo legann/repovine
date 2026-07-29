@@ -7,6 +7,7 @@ import {
 } from '../../stage2/interpreter/entrypoint-slots.js';
 import { getInterpreterEntrypoints } from '../../stage2/interpreter/entrypoint-store.js';
 import { triggerEntryKind } from '../../stage2/runtime/trigger-entry-kind.js';
+import { runtimeResourceIdentity } from '../../graph/make-runtime-resource-id.js';
 import {
   fileBasedEntryKind,
   inferFileBasedRoutes,
@@ -102,8 +103,9 @@ export function collectEntrypoints(ctx: McpToolRuntime, args: Record<string, unk
   for (const svcId of nodesOfType(graph, 'runtime-resource')) {
     const node = graph.nodes.get(svcId);
     if (!node || node.type !== 'runtime-resource') continue;
+    const carrier = runtimeResourceIdentity(svcId, node.data?.provider);
     for (const trigger of node.data?.triggers ?? []) {
-      const kind = triggerEntryKind(trigger, snapshot.declarations);
+      const kind = triggerEntryKind(trigger, snapshot.declarations, carrier);
       const disambiguator = trigger.name ?? trigger.path ?? trigger.queueRef ?? trigger.schedule ?? 'trigger';
       pushInterpreterEntry(interpreterEntrypoints.get(serviceTriggerLayerKey(kind, svcId, disambiguator)));
     }

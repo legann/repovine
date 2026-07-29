@@ -5,7 +5,8 @@ import { vercelParser } from './parser.js';
  * Built-in plugin: Vercel project config (vercel.json).
  *
  * Owns InfraKind: 'vercel'. Emits resourceKind: 'vercel-function', 'vercel-cron', 'vercel-route'.
- * Crons emit schedule triggers — registers schedule meta in case SAM isn't loaded.
+ * Crons emit schedule triggers; the declaration in `package.json#repovine` carries the Vercel
+ * provider, so it answers for Vercel resources whether or not the SAM plugin is loaded.
  */
 export const vercelIacPlugin = defineIaCPlugin({
   id: 'vercel',
@@ -20,9 +21,6 @@ export const vercelIacPlugin = defineIaCPlugin({
       },
     },
   ],
-  resourceKindMeta: [{ kind: 'vercel-function', meta: { hasCodeHandler: true } }],
-  // Vercel emits schedule triggers via crons; SAM also registers this — idempotent overwrite.
-  triggerTypeMeta: [{ type: 'schedule', meta: { entrypointKind: 'schedule' } }],
 });
 
 /**

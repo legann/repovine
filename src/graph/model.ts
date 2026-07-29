@@ -222,6 +222,13 @@ export interface RuntimeResourceNodeData {
    */
   attributes?: Record<string, string>;
   /**
+   * Service label this resource's kind was declared with, e.g. `sqs`. Opaque to the graph, carried
+   * so a query layer reports what a plugin declared instead of reading an id's spelling.
+   */
+  service?: string;
+  /** The resource's kind was declared to carry code the host resolves to a module. */
+  hasCodeHandler?: boolean;
+  /**
    * Repo-relative paths of the IaC documents declaring this resource. Scopes logical-id
    * resolution: a reference prefers a target its own document declares. More than one entry means
    * separate documents declare the same id and collapse onto this node.
@@ -293,7 +300,7 @@ export const NODE_DATA_KEYS = {
   package: ['path', 'version', 'sourcePluginId'],
   module: ['filePath', 'relativeFilePath', 'hasRoutes', 'envVars', 'ssr', 'sourcePluginId'],
   'export-symbol': ['symbolKind', 'signature', 'params', 'returnType', 'typeValue', 'fields', 'implementsInterfaces', 'calls', 'callsTotal', 'privateMembers', 'internals', 'lineRange', 'isDefault'],
-  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'k8sKind', 'provider', 'attributes', 'declaredIn', 'namespace', 'unresolvedRefs'],
+  'runtime-resource': ['handler', 'envVars', 'triggers', 'envRefs', 'contentHash', 'kind', 'k8sKind', 'provider', 'attributes', 'service', 'hasCodeHandler', 'declaredIn', 'namespace', 'unresolvedRefs'],
   domain: ['tier', 'weight', 'parent', 'subdomains'],
   template: ['relPath', 'contentHash', 'engine', 'blocks'],
 } as const satisfies Record<NodeType, readonly string[]>;

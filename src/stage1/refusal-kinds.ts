@@ -33,9 +33,6 @@ export const PROJECTION_CONFLICT_REFUSAL = 'projection-conflict';
 /** Two plugins declared one catalog key with different effects; neither declaration is in force. */
 export const DECLARATION_CONFLICT_REFUSAL = 'declaration-conflict';
 
-/** Two composite declaration keys narrow onto one lookup component, so the lookup answers nothing. */
-export const DECLARATION_AMBIGUOUS_REFUSAL = 'declaration-ambiguous';
-
 /** A Stage 1 producer published a fact the boundary would not take. Names the plugin and the cause. */
 export const PLUGIN_FACT_REJECTED_REFUSAL = 'plugin-fact-rejected';
 

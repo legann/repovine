@@ -15,6 +15,9 @@ export {
  * Owns InfraKind: 'aws-sam', 'cloudformation' (both share the same domain).
  * Emits resourceKind: 'lambda', 'queue', 'topic', 'table', 'api', 'bucket', 'role'.
  * Emits triggerType: 'api', 'sqs', 'schedule', 'event-bus', 'dynamodb-stream', 'kinesis-stream', 'websocket'.
+ *
+ * What those kinds, triggers and AWS SDK calls mean to the host is declared in
+ * `package.json#repovine.declarations`, not here: it is data the host reads before this file runs.
  */
 // SAM and plain CloudFormation share infra-sam for graph layout.
 const samDomain = {
@@ -29,18 +32,6 @@ export const samIacPlugin = defineIaCPlugin({
   kindDomains: [
     { kind: 'aws-sam', meta: samDomain },
     { kind: 'cloudformation', meta: samDomain },
-  ],
-  // Lambda has a code handler that stage2 should resolve back to a module.
-  resourceKindMeta: [{ kind: 'lambda', meta: { hasCodeHandler: true } }],
-  // Trigger-type metadata: drives stage2 stream-edge logic and mcp/handlers entrypoint labels.
-  triggerTypeMeta: [
-    { type: 'api', meta: { entrypointKind: 'api' } },
-    { type: 'websocket', meta: { entrypointKind: 'websocket' } },
-    { type: 'sqs', meta: { entrypointKind: 'queue-consumer', isStreamLike: true } },
-    { type: 'dynamodb-stream', meta: { entrypointKind: 'queue-consumer', isStreamLike: true } },
-    { type: 'kinesis-stream', meta: { entrypointKind: 'queue-consumer', isStreamLike: true } },
-    { type: 'schedule', meta: { entrypointKind: 'schedule' } },
-    { type: 'event-bus', meta: { entrypointKind: 'queue-consumer' } },
   ],
 });
 

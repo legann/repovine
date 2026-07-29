@@ -49,7 +49,9 @@ const zConditionalRender = z
 
 const zRuntimeAction = z
   .object({
-    action: z.enum(['sqs.sendMessage', 'sns.publish', 'eventbridge.putEvents', 'lambda.invoke']),
+    // Open string: a producer names the call as its ecosystem spells it, and a `runtimeActions`
+    // declaration says which namespace that call writes to.
+    action: z.string().min(1).max(128),
     envVar: z.string().optional(),
     lineRange: zLineRange.optional(),
   })

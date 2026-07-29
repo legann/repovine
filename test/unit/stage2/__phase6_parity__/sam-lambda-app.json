@@ -161,6 +161,8 @@
         "contentHash": "4fdbf20a1c8f29ec",
         "kind": "lambda",
         "provider": "aws",
+        "service": "lambda",
+        "hasCodeHandler": true,
         "declaredIn": [
           "template.yaml"
         ]

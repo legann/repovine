@@ -13,6 +13,90 @@
     },
     "./package.json": "./package.json"
   },
+  "repovine": {
+    "kind": "plugin",
+    "id": "sam",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "aws-sam",
+      "resourceKinds": [
+        {
+          "namespace": "aws-lambda",
+          "provider": "aws",
+          "kind": "lambda",
+          "service": "lambda",
+          "hasCodeHandler": true
+        },
+        {
+          "namespace": "aws-sqs",
+          "provider": "aws",
+          "kind": "queue",
+          "service": "sqs"
+        },
+        {
+          "namespace": "aws-sns",
+          "provider": "aws",
+          "kind": "topic",
+          "service": "sns"
+        }
+      ],
+      "triggerTypes": [
+        {
+          "type": "api",
+          "provider": "aws",
+          "entrypointKind": "api"
+        },
+        {
+          "type": "websocket",
+          "provider": "aws",
+          "entrypointKind": "websocket"
+        },
+        {
+          "type": "sqs",
+          "provider": "aws",
+          "entrypointKind": "queue-consumer",
+          "isStreamLike": true
+        },
+        {
+          "type": "dynamodb-stream",
+          "provider": "aws",
+          "entrypointKind": "queue-consumer",
+          "isStreamLike": true
+        },
+        {
+          "type": "kinesis-stream",
+          "provider": "aws",
+          "entrypointKind": "queue-consumer",
+          "isStreamLike": true
+        },
+        {
+          "type": "schedule",
+          "provider": "aws",
+          "entrypointKind": "schedule"
+        },
+        {
+          "type": "event-bus",
+          "provider": "aws",
+          "entrypointKind": "queue-consumer"
+        }
+      ],
+      "runtimeActions": [
+        {
+          "action": "sqs.sendMessage",
+          "namespace": "aws-sqs"
+        },
+        {
+          "action": "sns.publish",
+          "namespace": "aws-sns"
+        },
+        {
+          "action": "lambda.invoke",
+          "namespace": "aws-lambda"
+        }
+      ]
+    }
+  },
   "files": [
     "dist"
   ],

@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { composeRepositoryGraph } from '../../../src/stage2/index.js';
 import type { ModuleInfo, RepositoryFactsSnapshot } from '../../../src/types.js';
+import { builtinDeclarationCatalog } from '../../helpers/declarations.js';
 
 function makeModule(partial?: Partial<ModuleInfo>): ModuleInfo {
   return {
@@ -39,6 +40,7 @@ describe('Lambda handler resolver', () => {
       },
     });
     const snapshot: RepositoryFactsSnapshot = {
+      declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
       packages: [{ name: '@acme/api', path: 'apps/api'}],
@@ -98,6 +100,7 @@ describe('Lambda handler resolver', () => {
       semanticHints: { runtimeActions: [{ action: 'sqs.sendMessage', envVar: 'USER_QUEUE_URL' }] },
     });
     const snapshot: RepositoryFactsSnapshot = {
+      declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
       packages: [
@@ -144,6 +147,7 @@ describe('Lambda handler resolver', () => {
       semanticHints: { runtimeActions: [{ action: 'sqs.sendMessage', envVar: 'WEBHOOK_QUEUE_URL' }] },
     });
     const snapshot: RepositoryFactsSnapshot = {
+      declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
       packages: [{ name: '@acme/api', path: 'apps/api'}],
@@ -185,6 +189,7 @@ describe('Lambda handler resolver', () => {
   it('resolves handlers from configured runtime handler roots', () => {
     const mod = makeModule();
     const snapshot: RepositoryFactsSnapshot = {
+      declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
       packages: [{ name: '@acme/api', path: 'apps/api'}],
@@ -216,6 +221,7 @@ describe('Lambda handler resolver', () => {
   it('does not link a broken handler reference to an unrelated module', () => {
     const mod = makeModule();
     const snapshot: RepositoryFactsSnapshot = {
+      declarations: builtinDeclarationCatalog(),
       repoRoot: tmpDir,
       timestamp: new Date(0).toISOString(),
       packages: [{ name: '@acme/api', path: 'apps/api'}],

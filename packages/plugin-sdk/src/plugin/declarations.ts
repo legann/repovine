@@ -88,6 +88,21 @@ export interface TriggerTypeDeclaration {
   entrypointKind?: TriggerEntryKind;
 }
 
+/**
+ * Where one runtime action writes, by the identity namespace of its target.
+ *
+ * A source plugin reports that code calls `sqs.sendMessage`; nothing in that fact says which
+ * resource receives the message. The namespace owner states it here, so the host pairs a call with a
+ * resource by comparing two declared strings instead of by recognising an ecosystem's id spelling.
+ * The action is named as its producer spells it, which keeps the pairing producer-neutral: the same
+ * normalised action from another language resolves through the same declaration.
+ */
+export interface RuntimeActionDeclaration {
+  action: string;
+  /** Identity namespace of the resources this action targets. */
+  namespace: string;
+}
+
 export interface PluginDeclarationCatalog {
   /** Ecosystem label these declarations belong to, e.g. `aws-sam`. Opaque to the host. */
   ecosystem?: string;
@@ -95,6 +110,7 @@ export interface PluginDeclarationCatalog {
   values?: PluginValueDeclaration[];
   resourceKinds?: ResourceKindDeclaration[];
   triggerTypes?: TriggerTypeDeclaration[];
+  runtimeActions?: RuntimeActionDeclaration[];
 }
 
 /** Package identity the host stamps onto every declaration and contribution it accepts. */
@@ -114,6 +130,7 @@ export interface StampedDeclarationCatalog {
   values: Declared<PluginValueDeclaration>[];
   resourceKinds: Declared<ResourceKindDeclaration>[];
   triggerTypes: Declared<TriggerTypeDeclaration>[];
+  runtimeActions: Declared<RuntimeActionDeclaration>[];
 }
 
 /* ---------------------------------- schemas ---------------------------------- */
@@ -161,6 +178,11 @@ const zTriggerTypeDeclaration = z.strictObject({
   entrypointKind: z.enum(TRIGGER_ENTRY_KINDS).optional(),
 });
 
+const zRuntimeActionDeclaration = z.strictObject({
+  action: z.string().min(1).max(128),
+  namespace: zContractId,
+});
+
 /** Strict: an unknown key, or a payload spelling its own `declaredBy`, fails here. */
 export const zPluginDeclarationCatalog = z.strictObject({
   ecosystem: zContractId.optional(),
@@ -168,6 +190,7 @@ export const zPluginDeclarationCatalog = z.strictObject({
   values: z.array(zPluginValueDeclaration).max(512).optional(),
   resourceKinds: z.array(zResourceKindDeclaration).max(512).optional(),
   triggerTypes: z.array(zTriggerTypeDeclaration).max(512).optional(),
+  runtimeActions: z.array(zRuntimeActionDeclaration).max(512).optional(),
 });
 
 /**
@@ -187,16 +210,29 @@ export function stampDeclarationCatalog(
     values: stamp(catalog?.values),
     resourceKinds: stamp(catalog?.resourceKinds),
     triggerTypes: stamp(catalog?.triggerTypes),
+    runtimeActions: stamp(catalog?.runtimeActions),
   };
 }
 
 /**
- * Composite metadata key for a resource kind. Equal keys with different content are a conflict, so
- * the components are JSON-encoded rather than joined by a separator: `kind` is a free string and a
- * separator chosen here could let two different triples spell one key.
+ * Composite metadata key for a resource kind, and the spelling `plugins.retract` accepts for one.
+ *
+ * `namespace` and `provider` are charset-restricted and cannot contain `/`, so splitting on the
+ * first two separators recovers all three components even when `kind` carries one. That is what lets
+ * the key stay a legible selector a user can write instead of an encoded blob.
  */
 export function resourceKindMetaKey(
   declaration: Pick<ResourceKindDeclaration, 'namespace' | 'provider' | 'kind'>,
 ): string {
-  return JSON.stringify([declaration.namespace, declaration.provider, declaration.kind]);
+  return `${declaration.namespace}/${declaration.provider}/${declaration.kind}`;
+}
+
+/**
+ * Composite metadata key for a trigger type. A globally meaningful type declares no namespace or
+ * provider, and the absent component is spelled `*` so it cannot collide with a declared one.
+ */
+export function triggerTypeMetaKey(
+  declaration: Pick<TriggerTypeDeclaration, 'type' | 'namespace' | 'provider'>,
+): string {
+  return `${declaration.namespace ?? '*'}/${declaration.provider ?? '*'}/${declaration.type}`;
 }

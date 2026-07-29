@@ -1,20 +1,26 @@
-// Side-effect import ensures built-in trigger-type metadata is registered before lookup.
-import '../../stage1/iac/bootstrap.js';
 import type { DeclarationCatalog } from '../../plugins/declaration-catalog.js';
-import { resolveTriggerTypeMeta } from './declared-meta.js';
+import { catalogTriggerTypeMeta } from '../../plugins/declaration-catalog.js';
 
 /**
  * Neutral mapping from an IaC trigger to its entrypoint kind. Lives outside the MCP shell so the
  * infra-link layer can own service-trigger entrypoints without importing MCP internals (handoff T5).
  *
- * The catalog is the build's own declarations. Passing it is what lets a trigger type an external
- * plugin declared reach this mapping; without one only the built-in registry answers.
+ * The catalog is the build's own declarations, and the trigger is looked up under the identity of
+ * the resource carrying it: a type means what its ecosystem declared it means, and two ecosystems
+ * spelling one type differently do not answer for each other.
  */
 export function triggerEntryKind(
   trigger: { type?: string; path?: string },
   catalog?: DeclarationCatalog,
+  carrier?: { namespace?: string; provider?: string },
 ): string {
-  const meta = trigger.type ? resolveTriggerTypeMeta(catalog, trigger.type) : undefined;
+  const meta = trigger.type && catalog
+    ? catalogTriggerTypeMeta(catalog, {
+      type: trigger.type,
+      ...(carrier?.namespace === undefined ? {} : { namespace: carrier.namespace }),
+      ...(carrier?.provider === undefined ? {} : { provider: carrier.provider }),
+    })
+    : undefined;
   const kind = meta?.entrypointKind;
   if (kind === 'api') {
     const path = trigger.path?.toLowerCase() ?? '';

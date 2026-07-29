@@ -27,7 +27,12 @@ export type {
   SourceRuntimeCapability,
 } from './descriptor.js';
 
-export { ECOSYSTEM_DIR_ROLES, resourceKindMetaKey, stampDeclarationCatalog } from './declarations.js';
+export {
+  ECOSYSTEM_DIR_ROLES,
+  resourceKindMetaKey,
+  stampDeclarationCatalog,
+  triggerTypeMetaKey,
+} from './declarations.js';
 export type {
   Declared,
   EcosystemDirFact,
@@ -36,6 +41,7 @@ export type {
   PluginOwnerIdentity,
   PluginValueDeclaration,
   ResourceKindDeclaration,
+  RuntimeActionDeclaration,
   StampedDeclarationCatalog,
   TriggerTypeDeclaration,
 } from './declarations.js';

@@ -8,8 +8,9 @@ import { terraformParser } from './parser.js';
  * generic InfraResourceKind set. Unknown provider types fall through to 'other' — they still
  * appear as services in the graph, just without specialized treatment.
  *
- * Lambda meta is registered here too (in addition to the SAM plugin) so a repo using only
- * Terraform still gets handler→code linking.
+ * Terraform mints its own identity namespace, so it declares its own lambda metadata in
+ * `package.json#repovine.declarations` — a repo using only Terraform still gets handler→code
+ * linking, and the declaration does not collide with the SAM plugin's.
  */
 export const terraformIacPlugin = defineIaCPlugin({
   id: 'terraform',
@@ -24,7 +25,6 @@ export const terraformIacPlugin = defineIaCPlugin({
       },
     },
   ],
-  resourceKindMeta: [{ kind: 'lambda', meta: { hasCodeHandler: true } }],
 });
 
 /**
