@@ -80,7 +80,11 @@ const goSource = {
           method: m[1],
           kind: 'api',
           framework: usesGin ? 'gin' : 'go',
-          source: 'ast',
+          // Two axes, not one: `declaredIn` says where the route is written down and `syntax` says
+          // in what form. A router call in code is `code` + `call`, and that pair is what makes the
+          // route project into an API entrypoint.
+          declaredIn: 'code',
+          syntax: 'call',
         });
       }
 

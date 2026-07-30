@@ -16,10 +16,15 @@ array order does, and a key set to `undefined` is the same fact as an absent key
 The complete taxonomy of public producers and core-only interpreters, detectors, and delivery
 mechanics is defined in [DESIGN.md](../DESIGN.md#extension-families-and-boundaries).
 
-> **Status:** the SDK (`@repovine/plugin-sdk`) is a **0.1.0 preview** package in this repo.
-> Path B (out-of-tree community plugins) is open as a preview contract: publish/use plugins with
-> conformance checks, expect semver-0 migration notes for breaking changes, and keep runtime
-> compatibility gated by `package.json#repovine.apiVersion`.
+> **Status:** `@repovine/plugin-sdk` is at `0.1.0` and the runtime contract is `apiVersion: 1`.
+> The two are separate axes: the npm version of the SDK and the runtime `apiVersion` a manifest
+> declares move independently, and the pairing is published in
+> [`plugin-api-compatibility.md`](plugin-api-compatibility.md).
+>
+> Whether API 1 is **stable** or **preview** is not yet declared. What holds today regardless: the
+> exported surface is inventoried and diffed on every build (`test/laws/plugin-api-report.test.ts`,
+> `docs/plugin-api-report.md`), an incompatible `apiVersion` is refused at load, and the four
+> subpaths below are the only way in.
 
 ## Quick start — copy an example
 
@@ -76,8 +81,8 @@ installed (CLI, MCP, embed — same rule, like ESLint plugins).
 
 | Path | What it is | Cost | When |
 |---|---|---|---|
-| **A — PR into the core** | Your plugin is adopted as a built-in, shipped with `repovine`, `trusted:true`. | maintenance budget on the core | broad languages the maintainers choose to guarantee |
-| **B — your own npm package** | You publish `repovine-plugin-<lang>`; users install it; `trusted:false`. | ~zero for the core | the long tail |
+| **A — PR into the core** | Your plugin is adopted as a built-in and ships inside the `repovine` tarball. | maintenance budget on the core | broad languages the maintainers choose to guarantee |
+| **B — your own npm package** | You publish `repovine-plugin-<lang>`; users install it into the repo they analyze. | ~zero for the core | the long tail |
 
 Both author against the **same** SDK surface (`definePlugin`) — the built-ins are the dogfood.
 Nothing below is private to the core.
@@ -170,6 +175,28 @@ carries `apiVersion` so no descriptor holds a version number that goes stale, `w
 discovery traversal, and `hashResourcePayload` is the one content hash a producer mints. CI runs both
 end to end, so a contract change that would break an author breaks them first.
 
+### Path bases
+
+Every public path field states which of three bases it is measured from, and the three are distinct
+branded types, so passing one where another belongs is a compile error rather than a wrong answer.
+
+| Type | Base | Spelling | Enter with |
+|---|---|---|---|
+| `HostPath` | absolute | the host's own separators | `asHostPath` |
+| `RepoRelPath` | the repository root | POSIX, always `/` | `asRepoRelPath` |
+| `PkgRelPath` | the package root | POSIX, always `/` | `asPkgRelPath` |
+
+The field name carries the base too: `absPath`, `repoRelPath`, `pkgRelPath`, `repoRelDir`.
+
+Two consequences worth stating, because both have caused defects:
+
+- a monorepo module keeps its package segment in `repoRelPath`. `packages/app/src/index.ts` is not
+  `src/index.ts`; `repoRelPath` is derived from `absPath` against the repository root, never renamed
+  from `pkgRelPath`;
+- when you key a map by absolute path, key it with `hostPathKey(absPath)`. On win32 the same file has
+  more than one spelling, and the engine canonicalizes before merging producers' drafts — a map keyed
+  on the raw string registers one file twice.
+
 ### Source plugin
 
 ```ts
@@ -254,10 +281,18 @@ descriptor's capability set.
 The cross-language contract is **`semanticHints`** — a versioned, `passthrough` bag (see
 `SEMANTIC_HINTS_VERSION`, `zSemanticHints`). It has ten slots, and they differ in reach: three carry
 values any ecosystem can produce, two assume a framework that serves requests, and five encode web,
-JavaScript or AWS shapes in their own field types. Fill the ones your ecosystem has. The
-interpreters that read them are gated by source plugin id: `server-entrypoints` runs for
-`typescript` and `python`, `ui-entrypoints` for `typescript`, `server-templates` for `python`. The
-`code-structure` and `infra-runtime-links` interpreters run for every source plugin.
+JavaScript or AWS shapes in their own field types. Fill the ones your ecosystem has.
+
+An interpreter is gated on the facts a repository carries, never on who produced them. Fill a slot
+and the interpreter that reads it runs for your plugin the same way it runs for a bundled one.
+
+| Interpreter | Runs when |
+|---|---|
+| `code-structure` | always |
+| `infra-runtime-links` | always |
+| `server-entrypoints` | any module carries `routes` |
+| `ui-entrypoints` | any module carries `routes` or `conditionalRenders` |
+| `server-templates` | the snapshot carries `templates` facts |
 
 | Slot | Reach | Filled by | Read by |
 |---|---|---|---|
@@ -346,6 +381,89 @@ A trigger type declared with a `provider` and no `namespace` answers for every n
 provider mints; one declared with both answers only for that pair. Nothing is inferred from a
 resource id: an undeclared kind is a node with no linking, not a guess.
 
+### Projectors — contributing to the graph
+
+A parser or extractor emits facts about one artifact. A **projector** reads the finished fact view of
+the whole repository and contributes graph structure from it: links, resources, entrypoints,
+extensions. This is where a relation between two artifacts belongs — routing, deployment, ownership.
+
+```ts
+const orbitRoutes: ProjectionContributor = {
+  id: 'orbit-routes',
+  // Fact SCHEMAS, never producer ids. Your projector runs when the facts exist, whoever published
+  // them, and one plugin's output is never another's input inside the same build.
+  requires: [{ schema: 'orbit/service@1' }],
+  project(input: ReadonlyProjectionInput): readonly PluginProjectionBatch[] {
+    const services = input.facts.select({ schema: 'orbit/service@1' });
+    return [{
+      batchId: 'routes',
+      delta: {
+        links: services.map(s => ({
+          from: { type: 'resource', namespace: 'orbit', localKey: String(s.value.key) },
+          to: { type: 'module', moduleId: String(s.value.handler) },
+          relation: 'routes-to',
+          because: 'the orbit service names this handler',
+        })),
+      },
+    }];
+  },
+};
+```
+
+The five relations plus `builds-from` are the whole vocabulary. `builds-from` says the target is the
+build document the source was produced from, which is a different claim from `binds-to` ("runs as").
+
+To link to an infrastructure document — a build recipe, a deployment manifest — read the documents the
+graph holds and reference the id it hands you:
+
+```ts
+const recipes = input.facts.infraModules({ kind: 'my-format' });
+const match = recipes.find(recipe => recipe.repoRelPath.endsWith('/build.myformat'));
+if (match) links.push({
+  from: { type: 'resource', namespace: 'mine', localKey: 'checkout' },
+  to: { type: 'module', moduleId: match.moduleId },
+  relation: 'builds-from',
+  because: 'the unit names this recipe',
+});
+```
+
+Never assemble `infra:<kind>:<path>` yourself — the id format is the engine's, and `infraModules()`
+exists so a plugin reads it rather than reproduces it.
+
+**Composition is two-phase and order-independent.** Every batch from every plugin is collected first,
+then validated, stamped and budgeted, then ids are minted and a global reference index is built, then
+references and conflicts resolve, and only then are nodes and resources applied before links. Reversing
+the order plugins were registered in changes nothing a reader can see.
+
+| Property | What it means for you |
+|---|---|
+| **references** | `ProjectionRef` names a `module`, `resource` or `extension`. Both resource and module refs resolve against everything the graph holds, not only your own contributions — and `module` covers infrastructure documents as well as code modules. Ask `input.facts.hasModule` / `hasResource` first when the target is optional |
+| **batch atomicity** | a batch applies whole or not at all. An invalid batch leaves none of its nodes behind and does not touch your other batches or any other plugin's work |
+| **dangling reference** | takes down its batch, not the build. Drop the link yourself when the target may be absent |
+| **provenance** | host-stamped from package identity. You never write `declaredBy`, plugin id, package name or version; a contribution that spells its own owner is refused |
+| **minted ids** | the engine mints them. A contribution that supplies a node id where an identity component belongs is refused |
+| **budgets** | `PROJECTION_BUDGETS` caps contributions per batch. Over budget is a refusal naming your contributor |
+| **conflicts** | two plugins declaring the same key with the same effect is one record with both owners. Different effects is a conflict, and it drops **both** sides while naming both — no winner is picked |
+| **determinism** | your `project()` is called twice by the conformance kit and must return the same batches |
+
+### Extensions — data the graph carries but never interprets
+
+When a fact has no canonical DTO, contribute a namespaced **extension** instead of bending one.
+
+```ts
+extensions: [{
+  schema: 'orbit/deployment@1',
+  subject: { type: 'resource', namespace: 'orbit', localKey: 'checkout' },
+  payload: { rolloutStrategy: 'blue-green' },
+}]
+```
+
+An extension lands in a sidecar store, not in the graph. It reaches `inspect_node` on its subject,
+travels through the worker, the dump and the cache, and is echoed verbatim. It is never a node: it does
+not appear in `map_context` or `search_context`, and no graph algorithm reads it. The payload must be
+JSON-serializable, and the schema namespace must be one you own — the host stamps the owner and refuses
+an extension claiming another plugin's namespace.
+
 ### Built-in parity
 
 Bundled plugins compile against the published SDK alone: each lives in its own package under
@@ -391,10 +509,41 @@ npm i -D "file:/absolute/path/to/my-repovine-plugin-go"
 
 ## Trust model
 
-A config-loaded plugin is always **`trusted:false`**: the engine wraps its output in Zod validation
-at the boundary (`zSemanticModuleDelta` / `zSemanticInfraDelta`) and drops malformed facts with a
-warning instead of corrupting the graph. The **only** runtime compatibility gate is `apiVersion` —
-a mismatched major is refused.
+**An installed plugin is trusted executable code.** The engine imports your entry module into its own
+process and calls it. There is no sandbox: no separate process, no permission set, no filesystem or
+network confinement. A plugin can do anything the repovine process can do, and installing one is the
+same trust decision as installing any other npm dependency.
+
+`trusted:false` on a config-loaded plugin names something narrower, and the distinction matters:
+
+| Trusted | Not trusted |
+|---|---|
+| the plugin's **code** — it runs in-process, uncontained | the plugin's **output** — every delta is schema-validated at the boundary |
+
+Validation is applied to what a plugin returns, so a malformed fact is dropped with a refusal instead
+of corrupting the graph. The verdict is what the SDK publishes (`checkPluginConformance` and the
+`validate*` functions); the raw schemas are deliberately not exported, so a plugin depends on the
+answer rather than on the shape of the check.
+
+An untrusted marketplace would need process isolation, a permission model or a container, and none of
+those exists today. A verified-origin badge in a catalog is a social signal and gives no isolation.
+
+### Refusals a plugin can be given
+
+Every one of these names the plugin and the reason, and none of them is silent.
+
+| Refusal | When |
+|---|---|
+| incompatible `apiVersion` | the manifest's major does not match `PLUGIN_API_VERSION` |
+| manifest invalid | `kind`, `id` or `declarations` fail the schema — an unknown declaration key rejects the whole package |
+| entry escapes the package | `entry` resolves outside the package directory |
+| id disagreement | the manifest id and the descriptor id differ |
+| declaration ambiguous | two plugins declare the same key with different effects |
+| fact rejected | a published fact fails its schema, or names a schema the plugin does not own |
+| file claimed twice | two parsers claim one document `exclusive` |
+
+`apiVersion` is the only compatibility gate. Nothing else about your package — name, author, registry
+— changes how it is loaded.
 
 ## Conformance — self-certify before you publish
 
@@ -432,14 +581,18 @@ The core owns the **contract**, not the **ecosystem**. Anyone may publish `repov
 
 | Lever | What it is | Gate type |
 |---|---|---|
-| Default preset | TS/Python/IaC built-ins, `trusted:true` | strongest "allow" |
+| Default preset | which bundled plugins are selected by default | strongest "allow" |
 | Path A (adoption) | merge plugin into core | full control, costs maintenance |
 | Verified tier (registry) | social badge in a catalog | **social**, not runtime |
 | Conformance kit | objective self-cert bar | objective, self-served |
-| Contract + `apiVersion` | loader refuses incompatible major / failed Zod | **only runtime gate** |
+| Contract + `apiVersion` | loader refuses an incompatible major; output that fails validation is dropped | **only runtime gate** |
 
-Package and module nodes carry their `sourcePluginId`. `semanticHints` is versioned (`SEMANTIC_HINTS_VERSION`);
-new slots are additive, not breaking.
+There is no per-plugin trust flag. A bundled plugin and an installed one are validated by the same
+code; the difference is ownership, bundling and default selection.
+
+Package and module nodes carry their `sourcePluginId` as provenance — who produced this node. No
+interpreter is handed the set of producers, and nothing in the engine branches on the value.
+`semanticHints` is versioned (`SEMANTIC_HINTS_VERSION`); new slots are additive, not breaking.
 
 ## What stays in the core (never a plugin)
 

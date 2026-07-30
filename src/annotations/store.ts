@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
 import type { StoredAnnotation, RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
-import { writeFileAtomic, writeFileAtomicSync } from '../fs/atomic.js';
+import { writeFileAtomicSync } from '../fs/atomic.js';
 import { annotationFreshness, type FreshnessVerdict } from './freshness.js';
 import {
   buildAnnotationBacklog,
@@ -606,13 +606,19 @@ export class AnnotationStore {
     this.asyncSaveInFlight = true;
     try {
       await fsPromises.mkdir(path.dirname(this.filePath), { recursive: true });
-      await withAnnotationFileLockAsync(this.filePath, async () => {
+      // Acquisition is async so a waiter yields instead of blocking the event loop; the critical
+      // section itself contains no `await`, which is the invariant that keeps the lock short-lived.
+      // It used to hold the lock across `writeFileAtomic`, and that suspension point was the whole
+      // problem: while the holder was parked, nothing else in this process could release it, so a
+      // loaded event loop turned a millisecond write into a lock held past the wait deadline — and
+      // the staleness takeover cannot help, because the pid in the lock is this process's own and is
+      // very much alive. `annotation-lock-holds-no-await` holds this shape.
+      await withAnnotationFileLockAsync(this.filePath, () => {
         this.assertWritable();
         const { finalRaw, merged } = this.composeFinalRaw();
-        // Snapshot per-key generations baked into finalRaw NOW, before the await yields the event loop.
         const capturedGen = new Map(this.opGen);
         this.maybeBackup(Object.keys(finalRaw).length);
-        await writeFileAtomic(
+        writeFileAtomicSync(
           this.filePath,
           serializeAnnotationFileFromRaw({ version: 1, annotations: finalRaw }),
         );
@@ -769,21 +775,24 @@ export class AnnotationStore {
       this.saveTimer = null;
     }
     try {
-      await withAnnotationFileLockAsync(this.filePath, async () => {
+      // Async acquisition, synchronous transaction — same invariant as the save path. The read was
+      // the one awaited operation in here, and holding the lock across it made the holder starvable
+      // by anything that blocks the event loop.
+      await withAnnotationFileLockAsync(this.filePath, () => {
         // Acquiring the cross-process lock can wait. Do not start disk IO for a refresh that was cancelled
         // while queued for it.
         signal?.throwIfAborted();
         let content: string;
         try {
-          content = await fsPromises.readFile(this.filePath, 'utf-8');
+          content = fs.readFileSync(this.filePath, 'utf-8');
         } catch (e) {
           signal?.throwIfAborted();
           if ((e as NodeJS.ErrnoException).code === 'ENOENT') return; // nothing on disk; keep memory as-is
           throw e;
         }
 
-        // Reading is the only awaited operation inside the transaction. Once this checkpoint passes, the
-        // snapshot/merge/ingest commit below is synchronous, so an abort cannot publish a partial reload.
+        // Nothing suspends between here and the commit below, so an abort cannot publish a partial
+        // reload — the checkpoint stays because a cancelled refresh must not commit at all.
         signal?.throwIfAborted();
         const snapshot = this.mergeStatusSnapshotFromContent(content, true);
         if (!snapshot.parseOk) {

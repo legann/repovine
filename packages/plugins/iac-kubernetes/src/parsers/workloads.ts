@@ -42,6 +42,28 @@ export function k8sRefScope(namespace: string | undefined): string {
 }
 
 /** Backend Service names an Ingress routes to, in declaration order and without repeats. */
+/**
+ * Image references this manifest declares: the container images and any `*_IMAGE` env value.
+ *
+ * Reads this plugin's own attribute spelling, so it is not a shared heuristic — the question "which
+ * Dockerfile does this image name" belongs to whoever owns Dockerfiles and is asked there.
+ */
+function declaredContainerImages(attrs: Record<string, string>): string[] {
+  const images: string[] = [];
+  for (const [key, value] of Object.entries(attrs)) {
+    if (!value) continue;
+    if (key === 'containerImages') {
+      for (const part of value.split(',')) {
+        const trimmed = part.trim();
+        if (trimmed) images.push(trimmed);
+      }
+      continue;
+    }
+    if (key.startsWith('containerImage') || key.startsWith('containerEnvImage_')) images.push(value);
+  }
+  return [...new Set(images)].sort();
+}
+
 function ingressBackends(attrs: Record<string, string>): string[] {
   const backends: string[] = [];
   if (attrs.ingressBackends) {
@@ -130,6 +152,10 @@ export const kubernetesParser: IaCParser = {
         name,
         refScope,
         backends: ingressBackends(attributes),
+        // Container images this workload declares, in the spelling the manifest used. Whoever owns
+        // Dockerfiles reads them and decides which build recipe each one names; this parser does not
+        // guess, and the host stores strings it never interprets.
+        containerImages: declaredContainerImages(attributes),
       },
     }];
     return { kind: 'kubernetes', resources, facts };

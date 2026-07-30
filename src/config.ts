@@ -54,14 +54,9 @@ const LinkingBundlesSchema = z.object({
   autoDetect: z.boolean().optional(),
 });
 
-const LinkingContainersSchema = z.object({
-  dockerfileRoots: z.array(z.string()).optional(),
-});
-
 const LinkingConfigSchema = z.object({
   handlers: LinkingHandlersSchema.optional(),
   bundles: LinkingBundlesSchema.optional(),
-  containers: LinkingContainersSchema.optional(),
 });
 
 /** Repovine graph build: Stage 1 scan filters + Stage 2 infra→code linking hints. */
@@ -342,7 +337,6 @@ export interface ResolvedConfig {
     linking: {
       handlers: { searchRoots: string[] };
       bundles: { scripts: string[]; autoDetect: boolean };
-      containers: { dockerfileRoots: string[] };
     };
   };
   mcp: {
@@ -398,7 +392,6 @@ const DEFAULTS: ResolvedConfig = {
     linking: {
       handlers: { searchRoots: [] },
       bundles: { scripts: [], autoDetect: true },
-      containers: { dockerfileRoots: [] },
     },
   },
   mcp: {
@@ -557,9 +550,6 @@ function resolveConfig(file: RepoContextFileConfig, repoRoot: string): ResolvedC
         bundles: {
           scripts: file.build?.linking?.bundles?.scripts ?? DEFAULTS.build.linking.bundles.scripts,
           autoDetect: file.build?.linking?.bundles?.autoDetect ?? DEFAULTS.build.linking.bundles.autoDetect,
-        },
-        containers: {
-          dockerfileRoots: file.build?.linking?.containers?.dockerfileRoots ?? DEFAULTS.build.linking.containers.dockerfileRoots,
         },
       },
     },

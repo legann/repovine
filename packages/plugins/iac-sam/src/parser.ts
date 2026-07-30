@@ -744,7 +744,28 @@ function parseSamEvent(
   if (typeLower === 'websocket') {
     return { name, type: 'websocket' };
   }
+  if (typeLower === 's3') {
+    // `Bucket` names the bucket this function consumes object events from. Every spelling the
+    // tag-tolerant loader can hand over is accepted: `!Ref B` arrives as `{ Ref: 'B' }`, `!GetAtt
+    // B.Arn` as the string `"B.Arn"`, and a plain string as itself.
+    return { name, type: 's3', queueRef: samResourceRef(props.Bucket, allResourceTypes) };
+  }
   return null;
+}
+
+/** The logical id a SAM event property names, in any of the spellings the loader produces. */
+function samResourceRef(value: unknown, allResourceTypes: Map<string, string>): string | undefined {
+  if (typeof value === 'string') {
+    return logicalIdCandidatesFromString(value)
+      .find(candidate => allResourceTypes.has(candidate) || looksLikeResourceReferenceAlias(candidate));
+  }
+  if (!value || typeof value !== 'object') return undefined;
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.Ref === 'string') return obj.Ref;
+  const getAtt = obj['Fn::GetAtt'];
+  if (Array.isArray(getAtt) && typeof getAtt[0] === 'string') return getAtt[0];
+  if (typeof getAtt === 'string') return getAtt.split('.')[0];
+  return undefined;
 }
 
 export const samParser: IaCParser = {

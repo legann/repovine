@@ -1,5 +1,4 @@
 import * as fs from 'node:fs';
-import * as fsPromises from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 
 /** How old a lock file must be before its owner may be checked and the lock reclaimed. */
@@ -70,21 +69,9 @@ function lockOwnerIsAliveSync(lockPath: string): boolean {
   return processIsAlive(ownerPid(fs.readFileSync(lockPath, 'utf-8')));
 }
 
-async function lockOwnerIsAliveAsync(lockPath: string): Promise<boolean> {
-  return processIsAlive(ownerPid(await fsPromises.readFile(lockPath, 'utf-8')));
-}
-
 function removeOwnedFileSync(filePath: string, expectedContent: string): void {
   try {
     if (fs.readFileSync(filePath, 'utf-8') === expectedContent) fs.unlinkSync(filePath);
-  } catch {
-    // Best-effort ownership-checked cleanup.
-  }
-}
-
-async function removeOwnedFileAsync(filePath: string, expectedContent: string): Promise<void> {
-  try {
-    if (await fsPromises.readFile(filePath, 'utf-8') === expectedContent) await fsPromises.unlink(filePath);
   } catch {
     // Best-effort ownership-checked cleanup.
   }
@@ -98,26 +85,6 @@ function reclaimOrphanedTakeoverClaimSync(claimPath: string): boolean {
     if (processIsAlive(ownerPid(content))) return false;
     removeOwnedFileSync(claimPath, content);
     return !fs.existsSync(claimPath);
-  } catch (error) {
-    if (isErrno(error, 'ENOENT')) return true;
-    throw error;
-  }
-}
-
-async function reclaimOrphanedTakeoverClaimAsync(claimPath: string): Promise<boolean> {
-  try {
-    const stat = await fsPromises.stat(claimPath);
-    if (Date.now() - stat.mtimeMs <= LOCK_STALE_MS) return false;
-    const content = await fsPromises.readFile(claimPath, 'utf-8');
-    if (processIsAlive(ownerPid(content))) return false;
-    await removeOwnedFileAsync(claimPath, content);
-    try {
-      await fsPromises.access(claimPath);
-      return false;
-    } catch (error) {
-      if (isErrno(error, 'ENOENT')) return true;
-      throw error;
-    }
   } catch (error) {
     if (isErrno(error, 'ENOENT')) return true;
     throw error;
@@ -160,91 +127,67 @@ function tryTakeOverStaleLockSync(lockPath: string): boolean {
   }
 }
 
-async function tryTakeOverStaleLockAsync(lockPath: string): Promise<boolean> {
-  const owner = String(process.pid);
-  const token = randomUUID();
-  const tempPath = takeoverTempPath(lockPath, token);
-  const claimPath = takeoverClaimPath(lockPath);
-  const claimContent = `${owner}:${token}`;
-  let ownsClaim = false;
-  try {
-    await fsPromises.writeFile(tempPath, owner, { flag: 'wx' });
-    try {
-      await fsPromises.writeFile(claimPath, claimContent, { flag: 'wx' });
-      ownsClaim = true;
-    } catch (error) {
-      if (isErrno(error, 'EEXIST')) {
-        await reclaimOrphanedTakeoverClaimAsync(claimPath);
-        return false;
-      }
-      throw error;
-    }
+/** What one acquisition attempt concluded. */
+type AttemptOutcome = 'acquired' | 'retry' | 'expired';
 
-    const current = await fsPromises.stat(lockPath);
-    if (Date.now() - current.mtimeMs <= LOCK_STALE_MS) return false;
-    if (await lockOwnerIsAliveAsync(lockPath)) return false;
-    if (await fsPromises.readFile(claimPath, 'utf-8') !== claimContent) return false;
-    await fsPromises.rename(tempPath, lockPath);
-    return await fsPromises.readFile(claimPath, 'utf-8') === claimContent
-      && await fsPromises.readFile(lockPath, 'utf-8') === owner;
-  } catch (error) {
-    if (isErrno(error, 'ENOENT')) return false;
-    throw error;
-  } finally {
-    if (ownsClaim) await removeOwnedFileAsync(claimPath, claimContent);
-    await removeOwnedFileAsync(tempPath, owner);
+/**
+ * One attempt to take the lock, made entirely of synchronous syscalls.
+ *
+ * Being synchronous is the invariant, not an optimization. `fsPromises.writeFile(…, 'wx')` is an
+ * open followed by a write, and the step between them resolves on the event loop — so an async
+ * acquirer that gets blocked mid-acquisition leaves the lock file **existing and empty**. A waiter
+ * then reads no owner pid out of it, concludes the owner is dead, and reclaims a lock that is very
+ * much held. That is not a hypothetical: it is what the 10-second stall in this file measured.
+ *
+ * As one `writeFileSync` the attempt either creates a complete lock file or does not create one.
+ * Waiting is the caller's business, and only the waiting differs between the sync and async paths.
+ */
+function attemptAcquire(lockPath: string, deadline: number): AttemptOutcome {
+  try {
+    fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
+    return 'acquired';
+  } catch (e) {
+    if (!isErrno(e, 'EEXIST')) throw e;
   }
+  try {
+    const stat = fs.statSync(lockPath);
+    if (Date.now() - stat.mtimeMs > LOCK_STALE_MS) {
+      if (!lockOwnerIsAliveSync(lockPath) && tryTakeOverStaleLockSync(lockPath)) return 'acquired';
+    }
+  } catch (error) {
+    // The holder released between the failed write and the stat: try again immediately.
+    if (isErrno(error, 'ENOENT')) return 'retry';
+    throw error;
+  }
+  return Date.now() >= deadline ? 'expired' : 'retry';
+}
+
+function retryDelay(deadline: number): number {
+  return Math.min(LOCK_RETRY_MS, deadline - Date.now());
 }
 
 function acquireLockSync(lockPath: string): void {
   const deadline = Date.now() + LOCK_MAX_WAIT_MS;
   for (;;) {
-    try {
-      fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
-      return;
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-      try {
-        const stat = fs.statSync(lockPath);
-        if (Date.now() - stat.mtimeMs > LOCK_STALE_MS) {
-          if (!lockOwnerIsAliveSync(lockPath) && tryTakeOverStaleLockSync(lockPath)) return;
-        }
-      } catch (error) {
-        if (isErrno(error, 'ENOENT')) continue;
-        throw error;
-      }
-      if (Date.now() >= deadline) {
-        throw new AnnotationFileLockTimeoutError(lockPath);
-      }
-      const wait = Math.min(LOCK_RETRY_MS, deadline - Date.now());
-      if (wait > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
-    }
+    const outcome = attemptAcquire(lockPath, deadline);
+    if (outcome === 'acquired') return;
+    if (outcome === 'expired') throw new AnnotationFileLockTimeoutError(lockPath);
+    const wait = retryDelay(deadline);
+    // Blocks the thread, so nothing else in this process runs while a sync caller waits. That is why
+    // a holder must never need the event loop to finish and release.
+    if (wait > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
   }
 }
 
 async function acquireLockAsync(lockPath: string): Promise<void> {
   const deadline = Date.now() + LOCK_MAX_WAIT_MS;
   for (;;) {
-    try {
-      await fsPromises.writeFile(lockPath, String(process.pid), { flag: 'wx' });
-      return;
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-      try {
-        const stat = await fsPromises.stat(lockPath);
-        if (Date.now() - stat.mtimeMs > LOCK_STALE_MS) {
-          if (!(await lockOwnerIsAliveAsync(lockPath)) && await tryTakeOverStaleLockAsync(lockPath)) return;
-        }
-      } catch (error) {
-        if (isErrno(error, 'ENOENT')) continue;
-        throw error;
-      }
-      if (Date.now() >= deadline) {
-        throw new AnnotationFileLockTimeoutError(lockPath);
-      }
-      const wait = Math.min(LOCK_RETRY_MS, deadline - Date.now());
-      if (wait > 0) await new Promise(r => setTimeout(r, wait));
-    }
+    const outcome = attemptAcquire(lockPath, deadline);
+    if (outcome === 'acquired') return;
+    if (outcome === 'expired') throw new AnnotationFileLockTimeoutError(lockPath);
+    // The one difference from the sync path: a waiter yields instead of blocking.
+    const wait = retryDelay(deadline);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
   }
 }
 
@@ -252,21 +195,58 @@ function releaseLock(lockPath: string): void {
   removeOwnedFileSync(lockPath, String(process.pid));
 }
 
+/**
+ * Thrown when a locked transaction returns a promise.
+ *
+ * Neither wrapper awaits `fn`, so a promise-returning callback would have the lock released while its
+ * work was still running — mutual exclusion silently gone, which is worse than the stall this design
+ * removed. The check turns that into a named failure at the first call instead of a data race later.
+ */
+export class AnnotationLockAsyncTransactionError extends Error {
+  constructor(lockPath: string) {
+    super(
+      `Annotation lock transaction for ${lockPath} returned a promise. The critical section must be `
+      + 'synchronous: the lock is released as soon as it returns, so awaited work would run unlocked. '
+      + 'Do the read/write synchronously (writeFileAtomicSync, readFileSync) inside the lock.',
+    );
+    this.name = 'AnnotationLockAsyncTransactionError';
+  }
+}
+
+function assertSyncResult<T>(value: T, lockPath: string): T {
+  if (typeof (value as { then?: unknown } | null | undefined)?.then === 'function') {
+    throw new AnnotationLockAsyncTransactionError(lockPath);
+  }
+  return value;
+}
+
 export function withAnnotationFileLockSync<T>(filePath: string, fn: () => T): T {
   const lockPath = lockPathForAnnotationFile(filePath);
   acquireLockSync(lockPath);
   try {
-    return fn();
+    return assertSyncResult(fn(), lockPath);
   } finally {
     releaseLock(lockPath);
   }
 }
 
-export async function withAnnotationFileLockAsync<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
+/**
+ * Take the lock without blocking the event loop, then run a **synchronous** transaction under it.
+ *
+ * The split is the point. Acquisition is async so a waiter yields; the critical section is sync so
+ * the holder has no suspension point at which it can be starved. Holding this lock across an `await`
+ * is what made a millisecond write into a lock held past the wait deadline: while the holder was
+ * parked, nothing in this process could release it, and the staleness takeover is powerless there —
+ * the pid in the lock file is this process's own, and it is alive.
+ *
+ * `fn` is typed as returning `T` rather than `Promise<T>` so an `async` callback stands out as a
+ * promise-valued return; `test/laws/annotation-lock-holds-no-await.test.ts` rejects that shape.
+ */
+export async function withAnnotationFileLockAsync<T>(filePath: string, fn: () => T): Promise<T> {
   const lockPath = lockPathForAnnotationFile(filePath);
   await acquireLockAsync(lockPath);
   try {
-    return await fn();
+    return assertSyncResult(fn(), lockPath);
   } finally {
     releaseLock(lockPath);
   }

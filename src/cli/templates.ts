@@ -76,9 +76,6 @@ export const REPOVINE_CONFIG_JSON = JSON.stringify(
           scripts: [],
           autoDetect: true,
         },
-        containers: {
-          dockerfileRoots: [],
-        },
       },
     },
     mcp: {

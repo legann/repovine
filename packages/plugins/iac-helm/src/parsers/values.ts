@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { IaCParser, InfraEnvRef, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
+import type { IaCParser, InfraEnvRef, ReadonlyFactRecord, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
 import type { ResourceIdentity } from '@repovine/plugin-sdk';
 import { hashResourcePayload, isRecord, pathMatchKey } from '@repovine/plugin-sdk';
 
@@ -11,6 +11,12 @@ import { hashResourcePayload, isRecord, pathMatchKey } from '@repovine/plugin-sd
  * parser already mints is unique within the file that declares them. `generic` is the namespace for
  * exactly that: infrastructure described in a repo rather than provisioned in an account.
  */
+/**
+ * Schema of the image fact this plugin publishes. The owner segment is this plugin's own id, which
+ * the host checks.
+ */
+const HELM_IMAGE_FACT_SCHEMA = 'helm/container-image@1';
+
 function genericIdentity(id: string): ResourceIdentity {
   return { namespace: 'generic', localKey: id };
 }
@@ -157,6 +163,16 @@ export const helmValuesParser: IaCParser = {
     }
     resources.push(...secretById.values());
 
-    return { kind: 'helm', resources };
+    // Image references these values declare, published for whoever owns Dockerfiles to resolve. The
+    // resources are already built, so the fact is derived from them rather than threaded through.
+    const facts: ReadonlyFactRecord[] = resources
+      .filter(res => res.attributes.role === 'container-image' && res.attributes.image)
+      .map(res => ({
+        schema: HELM_IMAGE_FACT_SCHEMA,
+        subjectRef: { type: 'resource' as const, ...genericIdentity(res.id) },
+        value: { localKey: res.id, containerImages: [res.attributes.image!] },
+      }));
+
+    return { kind: 'helm', resources, facts: facts.length > 0 ? facts : undefined };
   },
 };

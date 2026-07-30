@@ -56,7 +56,10 @@
     "prepublishOnly": "npm run typecheck && npm run lint && npm test",
     "cli": "node dist/mcp/index.js",
     "inspector": "npx --yes @modelcontextprotocol/inspector --config mcp-inspector-config.json --server repovine",
-    "inspector:debug": "npx --yes @modelcontextprotocol/inspector --config mcp-inspector-config.json --server repovine-debug"
+    "inspector:debug": "npx --yes @modelcontextprotocol/inspector --config mcp-inspector-config.json --server repovine-debug",
+    "smoke:isolated-install": "npm run build && node scripts/smoke-isolated-install.mjs",
+    "api:report": "npm run build:sdk && node scripts/generate-plugin-api-report.mjs",
+    "api:report:check": "npm run build:sdk && node scripts/generate-plugin-api-report.mjs --check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

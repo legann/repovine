@@ -99,7 +99,6 @@ export class RepovineRuntime {
     this.linkingConfig = config?.build.linking ?? {
       handlers: { searchRoots: [] },
       bundles: { scripts: [], autoDetect: true },
-      containers: { dockerfileRoots: [] },
     };
     this.pluginsConfig = config?.plugins ?? { defaults: true, add: [], disable: [], retract: [] };
     // Falling back to `true` here would re-enable embeddings for a runtime constructed without a
@@ -240,14 +239,12 @@ export class RepovineRuntime {
           scripts: this.linkingConfig.bundles.scripts,
           autoDetect: this.linkingConfig.bundles.autoDetect,
         },
-        containers: { dockerfileRoots: this.linkingConfig.containers.dockerfileRoots },
       }) ? {
         handlers: { searchRoots: this.linkingConfig.handlers.searchRoots },
         bundles: {
           scripts: this.linkingConfig.bundles.scripts,
           autoDetect: this.linkingConfig.bundles.autoDetect,
         },
-        containers: { dockerfileRoots: this.linkingConfig.containers.dockerfileRoots },
       } : undefined,
       maxPackageWorkers: this.scanConfig.maxPackageWorkers,
       progress,

@@ -59,6 +59,14 @@ export const SEMANTIC_LINK_RELATIONS = [
   'uses-env',
   /** The source forwards a request to the target. */
   'routes-to',
+  /**
+   * The target is the build document the source is produced from.
+   *
+   * Distinct from `binds-to`, which says the source *runs as* the target. A service and the build
+   * recipe it was built from are not the same artifact, and the relation has to survive the source
+   * being redeployed without the recipe changing.
+   */
+  'builds-from',
 ] as const;
 export type SemanticLinkRelation = typeof SEMANTIC_LINK_RELATIONS[number];
 
@@ -218,6 +226,28 @@ export interface ReadonlyModuleFact {
   repoRelPath: RepoRelPath;
 }
 
+/**
+ * An infrastructure document the graph holds, with the id the engine minted for it.
+ *
+ * A projector that links to a build or deployment document needs its node id, and the id format is
+ * the engine's to spell — a plugin that assembled `infra:<kind>:<path>` itself would be reproducing
+ * a minting rule rather than reading one. `kind` is the parser's own, so a plugin asks for the
+ * documents of an ecosystem it understands.
+ */
+export interface ReadonlyInfraModuleFact {
+  /** The `kind` the parser that produced this document declared. */
+  kind: string;
+  /** Engine-minted node id. */
+  moduleId: string;
+  /** Repo-root-relative POSIX path. */
+  repoRelPath: RepoRelPath;
+}
+
+/** Which infrastructure documents to read. Omitting `kind` returns every one of them. */
+export interface InfraModuleSelector {
+  kind?: string;
+}
+
 /** One fact published under a declared schema. */
 export interface ReadonlyFactRecord {
   schema: string;
@@ -241,6 +271,14 @@ export interface ReadonlyFactView {
    * takes its whole batch with it, so a projector asks first and drops the link, not the topology.
    */
   hasResource(identity: ResourceIdentity): boolean;
+  /**
+   * Infrastructure documents the graph holds, in a stable order.
+   *
+   * The read a projector needs to link a resource to a build or deployment document: it hands back
+   * the engine-minted id beside the path, so the plugin matches on the path it understands and
+   * references the id it was given.
+   */
+  infraModules(selector?: InfraModuleSelector): readonly ReadonlyInfraModuleFact[];
   /** Facts matching a schema selector, in a stable order. */
   select(selector: ProjectionFactSelector): readonly ReadonlyFactRecord[];
 }

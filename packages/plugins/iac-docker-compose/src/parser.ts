@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { IaCParser, InfraEnvRef, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
+import type { IaCParser, InfraEnvRef, ReadonlyFactRecord, SemanticInfraDelta, InfraResource } from '@repovine/plugin-sdk';
 import type { ResourceIdentity } from '@repovine/plugin-sdk';
 import {
   addAttr,
@@ -20,6 +20,14 @@ function genericIdentity(id: string): ResourceIdentity {
   return { namespace: 'generic', localKey: id };
 }
 
+
+/**
+ * Schema of the build fact this plugin publishes.
+ *
+ * The owner segment is this plugin's own id, which the host checks: a producer publishes under a
+ * schema it owns, and a reader selects that schema without naming a producer.
+ */
+const BUILD_FACT_SCHEMA = 'docker-compose/build@1';
 
 function isDockerComposeFileName(base: string): boolean {
   return /^(docker-compose(\.[\w.-]+)?|compose(\.[\w.-]+)?)\.ya?ml$/i.test(base);
@@ -199,10 +207,21 @@ export const dockerComposeParser: IaCParser = {
 
     const secrets = collectComposeSecrets(root);
     const resources: InfraResource[] = [];
+    const facts: ReadonlyFactRecord[] = [];
     for (const [serviceName, serviceVal] of Object.entries(services)) {
       if (!isRecord(serviceVal)) continue;
-      const attrs = { domainPath, ...dockerComposeServiceAttributes(repoRelPath, serviceName, serviceVal) };
+      const attrs: Record<string, string> = { domainPath, ...dockerComposeServiceAttributes(repoRelPath, serviceName, serviceVal) };
       const envRefs = composeServiceSecretRefs(serviceVal, secrets);
+      // The build recipe this service names, published as a fact rather than left as an attribute
+      // for someone else to interpret. Whoever owns Dockerfiles reads it and draws the link; this
+      // parser states what the compose file says and stops there.
+      if (attrs.dockerfile) {
+        facts.push({
+          schema: BUILD_FACT_SCHEMA,
+          subjectRef: { type: 'resource', ...genericIdentity(serviceName) },
+          value: { serviceName, dockerfileRepoRelPath: attrs.dockerfile },
+        });
+      }
       resources.push({
         id: serviceName,
         kind: 'other',
@@ -220,6 +239,6 @@ export const dockerComposeParser: IaCParser = {
 
     if (resources.length === 0) return null;
 
-    return { kind: 'docker-compose', resources };
+    return { kind: 'docker-compose', resources, facts: facts.length > 0 ? facts : undefined };
   },
 };

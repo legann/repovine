@@ -169,7 +169,6 @@ export interface RepositoryFactsSnapshot {
   linkingConfig?: {
     handlers?: { searchRoots?: string[] };
     bundles?: { scripts?: string[]; autoDetect?: boolean };
-    containers?: { dockerfileRoots?: string[] };
   };
 }
 

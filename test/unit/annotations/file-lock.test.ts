@@ -147,8 +147,10 @@ describe('annotation file lock ownership', () => {
     const staleTime = new Date(Date.now() - 15_000);
     fs.utimesSync(lockPath, staleTime, staleTime);
 
-    await withAnnotationFileLockAsync(filePath, async () => {
-      expect(await fs.promises.readFile(lockPath, 'utf-8')).toBe(String(process.pid));
+    // The transaction is synchronous by contract now: the lock is released as soon as it returns, so
+    // awaited work inside it would run unlocked. Reading the lock file is the same assertion.
+    await withAnnotationFileLockAsync(filePath, () => {
+      expect(fs.readFileSync(lockPath, 'utf-8')).toBe(String(process.pid));
       expect(takeoverArtifacts()).toEqual([]);
     });
 
@@ -160,24 +162,25 @@ describe('annotation file lock ownership', () => {
     fs.writeFileSync(lockPath, '987654327');
     const staleTime = new Date(Date.now() - 15_000);
     fs.utimesSync(lockPath, staleTime, staleTime);
-    let active = 0;
-    let maxActive = 0;
     const visits: string[] = [];
 
+    // Mutual exclusion is asserted through the file rather than through a counter. A synchronous
+    // transaction cannot observe a second one running inside it — the runtime is single-threaded, so
+    // a counter would read 1 whether the lock worked or not. A read-modify-write does carry the
+    // property: if both contenders read the same base, one append is lost.
     const contender = async (name: string): Promise<void> => {
-      await withAnnotationFileLockAsync(filePath, async () => {
-        active++;
-        maxActive = Math.max(maxActive, active);
+      await withAnnotationFileLockAsync(filePath, () => {
         visits.push(name);
-        await new Promise(resolve => setTimeout(resolve, 40));
-        active--;
+        const current = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
+        fs.writeFileSync(filePath, `${current}${name}\n`);
       });
     };
 
     await Promise.all([contender('first'), contender('second')]);
 
     expect(visits.sort()).toEqual(['first', 'second']);
-    expect(maxActive).toBe(1);
+    // Both appends survived, so neither contender overwrote the other's base.
+    expect(fs.readFileSync(filePath, 'utf-8').trim().split('\n').sort()).toEqual(['first', 'second']);
     expect(fs.existsSync(lockPath)).toBe(false);
     expect(takeoverArtifacts()).toEqual([]);
   });

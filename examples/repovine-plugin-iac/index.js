@@ -50,7 +50,7 @@ function collectQueues(root, name) {
     resources.push({
       id,
       kind: 'queue',
-      provider: 'aws',
+      provider: 'edge-stack',
       identity: { namespace: STACK_KIND, localKey: id },
       contentHash: hashResourcePayload({ kind: 'edge-queue', entry }),
       attributes: {
@@ -71,7 +71,7 @@ function collectSecrets(root, name) {
     resources.push({
       id,
       kind: 'secret',
-      provider: 'aws',
+      provider: 'edge-stack',
       identity: { namespace: STACK_KIND, localKey: id },
       contentHash: hashResourcePayload({ kind: 'edge-secret', entry }),
       attributes: {
@@ -132,7 +132,7 @@ function collectFunctions(root, name) {
     resources.push({
       id,
       kind: 'lambda',
-      provider: 'aws',
+      provider: 'edge-stack',
       identity: { namespace: STACK_KIND, localKey: id },
       contentHash: hashResourcePayload({ kind: 'edge-function', fn }),
       attributes: attrs,

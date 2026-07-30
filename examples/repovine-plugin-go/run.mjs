@@ -101,7 +101,8 @@ for (const m of go) {
 
 const entrypoints = collectFrameworkApiEntrypoints({ snapshot });
 console.log(`\n=== ${entrypoints.length} API entrypoints the core route collector projected from the plugin's route facts ===`);
-console.log("    (collector called directly; in a graph build 'server-entrypoints' reads these routes for the typescript and python plugins)");
+console.log("    (collector called directly; in a graph build 'server-entrypoints' runs because SOME module carries");
+console.log('     routes — the gate is the fact, not which plugin produced it)');
 for (const e of entrypoints) {
   console.log(`  ${e.kind.toUpperCase()} ${e.method} ${e.path}  source=${e.source}  ->  ${e.moduleId}`);
 }

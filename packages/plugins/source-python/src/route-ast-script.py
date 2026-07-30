@@ -147,7 +147,60 @@ def detect_framework(imports):
                     framework = "flask"
         if kind == "import" and module.split(".")[0] == "flask" and framework is None:
             framework = "flask"
+        # `from aiohttp import web`, `from aiohttp.web import Application` and `import aiohttp` all
+        # arrive here as the same question — the root of the module path — so one branch answers it.
+        # A first attempt also gated the `from` form on importing the name `web`; the prefix test
+        # below already matched that input, so the gate never decided anything.
+        if kind in ("from", "import") and module.split(".")[0] == "aiohttp" and framework is None:
+            framework = "aiohttp"
     return framework
+
+
+# aiohttp's imperative router: app.router.add_get('/p', h) and add_route('GET', '/p', h).
+AIOHTTP_ADD_METHODS = frozenset(
+    {"add_get", "add_post", "add_put", "add_delete", "add_patch", "add_head", "add_options", "add_view"}
+)
+
+
+def aiohttp_route_from_call(call, constants):
+    """`app.router.add_get('/p', handler)` / `add_route('GET', '/p', handler)` / `app.add_routes([...])`.
+
+    The decorator form `@routes.get('/p')` needs nothing here: it is an attribute call whose name is
+    an HTTP method, which the method-decorator path already reads whatever the framework is called.
+    """
+    if not isinstance(call, ast.Call):
+        return None
+    func = call.func
+    if not isinstance(func, ast.Attribute):
+        return None
+    if func.attr == "add_route":
+        if len(call.args) < 2:
+            return None
+        method = literal_str(call.args[0], constants)
+        path = literal_str(call.args[1], constants)
+        handler = call.args[2] if len(call.args) > 2 else None
+    elif func.attr in AIOHTTP_ADD_METHODS:
+        if not call.args:
+            return None
+        method = "VIEW" if func.attr == "add_view" else func.attr[len("add_") :].upper()
+        path = literal_str(call.args[0], constants)
+        handler = call.args[1] if len(call.args) > 1 else None
+    else:
+        return None
+    if path is None or method is None:
+        return None
+    component = None
+    if isinstance(handler, ast.Name):
+        component = handler.id
+    elif isinstance(handler, ast.Attribute):
+        component = handler.attr
+    return {
+        "path": path,
+        "method": method.upper(),
+        "component": component or "(aiohttp-handler)",
+        "line": call.lineno,
+        "syntax": "call",
+    }
 
 
 def fastapi_route_from_decorator(dec, constants):
@@ -909,6 +962,14 @@ for line in sys.stdin.read().splitlines():
                                 "line": action.get("line"),
                             }
                         )
+
+    # aiohttp's imperative registrations, walked rather than read off `tree.body`: the idiomatic
+    # placement is inside a `create_app()` factory, so a top-level-only scan would see none of them.
+    if framework == "aiohttp":
+        for node in ast.walk(tree):
+            route = aiohttp_route_from_call(node, constants)
+            if route is not None:
+                routes.append(route)
 
     attach_render_templates(routes, view_templates)
     routes.sort(key=lambda r: (r.get("path") or "", r.get("method") or "", r.get("component") or ""))

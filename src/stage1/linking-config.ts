@@ -3,7 +3,6 @@ import type { RepositoryFactsSnapshot } from '../types.js';
 export interface NormalizedLinkingConfig {
   handlers: { searchRoots: string[] };
   bundles: { scripts: string[]; autoDetect: boolean };
-  containers: { dockerfileRoots: string[] };
 }
 
 export function normalizeLinkingConfig(
@@ -17,9 +16,6 @@ export function normalizeLinkingConfig(
       scripts: uniqueStrings(input?.bundles?.scripts ?? []),
       autoDetect: input?.bundles?.autoDetect !== false,
     },
-    containers: {
-      dockerfileRoots: uniqueStrings(input?.containers?.dockerfileRoots ?? []),
-    },
   };
 }
 
@@ -27,8 +23,7 @@ export function hasLinkingConfig(input?: RepositoryFactsSnapshot['linkingConfig'
   if (!input) return false;
   const n = normalizeLinkingConfig(input);
   return n.handlers.searchRoots.length > 0
-    || n.bundles.scripts.length > 0
-    || n.containers.dockerfileRoots.length > 0;
+    || n.bundles.scripts.length > 0;
 }
 
 function uniqueStrings(values: string[]): string[] {

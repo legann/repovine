@@ -24,11 +24,18 @@ export function entrypointHandlerModuleId(fragment: EntrypointFragment): string 
   return typeof value === 'string' ? value : undefined;
 }
 
+/**
+ * What an interpreter is handed to contribute graph structure.
+ *
+ * There is no list of the plugins that produced the snapshot, and that absence is the contract: an
+ * interpreter is gated on the facts a repository carries, never on who published them. Handing over
+ * the producer set would make a branch by language or plugin id available, and a generic
+ * interpreter that can name one ecosystem is no longer generic.
+ */
 export interface InterpreterGraphContext {
   graph: RepositoryGraph;
   snapshot: RepositoryFactsSnapshot;
   modulesById: Map<string, ModuleInfo>;
-  sourcePluginIds: readonly string[];
   /**
    * Already-loaded domains config from the stage2 caller (resource excludes etc.). Interpreters must not
    * reload it from disk; the caller owns the single load. Null when unavailable.
@@ -37,11 +44,11 @@ export interface InterpreterGraphContext {
   log(level: InterpreterLogLevel, message: string): void;
 }
 
+/** What an interpreter is handed to collect entrypoints. Carries no producer set, for the same reason. */
 export interface InterpreterEntrypointContext {
   graph: RepositoryGraph;
   snapshot: RepositoryFactsSnapshot;
   modulesById: Map<string, ModuleInfo>;
-  sourcePluginIds: readonly string[];
   log(level: InterpreterLogLevel, message: string): void;
 }
 

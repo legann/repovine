@@ -9,7 +9,7 @@ import type { SourceExtractInput, SourceExtractResult } from '@repovine/plugin-s
 import type { PythonExtractContext } from './discover.js';
 import { resolvePythonImport } from './resolve-import.js';
 import { effectImportsFromPythonImports } from './effect-imports.js';
-import { frameworkHintsFromRaw, type RawFrameworkRoute } from './framework-hints.js';
+import { frameworkHintsFromRaw, type PythonWebFramework, type RawFrameworkRoute } from './framework-hints.js';
 
 /**
  * Python extraction (Pass 2). Parses a shard of `.py` files with the stdlib `ast` module in a
@@ -67,7 +67,14 @@ interface RawModule {
   envVars?: string[];
   /** Names declared in a top-level `__all__ = [...]` (public re-export contract). */
   dunderAll?: RawDunderAllEntry[];
-  framework?: 'fastapi' | 'django' | 'drf' | null;
+  /**
+   * The framework the subprocess named, spelled by the one union both sides share.
+   *
+   * It was a second hand-written list, and it had already drifted: the script emits `flask` and the
+   * list did not carry it, so a Flask route was labelled with no framework and read as a call
+   * instead of a decorator. Naming the union makes the next framework a compile error here.
+   */
+  framework?: PythonWebFramework | null;
   routes?: RawFrameworkRoute[];
   error?: string;
 }

@@ -7,9 +7,11 @@ import type { ResourceIdentity } from './resource-identity.js';
 import { asHostPath } from '../path-contract.js';
 import type { HostPath } from '../path-contract.js';
 import type {
+  InfraModuleSelector,
   ProjectionFactSelector,
   ReadonlyFactRecord,
   ReadonlyFactView,
+  ReadonlyInfraModuleFact,
   ReadonlyModuleFact,
 } from './projection.js';
 import type { ConformanceCheck, ConformanceReport } from '../conformance.js';
@@ -34,6 +36,8 @@ export interface PluginConformanceInput {
   facts?: readonly ReadonlyFactRecord[];
   /** Runtime resources the graph already holds, which a projected reference can point at. */
   resources?: readonly ResourceIdentity[];
+  /** Infrastructure documents a projector may link to, standing in for the host's fact view. */
+  infraModules?: readonly ReadonlyInfraModuleFact[];
   /** Repository root handed to projectors. Defaults to a neutral placeholder. */
   repoRoot?: HostPath;
 }
@@ -50,6 +54,7 @@ function factViewOf(
   modules: readonly ReadonlyModuleFact[],
   facts: readonly ReadonlyFactRecord[],
   resourceIds: ReadonlySet<string>,
+  infraModules: readonly ReadonlyInfraModuleFact[],
 ): ReadonlyFactView {
   const byId = new Map(modules.map(module => [module.moduleId, module]));
   return {
@@ -57,6 +62,9 @@ function factViewOf(
     moduleIds: () => [...byId.keys()],
     module: (moduleId: string) => byId.get(moduleId),
     hasResource: (identity: ResourceIdentity) => resourceIds.has(makeResourceId(identity)),
+    infraModules: (selector?: InfraModuleSelector) => selector?.kind === undefined
+      ? infraModules
+      : infraModules.filter(mod => mod.kind === selector.kind),
     select: (selector: ProjectionFactSelector) => facts.filter(fact => fact.schema === selector.schema),
   };
 }
@@ -93,7 +101,7 @@ export function checkPluginConformance(input: PluginConformanceInput): Conforman
   const modules = input.modules ?? [];
   const facts = input.facts ?? [];
   const knownResourceIds = new Set((input.resources ?? []).map(makeResourceId));
-  const view = factViewOf(modules, facts, knownResourceIds);
+  const view = factViewOf(modules, facts, knownResourceIds, input.infraModules ?? []);
   const projectionInput = { repoRoot: input.repoRoot ?? asHostPath('/repo'), facts: view };
   const accepted: AcceptedProjectionBatch[] = [];
 
@@ -149,7 +157,13 @@ export function checkPluginConformance(input: PluginConformanceInput): Conforman
 
   const problems = checkProjectionRefs({
     accepted,
-    knownModuleIds: new Set(modules.map(module => module.moduleId)),
+    // Infra documents count as modules here for the same reason they do in the host: a link into a
+    // build or deployment document is a module reference, and a kit that resolved fewer references
+    // than the host would pass a plugin the host then refuses.
+    knownModuleIds: new Set([
+      ...modules.map(module => module.moduleId),
+      ...(input.infraModules ?? []).map(mod => mod.moduleId),
+    ]),
     knownResourceIds,
   });
   checks.push(check(

@@ -90,9 +90,6 @@ describe('ensureWorkspaceBootstrap', () => {
             scripts: [],
             autoDetect: true,
           },
-          containers: {
-            dockerfileRoots: [],
-          },
         },
       },
       mcp: {
@@ -148,7 +145,9 @@ describe('ensureWorkspaceBootstrap', () => {
     const domains = JSON.parse(REPOVINE_DOMAINS_JSON);
     expect(domains).not.toHaveProperty('linking');
 
-    expect(loadConfig(templateDir).build.linking.containers.dockerfileRoots).toEqual([]);
+    // The container-linking knob is gone: matching an image to a Dockerfile belongs to the plugin
+    // that owns Dockerfiles, and the engine's config no longer names that ecosystem.
+    expect(loadConfig(templateDir).build.linking).not.toHaveProperty('containers');
     expect(loadDomainsConfig(templateDir)).not.toHaveProperty('linking');
 
     fs.rmSync(templateDir, { recursive: true, force: true });

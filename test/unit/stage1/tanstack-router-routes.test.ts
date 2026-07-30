@@ -49,7 +49,6 @@ function ctxFor(modules: ModuleInfo[]): InterpreterEntrypointContext {
     graph: createEmptyGraph(),
     snapshot,
     modulesById: new Map(modules.map(m => [m.id, m])),
-    sourcePluginIds: ['typescript'],
     log: () => undefined,
   };
 }

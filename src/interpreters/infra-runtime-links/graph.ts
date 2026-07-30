@@ -24,7 +24,6 @@ import {
 } from '../../plugin-host/declaration-catalog.js';
 import { matchesInfraResourceExclude, type DomainsConfig } from '../../stage2/domains.js';
 import {
-  linkContainerRuntimeTargets,
   resolveArtifactRoot,
   runtimeEntrySearchRoots,
 } from '../../stage2/runtime-links.js';
@@ -35,9 +34,8 @@ import {
   getInfraKindDomain,
 } from '../../plugin-host/iac-set.js';
 import { getKnownExtensions, getSourcePlugins } from '../../plugin-host/source-set.js';
-import { resolveRelPath, toPosixPath } from '../../platform/paths.js';
+import { resolveRelPath } from '../../platform/paths.js';
 import { stripIndexBasename } from '../../plugin-host/source-set.js';
-import { infraNodeId } from '../../graph/node-ids.js';
 
 type RuntimeActionName = RuntimeAction['action'];
 
@@ -396,7 +394,6 @@ function pass2Infra(
   // This build's own declarations, carried on the snapshot so they reach composition inside the
   // Stage 2 worker isolate. Absent when no plugin declared anything.
   const declarations = snapshot.declarations;
-  const deferredComposeDockerfileInfraEdges: Array<{ fromServiceId: string; toDockerfileModuleId: string }> = [];
   const deferredLogicalIdRefs: Array<{
     logicalId: string;
     serviceId: string;
@@ -491,14 +488,6 @@ function pass2Infra(
           addEdge(graph, serviceId, modId, 'infra');
         }
       }
-      // A resource that names a Dockerfile of this repository is linked to it, so domains propagate
-      // through the shared build artifact. Naming one is the evidence; which ecosystem named it is
-      // not read.
-      if (res.attributes.dockerfile) {
-        const dockerfileModuleId = infraNodeId('dockerfile', toPosixPath(res.attributes.dockerfile));
-        deferredComposeDockerfileInfraEdges.push({ fromServiceId: serviceId, toDockerfileModuleId: dockerfileModuleId });
-      }
-
       const scope = refScopeFor(infraMod, res);
 
       if (res.triggers) {
@@ -551,18 +540,9 @@ function pass2Infra(
     else addEdge(graph, from, to, 'uses_env');
   }
 
-  // Compose modules can appear before Dockerfile modules in scan order.
-  // Link after all infra nodes are present to avoid order-sensitive misses.
-  for (const edge of deferredComposeDockerfileInfraEdges) {
-    if (graph.nodes.has(edge.fromServiceId) && graph.nodes.has(edge.toDockerfileModuleId)) {
-      addEdge(graph, edge.fromServiceId, edge.toDockerfileModuleId, 'infra');
-    }
-  }
-
   linkDeferredInfraEdges(graph, infraModules, declarations);
   linkHandlerModuleEnvBindings(graph, infraModules, declarations);
   linkRuntimePublishes(graph, infraModules, modulesById, declarations);
-  linkContainerRuntimeTargets(graph, snapshot);
 }
 
 /** The document a resource's own references are made from, and the scope its plugin confined them to. */

@@ -85,6 +85,7 @@ const EXPECTED_PUBLIC_PATHS = [
   'PendingModuleDraft.virtualAbsPath: HostPath',
   'PluginConformanceInput.repoRoot: HostPath',
   'PrunedDir.repoRelPath: RepoRelPath',
+  'ReadonlyInfraModuleFact.repoRelPath: RepoRelPath',
   'ReadonlyModuleFact.repoRelPath: RepoRelPath',
   'ReadonlyProjectionInput.repoRoot: HostPath',
   'SourceDiscoveryResult.pendingByAbsPath: Map<HostPath, PendingModuleDraft>',

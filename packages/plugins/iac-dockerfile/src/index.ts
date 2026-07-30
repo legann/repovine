@@ -1,10 +1,12 @@
 import { definePlugin } from '@repovine/plugin-sdk';
 import { dockerfileParser } from './parser.js';
+import { buildLinksProjector } from './projectors/build-links.js';
 
 /** Built-in plugin: Dockerfile / Dockerfile.<variant>. Owns InfraKind: 'dockerfile'. */
 export const dockerfileIacPlugin = definePlugin({
   id: 'dockerfile',
   capabilities: {
+    projectors: [buildLinksProjector],
     iac: {
       parsers: [dockerfileParser],
       kindDomains: [
@@ -20,5 +22,7 @@ export const dockerfileIacPlugin = definePlugin({
     },
   },
 });
+
+export { buildLinksProjector } from './projectors/build-links.js';
 
 export default dockerfileIacPlugin;

@@ -33,7 +33,6 @@ export function composeInterpreters(options: ComposeInterpretersOptions): Interp
     return { appliedInterpreterIds: [], skippedInterpreterIds: [], entrypoints: [] };
   }
 
-  const sourcePluginIds = collectSourcePluginIds(options.snapshot);
   const skippedInterpreterIds: string[] = [];
   const enabled = interpreters.filter(interpreter => {
     // Gated on the facts a repository carries, never on who produced them: a normalized route hint
@@ -54,7 +53,6 @@ export function composeInterpreters(options: ComposeInterpretersOptions): Interp
     graph: options.graph,
     snapshot: options.snapshot,
     modulesById: options.modulesById,
-    sourcePluginIds,
     domainsConfig: options.domainsConfig ?? null,
     log,
   };
@@ -75,17 +73,6 @@ export function composeInterpreters(options: ComposeInterpretersOptions): Interp
     skippedInterpreterIds,
     entrypoints,
   };
-}
-
-function collectSourcePluginIds(snapshot: RepositoryFactsSnapshot): readonly string[] {
-  const ids = new Set<string>();
-  for (const pkg of snapshot.packages) {
-    if (pkg.sourcePluginId) ids.add(pkg.sourcePluginId);
-  }
-  for (const mod of snapshot.modules) {
-    if (mod.sourcePluginId) ids.add(mod.sourcePluginId);
-  }
-  return [...ids].sort();
 }
 
 function hasAnyRequiredHint(interpreter: Interpreter, snapshot: RepositoryFactsSnapshot): boolean {

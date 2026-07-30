@@ -1,8 +1,10 @@
 import { canonicalJson, makeResourceId, repoRelativePosix } from '@repovine/plugin-sdk';
 import type {
+  InfraModuleSelector,
   ProjectionFactSelector,
   ReadonlyFactRecord,
   ReadonlyFactView,
+  ReadonlyInfraModuleFact,
   ReadonlyModuleFact,
   ResourceIdentity,
 } from '@repovine/plugin-sdk';
@@ -43,6 +45,12 @@ export function createFactView(input: FactViewInput): ReadonlyFactView {
   }
   const moduleIds = [...modules.keys()].sort(compareCodeUnits);
 
+  // Infrastructure documents, carrying the id the engine minted. Sorted by that id so a projector
+  // reading them twice gets the same order, and scan order is not a channel.
+  const infraModules: ReadonlyInfraModuleFact[] = (input.snapshot.infraModules ?? [])
+    .map(mod => ({ kind: mod.kind, moduleId: mod.id, repoRelPath: mod.repoRelPath }))
+    .sort((a, b) => compareCodeUnits(a.moduleId, b.moduleId));
+
   const bySchema = new Map<string, ReadonlyFactRecord[]>();
   for (const record of [...(input.facts ?? [])].sort(recordOrder)) {
     const bucket = bySchema.get(record.schema);
@@ -57,6 +65,10 @@ export function createFactView(input: FactViewInput): ReadonlyFactView {
     moduleIds: (): readonly string[] => moduleIds,
     module: (moduleId: string): ReadonlyModuleFact | undefined => modules.get(moduleId),
     hasResource: (identity: ResourceIdentity): boolean => resourceIds.has(makeResourceId(identity)),
+    infraModules: (selector?: InfraModuleSelector): readonly ReadonlyInfraModuleFact[] =>
+      selector?.kind === undefined
+        ? infraModules
+        : infraModules.filter(mod => mod.kind === selector.kind),
     select: (selector: ProjectionFactSelector): readonly ReadonlyFactRecord[] => {
       const matches = bySchema.get(selector.schema) ?? [];
       if (selector.field === undefined) return matches;

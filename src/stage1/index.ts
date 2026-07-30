@@ -542,7 +542,6 @@ function buildSnapshot(
           scripts: normalizedLinking!.bundles.scripts,
           autoDetect: normalizedLinking!.bundles.autoDetect,
         },
-        containers: { dockerfileRoots: normalizedLinking!.containers.dockerfileRoots },
       },
     } : {}),
   };

@@ -342,7 +342,6 @@ function makeCtx(overrides?: Partial<RepovineState>): McpToolRuntime {
     graph: state.graph,
     snapshot: state.snapshot,
     modulesById: state.modulesById,
-    sourcePluginIds: [],
     log: () => undefined,
   };
   rememberInterpreterEntrypoints(state.graph, [

@@ -257,7 +257,14 @@ function composeProjectionsFor(
         ...(snapshot.facts === undefined ? {} : { facts: snapshot.facts }),
       }),
     },
-    knownModuleIds: new Set(snapshot.modules.map(mod => mod.id)),
+    // Code modules and infrastructure documents both. An infra document is a module node, so a
+    // projected link into one is resolvable — the index simply did not carry them, and a link to a
+    // build recipe took its whole batch down as a dangling reference. Same symmetry `knownResourceIds`
+    // got: what the fact view lets a projector see, the ref index has to be able to resolve.
+    knownModuleIds: new Set([
+      ...snapshot.modules.map(mod => mod.id),
+      ...(snapshot.infraModules ?? []).map(mod => mod.id),
+    ]),
     knownNodeIds: new Set(graph.nodes.keys()),
     knownResourceIds,
   });

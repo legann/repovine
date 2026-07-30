@@ -17,6 +17,7 @@ export const RELATION_EDGE_KINDS: Readonly<Record<SemanticLinkRelation, EdgeKind
   'binds-to': 'binds_to',
   'uses-env': 'uses_env',
   'routes-to': 'routes_to',
+  'builds-from': 'infra',
 });
 
 /** Every published relation has an edge kind. Read by the totality law and by the composer. */

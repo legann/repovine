@@ -178,7 +178,7 @@ const APPROVED_AXIS_MEMBERS = new Map<string, ReadonlySet<string>>([
   ['plugin/projection.ts::PROJECTION_REF_TYPES',
     members('module', 'resource', 'extension')],
   ['plugin/projection.ts::SEMANTIC_LINK_RELATIONS',
-    members('publishes', 'consumes', 'binds-to', 'uses-env', 'routes-to')],
+    members('publishes', 'consumes', 'binds-to', 'uses-env', 'routes-to', 'builds-from')],
   ['plugin/projection.ts::ENTRYPOINT_CONTRIBUTION_KINDS',
     members('api-route', 'file-route', 'ui-route', 'conditional-render', 'resource-trigger')],
   ['plugin/projection-schema.ts::ProjectionRefProblemReason',

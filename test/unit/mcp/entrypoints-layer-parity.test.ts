@@ -32,7 +32,6 @@ function makeCtx(snapshot: RepositoryFactsSnapshot, graph = createEmptyGraph()):
     graph,
     snapshot,
     modulesById,
-    sourcePluginIds: ['typescript', 'python'],
     log: () => undefined,
   };
   // Mirror the composer: every entrypoint-producing builtin layer populates the store; the MCP

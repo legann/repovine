@@ -29,7 +29,6 @@ function graphCtx(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot): In
     graph,
     snapshot,
     modulesById: new Map(snapshot.modules.map(m => [m.id, m])),
-    sourcePluginIds: ['python'],
     domainsConfig: null,
     log: () => {},
   };

@@ -79,6 +79,12 @@
           "type": "event-bus",
           "provider": "aws",
           "entrypointKind": "queue-consumer"
+        },
+        {
+          "type": "s3",
+          "provider": "aws",
+          "entrypointKind": "queue-consumer",
+          "isStreamLike": true
         }
       ],
       "runtimeActions": [

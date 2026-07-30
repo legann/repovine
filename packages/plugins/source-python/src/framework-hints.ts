@@ -8,9 +8,20 @@ export interface RawFrameworkRoute {
   line?: number;
   /** Server-rendered template names this route's view renders (same-file detection only). */
   rendersTemplate?: string[];
+  /**
+   * How this row was declared, when the extractor knows per row rather than per framework.
+   *
+   * aiohttp is why this exists: it declares routes both by decorating a handler
+   * (`@routes.get('/x')`) and by a registration call (`app.router.add_get('/x', h)`), so the
+   * framework alone does not answer the question.
+   */
+  syntax?: 'decorator' | 'call';
 }
 
-export type PythonWebFramework = 'fastapi' | 'django' | 'drf' | 'flask';
+export type PythonWebFramework = 'fastapi' | 'django' | 'drf' | 'flask' | 'aiohttp';
+
+/** Frameworks whose routes are declared by decorating the handler, rather than by a registration call. */
+const DECORATOR_FRAMEWORKS = new Set<PythonWebFramework>(['fastapi', 'flask', 'aiohttp']);
 
 /** Normalize Django-style paths (`users/`) to absolute URL paths (`/users/`). Regex paths stay as-is. */
 export function normalizeApiPath(path: string, framework?: PythonWebFramework | null): string {
@@ -33,7 +44,7 @@ export function frameworkHintsFromRaw(input: {
     path: normalizeApiPath(r.path, framework),
     component: r.component,
     declaredIn: 'code',
-    syntax: framework === 'fastapi' || framework === 'flask' ? 'decorator' : 'call',
+    syntax: r.syntax ?? (framework && DECORATOR_FRAMEWORKS.has(framework) ? 'decorator' : 'call'),
     kind: 'api',
     ...(r.method ? { method: r.method.toUpperCase() } : {}),
     ...(r.rendersTemplate && r.rendersTemplate.length > 0 ? { rendersTemplate: r.rendersTemplate } : {}),
