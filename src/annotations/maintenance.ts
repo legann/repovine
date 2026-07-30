@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { canonicalJson } from '@repovine/plugin-sdk';
+import { canonicalJson } from '@repovine/plugin-sdk/internal';
 import type { RepositoryGraph, AnnotationContent, StoredAnnotation, RepositoryFactsSnapshot } from '../types.js';
 import { nextCall, type NextCall } from '../response/next-call.js';
 import type { AnnotationStore, AnnotationHealthScan, AnnotationFileStatusSnapshot } from './store.js';

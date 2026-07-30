@@ -5,9 +5,9 @@
 import { Project, ScriptTarget } from 'ts-morph';
 import {
   SEMANTIC_HINTS_VERSION,
-  zSemanticHints,
   validateSemanticHints,
 } from '@repovine/plugin-sdk';
+import { zSemanticHints } from '../../helpers/semantic-hints-schema.js';
 import { collectSemanticHints } from '../../../packages/plugins/source-typescript/src/semantic-hints.js';
 import { frameworkHintsFromRaw } from '../../../packages/plugins/source-python/src/framework-hints.js';
 import type { SemanticHints } from '@repovine/plugin-sdk';

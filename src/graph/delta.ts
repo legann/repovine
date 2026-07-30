@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { EDGE_KINDS, NODE_DATA_KEYS, NODE_TYPES } from '../types.js';
 import type { EdgeKind, GraphDelta, GraphEdge, GraphNode, NodeType, RepositoryGraph } from '../types.js';
 import { compareCodeUnits } from '../platform/ordering.js';
-import { canonicalJson } from '@repovine/plugin-sdk';
+import { canonicalJson } from '@repovine/plugin-sdk/internal';
 import { addEdge as addDeltaEdge, addNode as addDeltaNode } from './mutate.js';
 
 export type GraphDeltaLogLevel = 'debug' | 'warn' | 'error';

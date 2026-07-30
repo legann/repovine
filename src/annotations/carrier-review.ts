@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH } from '@repovine/plugin-sdk';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 import { ARTIFACTS_DIR_NAME } from '../paths.js';
 import { writeFileAtomicSync } from '../fs/atomic.js';
 import { serializeKeyedRecordFile } from '../fs/keyed-json.js';

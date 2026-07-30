@@ -1,4 +1,5 @@
-import { zSemanticHints, type ModuleInfo, type SemanticHints } from '@repovine/plugin-sdk';
+import type { ModuleInfo, SemanticHints } from '@repovine/plugin-sdk';
+import { zSemanticHints } from './semantic-hints-schema.js';
 
 /**
  * Single source of truth for honest-empty (L3) checks: the frontend-only `semanticHints` slots a

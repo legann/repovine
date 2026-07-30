@@ -16,15 +16,25 @@ array order does, and a key set to `undefined` is the same fact as an absent key
 The complete taxonomy of public producers and core-only interpreters, detectors, and delivery
 mechanics is defined in [DESIGN.md](../DESIGN.md#extension-families-and-boundaries).
 
-> **Status:** `@repovine/plugin-sdk` is at `0.1.0` and the runtime contract is `apiVersion: 1`.
-> The two are separate axes: the npm version of the SDK and the runtime `apiVersion` a manifest
-> declares move independently, and the pairing is published in
+> **Status: API 1 is preview.** `@repovine/plugin-sdk` is at `0.1.0` and the runtime contract is
+> `apiVersion: 1`. The two are separate axes: the npm version of the SDK and the runtime `apiVersion`
+> a manifest declares move independently, and the pairing is published in
 > [`plugin-api-compatibility.md`](plugin-api-compatibility.md).
 >
-> Whether API 1 is **stable** or **preview** is not yet declared. What holds today regardless: the
-> exported surface is inventoried and diffed on every build (`test/laws/plugin-api-report.test.ts`,
-> `docs/plugin-api-report.md`), an incompatible `apiVersion` is refused at load, and the four
-> subpaths below are the only way in.
+> Preview means an export can still be removed, renamed or tightened. That arrives as a minor SDK bump
+> and a changelog entry, so **pin the exact version and read the release notes**. `apiVersion: 1` says
+> which contract you wrote against; it is not yet a compatibility promise.
+>
+> Preview ends on one written condition: a plugin authored outside this repository, by someone who did
+> not write the SDK, from this document alone, published and loaded against the published tarballs —
+> with every gap it exposes closed. Then `@repovine/plugin-sdk@1.0.0` and API 1 stable.
+>
+> What holds today regardless: the exported surface is inventoried and diffed on every build
+> (`test/laws/plugin-api-report.test.ts`, `docs/plugin-api-report.md`), the runtime half of it is
+> registered in writing (`docs/plugin-api-contract.json`), an incompatible `apiVersion` is refused at
+> load, and four subpaths are the only way in — `@repovine/plugin-sdk`, `/plugin`, `/source-plugin`,
+> `/iac-plugin`. A fifth, `/internal`, resolves and is host machinery: it is outside semver, outside
+> API 1, and a law fails the build on a plugin that imports it.
 
 ## Quick start — copy an example
 
@@ -278,8 +288,10 @@ The nested `capabilities` inside `goSource` is the source capability's own langu
 extensions and id-normalisation rules the engine applies. The outer `capabilities` is the
 descriptor's capability set.
 
-The cross-language contract is **`semanticHints`** — a versioned, `passthrough` bag (see
-`SEMANTIC_HINTS_VERSION`, `zSemanticHints`). It has ten slots, and they differ in reach: three carry
+The cross-language contract is **`semanticHints`** — a versioned, `passthrough` bag. The SDK publishes
+the version (`SEMANTIC_HINTS_VERSION`) and the verdict (`validateSemanticHints`); the schema behind
+them stays private, so a producer branches on a verdict and the schema is free to change shape. It has
+ten slots, and they differ in reach: three carry
 values any ecosystem can produce, two assume a framework that serves requests, and five encode web,
 JavaScript or AWS shapes in their own field types. Fill the ones your ecosystem has.
 

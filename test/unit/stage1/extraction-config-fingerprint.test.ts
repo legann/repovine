@@ -1,6 +1,6 @@
 import { computeExtractionConfigFingerprint } from '../../../src/stage1/extraction-config-fingerprint.js';
 import { currentDirLayoutTable } from '../../../src/paths.js';
-import { installDirLayoutTable } from '@repovine/plugin-sdk';
+import { installDirLayoutTable } from '@repovine/plugin-sdk/internal';
 import type { DirLayoutTable, SourcePlugin } from '@repovine/plugin-sdk';
 
 function plugin(id: string): SourcePlugin {

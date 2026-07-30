@@ -1,4 +1,5 @@
-import { canonicalJson, makeResourceId, repoRelativePosix } from '@repovine/plugin-sdk';
+import { makeResourceId, repoRelativePosix } from '@repovine/plugin-sdk';
+import { canonicalJson } from '@repovine/plugin-sdk/internal';
 import type {
   InfraModuleSelector,
   ProjectionFactSelector,

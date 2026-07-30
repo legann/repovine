@@ -1,6 +1,6 @@
+import { canonicalJson } from '@repovine/plugin-sdk/internal';
 import {
   PROJECTION_BUDGETS,
-  canonicalJson,
   checkProjectionRefs,
   makeResourceId,
   validateProjectionBatch,

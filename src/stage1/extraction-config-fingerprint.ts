@@ -1,4 +1,5 @@
-import { currentDirLayoutTable, HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH } from '@repovine/plugin-sdk';
+import { currentDirLayoutTable, sha256Hex } from '@repovine/plugin-sdk/internal';
 import type { SourcePlugin } from '@repovine/plugin-sdk';
 import type { ScanPatternInput } from '../scan-filters.js';
 import { compareCodeUnits } from '../platform/ordering.js';

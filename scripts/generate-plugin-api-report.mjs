@@ -7,6 +7,10 @@
  * name carries its kind, because the two halves age differently: a value export is code a plugin
  * calls, a type export only has to keep its shape.
  *
+ * A subpath the manifest publishes is not automatically part of the contract. `docs/plugin-api-contract.json`
+ * says which four are, and every other subpath is reported under a NOT-CONTRACT marker and left out
+ * of the contract total — the number that freezes.
+ *
  * Generating the inventory declares nothing stable. It makes a change to the surface visible in a
  * pull request, which is the precondition for deciding what to freeze.
  *
@@ -26,9 +30,12 @@ const ts = require_('typescript');
 
 const sdkRoot = path.join(engineRoot, 'packages', 'plugin-sdk');
 const REPORT_PATH = path.join(engineRoot, 'docs', 'plugin-api-report.md');
+const CONTRACT_PATH = path.join(engineRoot, 'docs', 'plugin-api-contract.json');
 const check = process.argv.includes('--check');
 
 const sdkManifest = JSON.parse(readFileSync(path.join(sdkRoot, 'package.json'), 'utf-8'));
+const contract = JSON.parse(readFileSync(CONTRACT_PATH, 'utf-8'));
+const contractSubpaths = new Set(contract.contractSubpaths);
 
 /** The kind of a declaration, in the terms an author cares about. */
 function declarationKind(node) {
@@ -131,7 +138,10 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const total = sections.reduce((sum, section) => sum + section.exports.length, 0);
+const isContract = section => contractSubpaths.has(section.subpath);
+const contractTotal = sections.filter(isContract).reduce((sum, section) => sum + section.exports.length, 0);
+const nonContractTotal = sections.filter(section => !isContract(section))
+  .reduce((sum, section) => sum + section.exports.length, 0);
 
 const lines = [
   '# Public plugin API report',
@@ -140,25 +150,37 @@ const lines = [
   '',
   `\`@repovine/plugin-sdk@${sdkManifest.version}\`, runtime contract \`apiVersion: 1\`.`,
   '',
-  'Every name a plugin author can reach, by the subpath that publishes it. Generated from the built',
-  'declaration files through the manifest\'s own `exports` map, so this is the reachable surface rather',
-  'than a list kept beside it.',
+  'Every name reachable through the manifest\'s `exports` map, by the subpath that publishes it.',
+  'Generated from the built declaration files, so this is what resolves rather than a list kept beside',
+  'it.',
+  '',
+  'Reachable is not the same as contract. The four authoring subpaths carry the surface a plugin is',
+  'written against; a subpath marked **not contract** is host machinery that lives outside semver, and',
+  'its names are excluded from the contract total. Which subpaths are which is written down in',
+  '[plugin-api-contract.json](plugin-api-contract.json), and that file also registers the runtime names',
+  'of the contract itself.',
   '',
   'This report declares nothing stable. It exists so a change to the surface shows up as a diff.',
   'Whether API 1 is stable or preview is recorded in [plugin-api-compatibility.md](plugin-api-compatibility.md).',
   '',
   '## Summary',
   '',
-  '| Subpath | Exports |',
-  '|---|---|',
-  ...sections.map(section => `| \`@repovine/plugin-sdk${section.subpath.slice(1)}\` | ${section.exports.length} |`),
-  `| **total** | **${total}** |`,
+  '| Subpath | Exports | In contract |',
+  '|---|---|---|',
+  ...sections.map(section =>
+    `| \`@repovine/plugin-sdk${section.subpath.slice(1)}\` | ${section.exports.length} | ${isContract(section) ? 'yes' : '**no**'} |`),
+  `| **contract total** | **${contractTotal}** | |`,
+  `| outside the contract | ${nonContractTotal} | |`,
   '',
 ];
 
 for (const section of sections) {
   const specifier = `@repovine/plugin-sdk${section.subpath.slice(1)}`;
   lines.push(`## \`${specifier}\``, '');
+  if (!isContract(section)) {
+    const reason = contract.nonContractSubpaths?.[section.subpath] ?? 'Not part of the plugin contract.';
+    lines.push(`**NOT CONTRACT.** ${reason}`, '');
+  }
   lines.push(`Declarations: \`${path.relative(engineRoot, section.entry).split(path.sep).join('/')}\``, '');
   lines.push('| Export | Kind |', '|---|---|');
   for (const item of section.exports) lines.push(`| \`${item.name}\` | ${item.kind} |`);
@@ -176,8 +198,14 @@ if (check) {
     console.error('and review the diff against docs/plugin-api-compatibility.md before committing.');
     process.exit(1);
   }
-  console.log(`Public plugin API report is current: ${total} exports across ${sections.length} subpaths.`);
+  console.log(
+    `Public plugin API report is current: ${contractTotal} contract exports across `
+    + `${contractSubpaths.size} subpaths, ${nonContractTotal} outside the contract.`,
+  );
 } else {
   writeFileSync(REPORT_PATH, report);
-  console.log(`Wrote ${path.relative(engineRoot, REPORT_PATH)}: ${total} exports across ${sections.length} subpaths.`);
+  console.log(
+    `Wrote ${path.relative(engineRoot, REPORT_PATH)}: ${contractTotal} contract exports across `
+    + `${contractSubpaths.size} subpaths, ${nonContractTotal} outside the contract.`,
+  );
 }

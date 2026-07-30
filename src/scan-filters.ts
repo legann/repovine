@@ -9,12 +9,15 @@
  */
 export {
   compileScanPatterns,
-  isScanExcluded,
-  isScanIncluded,
   shouldScanInfraPath,
   shouldScanSourcePath,
   shouldWalkDiscoveryDir,
 } from '@repovine/plugin-sdk';
+
+// The two halves behind the verdict. They are host machinery rather than authoring surface — a
+// producer is handed the compiled patterns and asks for the verdict — so they arrive by the subpath
+// that carries no compatibility promise.
+export { isScanExcluded, isScanIncluded } from '@repovine/plugin-sdk/internal';
 
 export type {
   CompiledScanPattern,

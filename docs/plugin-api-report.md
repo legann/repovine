@@ -4,22 +4,30 @@
 
 `@repovine/plugin-sdk@0.1.0`, runtime contract `apiVersion: 1`.
 
-Every name a plugin author can reach, by the subpath that publishes it. Generated from the built
-declaration files through the manifest's own `exports` map, so this is the reachable surface rather
-than a list kept beside it.
+Every name reachable through the manifest's `exports` map, by the subpath that publishes it.
+Generated from the built declaration files, so this is what resolves rather than a list kept beside
+it.
+
+Reachable is not the same as contract. The four authoring subpaths carry the surface a plugin is
+written against; a subpath marked **not contract** is host machinery that lives outside semver, and
+its names are excluded from the contract total. Which subpaths are which is written down in
+[plugin-api-contract.json](plugin-api-contract.json), and that file also registers the runtime names
+of the contract itself.
 
 This report declares nothing stable. It exists so a change to the surface shows up as a diff.
 Whether API 1 is stable or preview is recorded in [plugin-api-compatibility.md](plugin-api-compatibility.md).
 
 ## Summary
 
-| Subpath | Exports |
-|---|---|
-| `@repovine/plugin-sdk` | 234 |
-| `@repovine/plugin-sdk/iac-plugin` | 57 |
-| `@repovine/plugin-sdk/plugin` | 87 |
-| `@repovine/plugin-sdk/source-plugin` | 111 |
-| **total** | **489** |
+| Subpath | Exports | In contract |
+|---|---|---|
+| `@repovine/plugin-sdk` | 222 | yes |
+| `@repovine/plugin-sdk/iac-plugin` | 56 | yes |
+| `@repovine/plugin-sdk/internal` | 10 | **no** |
+| `@repovine/plugin-sdk/plugin` | 84 | yes |
+| `@repovine/plugin-sdk/source-plugin` | 103 | yes |
+| **contract total** | **465** | |
+| outside the contract | 10 | |
 
 ## `@repovine/plugin-sdk`
 
@@ -34,9 +42,7 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `asPkgRelPath` | value |
 | `asRepoRelPath` | value |
 | `attrValue` | value |
-| `BASE_DIR_LAYOUT` | value |
 | `CALL_INDEX_PER_DECLARATION_CAP` | value |
-| `canonicalJson` | value |
 | `checkIaCPluginConformance` | value |
 | `checkPluginConformance` | value |
 | `checkProjectionRefs` | value |
@@ -52,7 +58,6 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `ConformanceCheck` | type |
 | `ConformanceReport` | type |
 | `ContributionProvenance` | type |
-| `currentDirLayoutTable` | value |
 | `Declared` | type |
 | `defineIaCParser` | value |
 | `definePlugin` | value |
@@ -100,12 +105,9 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `InfraResourceKind` | type |
 | `InfraTrigger` | type |
 | `InfraTriggerType` | type |
-| `installDirLayoutTable` | value |
 | `InternalInfo` | type |
 | `isJsonValue` | value |
 | `isRecord` | value |
-| `isScanExcluded` | value |
-| `isScanIncluded` | value |
 | `JsonValue` | type |
 | `KnownInfraKind` | type |
 | `KnownInfraProvider` | type |
@@ -184,7 +186,6 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `resourceIdentityProblem` | value |
 | `ResourceKindDeclaration` | type |
 | `ResourceKindMeta` | type |
-| `resourceKindMetaKey` | value |
 | `ResourceTriggerEntrypointContribution` | type |
 | `RouteDeclarationSite` | type |
 | `RouteDeclarationSyntax` | type |
@@ -204,7 +205,6 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `SemanticLinkContribution` | type |
 | `SemanticLinkRelation` | type |
 | `SemanticModuleDelta` | type |
-| `sha256Hex` | value |
 | `SHORTENED_MARKER` | value |
 | `shortenText` | value |
 | `shouldScanInfraPath` | value |
@@ -221,7 +221,6 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `SourcePluginCapabilities` | type |
 | `SourceRuntimeCapability` | type |
 | `SsrMarkers` | type |
-| `stampDeclarationCatalog` | value |
 | `StampedDeclarationCatalog` | type |
 | `SymbolKind` | type |
 | `toPosixPath` | value |
@@ -229,7 +228,6 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `TriggerEntryKind` | type |
 | `TriggerTypeDeclaration` | type |
 | `TriggerTypeMeta` | type |
-| `triggerTypeMetaKey` | value |
 | `UiChildComponentHint` | type |
 | `UiComponentHint` | type |
 | `UiComponentLocalSignals` | type |
@@ -259,8 +257,6 @@ Declarations: `packages/plugin-sdk/dist/index.d.ts`
 | `walkRepository` | value |
 | `WalkRepositoryOptions` | type |
 | `WebFramework` | type |
-| `zSemanticHints` | value |
-| `ZSemanticHints` | type |
 
 ## `@repovine/plugin-sdk/iac-plugin`
 
@@ -320,11 +316,29 @@ Declarations: `packages/plugin-sdk/dist/iac-plugin/index.d.ts`
 | `resourceIdentityProblem` | value |
 | `ResourceKindMeta` | type |
 | `SemanticInfraDelta` | type |
-| `sha256Hex` | value |
 | `toPosixPath` | value |
 | `TriggerEntryKind` | type |
 | `TriggerTypeMeta` | type |
 | `validateSemanticInfraDelta` | value |
+
+## `@repovine/plugin-sdk/internal`
+
+**NOT CONTRACT.** Engine-internal host machinery, outside semver and outside API 1. Not counted in the frozen surface; no plugin may import it.
+
+Declarations: `packages/plugin-sdk/dist/internal/index.d.ts`
+
+| Export | Kind |
+|---|---|
+| `BASE_DIR_LAYOUT` | value |
+| `canonicalJson` | value |
+| `currentDirLayoutTable` | value |
+| `installDirLayoutTable` | value |
+| `isScanExcluded` | value |
+| `isScanIncluded` | value |
+| `resourceKindMetaKey` | value |
+| `sha256Hex` | value |
+| `stampDeclarationCatalog` | value |
+| `triggerTypeMetaKey` | value |
 
 ## `@repovine/plugin-sdk/plugin`
 
@@ -401,7 +415,6 @@ Declarations: `packages/plugin-sdk/dist/plugin/index.d.ts`
 | `ResourceIdentity` | type |
 | `resourceIdentityProblem` | value |
 | `ResourceKindDeclaration` | type |
-| `resourceKindMetaKey` | value |
 | `ResourceTriggerEntrypointContribution` | type |
 | `RuntimeActionDeclaration` | type |
 | `RuntimeResourceContribution` | type |
@@ -409,10 +422,8 @@ Declarations: `packages/plugin-sdk/dist/plugin/index.d.ts`
 | `SemanticLinkContribution` | type |
 | `SemanticLinkRelation` | type |
 | `SourceRuntimeCapability` | type |
-| `stampDeclarationCatalog` | value |
 | `StampedDeclarationCatalog` | type |
 | `TriggerTypeDeclaration` | type |
-| `triggerTypeMetaKey` | value |
 | `UiRouteEntrypointContribution` | type |
 | `validatePluginManifest` | value |
 | `validatePluginRuntimeDescriptor` | value |
@@ -429,7 +440,6 @@ Declarations: `packages/plugin-sdk/dist/source-plugin/index.d.ts`
 | `asHostPath` | value |
 | `asPkgRelPath` | value |
 | `asRepoRelPath` | value |
-| `BASE_DIR_LAYOUT` | value |
 | `CALL_INDEX_PER_DECLARATION_CAP` | value |
 | `checkSourcePluginConformance` | value |
 | `classifyDiscoveryDir` | value |
@@ -441,7 +451,6 @@ Declarations: `packages/plugin-sdk/dist/source-plugin/index.d.ts`
 | `ConditionalRender` | type |
 | `ConformanceCheck` | type |
 | `ConformanceReport` | type |
-| `currentDirLayoutTable` | value |
 | `defineSourcePlugin` | value |
 | `DirLayoutTable` | type |
 | `DirSkipReason` | type |
@@ -458,10 +467,7 @@ Declarations: `packages/plugin-sdk/dist/source-plugin/index.d.ts`
 | `HostPath` | type |
 | `hostPathKey` | value |
 | `ImportInfo` | type |
-| `installDirLayoutTable` | value |
 | `InternalInfo` | type |
-| `isScanExcluded` | value |
-| `isScanIncluded` | value |
 | `KnownWebFramework` | type |
 | `lastPathSegment` | value |
 | `MemberInfo` | type |
@@ -499,7 +505,6 @@ Declarations: `packages/plugin-sdk/dist/source-plugin/index.d.ts`
 | `SemanticHintsValidationResult` | type |
 | `SemanticHintsVersion` | type |
 | `SemanticModuleDelta` | type |
-| `sha256Hex` | value |
 | `shouldScanInfraPath` | value |
 | `shouldScanSourcePath` | value |
 | `shouldWalkDiscoveryDir` | value |
@@ -535,5 +540,3 @@ Declarations: `packages/plugin-sdk/dist/source-plugin/index.d.ts`
 | `walkRepository` | value |
 | `WalkRepositoryOptions` | type |
 | `WebFramework` | type |
-| `zSemanticHints` | value |
-| `ZSemanticHints` | type |

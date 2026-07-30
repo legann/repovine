@@ -7,12 +7,15 @@
  *   - the source-plugin contract (discover/extract shapes, capabilities, handler resolution)
  *   - the IaC-parser contract (+ the declarative plugin descriptor and registry metadata types)
  *   - the fact types a producer emits (ModuleInfo/SemanticModuleDelta/InfraResource/…)
- *   - the versioned semanticHints schema (the real producer↔consumer coupling surface)
+ *   - the semanticHints version and verdict (the real producer↔consumer coupling surface)
  *   - the runtime primitives: apiVersion, requires, available (graceful degradation)
  *
  * Projection is public through restricted DTOs (`./plugin`): a plugin states contributions and
  * structured references. The graph ontology itself — RepositoryGraph, GraphDelta, NodeType,
  * EdgeKind, Interpreter — stays core-only, so a contribution never freezes the internal model.
+ *
+ * Host machinery the engine needs from this package sits behind `./internal`, outside semver and
+ * outside the contract. The names published here are the ones an author may build on.
  */
 
 /* ---- unified plugin contract: manifest, descriptor, declarations, projection, identity ---- */
@@ -55,8 +58,6 @@ export { compileGlob } from './glob.js';
 export type { GlobMatcher } from './glob.js';
 export {
   compileScanPatterns,
-  isScanExcluded,
-  isScanIncluded,
   shouldScanInfraPath,
   shouldScanSourcePath,
 } from './source-plugin/scan-filters.js';
@@ -72,31 +73,25 @@ export {
   walkRepository,
 } from './source-plugin/discovery-walk.js';
 export type { DirSkipReason, PrunedDir, WalkedFile, WalkRepositoryOptions } from './source-plugin/discovery-walk.js';
-export {
-  BASE_DIR_LAYOUT,
-  currentDirLayoutTable,
-  installDirLayoutTable,
-  packageMarkersFor,
-} from './source-plugin/dir-layout.js';
+export { packageMarkersFor } from './source-plugin/dir-layout.js';
 export type { DirLayoutTable } from './source-plugin/dir-layout.js';
 
 /* ---- budgets a producer slices to and the host cites ---- */
 export { CALL_INDEX_PER_DECLARATION_CAP } from './source-plugin/budgets.js';
 
 /* ---- content hashing (the width a producer's contentHash must carry) ---- */
-export { HASH_WIDTH, sha256Hex } from './content-hash.js';
+export { HASH_WIDTH } from './content-hash.js';
 
 // Shortening a shown value, and the one marker that says it continues.
 export { SHORTENED_MARKER, shortenText } from './text.js';
 
 /* ---- the one content hash a producer mints: IaC resource payload ---- */
 export { hashResourcePayload } from './resource-hash.js';
-export { canonicalJson } from './canonical-json.js';
 export type { HashWidth } from './content-hash.js';
 
-/* ---- semanticHints schema (versioned producer↔consumer contract) ---- */
-export { SEMANTIC_HINTS_VERSION, zSemanticHints, validateSemanticHints } from './source-plugin/semantic-hints-schema.js';
-export type { SemanticHintsVersion, ZSemanticHints, SemanticHintsValidationResult } from './source-plugin/semantic-hints-schema.js';
+/* ---- semanticHints: the version and the verdict, not the schema behind them ---- */
+export { SEMANTIC_HINTS_VERSION, validateSemanticHints } from './source-plugin/semantic-hints-schema.js';
+export type { SemanticHintsVersion, SemanticHintsValidationResult } from './source-plugin/semantic-hints-schema.js';
 
 /* ---- producer-output fact validation (untrusted-plugin boundary + conformance gate) ----
  * The validators, not the schemas behind them: a caller gets a verdict it can branch on, and the

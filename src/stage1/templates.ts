@@ -3,7 +3,8 @@ import * as path from 'node:path';
 import type { TemplateFileInfo } from '../types.js';
 import { shouldScanSourcePath, type CompiledScanPatterns } from '../scan-filters.js';
 import { compareCodeUnits } from '../platform/ordering.js';
-import { asHostPath, HASH_WIDTH, sha256Hex, walkRepository } from '@repovine/plugin-sdk';
+import { asHostPath, HASH_WIDTH, walkRepository } from '@repovine/plugin-sdk';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 import type { PrunedDir } from '@repovine/plugin-sdk';
 import { templateNodeId } from '../graph/node-ids.js';
 

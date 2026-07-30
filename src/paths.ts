@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { BASE_DIR_LAYOUT, currentDirLayoutTable, packageMarkersFor } from '@repovine/plugin-sdk';
+import { packageMarkersFor } from '@repovine/plugin-sdk';
+import { BASE_DIR_LAYOUT, currentDirLayoutTable } from '@repovine/plugin-sdk/internal';
 
 function readPackageName(packageJsonPath: string): string | undefined {
   try {

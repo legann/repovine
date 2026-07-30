@@ -17,13 +17,12 @@ import {
   makeResourceId,
   parseResourceId,
   resourceIdentityProblem,
-  resourceKindMetaKey,
-  stampDeclarationCatalog,
   validatePresetManifest,
   validateProjectionBatch,
   validatePluginManifest,
   validatePluginRuntimeDescriptor,
 } from '@repovine/plugin-sdk';
+import { resourceKindMetaKey, stampDeclarationCatalog } from '@repovine/plugin-sdk/internal';
 import type {
   PluginProjectionBatch,
   ProjectionContributor,

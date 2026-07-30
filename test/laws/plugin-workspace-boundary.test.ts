@@ -212,6 +212,15 @@ function scanPluginWorkspace(root: string): string[] {
           violations.push(`${label}: private engine/SDK path`);
           continue;
         }
+        // `./internal` resolves for anyone, and carries no compatibility promise. A built-in is
+        // authored exactly as a third party is, so the door the engine uses is shut here too.
+        if (
+          spec === '@repovine/plugin-sdk/internal'
+          || spec.startsWith('@repovine/plugin-sdk/internal/')
+        ) {
+          violations.push(`${label}: engine-internal SDK subpath`);
+          continue;
+        }
         const isPublicSdkImport = spec === '@repovine/plugin-sdk'
           || spec.startsWith('@repovine/plugin-sdk/');
         if (dirName !== DEFAULT_PRESET_DIR && spec.startsWith('@repovine/') && !isPublicSdkImport) {
@@ -308,9 +317,17 @@ describe('core-laws physical plugin workspace boundary', () => {
       copyDirSync(path.join(repoRoot(), 'packages', 'plugins'), tmpPlugins);
       const mutation = path.join(tmpPlugins, 'source-typescript', 'src', '__kill_private_import.ts');
       fs.writeFileSync(mutation, "import model = require('../../../../src/graph/model.js');\n");
+      // The other way out, and the one a compiler would not object to: the SDK subpath the engine
+      // itself imports. It resolves, so only a law can refuse it.
+      const internalMutation = path.join(tmpPlugins, 'source-typescript', 'src', '__kill_internal_import.ts');
+      fs.writeFileSync(internalMutation, "import { sha256Hex } from '@repovine/plugin-sdk/internal';\n");
 
-      expect(scanPluginWorkspace(tmpRoot)).toContain(
+      const violations = scanPluginWorkspace(tmpRoot);
+      expect(violations).toContain(
         'source-typescript/src/__kill_private_import.ts -> ../../../../src/graph/model.js: escapes package boundary',
+      );
+      expect(violations).toContain(
+        'source-typescript/src/__kill_internal_import.ts -> @repovine/plugin-sdk/internal: engine-internal SDK subpath',
       );
     } finally {
       fs.rmSync(tmpRoot, { recursive: true, force: true });

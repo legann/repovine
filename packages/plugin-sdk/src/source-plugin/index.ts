@@ -15,7 +15,7 @@ export { extractPackageName, mintModuleId, packageNameFromId, packageNodeId, toP
 /* ---- budgets a producer slices to and the host cites ---- */
 export { CALL_INDEX_PER_DECLARATION_CAP } from './budgets.js';
 
-export { HASH_WIDTH, sha256Hex } from '../content-hash.js';
+export { HASH_WIDTH } from '../content-hash.js';
 export type { HashWidth } from '../content-hash.js';
 
 /* ---- the mechanics a producer does not write: discovery walk, prune rule, path vocabulary ---- */
@@ -26,12 +26,7 @@ export {
   walkRepository,
 } from './discovery-walk.js';
 export type { DirSkipReason, PrunedDir, WalkedFile, WalkRepositoryOptions } from './discovery-walk.js';
-export {
-  BASE_DIR_LAYOUT,
-  currentDirLayoutTable,
-  installDirLayoutTable,
-  packageMarkersFor,
-} from './dir-layout.js';
+export { packageMarkersFor } from './dir-layout.js';
 export type { DirLayoutTable } from './dir-layout.js';
 export { moduleCandidateSuffixes, resolveByCandidates } from './resolve-candidates.js';
 export { asHostPath, asPkgRelPath, asRepoRelPath } from '../path-contract.js';
@@ -42,14 +37,12 @@ export { compileGlob } from '../glob.js';
 export type { GlobMatcher } from '../glob.js';
 export {
   compileScanPatterns,
-  isScanExcluded,
-  isScanIncluded,
   shouldScanInfraPath,
   shouldScanSourcePath,
 } from './scan-filters.js';
 
-export { SEMANTIC_HINTS_VERSION, zSemanticHints, validateSemanticHints } from './semantic-hints-schema.js';
-export type { SemanticHintsVersion, SemanticHintsValidationResult, ZSemanticHints } from './semantic-hints-schema.js';
+export { SEMANTIC_HINTS_VERSION, validateSemanticHints } from './semantic-hints-schema.js';
+export type { SemanticHintsVersion, SemanticHintsValidationResult } from './semantic-hints-schema.js';
 
 export { validateSemanticModuleDelta } from '../fact-schemas.js';
 export type { FactValidationResult } from '../fact-schemas.js';

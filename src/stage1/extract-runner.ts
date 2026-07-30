@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import type { ModuleInfo, PackageInfo, PendingModule } from '../types.js';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 import {
   HASH_WIDTH,
-  sha256Hex,
   validatePublishedFact,
   type ReadonlyFactRecord,
   type HostPath,

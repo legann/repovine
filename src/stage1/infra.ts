@@ -4,15 +4,14 @@ import type { InfraModuleInfo, InfraResource, PackageInfo } from '../types.js';
 import {
   asHostPath,
   HASH_WIDTH,
-  canonicalJson,
   compareCodeUnits,
   makeResourceId,
-  sha256Hex,
   validatePublishedFact,
   walkRepository,
   type HostPath,
   type RepoRelPath,
 } from '@repovine/plugin-sdk';
+import { canonicalJson, sha256Hex } from '@repovine/plugin-sdk/internal';
 import type { IaCParser, LoadedDocument, PrunedDir, ReadonlyFactRecord } from '@repovine/plugin-sdk';
 import {
   getActiveIaCPlugins,

@@ -1,4 +1,9 @@
-import { BASE_DIR_LAYOUT, canonicalJson, resourceKindMetaKey, triggerTypeMetaKey } from '@repovine/plugin-sdk';
+import {
+  BASE_DIR_LAYOUT,
+  canonicalJson,
+  resourceKindMetaKey,
+  triggerTypeMetaKey,
+} from '@repovine/plugin-sdk/internal';
 import type {
   Declared,
   DirLayoutTable,

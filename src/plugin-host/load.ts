@@ -3,10 +3,9 @@ import * as path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { logPipelineWarn } from '../cli/ui.js';
+import { installDirLayoutTable, stampDeclarationCatalog } from '@repovine/plugin-sdk/internal';
 import {
   PLUGIN_API_VERSION,
-  installDirLayoutTable,
-  stampDeclarationCatalog,
   validatePluginManifest,
   validatePluginRuntimeDescriptor,
   validatePresetManifest,

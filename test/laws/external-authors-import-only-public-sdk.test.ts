@@ -129,6 +129,11 @@ function classify(tree: AuthorTree, file: string, spec: string): string | undefi
   // A private path inside the SDK is not the SDK: `dist` and `src` are its implementation.
   if (spec === `${PUBLIC_SDK}/src` || spec.startsWith(`${PUBLIC_SDK}/src/`)) return 'private SDK path';
   if (spec === `${PUBLIC_SDK}/dist` || spec.startsWith(`${PUBLIC_SDK}/dist/`)) return 'private SDK path';
+  // `./internal` resolves — the engine needs it — and carries no compatibility promise. An author
+  // reaching it would compile today and break on a patch release, so it is refused here by name.
+  if (spec === `${PUBLIC_SDK}/internal` || spec.startsWith(`${PUBLIC_SDK}/internal/`)) {
+    return 'engine-internal SDK subpath';
+  }
   if (spec === PUBLIC_SDK || spec.startsWith(`${PUBLIC_SDK}/`)) return undefined;
   if (spec === 'repovine' || spec.startsWith('repovine/')) return 'imports the engine';
   if (spec.startsWith('@repovine/')) return 'imports a first-party package other than the SDK';
@@ -151,12 +156,18 @@ function scanAuthorTrees(root: string, trees: readonly AuthorTree[]): string[] {
   return violations.sort();
 }
 
-/** The SDK entry points an author is allowed to name, read from the SDK's own `exports` map. */
-function publicSdkSubpaths(root: string): string[] {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(root, 'packages', 'plugin-sdk', 'package.json'), 'utf8'),
-  ) as { exports?: Record<string, unknown> };
-  return Object.keys(manifest.exports ?? {}).sort();
+/**
+ * The SDK entry points an author is allowed to name.
+ *
+ * Read from the written contract register rather than from the `exports` map: the map is what
+ * RESOLVES, and one of the subpaths it resolves is host machinery outside semver. What an author may
+ * name is the authoring half, and that half is decided in writing.
+ */
+function authoringSdkSubpaths(root: string): string[] {
+  const register = JSON.parse(
+    fs.readFileSync(path.join(root, 'docs', 'plugin-api-contract.json'), 'utf8'),
+  ) as { contractSubpaths: string[] };
+  return [...register.contractSubpaths].sort();
 }
 
 describe('core-laws external plugin authors import only the public SDK', () => {
@@ -181,9 +192,12 @@ describe('core-laws external plugin authors import only the public SDK', () => {
     expect(scanAuthorTrees(repoRoot(), authorTrees(repoRoot()))).toEqual([]);
   });
 
-  it('names only SDK subpaths the SDK actually exports', () => {
-    const exported = new Set(publicSdkSubpaths(repoRoot()));
+  it('names only SDK subpaths the contract register lists for authors', () => {
+    const exported = new Set(authoringSdkSubpaths(repoRoot()));
     expect(exported.has('.')).toBe(true);
+    // The engine-internal subpath resolves but is not for authors; if it were in this set, the
+    // sweep below would wave it through.
+    expect(exported.has('./internal')).toBe(false);
 
     const unknown: string[] = [];
     for (const tree of authorTrees(repoRoot())) {
@@ -210,6 +224,7 @@ describe('core-laws external plugin authors import only the public SDK', () => {
         ['engine-deep.ts', 'repovine/dist/graph/index.js', 'imports the engine'],
         ['sdk-private.ts', '@repovine/plugin-sdk/src/plugin/index.js', 'private SDK path'],
         ['sdk-dist.ts', '@repovine/plugin-sdk/dist/index.js', 'private SDK path'],
+        ['sdk-internal.ts', '@repovine/plugin-sdk/internal', 'engine-internal SDK subpath'],
         ['sibling.ts', '@repovine/plugin-iac-sam', 'imports a first-party package other than the SDK'],
         ['escape.ts', '../../../../../src/graph/model.js', 'relative import escapes the package'],
       ];

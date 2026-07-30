@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import { HASH_WIDTH, mintModuleId, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH, mintModuleId } from '@repovine/plugin-sdk';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 import {
   normalizeRelPath,
   pathMatchKey,

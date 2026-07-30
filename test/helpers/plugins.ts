@@ -1,5 +1,5 @@
 import type { PluginRuntimeDescriptor, ProjectionContributor } from '@repovine/plugin-sdk';
-import { stampDeclarationCatalog } from '@repovine/plugin-sdk';
+import { stampDeclarationCatalog } from '@repovine/plugin-sdk/internal';
 import { getActiveIaCPlugins, installIaCPlugins, type ActiveIaCPlugin } from '../../src/plugin-host/iac-set.js';
 import { defaultPluginsConfig, loadPluginSet } from '../../src/plugin-host/load.js';
 import { buildPluginRuntime } from '../../src/plugin-host/runtime.js';

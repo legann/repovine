@@ -14,7 +14,8 @@ import * as fsPromises from 'node:fs/promises';
 import { writeJsonObjectStreamed } from '../fs/atomic.js';
 import type { Embedder } from './embedder.js';
 import { compareCodeUnits } from '../platform/ordering.js';
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH } from '@repovine/plugin-sdk';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 
 export const SEMANTIC_INDEX_FILENAME = 'semantic-index.json';
 

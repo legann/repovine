@@ -7,23 +7,32 @@ import { PLUGIN_API_VERSION, validatePluginManifest, validatePluginRuntimeDescri
 import { repoRoot } from './graph-law-helpers.js';
 
 /**
- * Law: the public plugin API is written down, entered by four subpaths, and still loads a plugin
- * built against API 1.
+ * Law: the public plugin API is written down, entered by four authoring subpaths, and still loads a
+ * plugin built against API 1.
  *
- * Three separate claims, because they fail for different reasons:
+ * Four separate claims, because they fail for different reasons:
  *
  *   1. the inventory in `docs/plugin-api-report.md` matches the built declarations, so a change to
  *      the surface arrives as a reviewable diff instead of as a surprise for an author;
- *   2. the `exports` map is the whole entrance, so a private path does not resolve for an installed
- *      plugin — the resolver refuses, rather than a guard noticing afterwards;
- *   3. a plugin frozen against API 1 still validates. That fixture is never recompiled, which is
+ *   2. the runtime surface matches the written register in `docs/plugin-api-contract.json`. The
+ *      register is written, not derived: counting importers was measured against all 78 runtime
+ *      exports of the pre-move surface and misclassified roughly 20 names in both directions,
+ *      because a built-in writes a closed-vocabulary literal rather than importing the constant that
+ *      publishes it. A closed vocabulary exists so an author CAN enumerate it, so a missing import
+ *      says nothing about whether the name is contract;
+ *   3. the `exports` map is the whole entrance, and the AUTHORING half of it is exactly four
+ *      subpaths. A fifth may exist — `./internal` does — and then it carries no compatibility
+ *      promise: it is marked not-contract in the report and left out of the frozen count. A private
+ *      path still does not resolve for an installed plugin;
+ *   4. a plugin frozen against API 1 still validates. That fixture is never recompiled, which is
  *      what makes it different from every other gate here.
  *
- * None of this declares API 1 stable. It is the machinery a stability decision would rest on.
+ * None of this declares API 1 stable. It is the machinery a stability decision rests on, and under
+ * preview the register covers runtime names only — type exports are the named remainder.
  */
 
 const SDK_ROOT = path.join(repoRoot(), 'packages', 'plugin-sdk');
-const EXPECTED_SUBPATHS = ['.', './iac-plugin', './plugin', './source-plugin'];
+const AUTHORING_SUBPATHS = ['.', './iac-plugin', './plugin', './source-plugin'];
 
 interface SdkManifest {
   version?: string;
@@ -31,9 +40,46 @@ interface SdkManifest {
   exports?: Record<string, Record<string, string>>;
 }
 
+interface ContractRegister {
+  why?: string[];
+  contractSubpaths: string[];
+  nonContractSubpaths: Record<string, string>;
+  values: Record<string, string[]>;
+}
+
 function sdkManifest(): SdkManifest {
   return JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'package.json'), 'utf8')) as SdkManifest;
 }
+
+function contractRegister(): ContractRegister {
+  return JSON.parse(
+    fs.readFileSync(path.join(repoRoot(), 'docs', 'plugin-api-contract.json'), 'utf8'),
+  ) as ContractRegister;
+}
+
+function reportText(): string {
+  return fs.readFileSync(path.join(repoRoot(), 'docs', 'plugin-api-report.md'), 'utf8');
+}
+
+/** The report's per-subpath sections, keyed by subpath, with each export's kind. */
+function reportSections(report: string): Map<string, { body: string; exports: Array<{ name: string; kind: string }> }> {
+  const out = new Map<string, { body: string; exports: Array<{ name: string; kind: string }> }>();
+  for (const chunk of report.split(/^## `/m).slice(1)) {
+    const specifier = chunk.slice(0, chunk.indexOf('`'));
+    const subpath = specifier === '@repovine/plugin-sdk'
+      ? '.'
+      : `.${specifier.slice('@repovine/plugin-sdk'.length)}`;
+    const exports = [...chunk.matchAll(/^\| `([^`]+)` \| (\w+) \|$/gm)]
+      .map(m => ({ name: m[1]!, kind: m[2]! }));
+    out.set(subpath, { body: chunk, exports });
+  }
+  return out;
+}
+
+const valueExports = (entries: Array<{ name: string; kind: string }>): string[] =>
+  entries.filter(entry => entry.kind !== 'type' && entry.kind !== 'interface')
+    .map(entry => entry.name)
+    .sort();
 
 describe('core-laws the public plugin API surface is inventoried', () => {
   it('has a report that matches the built declarations', () => {
@@ -47,11 +93,11 @@ describe('core-laws the public plugin API surface is inventoried', () => {
       .toEqual({ status: 0, output: expect.stringContaining('is current') });
   });
 
-  it('reports a non-trivial surface on every published subpath', () => {
+  it('reports a non-trivial surface on every authoring subpath', () => {
     // A report generated from a broken build would be a short file that agrees with itself, and the
     // check above would pass. The counts are read back so vacuity is caught here.
-    const report = fs.readFileSync(path.join(repoRoot(), 'docs', 'plugin-api-report.md'), 'utf8');
-    for (const subpath of EXPECTED_SUBPATHS) {
+    const report = reportText();
+    for (const subpath of AUTHORING_SUBPATHS) {
       const specifier = `@repovine/plugin-sdk${subpath.slice(1)}`;
       const row = new RegExp(`\\| \`${specifier.replace(/[/.]/g, '\\$&')}\` \\| (\\d+) \\|`).exec(report);
       expect({ specifier, found: row !== null }).toEqual({ specifier, found: true });
@@ -61,10 +107,130 @@ describe('core-laws the public plugin API surface is inventoried', () => {
   });
 });
 
-describe('core-laws the SDK exports map is the whole entrance', () => {
-  it('publishes exactly the four subpaths, import-only, with types', () => {
+describe('core-laws the written contract register is what the barrel publishes', () => {
+  it('registers exactly the four authoring subpaths, and accounts for every other one', () => {
+    const register = contractRegister();
+    expect([...register.contractSubpaths].sort()).toEqual(AUTHORING_SUBPATHS);
+
+    // Every subpath the manifest publishes is classified, one way or the other. A new subpath that
+    // nobody classified is the failure this catches: it would otherwise arrive unmarked and be read
+    // as contract by the next person who looks at the report.
+    const published = Object.keys(sdkManifest().exports ?? {}).sort();
+    const classified = [
+      ...register.contractSubpaths,
+      ...Object.keys(register.nonContractSubpaths),
+    ].sort();
+    expect(classified).toEqual(published);
+
+    // Each non-contract subpath states WHY in a sentence a reader can act on, not a bare flag.
+    for (const [subpath, reason] of Object.entries(register.nonContractSubpaths)) {
+      expect({ subpath, explained: reason.trim().length > 40 }).toEqual({ subpath, explained: true });
+    }
+  });
+
+  it('lists the same runtime names the built declarations publish', () => {
+    // Value exports only. Type exports are the named remainder of preview: nothing registers them,
+    // and this law says so rather than pretending the register is complete.
+    const register = contractRegister();
+    const sections = reportSections(reportText());
+    for (const subpath of register.contractSubpaths) {
+      const section = sections.get(subpath);
+      expect({ subpath, inReport: section !== undefined }).toEqual({ subpath, inReport: true });
+      // A register entry that is not published, and a published name that nobody registered, are
+      // both failures: the second is the surface growing where nobody looked.
+      expect({ subpath, names: valueExports(section!.exports) })
+        .toEqual({ subpath, names: [...register.values[subpath] ?? []].sort() });
+    }
+  });
+
+  it('registers no name that only a non-contract subpath publishes', () => {
+    // The relocation this law was rewritten for: ten host names left the authoring barrels for
+    // `./internal`. A name that reappeared in the register would be back on the contract without
+    // anyone deciding it, which is exactly the move `./internal` exists to prevent.
+    const register = contractRegister();
+    const sections = reportSections(reportText());
+    const registered = new Set(Object.values(register.values).flat());
+    const contractPublished = new Set(
+      register.contractSubpaths.flatMap(subpath => valueExports(sections.get(subpath)?.exports ?? [])),
+    );
+
+    const leaked: string[] = [];
+    for (const subpath of Object.keys(register.nonContractSubpaths)) {
+      for (const name of valueExports(sections.get(subpath)?.exports ?? [])) {
+        if (registered.has(name) && !contractPublished.has(name)) leaked.push(`${subpath}: ${name}`);
+      }
+    }
+    expect(leaked).toEqual([]);
+
+    // Non-vacuity: the non-contract half is not empty, so the sweep above ran over something.
+    const nonContractNames = Object.keys(register.nonContractSubpaths)
+      .flatMap(subpath => valueExports(sections.get(subpath)?.exports ?? []));
+    expect(nonContractNames.length).toBeGreaterThan(0);
+  });
+
+  it('marks every non-contract subpath in the report and leaves it out of the frozen count', () => {
+    const register = contractRegister();
+    const report = reportText();
+    const sections = reportSections(report);
+
+    for (const subpath of Object.keys(register.nonContractSubpaths)) {
+      const section = sections.get(subpath);
+      expect({ subpath, inReport: section !== undefined }).toEqual({ subpath, inReport: true });
+      expect({ subpath, marked: section!.body.includes('**NOT CONTRACT.**') })
+        .toEqual({ subpath, marked: true });
+    }
+    for (const subpath of register.contractSubpaths) {
+      expect({ subpath, marked: sections.get(subpath)!.body.includes('**NOT CONTRACT.**') })
+        .toEqual({ subpath, marked: false });
+    }
+
+    // The frozen number is the sum over contract subpaths alone. Asserted against the sections
+    // rather than restated: a total copied from the summary row would agree with itself.
+    const frozen = Number(/\| \*\*contract total\*\* \| \*\*(\d+)\*\* \|/.exec(report)?.[1]);
+    const expected = register.contractSubpaths
+      .reduce((sum, subpath) => sum + (sections.get(subpath)?.exports.length ?? 0), 0);
+    expect({ frozen, expected }).toEqual({ frozen: expected, expected });
+
+    const outside = Number(/\| outside the contract \| (\d+) \|/.exec(report)?.[1]);
+    const outsideExpected = Object.keys(register.nonContractSubpaths)
+      .reduce((sum, subpath) => sum + (sections.get(subpath)?.exports.length ?? 0), 0);
+    expect({ outside, outsideExpected }).toEqual({ outside: outsideExpected, outsideExpected });
+    // The two halves are disjoint and cover the whole map: a subpath counted in neither, or in both,
+    // would leave a name reachable and unaccounted for.
+    const everySection = [...sections.values()].reduce((sum, section) => sum + section.exports.length, 0);
+    expect(frozen + outside).toBe(everySection);
+  });
+
+  it('turns red when a subpath appears without being classified (kill mutation)', () => {
+    // The register is data, so the mutation is data: publish a subpath and register nothing about
+    // it. Run against copies, so the tree is untouched.
+    const register = contractRegister();
     const manifest = sdkManifest();
-    expect(Object.keys(manifest.exports ?? {}).sort()).toEqual(EXPECTED_SUBPATHS);
+    const published = Object.keys({ ...manifest.exports, './experimental': {} }).sort();
+    const classified = [
+      ...register.contractSubpaths,
+      ...Object.keys(register.nonContractSubpaths),
+    ].sort();
+    expect(classified).not.toEqual(published);
+
+    // And the reverse form: a subpath registered as contract that the manifest does not publish.
+    const overRegistered = [...register.contractSubpaths, './ghost'].sort();
+    expect(overRegistered).not.toEqual(Object.keys(manifest.exports ?? {}).sort());
+  });
+});
+
+describe('core-laws the SDK exports map is the whole entrance', () => {
+  it('publishes the four authoring subpaths plus the classified rest, import-only, with types', () => {
+    const manifest = sdkManifest();
+    const register = contractRegister();
+    const published = Object.keys(manifest.exports ?? {}).sort();
+    // Four authoring subpaths, and every additional one accounted for as not-contract. A fifth
+    // authoring subpath cannot arrive silently: it would have to be added to the register first.
+    expect(published.filter(subpath => register.contractSubpaths.includes(subpath)))
+      .toEqual(AUTHORING_SUBPATHS);
+    expect(published.filter(subpath => !register.contractSubpaths.includes(subpath)))
+      .toEqual(Object.keys(register.nonContractSubpaths).sort());
+
     expect(manifest.type).toBe('module');
     for (const [subpath, conditions] of Object.entries(manifest.exports ?? {})) {
       // `import` and `types` only. A `require` condition would publish a second resolution of the
@@ -83,9 +249,13 @@ describe('core-laws the SDK exports map is the whole entrance', () => {
     const probes = [
       '@repovine/plugin-sdk/dist/index.js',
       '@repovine/plugin-sdk/dist/plugin/index.js',
+      // `./internal` resolves; the path BEHIND it does not. A subpath outside semver is still a
+      // single named door, not a hole in the map.
+      '@repovine/plugin-sdk/dist/internal/index.js',
+      '@repovine/plugin-sdk/internal/index.js',
       '@repovine/plugin-sdk/src/index.ts',
       '@repovine/plugin-sdk/package.json',
-      '@repovine/plugin-sdk/internal',
+      '@repovine/plugin-sdk/experimental',
     ];
     const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sdk-exports-'));
     try {
@@ -104,7 +274,12 @@ describe('core-laws the SDK exports map is the whole entrance', () => {
       );
       fs.writeFileSync(path.join(control, 'dist', 'internal.js'), 'export const reached = true;\n');
 
-      const specs = [...probes, 'no-exports-control/dist/internal.js', '@repovine/plugin-sdk'];
+      const specs = [
+        ...probes,
+        'no-exports-control/dist/internal.js',
+        '@repovine/plugin-sdk',
+        '@repovine/plugin-sdk/internal',
+      ];
       const probe = spawnSync(
         process.execPath,
         ['--input-type=module', '-e', [
@@ -124,9 +299,11 @@ describe('core-laws the SDK exports map is the whole entrance', () => {
       // Positive control, from a package that is not the one under test.
       expect({ control: 'no-exports package', verdict: verdicts['no-exports-control/dist/internal.js'] })
         .toEqual({ control: 'no-exports package', verdict: 'RESOLVED' });
-      // The public entrance is open: a law where nothing resolves proves nothing about the map.
+      // Both open doors: a law where nothing resolves proves nothing about the map.
       expect({ entrance: '.', verdict: verdicts['@repovine/plugin-sdk'] })
         .toEqual({ entrance: '.', verdict: 'RESOLVED' });
+      expect({ entrance: './internal', verdict: verdicts['@repovine/plugin-sdk/internal'] })
+        .toEqual({ entrance: './internal', verdict: 'RESOLVED' });
 
       // `ERR_PACKAGE_PATH_NOT_EXPORTED` is the map refusing. `ERR_MODULE_NOT_FOUND` would mean the
       // map is gone and the path merely happens to be absent from this fixture.

@@ -17,7 +17,8 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH } from '@repovine/plugin-sdk';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 import { spawnSync } from 'node:child_process';
 import { isPathInsideRepo } from '../fs/containment.js';
 

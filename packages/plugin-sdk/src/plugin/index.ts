@@ -38,12 +38,7 @@ export type {
   SourceRuntimeCapability,
 } from './descriptor.js';
 
-export {
-  ECOSYSTEM_DIR_ROLES,
-  resourceKindMetaKey,
-  stampDeclarationCatalog,
-  triggerTypeMetaKey,
-} from './declarations.js';
+export { ECOSYSTEM_DIR_ROLES } from './declarations.js';
 export type {
   Declared,
   EcosystemDirFact,

@@ -5,6 +5,10 @@ module.exports = {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^@repovine/plugin-sdk$': '<rootDir>/packages/plugin-sdk/src/index.ts',
+    // `/internal` maps to source for the same reason the root does, and for one more: the layout
+    // table is module state. Root resolved to source and `/internal` resolved to `dist` would be two
+    // copies of `dir-layout.js`, and the table the host installs would not be the one discovery reads.
+    '^@repovine/plugin-sdk/internal$': '<rootDir>/packages/plugin-sdk/src/internal/index.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {

@@ -8,7 +8,8 @@
  * resolveNodeContentHash} is the one dispatcher over those kinds; {@link hashedNodeKind} is the
  * enumerable list it dispatches on.
  */
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH } from '@repovine/plugin-sdk';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 import type {
   GraphEdge,
   ModuleInfo,

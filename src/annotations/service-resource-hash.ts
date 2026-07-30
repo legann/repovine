@@ -1,4 +1,5 @@
-import { HASH_WIDTH, sha256Hex } from '@repovine/plugin-sdk';
+import { HASH_WIDTH } from '@repovine/plugin-sdk';
+import { sha256Hex } from '@repovine/plugin-sdk/internal';
 import type { RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
 import { makeRuntimeResourceId } from '../graph/make-runtime-resource-id.js';
 

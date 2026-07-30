@@ -20,7 +20,7 @@ export type { FactValidationResult } from '../fact-schemas.js';
 
 /* ---- the one content hash a producer mints, and the canonicalization behind it ---- */
 export { hashResourcePayload } from '../resource-hash.js';
-export { HASH_WIDTH, sha256Hex } from '../content-hash.js';
+export { HASH_WIDTH } from '../content-hash.js';
 export type { HashWidth } from '../content-hash.js';
 export { asHostPath, asRepoRelPath } from '../path-contract.js';
 export type { HostPath, RepoRelPath } from '../path-contract.js';

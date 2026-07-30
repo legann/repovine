@@ -317,7 +317,9 @@ describe('core-laws plugin author surface (the SDK carries the mechanics)', () =
   it('every semanticHints slot is documented with its reach', async () => {
     // The slot list comes from the schema, so a slot added there and not written down makes this
     // red — an author reading the table would otherwise see a contract with a hole in it.
-    const { zSemanticHints } = await import('@repovine/plugin-sdk');
+    // Reached at the source path, not through the barrel: the schema is not published — the version
+    // and the verdict are. The slot list is a fact about this repository, and that is what is asked.
+    const { zSemanticHints } = await import('../helpers/semantic-hints-schema.js');
     const slots = Object.keys(zSemanticHints.shape);
     expect(slots.length).toBeGreaterThan(5);
 
