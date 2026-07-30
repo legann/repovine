@@ -382,11 +382,24 @@ describe('Stage 3 cancel checkpoint after annotation load (H2)', () => {
     }, null, 2);
     fs.writeFileSync(annotationPath, externalContent);
 
+    // The lock is taken from outside first, so the reload is genuinely waiting for it when the abort
+    // lands. Aborting right after the call would not test anything any more: the lock's transaction is
+    // now one synchronous stretch, so an uncontended reload has already committed by the time control
+    // returns — there is no window between taking the lock and reading, which is the point of the fix
+    // in `withAnnotationFileLockAsync`. Contention is the window that legitimately remains, and the
+    // checkpoint inside the transaction is what has to hold there.
+    const lockPath = `${annotationPath}.lock`;
+    fs.writeFileSync(lockPath, String(process.pid));
+
     const realReload = store.reloadFromDisk.bind(store);
     const reloadSpy = jest.spyOn(store, 'reloadFromDisk').mockImplementation(async options => {
       expect(options?.signal).toBeDefined(); // active refresh signal is threaded into the shared store
       const reload = realReload(options);
-      ac.abort(); // lands after reload's entry checkpoint, while it is awaiting the lock/read transaction
+      // A later turn: the reload is parked in the acquisition retry, holding nothing.
+      setTimeout(() => {
+        ac.abort();
+        fs.rmSync(lockPath, { force: true }); // let the acquisition proceed, so the checkpoint decides
+      }, 10);
       return reload;
     });
     try {
@@ -397,6 +410,7 @@ describe('Stage 3 cancel checkpoint after annotation load (H2)', () => {
       expect(store.get(externalNodeId)).toBeUndefined(); // reload made no cancelled mutation visible
       expect(fs.readFileSync(annotationPath, 'utf-8')).toBe(externalContent);
     } finally {
+      fs.rmSync(lockPath, { force: true });
       reloadSpy.mockRestore();
     }
   });

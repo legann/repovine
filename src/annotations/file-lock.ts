@@ -179,18 +179,6 @@ function acquireLockSync(lockPath: string): void {
   }
 }
 
-async function acquireLockAsync(lockPath: string): Promise<void> {
-  const deadline = Date.now() + LOCK_MAX_WAIT_MS;
-  for (;;) {
-    const outcome = attemptAcquire(lockPath, deadline);
-    if (outcome === 'acquired') return;
-    if (outcome === 'expired') throw new AnnotationFileLockTimeoutError(lockPath);
-    // The one difference from the sync path: a waiter yields instead of blocking.
-    const wait = retryDelay(deadline);
-    if (wait > 0) await new Promise(r => setTimeout(r, wait));
-  }
-}
-
 function releaseLock(lockPath: string): void {
   removeOwnedFileSync(lockPath, String(process.pid));
 }
@@ -231,23 +219,42 @@ export function withAnnotationFileLockSync<T>(filePath: string, fn: () => T): T 
 }
 
 /**
- * Take the lock without blocking the event loop, then run a **synchronous** transaction under it.
+ * Wait for the lock without blocking the event loop, then run a **synchronous** transaction under it.
  *
- * The split is the point. Acquisition is async so a waiter yields; the critical section is sync so
- * the holder has no suspension point at which it can be starved. Holding this lock across an `await`
- * is what made a millisecond write into a lock held past the wait deadline: while the holder was
- * parked, nothing in this process could release it, and the staleness takeover is powerless there —
- * the pid in the lock file is this process's own, and it is alive.
+ * The split is the point, and it is exact: only *waiting* is asynchronous. From the syscall that
+ * creates the lock file to the one that removes it there is no suspension point at all, so the lock
+ * is never held across a turn of the event loop. Anything less than that leaves a window in which the
+ * file exists, no transaction has run, and the owner recorded in it is this very process — a sync
+ * caller landing there blocks the only thread, the parked holder cannot resume to release, and the
+ * staleness takeover refuses to reclaim a live owner. Both sides then wait out the deadline.
  *
  * `fn` is typed as returning `T` rather than `Promise<T>` so an `async` callback stands out as a
  * promise-valued return; `test/laws/annotation-lock-holds-no-await.test.ts` rejects that shape.
  */
 export async function withAnnotationFileLockAsync<T>(filePath: string, fn: () => T): Promise<T> {
   const lockPath = lockPathForAnnotationFile(filePath);
-  await acquireLockAsync(lockPath);
-  try {
-    return assertSyncResult(fn(), lockPath);
-  } finally {
-    releaseLock(lockPath);
+  const deadline = Date.now() + LOCK_MAX_WAIT_MS;
+  for (;;) {
+    // The attempt, the transaction and the release are one synchronous stretch, and the loop is
+    // written out here rather than delegated for exactly that reason. `await acquireLockAsync(…)`
+    // returned a lock this process already held — the attempt creates the file synchronously — and
+    // then yielded a microtask before the transaction. In that window the lock file existed with
+    // this process's own pid and no transaction had run. A sync caller landing there blocks the only
+    // thread for the whole deadline: the parked holder cannot resume to release, and the staleness
+    // takeover refuses to reclaim a lock whose owner is alive. Measured at exactly 15000 ms, which
+    // is the stall `context-refresh` reported.
+    const outcome = attemptAcquire(lockPath, deadline);
+    if (outcome === 'acquired') {
+      try {
+        return assertSyncResult(fn(), lockPath);
+      } finally {
+        releaseLock(lockPath);
+      }
+    }
+    if (outcome === 'expired') throw new AnnotationFileLockTimeoutError(lockPath);
+    // The one difference from the sync path: a waiter yields instead of blocking. Suspending here is
+    // safe because nothing is held — the lock is only ever held by the branch above.
+    const wait = retryDelay(deadline);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
   }
 }

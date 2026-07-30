@@ -153,7 +153,7 @@ describe('core-laws a locked annotation transaction never suspends', () => {
       if (
         ts.isFunctionDeclaration(node)
         && node.name
-        && ['attemptAcquire', 'acquireLockAsync', 'acquireLockSync'].includes(node.name.text)
+        && ['attemptAcquire', 'acquireLockSync'].includes(node.name.text)
       ) {
         const fnName = node.name.text;
         const findAwait = (inner: ts.Node): void => {
@@ -173,9 +173,51 @@ describe('core-laws a locked annotation transaction never suspends', () => {
     visit(source);
 
     expect(awaited.sort()).toEqual([]);
-    // Positive control: the file really does declare the three functions this checked.
+    // Positive control: the file really does declare the functions this checked.
     expect(source.text).toContain('function attemptAcquire(');
-    expect(source.text).toContain('async function acquireLockAsync(');
+    expect(source.text).toContain('function acquireLockSync(');
+
+    // And the async wrapper holds no `await` between taking the lock and releasing it. There is no
+    // separate `acquireLockAsync` to check any more, and that is the fix: it existed only to be
+    // awaited, and awaiting it yielded a microtask with the lock already taken. The loop is inlined
+    // so the acquired branch reaches the transaction and the release with no suspension point.
+    expect(source.text).not.toContain('function acquireLockAsync');
+
+    // Asked of the AST, not of a text slice: the retry sleep sits in the same function a few lines
+    // below, and any substring cut wide enough to include the transaction also includes that sleep.
+    const holdRegions: ts.TryStatement[] = [];
+    const collect = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node)
+        && ts.isIdentifier(node.expression)
+        && node.expression.text === 'assertSyncResult'
+      ) {
+        // The lock is held exactly across the `try` whose `finally` releases it, so that statement is
+        // the hold. Everything suspendable inside it would be suspending while holding.
+        const owner = ts.findAncestor(node, ts.isTryStatement);
+        if (owner) holdRegions.push(owner);
+      }
+      ts.forEachChild(node, collect);
+    };
+    const asyncWrapper = source.statements.find(
+      (s): s is ts.FunctionDeclaration =>
+        ts.isFunctionDeclaration(s) && s.name?.text === 'withAnnotationFileLockAsync',
+    );
+    expect(asyncWrapper).toBeDefined();
+    collect(asyncWrapper!);
+    // Non-vacuity: the transaction really was found, so the sweep below runs over something.
+    expect(holdRegions).toHaveLength(1);
+
+    const suspendedWhileHolding: string[] = [];
+    const findAwait = (node: ts.Node): void => {
+      if (ts.isAwaitExpression(node)) suspendedWhileHolding.push(node.getText(source).slice(0, 60));
+      ts.forEachChild(node, findAwait);
+    };
+    findAwait(holdRegions[0]!);
+    expect(suspendedWhileHolding).toEqual([]);
+
+    // And the waiter still yields rather than blocking — the one permitted suspension, outside the hold.
+    expect(source.text).toContain('await new Promise');
   });
 
   it('keeps the wait deadline longer than the staleness window', () => {
@@ -262,15 +304,37 @@ describe('core-laws annotation lock contention', () => {
     }
   });
 
-  it('documents that a sync waiter cannot wait out an async holder', () => {
-    // Named rather than asserted, because it is a property of the runtime and not of this code: a
-    // synchronous wait blocks the only thread, and an async holder needs that thread to reach its
-    // transaction and release. No file-lock tuning can fix it — the timeout is the only outcome.
+  it('lets a sync caller through in the window right after an async transaction starts', async () => {
+    // This case was once a comment saying the opposite: that a sync waiter cannot wait out an async
+    // holder, that it is a property of the runtime, and that closing it needs an in-process mutex.
+    // The premise was wrong. The holder needed the thread only because `await acquireLockAsync(…)`
+    // put a microtask boundary between taking the lock and running the transaction; with the loop
+    // inlined there is no such window, so there is nothing for a sync caller to be starved by.
     //
-    // `AnnotationStore.flush()` is where this is prevented: it refuses while an async save is in
-    // flight rather than blocking. The remaining unguarded sync callers are in `maintenance.ts`, and
-    // closing that gap needs an in-process mutex in front of the file lock, which is a separate
-    // change from making transactions non-suspending.
+    // Asserted behaviourally at exactly that boundary. Calling the async wrapper runs its acquisition
+    // synchronously, so the moment it returns is the instant the old code held the lock and had run
+    // nothing. A sync acquirer is issued right there, on the same turn, before anything is awaited.
+    const { dir, file } = tempAnnotationFile();
+    try {
+      let transactionRan = false;
+      const held = withAnnotationFileLockAsync(file, () => { transactionRan = true; });
+      // Uncontended, the whole transaction is already done: the wrapper never yielded while holding.
+      expect(transactionRan).toBe(true);
+      expect(fs.existsSync(`${file}.lock`)).toBe(false);
+
+      const started = Date.now();
+      withAnnotationFileLockSync(file, () => {});
+      // A stall here is the defect: the previous shape timed out at the full LOCK_MAX_WAIT_MS.
+      expect(Date.now() - started).toBeLessThan(LOCK_MAX_WAIT_MS / 3);
+      await held;
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('still refuses a sync flush while an async save is in flight', () => {
+    // The store-level guard stays: it is about a save that has genuinely suspended between its own
+    // steps, which is a different question from the lock's own window.
     const storeSource = fs.readFileSync(path.join(repoRoot(), 'src', 'annotations', 'store.ts'), 'utf8');
     expect(storeSource).toContain('Cannot sync-flush annotations while an async save is in flight');
   });
