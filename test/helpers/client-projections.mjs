@@ -433,6 +433,48 @@ export function runEngineCli(engineCli, argv, cwd, env) {
   });
 }
 
+/**
+ * Run a SYNCHRONOUS in-process CLI call with its stdout kept off the test runner's stream.
+ *
+ * `node --test` runs a test file as a child process that reports over a V8-serialized protocol on
+ * **stdout**. Anything else the file writes there is raw bytes the parent has to separate from the
+ * frames, and a CLI entry point called in-process writes plenty — `initCursor` alone emits the
+ * `.gitignore` line. Whether that lands harmlessly depends on where it falls relative to a frame.
+ *
+ * On Linux and macOS a pipe write from `process.stdout` is synchronous, so raw text lands whole,
+ * between frames, and the parent prints it as a `#` diagnostic. On Windows the same write is
+ * asynchronous: libuv may flush a large frame in several pipe writes, and raw text queued in between
+ * is delivered INSIDE the frame. The parent then reads a length header and finds prose where the
+ * payload should be — `ERR_TEST_FAILURE` from `#processRawBuffer`, with every assertion green and
+ * the rest of the file's output discarded. That is what CI showed on `windows-2025`.
+ *
+ * So the output is redirected rather than tolerated. It goes to stderr, which carries no protocol.
+ *
+ * Synchronous only, and enforced: the swap is process-wide, so an awaited call would put the
+ * runner's own frames through this collector.
+ */
+export function withoutCliStdout(fn) {
+  const realWrite = process.stdout.write.bind(process.stdout);
+  const captured = [];
+  process.stdout.write = (chunk, encoding, callback) => {
+    captured.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf-8'));
+    const done = typeof encoding === 'function' ? encoding : callback;
+    if (typeof done === 'function') done();
+    return true;
+  };
+  let result;
+  try {
+    result = fn();
+  } finally {
+    process.stdout.write = realWrite;
+    if (captured.length > 0) process.stderr.write(captured.join(''));
+  }
+  if (result !== null && typeof result === 'object' && typeof result.then === 'function') {
+    throw new Error('withoutCliStdout: fn must be synchronous; an async fn would capture the runner\'s own output');
+  }
+  return result;
+}
+
 /** Exit-0 assertion carrying the diagnosis (signal, spawn error, stderr tail). */
 export function expectCliExit0(res, label) {
   if (res.status === 0) return;

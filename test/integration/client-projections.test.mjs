@@ -53,6 +53,7 @@ import {
   repovineLaunchFromParsedToml,
   runDeclaredHook,
   runEngineCli,
+  withoutCliStdout,
   writeSyntheticEngineState,
 } from '../helpers/client-projections.mjs';
 
@@ -104,7 +105,7 @@ before(() => {
 
   bundlesOut = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), FIXTURE_PREFIX)));
   cleanupDirs.push(bundlesOut);
-  renderPluginRepo({ engineRoot, outRoot: bundlesOut, version: pkgVersion });
+  withoutCliStdout(() => renderPluginRepo({ engineRoot, outRoot: bundlesOut, version: pkgVersion }));
 
   bundleWorkspace = makeFixtureRepo();
   cleanupDirs.push(bundleWorkspace);
@@ -501,6 +502,52 @@ declareHookBehaviorCases(
 );
 
 // ---------------------------------------------------------------------------
+// The protocol stream this file reports on
+// ---------------------------------------------------------------------------
+
+describe('this file keeps CLI output off the test runner protocol stream', () => {
+  // `node --test` runs this file as a child that reports over a V8-serialized protocol on stdout.
+  // A CLI entry point called in-process writes there too, and the parent then has to separate prose
+  // from frames. On Windows CI that separation failed: every assertion was green and the run ended
+  // with ERR_TEST_FAILURE out of the runner's own parser, with the rest of the output discarded.
+  //
+  // Held statically, not by remembering: the wrapper is invisible at the call site, and the next
+  // in-process CLI call added here would reintroduce the bytes with nothing turning red.
+  it('wraps every in-process CLI call in withoutCliStdout', () => {
+    const source = fs.readFileSync(new URL(import.meta.url), 'utf-8');
+    // Named rather than derived from the import list: a constant is not a call, and asking the tree
+    // for "things imported from dist/cli" would flag `CLIENT_DISPATCHER_FILENAME` as one.
+    const IN_PROCESS_CLI = ['initCursor', 'initClaude', 'initCodex', 'renderPluginRepo'];
+
+    /** Character ranges covered by a `withoutCliStdout( … )` call, by paren balance. */
+    const guarded = [];
+    for (const match of source.matchAll(/\bwithoutCliStdout\s*\(/g)) {
+      let depth = 0;
+      let i = match.index + match[0].length - 1;
+      for (; i < source.length; i++) {
+        if (source[i] === '(') depth++;
+        else if (source[i] === ')' && --depth === 0) break;
+      }
+      guarded.push([match.index, i]);
+    }
+    // A guard over an empty set would pass whatever the file does.
+    assert.ok(guarded.length > 0, 'no withoutCliStdout call sites found');
+
+    const offenders = [];
+    for (const name of IN_PROCESS_CLI) {
+      const calls = [...source.matchAll(new RegExp(`\\b${name}\\s*\\(`, 'g'))];
+      assert.ok(calls.length > 0, `${name} is never called; the list has drifted from the file`);
+      for (const call of calls) {
+        if (!guarded.some(([from, to]) => call.index > from && call.index < to)) {
+          offenders.push(`${name} at offset ${call.index}`);
+        }
+      }
+    }
+    assert.deepEqual(offenders, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Marketplace bundles
 // ---------------------------------------------------------------------------
 
@@ -626,9 +673,12 @@ describe('MCP handshake on generated project configs', () => {
       autoBuild: false,
       mcpLauncher: { command: process.execPath, args: [engineCli] },
     };
-    initCursor(launchRepo, opts);
-    initClaude(launchRepo, opts);
-    initCodex(launchRepo, opts);
+    // In-process, so their stdout would land in the runner's protocol stream. See withoutCliStdout.
+    withoutCliStdout(() => {
+      initCursor(launchRepo, opts);
+      initClaude(launchRepo, opts);
+      initCodex(launchRepo, opts);
+    });
 
     // Graph inference is not this suite's surface; the token index keeps the
     // handshake's cold build bounded to seconds.
