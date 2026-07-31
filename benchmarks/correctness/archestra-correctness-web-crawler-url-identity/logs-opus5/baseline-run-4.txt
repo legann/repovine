@@ -1,0 +1,312 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 4 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent ac0ea099e2684d97.
+# Gate: pass — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by examining the connector and understanding how documents are indexed and served.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 36 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 36 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 73 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 123 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 101 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 70 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 51 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 140 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 23 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 41 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/types/kb-document.ts
+    [source removed — 78 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 69 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 67 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/backend/src/routes/knowledge-base.ts
+    [source removed — 70 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 14 line(s)]
+
+Now let me implement. First, the connector:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the crawl-scope derivation, which currently reads the trailing slash off the normalized URL:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now document identity — the id is `sha256(…)`, which is what `kb_documents.source_id` is keyed on:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 40 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the sync-side contract and adoption path:
+
+  → Edit: platform/backend/src/types/knowledge-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/kb-document.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connector-sync.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connector-sync.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connector-sync.ts
+    [edit applied]
+
+Now type-check and run the affected test suites:
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+I need to reconsider one design point before finalizing. Let me re-check how the normalized URL flows into what gets *fetched*:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 80 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the previous-id derivation becomes exact rather than reconstructed:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now let me read the full changed file to verify consistency:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 130 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Read: platform/backend/src/task-queue/handlers/batch-embedding-handler.ts
+    [source removed — 82 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 41 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 65 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 24 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 20 line(s)]
+
+  → Read: docs/pages/platform-knowledge-connectors.md
+    [source removed — 28 line(s)]
+
+  → Edit: docs/pages/platform-knowledge-connectors.md
+    [edit applied]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 341 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 5 line(s)]
+
+  → Read: docs/pages/platform-knowledge-connectors.md
+    [source removed — 24 line(s)]
+
+  → Edit: docs/pages/platform-knowledge-connectors.md
+    [edit applied]
+
+  → Edit: docs/pages/platform-knowledge-connectors.md
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 8 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 70 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 38 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 80 line(s)]
+
+Implementation is complete. Here's the report.
+
+## What changed and why
+
+| File | Change | Why |
+|---|---|---|
+| `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts` | Split URL handling into two forms: `normalizeCrawlUrl` (request form: fragment + default port, unchanged) and new `canonicalizePageUrl` (adds tracking-param stripping, trailing-slash removal on non-root paths, host lowercasing). Page identity now uses the canonical form. | The requested normalization. `sourceUrl`, `metadata.url`, and the document id all derive from one canonical URL, so trivially-different URLs are one page. |
+| same file | `extractPage` now returns `previousCanonicalUrl` (the same href under the old normalization); `buildDocument` emits `previousIds`. | `[expr]` **is** `kb_documents.source_id` (`connector-sync.ts:421`, unique index at `database/schemas/kb-document.ts:43-46`). Canonicalizing re-keys already-indexed pages, so the connector reports the exact id it used before. |
+| same file | `buildAllowedPathPrefixes(…)` reads `config.startUrl` instead of a passed-in normalized URL. | The default scope is the start URL's directory, derived from its trailing slash (`:488-492`). Feeding it a canonicalized URL would turn a `/docs/` scope into `/` — the whole host. Behavior is identical today since the request form never touches the path. |
+| `platform/backend/src/types/knowledge-connector.ts` | `[expr]`. | Connectors are pure (no DB access, `connectors/base-connector.ts`), so identity history has to be declared to the layer that owns persistence. |
+| `platform/backend/src/knowledge-base/connector-sync.ts` | On a source-id miss, `adoptDocumentUnderPreviousSourceId` re-keys the document found under a previous id. | Keeps the stored row, chunks, and embeddings; no orphan + duplicate pair. Only runs after the current id misses, so it cannot violate the unique index. |
+| `platform/backend/src/models/kb-document.ts` | `updateSourceId(…)`. | `UpdateKbDocumentSchema` deliberately omits `sourceId` (`types/kb-document.ts:64-73`); a dedicated method keeps identity out of the generic update surface. |
+| `docs/pages/platform-knowledge-connectors.md` | Canonicalization table in the Web Crawler section. | Per `platform/CLAUDE.md` rule 4. |
+
+Verified statically plus a standalone Node simulation of the URL functions: for every case where identity changes, `[expr]` equals the id the pre-change code produced (`/docs/` → `/docs`, `/docs/install/` → `/docs/install`, `[expr]` → `[expr]`), and is empty when it does not (root paths, already-canonical URLs). The worktree has no `node_modules`, so `type-check`/`test` could not be run here.
+
+## Deliberately unchanged
+
+- **Request URLs.** `crawler.run(…)` (`[expr]`) and discovered links (`:593`) still fetch the URL as the site links it. A server decides whether `/docs` and `/docs/` are the same resource; the test fixture is exactly such a server — `web-crawler-connector.test.ts:723-731` matches `[expr]` exactly and 404s otherwise — and `:547-549` pins the title fallback to the *fetched* URL.
+- **Crawl scope and exclude patterns.** `isPathInScope` still matches user regexes against the linked `[expr]` (`web-crawler-connector.ts:569-571`), documented that way in `docs/pages/platform-knowledge-connectors.md:327`. Canonicalizing that input would silently change existing configs.
+- **Other connectors' identities.** `previousIds` is optional and the loop reads `[expr]` (`connector-sync.ts:552`), so e.g. Asana's stable ids (`asana/asana-connector.ts:23`) behave exactly as before.
+- **No data migration.** Re-keying `source_id` in SQL would break old pods mid-rollout — the expand/contract rule in `drizzle-migration-linter/README.md:88-98` — and would need the normalization reimplemented in SQL. Sync-time adoption reuses the real code path instead.
+- **Stale-document pruning.** Sync never deletes vanished documents; `KbDocumentModel.deleteByConnectorAndSourceId` (`models/kb-document.ts:332`) has no production caller and full cleanup is force-resync (`routes/knowledge-base.ts:1038-1092`).
+
+## Behavior, and one thing you must decide
+
+Canonicalization now decides page identity; crawling is untouched. Existing documents are re-keyed in place on the next sync — their `metadata.url` changes, so each affected document is re-chunked and re-embedded once.
+
+**The change contradicts 5 existing test expectations** that pin the pre-canonicalization document URL, and the constraints forbade me from touching tests. In `web-crawler-connector.test.ts`: `:163-166`, `:175`, `:178-180` (expect `/docs/` and `/docs/install/`, now `/docs` and `/docs/install`), `:271` (`/docs/dest`), `:317-318` (`/docs`), `:648` (`/docs`), `:667-668` (`/docs`). Every other test in the file still holds, including all skipped-item and scope assertions. Those seven edits are mechanical — drop the trailing slash in the expected URL and rehash at `:179`.
+
+Residual risk:
+
+- A site that links both `/a` and `/a/` has two legacy rows; they collapse to one live document and the loser row is left behind, still served but never updated again. Force-resync clears it.
+- Canonical citation URLs lose the trailing slash, so a site that only serves the slash form answers with a redirect for those links. `metadata.fetchedUrl` keeps the exact URL fetched.
+- Tracking-param matching is exact and case-sensitive: `[expr]` survives.
+- Two request variants of one page in a single crawl now ingest the same document twice (second update wins) instead of creating two documents; the embedder reloads chunks at run time (`embedder.ts:116-150`), so this costs work but cannot fail.

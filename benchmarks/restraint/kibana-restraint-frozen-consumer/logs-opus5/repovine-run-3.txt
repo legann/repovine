@@ -1,0 +1,242 @@
+# Bench kibana-restraint-frozen-consumer — Repovine run 3 — model: opus-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-5; effort: max. Agent e3b18e0ef8cf480a.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting in the codebase with repovine to find the synthetics monitor validation paths.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — search_context result recorded; source-derived fields removed]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+Graph is building. Let me long-poll it while reading the validation code directly.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [source removed — 591 line(s)]
+
+Now let me map the write paths while the graph finishes building.
+
+  → repovine.get_build_status: [repository query]
+    [graph output redacted — get_build_status result recorded; source-derived fields removed]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+Graph ready. Let me inspect the validation node and read the caller paths — especially the migration path, which is the retroactive-rejection risk.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/saved_objects/migrations/monitors/8.8.0.ts
+    [source removed — 235 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor/add_monitor_api.ts
+    [source removed — 375 line(s)]
+
+Confirmed the key risk: `8.8.0.ts:119` runs `validateMonitor` on **already-persisted** docs and throws on invalid. Let me read the remaining callers.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [source removed — 204 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [source removed — 407 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/inspect_monitor.ts
+    [source removed — 219 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/synthetics_service/run_once_monitor.ts
+    [source removed — 74 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [source removed — 160 line(s)]
+
+Now let me verify the project-monitor normalization path and check bulk/UI paths.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 65 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/settings/private_locations/helpers.ts
+    [source removed — 38 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/public/apps/synthetics/components/monitor_add_edit/form/field_config.tsx
+    [source removed — 50 line(s)]
+
+Confirmed the UI declares only `required: true` for locations (`field_config.tsx:430`) — no count rules client-side. Now let me implement.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [source removed — 12 line(s)]
+
+Now implementing. First the constant:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/common/constants/monitor_defaults.ts
+    [edit applied]
+
+Now the validation rule itself:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [edit applied]
+
+Repovine flags `monitor_validation.ts` as a **boundary** surface: `validateMonitor` is consumed unchanged by the frozen 8.8.0 migration, and the annotation explicitly says a flag or default doesn't decouple it — re-plan to the write path. That's the right call. Reverting that edit.
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 3 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_locations_utils.ts
+    [source removed — 157 line(s)]
+
+`monitor_locations_utils.ts` is the right home — it already owns write-path location validators. Let me see the project formatter's failure-reporting shape.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [source removed — 35 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [source removed — 60 line(s)]
+
+Now the rule, next to the existing write-path location validators:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_locations_utils.ts
+    [edit applied]
+
+Now wiring the three create/update write paths. First `add_monitor.ts`:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [edit applied]
+
+Now `edit_monitor.ts`:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [edit applied]
+
+Now the project-monitor push path:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [edit applied]
+
+Now let me typecheck, lint, and refresh the graph.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Typecheck unavailable in this worktree. Verifying statically instead — first, matching the file's local convention (neighbouring error interfaces are not exported):
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_locations_utils.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+No collisions, no cycles. Let me review the full diff and refresh the graph.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 154 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Graph refreshed cleanly. Let me verify I haven't missed any create/update write path.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 46 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 53 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+Let me tidy the new code — move it to the file tail so existing functions stay contiguous, and destructure per project convention.
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_locations_utils.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_locations_utils.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/synthetics_service/project_monitor/project_monitor_formatter.ts
+    [edit applied]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_locations_utils.ts
+    [source removed — 45 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 6 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+Implemented. Purely additive: 5 files, +79 lines, 0 deletions.
+
+## What changed
+
+A monitor may target at most **100** locations. The rule is a standalone validator called from the three paths that persist user-supplied monitor configs.
+
+| Path | Call site | Rejection |
+|---|---|---|
+| `POST` create | `add_monitor.ts:117` | `400` — `[expr]` |
+| `PUT` update | `edit_monitor.ts:140` | `400` — `[expr]` |
+| Project push (create + update) | `project_monitor_formatter.ts:231` | entry in `failedMonitors` |
+
+- `common/constants/monitor_defaults.ts:306` — `[expr]`, beside the other validation constants.
+- `monitor_locations_utils.ts:172` — `validateMonitorLocationsLimit`, returning `null` or `[expr]`, matching the neighbouring `validateMonitorPrivateLocationSpaces`. Message: *"A monitor can target at most 100 locations, but N were configured. Remove locations from this monitor, or split it into multiple monitors."*
+
+It counts the **resolved, deduped** location set (`ConfigKey.LOCATIONS` after `parseMonitorLocations` dedupes at `add_monitor/utils.ts:80-81` and `getMonitorLocations` merges public + private), so public and private locations count against one shared budget.
+
+**Design note:** my first attempt put the rule inside `validateMonitor` behind an opt-in flag. Repovine flags that module as a boundary surface, and the annotation is right — `8.8.0.ts:119-131` replays `validateMonitor` over persisted docs and **throws** on invalid (`[expr]`). A flag defaults correctly but still couples a frozen consumer to future edits. I reverted it; `monitor_validation.ts` is untouched, so no existing rule changed and no ordering shifted.
+
+## Left unchanged, with citations
+
+| Path | Proof it's out of scope |
+|---|---|
+| `monitor_validation.ts` (`validateMonitor`) | Replayed over persisted docs by `8.8.0.ts:119`, which throws at `8.8.0.ts:128`. Enforcing here retroactively fails upgrades. |
+| `inspect_monitor.ts` | Terminates at `syntheticsMonitorClient.inspectMonitor(…)` (`:85-91`) — preview only, no repository write. |
+| `run_once_monitor.ts` | Terminates at `syntheticsMonitorClient.testNowConfigs(…)` (`:52-65`) — ephemeral test run, nothing persisted. |
+| `reset_monitor_api.ts` | Re-syncs persisted monitors and only shrinks the set: `[expr]` (`:163-165`). Count can never rise. |
+| `private_locations/helpers.ts` | `syncEditedMonitorBulk` fed by `m.attributes.locations.map(…)` (`:92-95`) — relabels in place, count unchanged. A legacy over-limit monitor still gets label updates. |
+| `validateProjectMonitor` / `validateLocation` | Operate on the raw project payload (`[expr]`, `[expr]`) before resolution; the merged count only exists after `normalizeProjectMonitor` sets `[expr]` (`common_fields.ts:88`), which is where the check runs. |
+| `[expr]` | `syncNewMonitorBulk` / `syncEditedMonitorBulk` contain no validation; their only monitor-creating caller is `[expr]`, already gated upstream at `:231`. |
+| UI form validation | `field_config.tsx:430` declares only `required: true`; `form/validation.tsx` has no `locations` rule. The existing min-locations rule is server-only, so the max stays server-only too. |
+
+## Residual risk
+
+1. **Editing a legacy over-limit monitor is blocked.** A monitor persisted with 150 locations reads and migrates fine, but any `PUT` — even renaming it — is rejected, because `normalizeMonitor` carries `prevLocations` forward when the payload omits locations (`add_monitor_api.ts:196-197`). This follows the task as written ("updating a monitor with more than 100 locations must be rejected"); grandfathering edits that don't raise the count would need an explicit call.
+2. **Not verified by execution.** This worktree has no `node_modules`, so `type_check`, `eslint`, `jest`, and `i18n_check` were blocked. I verified statically: import paths match sibling imports, casts reuse ones already at those call sites, `failedMonitors` push matches the `FailedError` shape, no import cycle (`common/constants` imports nothing from `server/`), and both new i18n IDs are unique under the file's existing `[expr]` prefix.
+3. **Per-rule i18n placement.** The message constants sit below their use, mirroring `monitor_validation.ts` (`LOCATION_REQUIRED_ERROR` used at `:89`, defined at `:567`) — an established pattern here, but unverified against lint in this worktree.

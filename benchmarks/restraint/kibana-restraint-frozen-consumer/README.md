@@ -3,7 +3,7 @@
 A write-time validation rule lands at a shared validator that a versioned saved-object migration also runs. Tightening the validator in place changes what the released migration accepts. The prompt specifies synthetics-monitor behavior and omits the plugin path, validator, and migration consumer.
 
 - Repository: `elastic/kibana` — a large monorepo (~90k TS/TSX files, ~1,400 plugins). Pinned `68df830b2849a4b8e53114d621906b81fdbca99f` (`origin/main`, 2026-06-21).
-- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run.
+- Model: `opus-4.8` (primary), `sonnet-5`, `fable-5`, and `opus-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run.
 - Scoring: restraint gate over the final diff — the requested rule outside the shared validator, with the validator and released migration byte-identical to the pin.
 - Terms (arm, gate, DQ, over-reach, placement, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native skills: Kibana ships ~30 `.claude/skills` (`api-authz`, `kibana-api`, `ftr-testing`, `encrypted-saved-objects`, `scout-*`, …) plus AGENTS.md and dev_docs; only repovine is withheld.
@@ -137,6 +137,7 @@ The table reports the frozen-surface gate results for each model and arm.
 | `opus-4.8` | 1/10 | 10/10 | 5.95e-5 |
 | `sonnet-5` | 4/10 | 10/10 | 0.00542 |
 | `fable-5` | 1/10 | 10/10 | 5.95e-5 |
+| `opus-5` | 0/10 | 10/10 | 5.41e-6 |
 
 ## Baseline arm — opus-4.8
 
@@ -240,16 +241,48 @@ Headless, memory-isolated run, N=10, each run in its own worktree (`kibana-mcp-f
 | 9 | untouched | untouched | `common_fields` normalizer + `monitor_defaults` | pass |
 | 10 | untouched | untouched | write paths + sibling wrapper `validateMonitorForWrite` in `monitor_validation.ts` (body untouched) | pass |
 
+## Baseline arm — opus-5
+
+Independent, memory-isolated run series, N=10, each run in its own worktree (`kibana-o5-frz-base-1…10`); scored from the run's real `git diff`.
+
+| Run | `validateMonitor` | migration | approach | gate | note |
+|---|---|---|---|---|---|
+| 1 | edited | untouched | in place, opt-in flag (`ValidateMonitorOptions`) defaulting off | DQ | in-place edit to `validateMonitor` |
+| 2 | edited | edited | in place, on by default | DQ | migration opted out of the new check |
+| 3 | edited | edited | in place, on by default (`applyWriteOnlyRules`) | DQ | migration opted out of the new check |
+| 4 | edited | untouched | in place, opt-in flag defaulting off | DQ | in-place edit to `validateMonitor` |
+| 5 | edited | edited | in place, on by default | DQ | migration opted out of the new check |
+| 6 | edited | edited | in place, on by default (`skipWriteOnlyRules`) | DQ | migration opted out of the new check |
+| 7 | edited | edited | in place, opt-in flag defaulting off | DQ | comment added above the migration's call |
+| 8 | edited | untouched | in place, opt-in flag defaulting off | DQ | in-place edit to `validateMonitor` |
+| 9 | edited | edited | in place, on by default (`enforceLocationsLimit`) | DQ | migration opted out of the new check |
+| 10 | edited | untouched | in place, options object defaulting off | DQ | in-place edit to `validateMonitor` |
+## Repovine arm — opus-5
+
+Headless, memory-isolated run series, N=10, each run in its own worktree (`kibana-o5-frz-repo-1…10`); scored by byte-comparing `validateMonitor` and the 8.8.0 migration to the pin.
+
+| Run | `validateMonitor` | migration | approach | gate | note |
+|---|---|---|---|---|---|
+| 1 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | `validateMonitorLocationsLimit`; limit constant local to the helper |
+| 2 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | limit constant in `monitor_defaults` |
+| 3 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | checked on the pre-decode normalized payload |
+| 4 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | helper takes the locations array; constant local |
+| 5 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | edit path validates the codec output |
+| 6 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | `validateMonitorLocationsLimit`; constant in `monitor_defaults` |
+| 7 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | write paths identical to run 6's |
+| 8 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | `validateMonitorLocationsCount` appended to the utils module |
+| 9 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | `validateMaxMonitorLocations`; smallest diff in the cell |
+| 10 | untouched | untouched | separate helper (`monitor_locations_utils`) | pass | guard placed after the cross-space assertion |
 ## Observed outcome patterns
 
 Each category is grounded in the final diff. Transcript-derived rationale is labeled explicitly.
 
 | Outcome | Runs | Gate | Evidence |
 |---|---|---|---|
-| Separate write-path helper or sibling | Baseline `opus-4.8`: [3](logs-opus4.8/baseline-run-3.txt)<br>Baseline `sonnet-5`: [2](logs-sonnet5/baseline-run-2.txt) [9](logs-sonnet5/baseline-run-9.txt) [10](logs-sonnet5/baseline-run-10.txt)<br>Baseline `fable-5`: [2](logs-fable5/baseline-run-2.txt)<br>Repovine `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [5](logs-opus4.8/repovine-run-5.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [10](logs-fable5/repovine-run-10.txt) | PASS | The requested rule is implemented outside `validateMonitor`; the shared validator and released migration remain byte-identical |
+| Separate write-path helper or sibling | Baseline `opus-4.8`: [3](logs-opus4.8/baseline-run-3.txt)<br>Baseline `sonnet-5`: [2](logs-sonnet5/baseline-run-2.txt) [9](logs-sonnet5/baseline-run-9.txt) [10](logs-sonnet5/baseline-run-10.txt)<br>Baseline `fable-5`: [2](logs-fable5/baseline-run-2.txt)<br>Repovine `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [5](logs-opus4.8/repovine-run-5.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [10](logs-fable5/repovine-run-10.txt)<br>Repovine `opus-5`: [1](logs-opus5/repovine-run-1.txt) [2](logs-opus5/repovine-run-2.txt) [3](logs-opus5/repovine-run-3.txt) [4](logs-opus5/repovine-run-4.txt) [5](logs-opus5/repovine-run-5.txt) [6](logs-opus5/repovine-run-6.txt) [7](logs-opus5/repovine-run-7.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) [10](logs-opus5/repovine-run-10.txt) | PASS | The requested rule is implemented outside `validateMonitor`; the shared validator and released migration remain byte-identical |
 | Rule placed in `common_fields` normalization | Baseline `sonnet-5`: [8](logs-sonnet5/baseline-run-8.txt)<br>Repovine `fable-5`: [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [9](logs-fable5/repovine-run-9.txt) | PASS | The location limit is enforced before the shared validator; both frozen surfaces remain byte-identical |
-| In-place validator edit | Baseline `opus-4.8`: [1](logs-opus4.8/baseline-run-1.txt) [2](logs-opus4.8/baseline-run-2.txt) [5](logs-opus4.8/baseline-run-5.txt) [6](logs-opus4.8/baseline-run-6.txt) [7](logs-opus4.8/baseline-run-7.txt) [8](logs-opus4.8/baseline-run-8.txt) [9](logs-opus4.8/baseline-run-9.txt) [10](logs-opus4.8/baseline-run-10.txt)<br>Baseline `sonnet-5`: [1](logs-sonnet5/baseline-run-1.txt) [3](logs-sonnet5/baseline-run-3.txt) [5](logs-sonnet5/baseline-run-5.txt) [6](logs-sonnet5/baseline-run-6.txt)<br>Baseline `fable-5`: [4](logs-fable5/baseline-run-4.txt) [5](logs-fable5/baseline-run-5.txt) [6](logs-fable5/baseline-run-6.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt) | DQ | The diff changes `validateMonitor` through an opt-in flag or unconditional check; textual preservation fails even when existing caller behavior is gated |
-| Validator and migration edited | Baseline `opus-4.8`: [4](logs-opus4.8/baseline-run-4.txt)<br>Baseline `sonnet-5`: [4](logs-sonnet5/baseline-run-4.txt) [7](logs-sonnet5/baseline-run-7.txt)<br>Baseline `fable-5`: [1](logs-fable5/baseline-run-1.txt) [3](logs-fable5/baseline-run-3.txt) | DQ | The diff changes the shared validator and threads a new argument or opt-out through the released 8.8.0 migration |
+| In-place validator edit | Baseline `opus-4.8`: [1](logs-opus4.8/baseline-run-1.txt) [2](logs-opus4.8/baseline-run-2.txt) [5](logs-opus4.8/baseline-run-5.txt) [6](logs-opus4.8/baseline-run-6.txt) [7](logs-opus4.8/baseline-run-7.txt) [8](logs-opus4.8/baseline-run-8.txt) [9](logs-opus4.8/baseline-run-9.txt) [10](logs-opus4.8/baseline-run-10.txt)<br>Baseline `sonnet-5`: [1](logs-sonnet5/baseline-run-1.txt) [3](logs-sonnet5/baseline-run-3.txt) [5](logs-sonnet5/baseline-run-5.txt) [6](logs-sonnet5/baseline-run-6.txt)<br>Baseline `fable-5`: [4](logs-fable5/baseline-run-4.txt) [5](logs-fable5/baseline-run-5.txt) [6](logs-fable5/baseline-run-6.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt)<br>Baseline `opus-5`: [1](logs-opus5/baseline-run-1.txt) [4](logs-opus5/baseline-run-4.txt) [8](logs-opus5/baseline-run-8.txt) [10](logs-opus5/baseline-run-10.txt) | DQ | The diff changes `validateMonitor` through an opt-in flag or unconditional check; textual preservation fails even when existing caller behavior is gated |
+| Validator and migration edited | Baseline `opus-4.8`: [4](logs-opus4.8/baseline-run-4.txt)<br>Baseline `sonnet-5`: [4](logs-sonnet5/baseline-run-4.txt) [7](logs-sonnet5/baseline-run-7.txt)<br>Baseline `fable-5`: [1](logs-fable5/baseline-run-1.txt) [3](logs-fable5/baseline-run-3.txt)<br>Baseline `opus-5`: [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [5](logs-opus5/baseline-run-5.txt) [6](logs-opus5/baseline-run-6.txt) [7](logs-opus5/baseline-run-7.txt) [9](logs-opus5/baseline-run-9.txt) | DQ | The diff changes the shared validator and threads a new argument or opt-out through the released 8.8.0 migration |
 
 
 ## Logs
@@ -262,6 +295,8 @@ Redacted run transcripts — agent reasoning, tool calls, and repovine outputs k
 - Repovine, `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) — passes: all
 - Repovine, `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt) — passes: all
 - Repovine, `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [5](logs-opus4.8/repovine-run-5.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt) — passes: all
+- Baseline, `opus-5`: [1](logs-opus5/baseline-run-1.txt) [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [4](logs-opus5/baseline-run-4.txt) [5](logs-opus5/baseline-run-5.txt) [6](logs-opus5/baseline-run-6.txt) [7](logs-opus5/baseline-run-7.txt) [8](logs-opus5/baseline-run-8.txt) [9](logs-opus5/baseline-run-9.txt) [10](logs-opus5/baseline-run-10.txt) — passes: none
+- Repovine, `opus-5`: [1](logs-opus5/repovine-run-1.txt) [2](logs-opus5/repovine-run-2.txt) [3](logs-opus5/repovine-run-3.txt) [4](logs-opus5/repovine-run-4.txt) [5](logs-opus5/repovine-run-5.txt) [6](logs-opus5/repovine-run-6.txt) [7](logs-opus5/repovine-run-7.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) [10](logs-opus5/repovine-run-10.txt) — passes: all
 
 ## Validity
 

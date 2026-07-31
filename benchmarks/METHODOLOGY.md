@@ -50,7 +50,7 @@ Each case README publishes the evidence required to understand and audit the cas
 | Repovine setup | the setup and annotation published for the case |
 | Gate | the structural pass/DQ predicate over the final diff |
 | Results | per-run facts, model-level counts, and Fisher values |
-| Logs | 60 redacted transcripts per case |
+| Logs | 80 redacted transcripts per case |
 | Validity | arm parity, source reach, gate basis, controls, and limits |
 
 Restraint cases use a Frozen-surface gate. Correctness cases record C1 separately and use G1 as the discriminating gate. Cases may also describe observed implementation paths and source reachability.
@@ -83,7 +83,7 @@ Every transcript header records the case, arm, run number, model, effort, and ga
 
 Each model–case comparison uses a 2×2 table with Repovine and Baseline as rows and pass and DQ as columns. The reported exact conditional Fisher p-value uses the one-sided alternative **Repovine > Baseline**. Values use three significant figures and `e` notation below 0.001.
 
-The 12 model–case p-values are exploratory and unadjusted for multiple comparisons. Raw pass counts and the complete matrix are the primary results.
+The 16 model–case p-values are exploratory and unadjusted for multiple comparisons. Raw pass counts and the complete matrix are the primary results.
 
 ### Headroom rule
 

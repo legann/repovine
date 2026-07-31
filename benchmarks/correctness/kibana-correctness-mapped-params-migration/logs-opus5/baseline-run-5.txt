@@ -1,0 +1,321 @@
+# Bench kibana-correctness-mapped-params-migration — Baseline run 5 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent 93fbed71b7614035.
+# Gate: DQ — projection-consistency gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring how alerting rules and their model versions are structured in this codebase.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 36 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 189 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting_v2/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/rules_client/common/mapped_params_utils.ts
+    [source removed — 186 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/migrations/8.2/index.ts
+    [source removed — 42 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 331 line(s)]
+
+This is an encrypted saved object with `params` in the AAD — modifying it needs care. Let me load the relevant skill.
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 39 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/actions/server/saved_objects/model_versions/connector_token_model_versions.ts
+    [source removed — 75 line(s)]
+
+  → Read: examples/eso_model_version_example/server/plugin.ts
+    [source removed — 180 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 42 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 53 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/integration_tests/ci_checks/check_registered_types.test.ts
+    [source removed — 180 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 52 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/server/create_model_version.ts
+    [source removed — 141 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 24 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: src/core/packages/saved-objects/base-server-internal/src/model_version/build_transform_fn.ts
+    [source removed — 112 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 29 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 36 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/saved_objects/migrations/private_locations/model_version_1.ts
+    [source removed — 65 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 59 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Read: src/core/packages/saved-objects/api-server-internal/src/lib/apis/helpers/validation.ts
+    [source removed — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 71 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+Now I have the full picture. Let me implement.
+
+  → Write: x-pack/platform/plugins/shared/alerting/server/saved_objects/constants.ts
+    [edit applied]
+
+  → Write: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v14.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/index.ts
+    [edit applied]
+
+Now the model version itself:
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+Now wire it up in `saved_objects/index.ts`:
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+Snapshot matches the live registration exactly. Now let me type-check and lint.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Type-checking is unavailable in this worktree. Let me review the final files carefully by hand.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 70 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 40 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 25 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 21 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 29 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 173 line(s)]
+
+Let me check two adjacent saved-object types that embed rule params, so I can report scope accurately.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 47 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 25 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+Implementation complete. Type-check/lint/test runners are unavailable in this worktree (not bootstrapped), so I verified statically — including a programmatic diff of the frozen AAD snapshot against the live registration.
+
+## Where I localized it
+
+The `severity` param lives on the **`alert` saved object** at `attributes.params.severity`. Confirmed against the security-solution rule schema, where `severity: Severity` is a top-level rule param and `[expr]` (`kbn-securitysolution-io-ts-alerting-types/src/severity/index.ts:11`) — exactly the four canonical values.
+
+The decisive constraint: **`params` is in the rule's AAD** (`saved_objects/index.ts:58-77`). Rewriting it with a plain `data_backfill` would leave `apiKey`/`uiamApiKey` encrypted under the old AAD and permanently undecryptable for every affected rule. So model version 14 is wrapped in `encryptedSavedObjects.createModelVersion(…)`, which decrypts → transforms → re-encrypts in one pass.
+
+## Files changed
+
+| File | Change |
+|---|---|
+| `saved_objects/model_versions/rule_model_versions.ts` | `ruleModelVersions` becomes a factory taking `EncryptedSavedObjectsPluginSetup`; adds MV14 with the `lowercaseSeverityParam` transform + a pinned ESO registration snapshot |
+| `saved_objects/index.ts` | Calls `ruleModelVersions(…)`; imports/re-exports `RULE_SAVED_OBJECT_TYPE` |
+| `saved_objects/constants.ts` | **New** — holds `RULE_SAVED_OBJECT_TYPE` so the model-version module can reference it without a cyclic import (re-exported from `./index`, so all existing import sites are untouched) |
+| `saved_objects/schemas/raw_rule/v14.ts` | **New** — pass-through of v13's schema, matching v13's own no-shape-change precedent |
+| `saved_objects/schemas/raw_rule/index.ts` | Exports `rawRuleSchemaV14` |
+
+## Deliberately left unchanged
+
+- **`mapped_params.severity`** (`common/saved_objects/rules/mappings.ts:100`, derived by `getModifiedValue` at `rules_client/common/mapped_params_utils.ts:104-109`). Source: the constraint "Do not change the persisted storage shape beyond the case normalization". It is also not a regression — `[expr]` was already `[expr]`, so mixed-case rules already stored `''`; it re-derives on the next rule update.
+- **`alerting_rule_template` SO** — carries `params` (`schemas/raw_rule_template/v1.ts:19`) but is a distinct SO type (`saved_objects/index.ts:45`) with its own model-version map. Not a rule.
+- **`ad_hoc_run_params` SO** — embeds a `rule.params` snapshot (`[expr]`); a transient backfill-run payload with its own delete path and model versions.
+- **`alerting_v2` rule SO** — `grep severity` over `alerting_v2/server/saved_objects/schemas/` returns nothing; its schema is fully enumerated with no `params`.
+- **Snooze `severity_equals` conditions** — the schema already restricts the value to lowercase literals (`raw_rule/v12.ts:22-31`), and it refers to alert severity, not the rule param.
+
+## Residual risk
+
+1. **One test snapshot needs regenerating, which I did not touch** per "do not modify tests": `encrypted_saved_objects/integration_tests/ci_checks/check_registered_types.test.ts:115` must gain `[expr]` (the file itself instructs updating via `jest_integration -u`). The *other* snapshot in that file — the registration hash map — is unaffected, because `createModelVersion` registers into a throwaway service, not the shared one (`encrypted_saved_objects/server/plugin.ts:162-173`).
+2. **Rules that already fail to decrypt** get their encrypted attributes stripped with a logged warning rather than failing the upgrade. That matches every existing rule ESO migration (`shouldMigrateIfDecryptionFails: true` in `migrations/utils.ts:31`).
+3. **Serverless ZDT is safe**: the AAD attribute *set* is unchanged — only the value of an in-AAD attribute — so an older Kibana builds AAD from the migrated document and decrypts normally.
+4. **Not executed**: type-check, eslint, and jest could not run here. The transform mirrors the `SavedObjectModelTransformationFn` + `typeSafeGuard` idiom used by synthetics and entity-manager, and the ESO wrapper mirrors `connector_token_model_versions.ts`.

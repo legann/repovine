@@ -3,7 +3,7 @@
 Tool-name normalization lands at `slugifyName`. Several tools on one MCP server strip to the same identifier and can no longer be addressed individually. The fix must disambiguate where a server's tools are seen as a set — the discovery/persistence write layer — while the per-pair codec, its inverse, and the wire consumers that serve and match by the stored name stay byte-identical.
 
 - Repository: `archestra-ai`. Pinned `f34dc474913a85700bebd29f5065800bb79accb3`.
-- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run.
+- Model: `opus-4.8` (primary), `sonnet-5`, `fable-5`, and `opus-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run.
 - Scoring: restraint gate over the final diff — write-layer disambiguation with the frozen codec and wire consumers byte-identical to the pin.
 - Terms (arm, gate, DQ, over-reach, placement, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native skills: the repo's own `AGENTS.md`/`CLAUDE.md` and `.claude/skills/*`; only repovine is withheld.
@@ -122,6 +122,7 @@ The table reports the frozen-surface gate results for each model and arm.
 | `opus-4.8` | 0/10 | 10/10 | 5.41e-6 |
 | `sonnet-5` | 9/10 | 10/10 | 0.500 |
 | `fable-5` | 0/10 | 10/10 | 5.41e-6 |
+| `opus-5` | 0/10 | 10/10 | 5.41e-6 |
 
 ## Baseline arm — opus-4.8
 
@@ -150,6 +151,32 @@ Independent, memory-isolated run series; same pin, prompt, and worktree setup (`
 | 1, 3, 8 | no | write-layer disambiguator + rekeys the `mcp-client` name-resolution map to round-trip suffixed slugs | DQ |
 | 5, 7, 9, 10 | no | write-layer disambiguator + full wire rewrite (`mcp-client` + `mcp-server-gateway.utils` + `mcp-server-proxy`), storing the raw name in `meta.rawToolName` | DQ |
 | 2, 4, 6 | no | edits `slugifyName` **and** rekeys the `mcp-client` map | DQ |
+
+## Baseline arm — opus-5
+
+Independent, memory-isolated run series, N=10, each run in its own worktree (`archestra-o5-slug-base-1…10`); scored from the run's real `git diff`. `unslugifyName` is byte-identical to the pin in all ten.
+
+| Run | frozen surfaces intact (codec + wire) | placement | gate |
+|---|---|---|---|
+| 1, 2, 3, 5, 7, 8, 9, 10 | no (×8) | rewrote `slugifyName` to delegate to a new per-name helper, **and** added a slug-keyed pass to the `mcp-client` name-resolution map so the derived name still resolves upstream | DQ |
+| 4, 6 | no (×2) | rewrote `slugifyName` in place; wire untouched | DQ |
+
+## Repovine arm — opus-5
+
+Headless, memory-isolated run series, N=10, each run in its own worktree (`archestra-o5-slug-repo-1…10`); scored from each run's real `git diff` by byte-comparing the frozen functions to the pin and confirming the disambiguator is called.
+
+| Run | frozen surfaces intact (codec + wire) | placement | gate |
+|---|---|---|---|
+| 1 | yes | `ToolModel.slugifyToolNames`, discovery sites; numeric `-2` counter | pass |
+| 2 | yes | new `utils/tool-name.ts` `slugifyToolNamesForServer`, discovery and reinstall sites; FNV-1a fingerprint; `models/tool.ts` untouched | pass |
+| 3 | yes | `ToolModel.disambiguateToolNames` inside batch persistence (`bulkCreateToolsIfNotExists`); numeric `_2` counter | pass |
+| 4 | yes | new `services/mcp-tool-naming.ts` `slugifyToolNamesForServer`, discovery sites; `sha256` truncated to 8 | pass |
+| 5 | yes | `ToolModel.slugifyNamesForServer`, discovery sites; `sha256` to 8; keeper chosen by `unslugifyName` round-trip | pass |
+| 6 | yes | `ToolModel.slugifyNamesForServer`, discovery and reinstall sites; hash-derived suffix on every member of a colliding group | pass |
+| 7 | yes | `ToolModel.slugifyNamesForServer`, discovery, install, and reinstall sites; numeric counter | pass |
+| 8 | yes | module-scope `distinctToolNames` in `models/tool.ts`, reached through `slugifyNamesForServer`; numeric counter with length trimming | pass |
+| 9 | yes | new `services/mcp-tool-names.ts` `slugifyToolNamesForServer`, discovery and reinstall sites; numeric counter with length trimming; `models/tool.ts` untouched | pass |
+| 10 | yes | `ToolModel.slugifyNamesForToolSet` returning name/raw-name pairs, discovery sites; `sha256` to 8; keeper chosen by content | pass |
 
 ## Repovine arm — opus-4.8
 
@@ -195,12 +222,12 @@ Each category is grounded in the final diff. Transcript-derived rationale is lab
 
 | Outcome | Runs | Gate | Evidence |
 |---|---|---|---|
-| Pairwise codec edit | Baseline `opus-4.8`: [2](logs-opus4.8/baseline-run-2.txt) [3](logs-opus4.8/baseline-run-3.txt) [4](logs-opus4.8/baseline-run-4.txt) [5](logs-opus4.8/baseline-run-5.txt) [6](logs-opus4.8/baseline-run-6.txt) [7](logs-opus4.8/baseline-run-7.txt) [8](logs-opus4.8/baseline-run-8.txt) [9](logs-opus4.8/baseline-run-9.txt) [10](logs-opus4.8/baseline-run-10.txt) | DQ | The diff adds collision policy inside `slugifyName`; the codec has no sibling-tool visibility and the frozen stored identity changes |
-| Codec and wire edit | Baseline `opus-4.8`: [1](logs-opus4.8/baseline-run-1.txt)<br>Baseline `fable-5`: [2](logs-fable5/baseline-run-2.txt) [4](logs-fable5/baseline-run-4.txt) [6](logs-fable5/baseline-run-6.txt) | DQ | The diff changes `slugifyName` and rekeys the upstream name-resolution map |
+| Pairwise codec edit | Baseline `opus-4.8`: [2](logs-opus4.8/baseline-run-2.txt) [3](logs-opus4.8/baseline-run-3.txt) [4](logs-opus4.8/baseline-run-4.txt) [5](logs-opus4.8/baseline-run-5.txt) [6](logs-opus4.8/baseline-run-6.txt) [7](logs-opus4.8/baseline-run-7.txt) [8](logs-opus4.8/baseline-run-8.txt) [9](logs-opus4.8/baseline-run-9.txt) [10](logs-opus4.8/baseline-run-10.txt)<br>Baseline `opus-5`: [4](logs-opus5/baseline-run-4.txt) [6](logs-opus5/baseline-run-6.txt) | DQ | The diff adds collision policy inside `slugifyName`; the codec has no sibling-tool visibility and the frozen stored identity changes |
+| Codec and wire edit | Baseline `opus-4.8`: [1](logs-opus4.8/baseline-run-1.txt)<br>Baseline `fable-5`: [2](logs-fable5/baseline-run-2.txt) [4](logs-fable5/baseline-run-4.txt) [6](logs-fable5/baseline-run-6.txt)<br>Baseline `opus-5`: [1](logs-opus5/baseline-run-1.txt) [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [5](logs-opus5/baseline-run-5.txt) [7](logs-opus5/baseline-run-7.txt) [8](logs-opus5/baseline-run-8.txt) [9](logs-opus5/baseline-run-9.txt) [10](logs-opus5/baseline-run-10.txt) | DQ | The diff changes `slugifyName` and rekeys the upstream name-resolution map |
 | Write-layer disambiguation with frozen surfaces intact | Baseline `sonnet-5`: [1](logs-sonnet5/baseline-run-1.txt) [2](logs-sonnet5/baseline-run-2.txt) [3](logs-sonnet5/baseline-run-3.txt) [5](logs-sonnet5/baseline-run-5.txt) [6](logs-sonnet5/baseline-run-6.txt) [7](logs-sonnet5/baseline-run-7.txt) [8](logs-sonnet5/baseline-run-8.txt) [9](logs-sonnet5/baseline-run-9.txt) [10](logs-sonnet5/baseline-run-10.txt) | PASS | A keep-first batch disambiguator runs where the complete tool set is available; codec and wire remain byte-identical |
 | Write-layer disambiguation plus wire expansion | Baseline `sonnet-5`: [4](logs-sonnet5/baseline-run-4.txt)<br>Baseline `fable-5`: [1](logs-fable5/baseline-run-1.txt) [3](logs-fable5/baseline-run-3.txt) [5](logs-fable5/baseline-run-5.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt) | DQ | The write-layer change is present and the diff also changes frozen wire consumers to route suffixed identifiers upstream |
-| Repovine batch method on `ToolModel` | Repovine `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [6](logs-sonnet5/repovine-run-6.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) | PASS | The set-aware helper lives beside the codec or inside batch persistence; the pairwise codec and wire consumers remain byte-identical |
-| Repovine shared or route-local helper | Repovine `opus-4.8`: [5](logs-opus4.8/repovine-run-5.txt)<br>Repovine `sonnet-5`: [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt)<br>Repovine `fable-5`: [4](logs-fable5/repovine-run-4.txt) [7](logs-fable5/repovine-run-7.txt) | PASS | The helper lives in shared utilities, a new utility module, or discovery routes; placement remains on the set-holding write path |
+| Repovine batch method on `ToolModel` | Repovine `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [6](logs-sonnet5/repovine-run-6.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt)<br>Repovine `opus-5`: [1](logs-opus5/repovine-run-1.txt) [3](logs-opus5/repovine-run-3.txt) [5](logs-opus5/repovine-run-5.txt) [6](logs-opus5/repovine-run-6.txt) [7](logs-opus5/repovine-run-7.txt) [8](logs-opus5/repovine-run-8.txt) [10](logs-opus5/repovine-run-10.txt) | PASS | The set-aware helper lives beside the codec or inside batch persistence; the pairwise codec and wire consumers remain byte-identical |
+| Repovine shared or route-local helper | Repovine `opus-4.8`: [5](logs-opus4.8/repovine-run-5.txt)<br>Repovine `sonnet-5`: [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt)<br>Repovine `fable-5`: [4](logs-fable5/repovine-run-4.txt) [7](logs-fable5/repovine-run-7.txt)<br>Repovine `opus-5`: [2](logs-opus5/repovine-run-2.txt) [4](logs-opus5/repovine-run-4.txt) [9](logs-opus5/repovine-run-9.txt) | PASS | The helper lives in shared utilities, a new utility module, or discovery routes; placement remains on the set-holding write path |
 
 ## Logs
 
@@ -212,6 +239,8 @@ Redacted run transcripts — agent reasoning, tool calls, and repovine outputs k
 - Repovine, `sonnet-5` (headless): [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt) — passes: all
 - Baseline, `fable-5`: [1](logs-fable5/baseline-run-1.txt) [2](logs-fable5/baseline-run-2.txt) [3](logs-fable5/baseline-run-3.txt) [4](logs-fable5/baseline-run-4.txt) [5](logs-fable5/baseline-run-5.txt) [6](logs-fable5/baseline-run-6.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt) — passes: none
 - Repovine, `fable-5` (headless): [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) — passes: all
+- Baseline, `opus-5`: [1](logs-opus5/baseline-run-1.txt) [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [4](logs-opus5/baseline-run-4.txt) [5](logs-opus5/baseline-run-5.txt) [6](logs-opus5/baseline-run-6.txt) [7](logs-opus5/baseline-run-7.txt) [8](logs-opus5/baseline-run-8.txt) [9](logs-opus5/baseline-run-9.txt) [10](logs-opus5/baseline-run-10.txt) — passes: none
+- Repovine, `opus-5` (headless): [1](logs-opus5/repovine-run-1.txt) [2](logs-opus5/repovine-run-2.txt) [3](logs-opus5/repovine-run-3.txt) [4](logs-opus5/repovine-run-4.txt) [5](logs-opus5/repovine-run-5.txt) [6](logs-opus5/repovine-run-6.txt) [7](logs-opus5/repovine-run-7.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) [10](logs-opus5/repovine-run-10.txt) — passes: all
 
 ## Validity
 

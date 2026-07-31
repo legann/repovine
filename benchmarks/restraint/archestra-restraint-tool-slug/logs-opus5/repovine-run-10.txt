@@ -1,0 +1,375 @@
+# Bench archestra-restraint-tool-slug — Repovine run 10 — model: opus-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-5; effort: max. Agent fc96d671d53547d6.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting in the graph before touching files.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@frontend/src/app/mcp/registry/_parts/mcp-tools-dialog, mod:@frontend/src/app/mcp/registry/_parts/mcp-inspector, mod:@backend/src/types/mcp-tool-call; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, export:@backend/src/models/tool/parseArchestraBuiltInName, export:@backend/src/models/tool/toolUiResourceUriSql, export:@backend/src/models/tool/default; functions parseArchestraBuiltInName, toolUiResourceUriSql, default; architectural annotation delivered; source-derived fields removed]
+
+The annotation flags this module as a boundary surface. Let me read the actual codec and its call sites.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 125 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 60 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 46 line(s)]
+
+Now let me read the write/discovery layer — the callers that hold a server's tools as a set.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 210 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 85 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 60 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 110 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 110 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 50 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 130 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 25 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 56 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 20 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 46 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 22 line(s)]
+
+Now I'll implement the batch-level disambiguation in `ToolModel`.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the constant, at the bottom with the other internal helpers:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the five discovery call sites. First `mcp-server.ts` (local and remote install):
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now `mcp-servers.ts` (the two deploy-tool discovery paths):
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now the reinstall sync path, which also needs the matching key:
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 42 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 80 line(s)]
+
+The reinstall tests mock `ToolModel` with only two members — a new call there would break them. Let me check the other call sites for the same constraint.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 33 line(s)]
+
+The reinstall path needs a different seam. Let me restructure: the set-level decision moves inside `syncToolsForCatalog`, with a shared private helper.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the private set-level helper. Let me place it with the other private methods at the bottom of the class:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 45 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now revert the reinstall call site and apply disambiguation inside `syncToolsForCatalog` instead:
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 28 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+String:     if (renamed.size === 0) return tools;
+
+    return tools.map((tool) => {
+      const name = rena]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 157 line(s)]
+
+Edits are in place — my greps ran from a stale cwd. Continuing with absolute paths:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now wire the disambiguation into `syncToolsForCatalog`:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Verification must be static here. Let me review the full diff carefully.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 278 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 43 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 75 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+String:       taken.add(candidate);
+      renamed.set(`${base} ${rawToolName}`, candidate);
+    }
+
+    if (]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 28 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+String:       renamed.set(`${base} ${rawToolName}`, candidate);</tool_use_error>]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s)]
+
+The file has a literal NUL byte as the key separator. Let me make that explicit in the source rather than an invisible byte:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now add the `renameKey` helper next to `toolNamePart`:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Found it — a stray NUL byte is making the file read as binary. Let me replace that separator with an explicit escape:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 16 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now let me verify the whole implementation reads correctly end-to-end:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 90 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 36 line(s); non-zero exit]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 60 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 88 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 44 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 62 line(s)]
+
+Implementation is complete. Refreshing the graph index as the post-edit step:
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Done. Note up front: this worktree is intentionally not bootstrapped (no `node_modules`), so `pnpm type-check`/`lint`/`test` are unavailable — verification here is static reading only.
+
+## Where tool names become identifiers
+
+`ToolModel.slugifyName(…)` — `platform/backend/src/models/tool.ts:81`. It lowercases, maps whitespace runs to `_`, and drops everything outside `[expr]`, joined by `__`. Its output is written to `tools.name`, which the unique constraint on `[expr]` (`platform/backend/src/database/schemas/tool.ts:83`) makes the addressable identifier. Because it transforms one server/tool pair at a time, distinct raw names that differ only in case or stripped characters — `"Create Issue"`/`"create_issue"`, or two names stripped to empty — produce one identifier and collapse to a single row; the second tool never gets a row.
+
+It is called from five MCP-discovery batch sites and two non-discovery sites.
+
+## Files changed
+
+| File | Change |
+|---|---|
+| `backend/src/models/tool.ts` | New `slugifyNamesForToolSet` (public) and `disambiguateToolNames` (private), plus module helpers `toolNamePart`/`renameKey`. `syncToolsForCatalog` disambiguates its own input batch. |
+| `backend/src/routes/mcp-server.ts` | Local + remote install discovery name the batch as a set. |
+| `backend/src/archestra-mcp-server/mcp-servers.ts` | Local + remote deploy discovery, same. |
+
+The decision needs the whole tool list, which `slugifyName` never sees — so it lands in the layer holding the set, and the codec is untouched.
+
+## Left unchanged, with the source that scopes it out
+
+- **`slugifyName`/`unslugifyName`** — `tool.test.ts:105` pins `[expr]`. For a server whose only fully-stripped tool is that one, `server__` is unique and working, so a codec-level fix would move a working identifier.
+- **`services/mcp-reinstall.ts:405`** — byte-identical. `mcp-reinstall.test.ts:24-29` mocks `ToolModel` with only `slugifyName` and `syncToolsForCatalog`, and `:1424-1435` asserts the exact `[expr]` it passes; the fix therefore sits one layer down, inside `syncToolsForCatalog`, which receives the same batch.
+- **`services/apps/app-mcp-backing.ts:73`** — one synthesized launch tool from the fixed `APP_LAUNCH_TOOL_NAME`, not a server's `tools/list`, and already app-id-suffixed for uniqueness (comment at `:68`). No sibling set.
+- **`tool.ts:840` `cloneToolsAndPoliciesFromCatalog`** — the suffix keys on the raw tool name alone, so `[expr]` → `unslugifyName` → `[expr]` → `[expr]` is exactly what discovery of the clone recomputes; `reconcileClonedCatalogTools` (`:945`, matching on the full slug) still confirms rather than deletes.
+- **Wire consumers** — `mcp-client.ts:2118-2157`, `mcp-server-gateway.utils.ts:60`, `mcp-server-proxy.ts:166`. Already-working names are byte-identical, so their behavior is untouched; `resolveActualToolName` keys its map by `tool.name.toLowerCase()` (`mcp-client.ts:2145`), itself lossy for exactly these pairs, so routing disambiguated names upstream would mean rekeying that map — a change to the external serving contract.
+- **`bulkCreateProxyToolsIfNotExists` (`tool.ts:2393`)** — stores the LLM-proxy name verbatim (`name: tool.name`, `:2441`); no transform runs, so this collision class doesn't exist there.
+- **Delegation tools (`tool.ts:2513`) and Archestra built-ins (`tool.ts:1176`)** — authored names, not server-exposed ones.
+
+No tests added or modified.
+
+## Changed behavior
+
+A slug only one tool in the list holds is returned untouched, including the bare `server__`. Within a colliding group, the tool whose raw name already equals its own slugified form keeps the plain slug; the others take `[expr]`. The assignment follows from the names, not from `tools/list` order, so rediscovery and reinstall reproduce it. On an existing install, the collapsed row stays with the canonical tool — keeping its policies and assignments — and the previously-dropped sibling appears as a new row.
+
+## Residual risk
+
+1. A disambiguated name does not round-trip upstream: `resolveActualToolName` won't find `foo_1a2b3c4d` in the server's live list and passes it through, so calling such a tool fails at the upstream server. These tools had no row at all before, so nothing regresses — but they are now visible and assignable while not yet callable. Closing that means rekeying the frozen name-resolution map.
+2. For a fully-stripped raw name the result is `[expr]`, and `parseFullToolName` splits it as server `srv_`. Cosmetic, affecting display/attribution (`search-tools.ts:421`, `observability/tracing/mcp.ts:155`) for these new tools only.
+3. Disambiguated names run 9 characters longer against the 128-char provider limit. Nothing truncates today either, so this is a widening of an existing gap, not a new one.
+4. Static verification only — no compile or test run was possible in this worktree.

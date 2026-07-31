@@ -1,0 +1,179 @@
+# Bench archestra-restraint-tool-slug — Baseline run 8 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent b7b56a54a40349e6.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to find where MCP tool names are converted into platform identifiers.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 10 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1549 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 76 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Read: platform/shared/utils.test.ts
+    [source removed — 77 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 170 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 193 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 86 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 90 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 101 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 116 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 113 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 107 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 133 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 61 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 69 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 151 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+Now I'll implement the fix. First, the single place tool names become identifiers:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the internal helpers at the bottom of the file:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 32 line(s)]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 42 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 66 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 102 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Implemented.
+
+## Where tool names become identifiers
+
+`ToolModel.slugifyName(…)` (`platform/backend/src/models/tool.ts:87`) is the only conversion — no other module reimplements the `[expr]` filter. Every discovery path funnels through it:
+
+| Call site | Path |
+|---|---|
+| `routes/mcp-server.ts:762`, `:924` | local / remote install discovery |
+| `archestra-mcp-server/mcp-servers.ts:1451`, `:1506` | install via the built-in MCP tool |
+| `services/mcp-reinstall.ts:406` | reinstall sync |
+| `models/tool.ts:867` | catalog-clone re-slug |
+| `clients/mcp-client.ts:2120` | prefix builder, `slugifyName(…)` |
+| `services/apps/app-mcp-backing.ts:73` | app launch tool (synthetic name, not server-exposed) |
+
+**The defect:** a name made entirely of characters outside the identifier alphabet (CJK, emoji, punctuation) survives the filter as the empty string, so every such tool on one server lands on `[expr]`. Only one row survives the `[expr]` unique index, and `unslugifyName` returns `""`, so none of them can be called.
+
+## Files changed
+
+- **`platform/backend/src/models/tool.ts`** — `slugifyName` now slugifies the server and tool components through a shared module-private `slugifyNamePart` (byte-identical output: no whitespace run can span the `__` separator, and character removal is per-character). New `ToolModel.derivedToolNameSlug` returns `[expr]` for a non-empty name that slugifies to nothing, `null` otherwise. The token depends only on the raw name, so it is stable across re-discovery and across a catalog clone's reconciliation.
+- **`platform/backend/src/clients/mcp-client.ts`** — `resolveActualToolName` also indexes each upstream tool under its derived token, so a call addressed by the token reaches the server's real name. Added only when the key is free, so a name a server really advertises always wins.
+
+Every other tool keeps its exact identifier: the new branch is reachable only when the tool slug is empty, and `[expr]` is excluded (it is how the server prefix itself is built at `mcp-client.ts:2120`, and is pinned at `tool.test.ts:105`).
+
+## Deliberately unchanged
+
+| Path | Why it is out of scope |
+|---|---|
+| Server-name component (a catalog named only in CJK yields `__tool`) | Those tools resolve today — `stripServerPrefix` matches the `__` prefix and `resolveActualToolName` maps the raw name — so renaming them violates "do not change how any already-working tool is identified or addressed". The task scopes to the tool's own name. |
+| 128-character bound in the docstring's pattern | `slugifyName` never truncates. Over-long identifiers are distinct, not shared; truncating would change identifiers of tools already stored under their full name. |
+| `shared/utils.ts:slugify` for delegation tools (`models/tool.ts:2489`) | Derived from agent names, not from a name an MCP server exposes. |
+| `ToolModel.unslugifyName` | Left a pure structural split. Decoding the token would rewrite the raw name of a tool genuinely called `[expr]`. |
+| `syncToolsForCatalog` raw-name matching (`models/tool.ts:2136`) | Keys on `rawToolName.toLowerCase()` against the stored slug, so it already misses any name with whitespace or specials (`"Generate Text"` vs stored `generate_text`) — pre-existing and independent of the collision. |
+| MCP Apps direct path (`mcp-server-gateway.utils.ts:60`, `mcp-server-proxy.ts:168`, `callToolForServer`) | Forwards `unslugifyName(…)` verbatim upstream; for these tools that is the token, not the raw name. It was equally unreachable before (the token was `""`). Fixing it needs the raw name persisted — a schema change, beyond "give each such tool a distinct identifier". |
+
+## Residual risk
+
+- No migration: a row already stored as `[expr]` stays until a reinstall sync orphans it; the next discovery creates the new distinct rows alongside it. The stale row was already unusable.
+- The derived identifier carries no hint of the original name — the description is the model's only signal for picking it.
+- 48-bit digest: a theoretical collision between two symbol-only names on one server.
+- I could not run type-check, lint, or tests — this worktree has no `node_modules` and installs/builds/tests are blocked. Verification was by reading: each pinned case in `backend/src/models/tool.test.ts` (`slugifyName`/`unslugifyName`) still yields its asserted string, and the split-component slug is equivalent to the old combined-string slug. `mcp-client.test.ts` uses the real `@/models`, and the `@/models` mock in `services/mcp-reinstall.test.ts` only needs `slugifyName`, which that module still calls.

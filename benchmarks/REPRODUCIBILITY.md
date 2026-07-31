@@ -1,6 +1,6 @@
 # Reproduction Envelope
 
-This document records the execution envelope and manual rerun procedure for the published 240-run corpus.
+This document records the execution envelope and manual rerun procedure for the published 320-run corpus.
 
 The machine-readable corpus inventory is [`manifest.json`](manifest.json).
 
@@ -9,8 +9,8 @@ The machine-readable corpus inventory is [`manifest.json`](manifest.json).
 | Dimension | Published corpus |
 |---|---|
 | Repovine | `0.1.0` |
-| Agent client | Claude Code `1.2` line; the exact per-run patch build was not retained |
-| Models | `claude-sonnet-5`, `claude-opus-4-8`, `claude-fable-5` |
+| Agent client | Claude Code CLI `2.1.*`; the exact per-run build was not retained |
+| Models | `claude-sonnet-5`, `claude-opus-4-8`, `claude-fable-5`, `claude-opus-5` |
 | Effort | Claude Code `--effort max` |
 | Sessions | one fresh session per run; `autoMemoryEnabled: false` |
 | Runs | N=10 per model–case–arm cell |
@@ -35,7 +35,7 @@ Baseline arm:
 
 ```bash
 claude -p "<task prompt>" \
-  --model <claude-opus-4-8 | claude-sonnet-5 | claude-fable-5> \
+  --model <claude-opus-4-8 | claude-sonnet-5 | claude-fable-5 | claude-opus-5> \
   --effort max \
   --strict-mcp-config \
   --dangerously-skip-permissions \
@@ -50,7 +50,7 @@ Repovine arm — the worktree holds `.mcp.json`, `.claude/`, `repovine.annots.js
 REPOVINE_ROOT="<worktree>" node <repovine>/dist/mcp/index.js status   # warm the graph
 sleep 45
 claude -p "<task prompt>" \
-  --model <claude-opus-4-8 | claude-sonnet-5 | claude-fable-5> \
+  --model <claude-opus-4-8 | claude-sonnet-5 | claude-fable-5 | claude-opus-5> \
   --effort max \
   --dangerously-skip-permissions \
   --settings '{"autoMemoryEnabled": false}' \

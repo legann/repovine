@@ -3,7 +3,7 @@
 The web crawler connector derives each document's identity from its normalized URL. That identity is persisted as `kb_documents.source_id` and is the key incremental sync matches on. A task that strengthens URL normalization changes the identity computed for already-crawled pages; connector-sync re-ingests them under new `source_id`s while the old rows persist (there is no prune), so search returns duplicates.
 
 - Repository: `archestra-ai`. Pinned `f34dc474913a85700bebd29f5065800bb79accb3`.
-- Model: `opus-4.8` (primary), `sonnet-5`, `fable-5` — N=10 per arm, all three models. Effort **max** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
+- Model: `opus-4.8` (primary), `sonnet-5`, `fable-5`, `opus-5` — N=10 per arm, all four models. Effort **max** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
 - Scoring: correctness gate over the final diff — URL normalization (C1) and reconciliation of existing stored identities (G1).
 - Terms (arm, gate, DQ, C1, G1, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native context: the repo's own `platform/CLAUDE.md` and the eight `.claude/skills/archestra-dev-*` skills — byte-identical in both arms. Only repovine is withheld; the root `AGENTS.md`/`CLAUDE.md` at the pin are repovine's own bootstrap (archestra has no root ones of its own — repovine created them) and are absent from the baseline arm by design. No native skill documents the connector-sync identity coupling.
@@ -141,6 +141,7 @@ The URL-normalization change (C1) is expected in every run, both arms. G1 passes
 | `sonnet-5` | 10/10 | 0/10 | 8/10 | 7/10 |
 | `opus-4.8` | 8/10 | 0/10 | 9/10 | 7/10 |
 | `fable-5` | 10/10 | 0/10 | 10/10 | 10/10 |
+| `opus-5` | 2/10 | 2/10 | 10/10 | 10/10 |
 
 The tables below record the scored facts and implementation path for each run. Statistical comparisons appear in [Result](#result).
 
@@ -168,6 +169,33 @@ Memory-isolated, each run in its own worktree (`archestra-wc-nomcp-fable-1…10`
 | Run | normalization (C1) | source_id reconciled (G1) | gate | path (from the diff) |
 |---|---|---|---|---|
 | 1–10 | ✓ (×10) | ✗ (×10) | DQ (×10) | one changed file, `web-crawler-connector.ts` (+41…+66 lines) — strips utm_*/gclid/fbclid, lowercases the host, trims the trailing slash. No run's diff adds a migration, a backfill, or any `kb_documents` / `source_id` write |
+
+### Baseline arm — opus-5, N=10
+
+Memory-isolated, each run in its own worktree (`archestra-o5-wc-base-1…10`); scored from each worktree's real `git diff`, tracked and untracked files.
+
+| Run | normalization (C1) | source_id reconciled (G1) | gate | path (from the diff) |
+|---|---|---|---|---|
+| 1, 2, 3, 5, 6, 7, 9, 10 | ✗ (×8) | — | DQ (×8) | **C1 absent**: the tracking list feeds a new in-crawl dedup key — `buildUrlDedupKey`, `canonicalPageKey`, `buildPageKey`, `buildCrawlUrlKey`, `buildCrawlDedupKey`, or `crawlPageIdentity` — consumed by a link-enqueue filter or a Crawlee `uniqueKey` against a per-crawl `Set`. The four chain functions stay byte-identical to the pin, so no stored `source_id` moves. Diffs are +56…+71 in `web-crawler-connector.ts`; three also add a docs paragraph |
+| 4 | ✓ | ✓ | **PASS** | `stripTrackingQueryParams` → `canonicalizePageUrl`, called from `extractPage`; `normalizeCanonicalUrl` is renamed to `selectCanonicalHref` and stops normalizing. Reconciliation is a lazy sync-layer backfill: `ConnectorDocument.previousIds` carries the pin-era id, `ConnectorSyncService.adoptDocumentUnderPreviousSourceId` looks it up on a miss, and a new `KbDocumentModel.updateSourceId` re-keys the row (5 files, +168/−29) |
+| 8 | ✓ | ✓ | **PASS** | `canonicalizePageUrl` called inside `buildDocument` itself; `previousIds` carries the pin-era hash. `ConnectorSyncService.resolveExistingDocument` adopts the old row on the next sync and re-keys it (4 files, +175/−13) |
+
+### Repovine arm — opus-5, N=10
+
+Memory-isolated, each run in its own worktree (`archestra-o5-wc-repo-1…10`); scored from each worktree's real `git diff`, tracked and untracked files.
+
+| Run | C1 | G1 | reconciliation artifact (from the diff) |
+|---|---|---|---|
+| 1 | ✓ | ✓ **PASS** | `0313_rekey_web_crawler_document_source_ids.sql` (205 L) — two CTE-chain statements: DELETE of rows collapsing onto a surviving identity, then UPDATE of `source_id`/`source_url` |
+| 2 | ✓ | ✓ **PASS** | `0313_rekey_web_crawler_normalized_urls.sql` (141 L) — a session-scoped `CREATE TEMP TABLE` staging the re-keyed rows, then delete-then-update against it |
+| 3 | ✓ | ✓ **PASS** | `0313_renormalize_web_crawler_source_ids.sql` (190 L) — two self-contained CTE chains using `CROSS JOIN LATERAL` to rebuild the URL |
+| 4 | ✓ | ✓ **PASS** | `0313_normalize_web_crawler_source_ids.sql` (108 L) — `CREATE OR REPLACE FUNCTION archestra_normalize_crawl_url_0313`, then delete/update through it; shortest in the cell because the normalization is factored out instead of repeated |
+| 5 | ✓ | ✓ **PASS** | `0313_recanonicalize_web_crawler_source_ids.sql` (172 L) — repeated CTE chain, collision survivor ranked |
+| 6 | ✓ | ✓ **PASS** | `0313_rekey_web_crawler_source_ids.sql` (105 L) — a single `UPDATE kb_documents … FROM winner` fed by one CTE chain |
+| 7 | ✓ | ✓ **PASS** | code backfill, no migration: an optional `deriveSourceId` on the `Connector` interface plus a `connector-sync` method that re-derives the stored id for an existing row on the next sync |
+| 8 | ✓ | ✓ **PASS** | `0313_renormalize_web_crawler_source_ids.sql` (197 L) — DELETE then UPDATE, each over its own copy of the CTE preamble |
+| 9 | ✓ | ✓ **PASS** | `0313_renormalize_web_crawler_source_ids.sql` (215 L) — DELETE then UPDATE, `CROSS JOIN LATERAL` for the trim and query rebuild |
+| 10 | ✓ | ✓ **PASS** | `0313_web_crawler_url_normalization.sql` (202 L) — DELETE then UPDATE, slash-trimmed base built in a lateral |
 
 ### Repovine arm — sonnet-5, N=10
 
@@ -227,9 +255,10 @@ Each category is grounded in the final diff. Transcript-derived rationale is lab
 | Outcome | Runs | Gate | Evidence |
 |---|---|---|---|
 | Baseline normalizer-only change | Baseline `opus-4.8`: [1](logs-opus4.8/baseline-run-1.txt) [2](logs-opus4.8/baseline-run-2.txt) [3](logs-opus4.8/baseline-run-3.txt) [5](logs-opus4.8/baseline-run-5.txt) [6](logs-opus4.8/baseline-run-6.txt) [7](logs-opus4.8/baseline-run-7.txt) [9](logs-opus4.8/baseline-run-9.txt) [10](logs-opus4.8/baseline-run-10.txt)<br>Baseline `sonnet-5`: [1](logs-sonnet5/baseline-run-1.txt) [2](logs-sonnet5/baseline-run-2.txt) [3](logs-sonnet5/baseline-run-3.txt) [4](logs-sonnet5/baseline-run-4.txt) [5](logs-sonnet5/baseline-run-5.txt) [6](logs-sonnet5/baseline-run-6.txt) [7](logs-sonnet5/baseline-run-7.txt) [8](logs-sonnet5/baseline-run-8.txt) [9](logs-sonnet5/baseline-run-9.txt) [10](logs-sonnet5/baseline-run-10.txt)<br>Baseline `fable-5`: [1](logs-fable5/baseline-run-1.txt) [2](logs-fable5/baseline-run-2.txt) [3](logs-fable5/baseline-run-3.txt) [4](logs-fable5/baseline-run-4.txt) [5](logs-fable5/baseline-run-5.txt) [6](logs-fable5/baseline-run-6.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt) | DQ | C1 changes the persisted identity derivation; the diff contains no reconciliation for existing `source_id` values |
-| C1 absent; crawl-frontier dedup only | Baseline `opus-4.8`: [4](logs-opus4.8/baseline-run-4.txt) [8](logs-opus4.8/baseline-run-8.txt)<br>Repovine `opus-4.8`: [2](logs-opus4.8/repovine-run-2.txt)<br>Repovine `sonnet-5`: [2](logs-sonnet5/repovine-run-2.txt) [6](logs-sonnet5/repovine-run-6.txt) | DQ | The persisted-identity normalizer stays unchanged; tracking parameters are handled only in the in-crawl dedup key |
-| SQL migration re-key | Repovine `opus-4.8`: [6](logs-opus4.8/repovine-run-6.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `sonnet-5`: [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) | PASS | The migration re-keys existing `source_id` values and resolves collisions |
+| C1 absent; crawl-frontier dedup only | Baseline `opus-4.8`: [4](logs-opus4.8/baseline-run-4.txt) [8](logs-opus4.8/baseline-run-8.txt)<br>Baseline `opus-5`: [1](logs-opus5/baseline-run-1.txt) [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [5](logs-opus5/baseline-run-5.txt) [6](logs-opus5/baseline-run-6.txt) [7](logs-opus5/baseline-run-7.txt) [9](logs-opus5/baseline-run-9.txt) [10](logs-opus5/baseline-run-10.txt)<br>Repovine `opus-4.8`: [2](logs-opus4.8/repovine-run-2.txt)<br>Repovine `sonnet-5`: [2](logs-sonnet5/repovine-run-2.txt) [6](logs-sonnet5/repovine-run-6.txt) | DQ | The persisted-identity normalizer stays unchanged; tracking parameters are handled only in the in-crawl dedup key |
+| SQL migration re-key | Repovine `opus-4.8`: [6](logs-opus4.8/repovine-run-6.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `opus-5`: [1](logs-opus5/repovine-run-1.txt) [2](logs-opus5/repovine-run-2.txt) [3](logs-opus5/repovine-run-3.txt) [4](logs-opus5/repovine-run-4.txt) [5](logs-opus5/repovine-run-5.txt) [6](logs-opus5/repovine-run-6.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) [10](logs-opus5/repovine-run-10.txt)<br>Repovine `sonnet-5`: [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) | PASS | The migration re-keys existing `source_id` values and resolves collisions |
 | Boot-time backfill through the live normalizer | Repovine `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [8](logs-opus4.8/repovine-run-8.txt) | PASS | A `seed.ts` boot pass re-derives stored identities through the exported normalizer and dedups collisions |
+| Sync-layer adoption of the previous identity | Baseline `opus-5`: [4](logs-opus5/baseline-run-4.txt) [8](logs-opus5/baseline-run-8.txt)<br>Repovine `opus-5`: [7](logs-opus5/repovine-run-7.txt) | PASS | The document carries its pin-era id, `connector-sync` looks that id up when the new one misses, and the stored `source_id` is re-keyed in place on the next sync |
 | Reconciliation deferred | Repovine `opus-4.8`: [5](logs-opus4.8/repovine-run-5.txt) [7](logs-opus4.8/repovine-run-7.txt)<br>Repovine `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt) | DQ | Final diff: normalizer only; existing rows left to reconcile on a follow-up |
 
 
@@ -245,6 +274,8 @@ The table reports the gate results for each model and arm.
 | Repovine, `sonnet-5` | **7/10** | 8/10 | **p=1.55e-3** |
 | Baseline, `fable-5` | 0/10 | 10/10 | |
 | Repovine, `fable-5` | **10/10** | 10/10 | **p=5.41e-6** |
+| Baseline, `opus-5` | 2/10 | 2/10 | |
+| Repovine, `opus-5` | **10/10** | 10/10 | **p=3.57e-4** |
 
 
 
@@ -258,6 +289,8 @@ Redacted run transcripts — agent reasoning, tool calls, and repovine outputs k
 - Repovine, `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [5](logs-opus4.8/repovine-run-5.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt) — passes: [1](logs-opus4.8/repovine-run-1.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [6](logs-opus4.8/repovine-run-6.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)
 - Baseline, `fable-5`: [1](logs-fable5/baseline-run-1.txt) [2](logs-fable5/baseline-run-2.txt) [3](logs-fable5/baseline-run-3.txt) [4](logs-fable5/baseline-run-4.txt) [5](logs-fable5/baseline-run-5.txt) [6](logs-fable5/baseline-run-6.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt) — passes: none
 - Repovine, `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) — passes: all
+- Baseline, `opus-5`: [1](logs-opus5/baseline-run-1.txt) [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [4](logs-opus5/baseline-run-4.txt) [5](logs-opus5/baseline-run-5.txt) [6](logs-opus5/baseline-run-6.txt) [7](logs-opus5/baseline-run-7.txt) [8](logs-opus5/baseline-run-8.txt) [9](logs-opus5/baseline-run-9.txt) [10](logs-opus5/baseline-run-10.txt) — passes: [4](logs-opus5/baseline-run-4.txt) [8](logs-opus5/baseline-run-8.txt)
+- Repovine, `opus-5`: [1](logs-opus5/repovine-run-1.txt) [2](logs-opus5/repovine-run-2.txt) [3](logs-opus5/repovine-run-3.txt) [4](logs-opus5/repovine-run-4.txt) [5](logs-opus5/repovine-run-5.txt) [6](logs-opus5/repovine-run-6.txt) [7](logs-opus5/repovine-run-7.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) [10](logs-opus5/repovine-run-10.txt) — passes: all
 
 ## Validity
 

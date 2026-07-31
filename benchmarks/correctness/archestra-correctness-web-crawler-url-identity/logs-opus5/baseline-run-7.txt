@@ -1,0 +1,266 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 7 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent f0c03eb0fd3f41f6.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the connector to understand the current normalization and how normalized URLs are persisted.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+Let me explore how the connector's documents are persisted and read back.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/source-access-control.ts
+    [source removed — 204 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 76 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 71 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 340 line(s)]
+
+Let me check the test helpers and whether any path prunes/re-creates documents on re-sync.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 126 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 41 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 61 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 300 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 61 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+Now I'll implement the patch. First the constants:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the two `crawler.run` call sites and link enqueueing:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the normalization helpers themselves:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 6 line(s)]
+
+Installs/tests are blocked in this worktree, so I'll verify the types statically against the pinned Crawlee typings:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 120 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me verify the new normalization logic and formatting constraints statically:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 39 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 30 line(s)]
+
+Implementation complete. Here's the report.
+
+## 1. What changed
+
+One file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`
+
+| Hunk | Change |
+|---|---|
+| `:49-53` | `TRACKING_QUERY_PARAM_PREFIX` (`utm_`) + `TRACKING_QUERY_PARAMS` (`gclid`, `fbclid`) |
+| `:647-670` | `buildCrawlDedupKey()` / `isTrackingQueryParam()` — canonicalizes a URL: strips tracking params, sorts the rest, drops a trailing slash on non-root paths, inherits fragment + default-port stripping from `normalizeCrawlUrl` |
+| `:630-633` | `buildCrawlRequest()` — pairs the request URL with its canonical key |
+| `:126`, `:167` | start URL enters the queue as `[expr]` |
+| `:421-430` | discovered links get the same `uniqueKey` via `transformRequestFunction` |
+| `:609-617` | `normalizeCrawlUrl` doc comment: it is the requested/stored URL, and `new URL` already lowercases the host |
+
+The canonical form is the crawl queue's identity key, so variants collapse to **one fetch and therefore one document**. Verified: eight variants of `https://docs.example.com/guide` (utm_*, `UTM_SOURCE`, `gclid`, `fbclid`, trailing slash, mixed-case host, `:443`, `[expr]`) → one key; five genuinely-distinct URLs → five keys.
+
+## 2. Deliberately unchanged
+
+**Document identity — `normalizeCanonicalUrl` (`:592-607`) and `buildDocument` (`:456-465`).** `[expr]` is persisted verbatim as `kb_documents.source_id`: written at `connector-sync.ts:504`, and it is the only key the next sync matches on (`connector-sync.ts:419-422`), under a unique index (`database/schemas/kb-document.ts:44`). Nothing prunes rows whose source disappears — `ingestDocument` only inserts or updates, and `KbDocumentModel.deleteByConnectorAndSourceId` (`models/kb-document.ts:332`) has no non-test caller. A canonicalized id would therefore insert a **second** row for every already-indexed page while the original kept being served. It is also pinned by tests I must not touch: `web-crawler-connector.test.ts:163-166` (`sourceUrl`), `:175` (`metadata.url`), `:178-180` (`id` hash), `:271`, `:317`, `:667` all assert trailing slashes survive.
+
+**The requested URL (`normalizeCrawlUrl`, `:618-628`) — semantics untouched, comment only.** It feeds both the wire request and the identity above. A trailing slash can address a different resource server-side, so rewriting it risks 404s on directory URLs. The default-port branch is kept as instructed; note `new URL` already drops `:80`/`:443` (`http://h:80/` → `http://h/`), so that branch is unreachable — dead but harmless.
+
+**Crawl-scope logic — `isAllowedUrl` (`:527`), `isPathInScope` (`:562`).** Exclude patterns are user-authored regexes matched against ``[expr]`${pathname}${search}`[expr]``[expr]`:562`[expr]`\?utm_source`or`/docs/$` match, i.e. change which pages are in scope.
+
+**Redirect handling (`:230-256`).** `got` follows redirects internally, so targets never become queue entries and need no key; origin/scope/SSRF checks stay on the real target.
+
+**`connector-sync.ts` and the `ConnectorDocument` type.** Untouched — no legacy-id fallback added; that is cross-connector machinery, and the constraint bars the tests it would need.
+
+## 3. Behavior, and residual risk
+
+Net effect: a page reachable through several trivially-different URLs is fetched and indexed once per crawl. Crawlee's default `uniqueKey` already normalized part of this (`@apify/utilities` `normalizeUrl` strips `[expr]`, sorts params, lowercases the host, drops one trailing slash), so the **net new** collapsing is `gclid`/`fbclid` and repeated trailing separators — plus the rule now lives in our code instead of a transitive dependency's default.
+
+Risks:
+- **Retired duplicates linger.** Where two variants were previously indexed as two rows, only one is refreshed now; the other stays in `kb_documents` (no prune path) and keeps serving stale content. Remedy is operator-triggered: `POST /api/connectors/:id/force-resync` (`routes/knowledge-base.ts:1039`, deletes documents at `:1074`).
+- **Stored URLs are not canonical.** A page linked only as `[expr]` is still stored under that URL, and which variant wins is discovery-order dependent — a pre-existing wrinkle, not introduced here. Canonicalizing stored URLs needs a `source_id` backfill (or a legacy-id fallback in `ingestDocument`); deliberately out of scope given the constraint above.
+- **Verification is static.** This worktree is intentionally not bootstrapped (`pnpm` shim blocks install/type-check/test), so I could not run vitest or Biome. I instead read the pinned `[expr]` sources to confirm `transformRequestFunction` runs on `urls`-built options before `createRequests` and that `[expr]` and `Request` preserve a supplied `uniqueKey` (memory storage keys entries by `uniqueKeyToRequestId(…)`), checked `RequestOptions`/`RequestTransform`/`RequestsLike` typings, executed the key logic standalone in Node, confirmed no key collisions among every URL the test suite serves, and kept added lines ≤80 columns.

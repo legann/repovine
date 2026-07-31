@@ -3,7 +3,7 @@
 A migration normalizes a rule's `params.severity` value. The same value is stored in the searchable `mapped_params` projection used by the rule-find route. A transform that updates only `params.severity` leaves `mapped_params.severity` stale. Find, sort, and filter operations then use the stale value.
 
 - Repository: `elastic/kibana` — a large monorepo (~90k TS/TSX files, ~1,400 plugins). Pinned `68df830b2849a4b8e53114d621906b81fdbca99f` (`origin/main`, 2026-06-21).
-- Model: `opus-4.8` (primary), `sonnet-5`, and `fable-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
+- Model: `opus-4.8` (primary), `sonnet-5`, `fable-5`, and `opus-5`, N=10 per arm. Effort **max** on every run. Memory-isolated per run (`autoMemoryEnabled: false`).
 - Scoring: correctness gate over the final diff — severity normalization (C1) and recomputation of the stored projection (G1).
 - Terms (arm, gate, DQ, C1, G1, Frozen): [METHODOLOGY.md](../../METHODOLOGY.md#terms)
 - Baseline native skills: kibana's own `.claude/skills/*` — ~30 skills (`encrypted-saved-objects`, `task-manager-registration`, `api-authz`, `scout-*`, …) plus AGENTS.md/CLAUDE.md; only repovine is withheld. No native skill documents the `mapped_params` projection.
@@ -152,6 +152,7 @@ The severity-normalize migration (C1) is expected in every run, both arms. G1 pa
 | `sonnet-5` | 10/10 | 0/10 | 10/10 | 7/10 |
 | `opus-4.8` | 10/10 | 0/10 | 10/10 | 7/10 |
 | `fable-5` | 10/10 | 0/10 | 10/10 | 10/10 |
+| `opus-5` | 10/10 | 0/10 | 10/10 | 6/10 |
 
 The tables below record the scored facts and implementation path for each run. Statistical comparisons appear in [Result](#result).
 
@@ -239,6 +240,29 @@ Memory-isolated run series, N=10, each run in its own worktree (`kibana-mcp-mpm-
 | 9 | ✓ | ✓ | pass | recompute `mapped_params` via `getMappedParams` — full recompute |
 | 10 | ✓ | ✓ | pass | recompute `mapped_params` via `getMappedParams` — full recompute |
 
+### Baseline arm — opus-5
+
+Memory-isolated run series, N=10, each run in its own worktree (`kibana-o5-mpm-base-1…10`); scored from each run's real `git diff`.
+
+| Run | migration (C1) | mapped_params recomputed | gate (G1) | path |
+|---|---|---|---|---|
+| 1–10 | ✓ (×10) | ✗ (×10) | DQ (×10) | model version `'14'` via `createModelVersion`, nine runs inline in `rule_model_versions.ts` and one in its own file; a new pass-through `raw_rule/v14.ts` in every run. Seven runs pin a hand-copied registration snapshot carrying the projection in the AAD list; none writes the projection |
+### Repovine arm — opus-5
+
+Memory-isolated run series, N=10, each run in its own worktree (`kibana-o5-mpm-repo-1…10`); warm graph, live MCP.
+
+| Run | migration (C1) | mapped_params recomputed | gate (G1) | how (from the diff) |
+|---|---|---|---|---|
+| 1 | ✓ | ✗ | DQ | migration only; the pinned registration snapshot carries the projection in its AAD list |
+| 2 | ✓ | ✓ | pass | recompute `mapped_params.severity` via `getModifiedValue` |
+| 3 | ✓ | ✗ | DQ | migration plus a `constants.ts` extraction of the type names and attribute lists |
+| 4 | ✓ | ✓ | pass | recompute `mapped_params.severity` via `getModifiedValue` |
+| 5 | ✓ | ✗ | DQ | migration only; registration hoisted into a local const |
+| 6 | ✓ | ✓ | pass | recompute `mapped_params.severity` via `getModifiedValue`, only when a projection is stored |
+| 7 | ✓ | ✗ | DQ | migration only; the projection is named in a comment and left as stored |
+| 8 | ✓ | ✓ | pass | recompute `mapped_params.severity` via `getModifiedValue`, only when a projection is stored |
+| 9 | ✓ | ✓ | pass | recompute `mapped_params.severity` via `getModifiedValue` |
+| 10 | ✓ | ✓ | pass | own migration file; recompute of the whole `mapped_params` projection via `getMappedParams` |
 ## Result
 
 The table reports the gate results for each model and arm.
@@ -251,6 +275,8 @@ The table reports the gate results for each model and arm.
 | Repovine, `sonnet-5` | 7/10 | 10/10 | p=0.00155 (vs baseline 0/10) |
 | Baseline, `fable-5` | 0/10 | 10/10 | |
 | Repovine, `fable-5` | 10/10 | 10/10 | p=5.41e-6 (vs baseline 0/10) |
+| Baseline, `opus-5` | 0/10 | 10/10 | |
+| Repovine, `opus-5` | 6/10 | 10/10 | p=0.00542 (vs baseline 0/10) |
 
 ## Observed outcome patterns
 
@@ -258,12 +284,12 @@ Each category is grounded in the final diff. Transcript-derived rationale is lab
 
 | Outcome | Runs | Gate | Evidence |
 |---|---|---|---|
-| Baseline params-only migration | Baseline `opus-4.8`: [1](logs-opus4.8/baseline-run-1.txt) [2](logs-opus4.8/baseline-run-2.txt) [3](logs-opus4.8/baseline-run-3.txt) [4](logs-opus4.8/baseline-run-4.txt) [5](logs-opus4.8/baseline-run-5.txt) [6](logs-opus4.8/baseline-run-6.txt) [7](logs-opus4.8/baseline-run-7.txt) [8](logs-opus4.8/baseline-run-8.txt) [9](logs-opus4.8/baseline-run-9.txt) [10](logs-opus4.8/baseline-run-10.txt)<br>Baseline `sonnet-5`: [1](logs-sonnet5/baseline-run-1.txt) [2](logs-sonnet5/baseline-run-2.txt) [3](logs-sonnet5/baseline-run-3.txt) [4](logs-sonnet5/baseline-run-4.txt) [5](logs-sonnet5/baseline-run-5.txt) [6](logs-sonnet5/baseline-run-6.txt) [7](logs-sonnet5/baseline-run-7.txt) [8](logs-sonnet5/baseline-run-8.txt) [9](logs-sonnet5/baseline-run-9.txt) [10](logs-sonnet5/baseline-run-10.txt)<br>Baseline `fable-5`: [1](logs-fable5/baseline-run-1.txt) [2](logs-fable5/baseline-run-2.txt) [3](logs-fable5/baseline-run-3.txt) [4](logs-fable5/baseline-run-4.txt) [5](logs-fable5/baseline-run-5.txt) [6](logs-fable5/baseline-run-6.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt) | DQ | The diff lowercases `params.severity` and leaves the stored `mapped_params` projection unchanged |
-| Full projection recompute | Repovine `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [7](logs-opus4.8/repovine-run-7.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `fable-5`: [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) | PASS | The transform calls `getMappedParams` and writes the complete projection |
-| Severity projection recompute through repository mapping | Repovine `opus-4.8`: [2](logs-opus4.8/repovine-run-2.txt) [6](logs-opus4.8/repovine-run-6.txt)<br>Repovine `sonnet-5`: [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [8](logs-sonnet5/repovine-run-8.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [7](logs-fable5/repovine-run-7.txt) | PASS | The transform writes `mapped_params.severity` through `getModifiedValue`, which uses the repository projection map |
+| Baseline params-only migration | Baseline `opus-4.8`: [1](logs-opus4.8/baseline-run-1.txt) [2](logs-opus4.8/baseline-run-2.txt) [3](logs-opus4.8/baseline-run-3.txt) [4](logs-opus4.8/baseline-run-4.txt) [5](logs-opus4.8/baseline-run-5.txt) [6](logs-opus4.8/baseline-run-6.txt) [7](logs-opus4.8/baseline-run-7.txt) [8](logs-opus4.8/baseline-run-8.txt) [9](logs-opus4.8/baseline-run-9.txt) [10](logs-opus4.8/baseline-run-10.txt)<br>Baseline `sonnet-5`: [1](logs-sonnet5/baseline-run-1.txt) [2](logs-sonnet5/baseline-run-2.txt) [3](logs-sonnet5/baseline-run-3.txt) [4](logs-sonnet5/baseline-run-4.txt) [5](logs-sonnet5/baseline-run-5.txt) [6](logs-sonnet5/baseline-run-6.txt) [7](logs-sonnet5/baseline-run-7.txt) [8](logs-sonnet5/baseline-run-8.txt) [9](logs-sonnet5/baseline-run-9.txt) [10](logs-sonnet5/baseline-run-10.txt)<br>Baseline `fable-5`: [1](logs-fable5/baseline-run-1.txt) [2](logs-fable5/baseline-run-2.txt) [3](logs-fable5/baseline-run-3.txt) [4](logs-fable5/baseline-run-4.txt) [5](logs-fable5/baseline-run-5.txt) [6](logs-fable5/baseline-run-6.txt) [7](logs-fable5/baseline-run-7.txt) [8](logs-fable5/baseline-run-8.txt) [9](logs-fable5/baseline-run-9.txt) [10](logs-fable5/baseline-run-10.txt)<br>Baseline `opus-5`: [1](logs-opus5/baseline-run-1.txt) [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [4](logs-opus5/baseline-run-4.txt) [5](logs-opus5/baseline-run-5.txt) [6](logs-opus5/baseline-run-6.txt) [7](logs-opus5/baseline-run-7.txt) [8](logs-opus5/baseline-run-8.txt) [9](logs-opus5/baseline-run-9.txt) [10](logs-opus5/baseline-run-10.txt) | DQ | The diff lowercases `params.severity` and leaves the stored `mapped_params` projection unchanged |
+| Full projection recompute | Repovine `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [7](logs-opus4.8/repovine-run-7.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)<br>Repovine `fable-5`: [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt)<br>Repovine `opus-5`: [10](logs-opus5/repovine-run-10.txt) | PASS | The transform calls `getMappedParams` and writes the complete projection |
+| Severity projection recompute through repository mapping | Repovine `opus-4.8`: [2](logs-opus4.8/repovine-run-2.txt) [6](logs-opus4.8/repovine-run-6.txt)<br>Repovine `sonnet-5`: [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [8](logs-sonnet5/repovine-run-8.txt)<br>Repovine `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [7](logs-fable5/repovine-run-7.txt)<br>Repovine `opus-5`: [2](logs-opus5/repovine-run-2.txt) [4](logs-opus5/repovine-run-4.txt) [6](logs-opus5/repovine-run-6.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) | PASS | The transform writes `mapped_params.severity` through `getModifiedValue`, which uses the repository projection map |
 | Local projection-map copy | Repovine `opus-4.8`: [5](logs-opus4.8/repovine-run-5.txt)<br>Repovine `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt)<br>Repovine `fable-5`: [6](logs-fable5/repovine-run-6.txt) [8](logs-fable5/repovine-run-8.txt) | PASS | The transform copies the repository severity map and writes the matching projected value; the copied map carries drift risk |
-| Projection discussed, then omitted | Repovine `opus-4.8`: [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt)<br>Repovine `sonnet-5`: [10](logs-sonnet5/repovine-run-10.txt) | DQ | Final diff: no projection write. Transcript rationale reaches the coupling and drops it before the final diff |
-| Projection explicitly left stale | Repovine `opus-4.8`: [8](logs-opus4.8/repovine-run-8.txt)<br>Repovine `sonnet-5`: [7](logs-sonnet5/repovine-run-7.txt) [9](logs-sonnet5/repovine-run-9.txt) | DQ | The final diff contains a code comment that classifies projection recomputation as outside scope or deferred until a later write |
+| Projection discussed, then omitted | Repovine `opus-4.8`: [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt)<br>Repovine `sonnet-5`: [10](logs-sonnet5/repovine-run-10.txt)<br>Repovine `opus-5`: [1](logs-opus5/repovine-run-1.txt) [3](logs-opus5/repovine-run-3.txt) [5](logs-opus5/repovine-run-5.txt) | DQ | Final diff: no projection write. Transcript rationale reaches the coupling and drops it before the final diff |
+| Projection explicitly left stale | Repovine `opus-4.8`: [8](logs-opus4.8/repovine-run-8.txt)<br>Repovine `sonnet-5`: [7](logs-sonnet5/repovine-run-7.txt) [9](logs-sonnet5/repovine-run-9.txt)<br>Repovine `opus-5`: [7](logs-opus5/repovine-run-7.txt) | DQ | The final diff contains a code comment that classifies projection recomputation as outside scope or deferred until a later write |
 
 
 
@@ -277,6 +303,8 @@ Redacted run transcripts — agent reasoning, tool calls, and repovine outputs k
 - Repovine, `opus-4.8`: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [3](logs-opus4.8/repovine-run-3.txt) [4](logs-opus4.8/repovine-run-4.txt) [5](logs-opus4.8/repovine-run-5.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [8](logs-opus4.8/repovine-run-8.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt) — passes: [1](logs-opus4.8/repovine-run-1.txt) [2](logs-opus4.8/repovine-run-2.txt) [5](logs-opus4.8/repovine-run-5.txt) [6](logs-opus4.8/repovine-run-6.txt) [7](logs-opus4.8/repovine-run-7.txt) [9](logs-opus4.8/repovine-run-9.txt) [10](logs-opus4.8/repovine-run-10.txt)
 - Repovine, `sonnet-5`: [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [7](logs-sonnet5/repovine-run-7.txt) [8](logs-sonnet5/repovine-run-8.txt) [9](logs-sonnet5/repovine-run-9.txt) [10](logs-sonnet5/repovine-run-10.txt) — passes: [1](logs-sonnet5/repovine-run-1.txt) [2](logs-sonnet5/repovine-run-2.txt) [3](logs-sonnet5/repovine-run-3.txt) [4](logs-sonnet5/repovine-run-4.txt) [5](logs-sonnet5/repovine-run-5.txt) [6](logs-sonnet5/repovine-run-6.txt) [8](logs-sonnet5/repovine-run-8.txt)
 - Repovine, `fable-5`: [1](logs-fable5/repovine-run-1.txt) [2](logs-fable5/repovine-run-2.txt) [3](logs-fable5/repovine-run-3.txt) [4](logs-fable5/repovine-run-4.txt) [5](logs-fable5/repovine-run-5.txt) [6](logs-fable5/repovine-run-6.txt) [7](logs-fable5/repovine-run-7.txt) [8](logs-fable5/repovine-run-8.txt) [9](logs-fable5/repovine-run-9.txt) [10](logs-fable5/repovine-run-10.txt) — passes: all
+- Baseline, `opus-5`: [1](logs-opus5/baseline-run-1.txt) [2](logs-opus5/baseline-run-2.txt) [3](logs-opus5/baseline-run-3.txt) [4](logs-opus5/baseline-run-4.txt) [5](logs-opus5/baseline-run-5.txt) [6](logs-opus5/baseline-run-6.txt) [7](logs-opus5/baseline-run-7.txt) [8](logs-opus5/baseline-run-8.txt) [9](logs-opus5/baseline-run-9.txt) [10](logs-opus5/baseline-run-10.txt) — passes: none
+- Repovine, `opus-5`: [1](logs-opus5/repovine-run-1.txt) [2](logs-opus5/repovine-run-2.txt) [3](logs-opus5/repovine-run-3.txt) [4](logs-opus5/repovine-run-4.txt) [5](logs-opus5/repovine-run-5.txt) [6](logs-opus5/repovine-run-6.txt) [7](logs-opus5/repovine-run-7.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) [10](logs-opus5/repovine-run-10.txt) — passes: [2](logs-opus5/repovine-run-2.txt) [4](logs-opus5/repovine-run-4.txt) [6](logs-opus5/repovine-run-6.txt) [8](logs-opus5/repovine-run-8.txt) [9](logs-opus5/repovine-run-9.txt) [10](logs-opus5/repovine-run-10.txt)
 
 ## Validity
 

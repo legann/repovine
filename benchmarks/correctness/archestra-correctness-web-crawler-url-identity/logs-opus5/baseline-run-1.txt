@@ -1,0 +1,176 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 1 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent d64e7d027cc141d3.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by examining the web crawler connector and understanding how URLs flow through the system.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+Now let me trace how document IDs and sync results are persisted and served — that's where the "already indexed" constraint lives.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 37 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+Documents are keyed by `[expr]` where `[expr]` (`connector-sync.ts:419-422`, `web-crawler-connector.ts:444-446`). That makes the ID hash the critical compatibility surface. Let me check for stale-document pruning and other consumers of these IDs.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [source removed — 220 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+No stale-document pruning exists in the sync path, so an ID change orphans rows permanently. Let me check the pinned test expectations, the document type, and how this repo does data migrations.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 66 line(s)]
+
+The test at line 178 pins a document ID hash. Let me read it closely — my change must not break it.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 210 line(s)]
+
+The tests pin `sourceUrl`, `metadata.url`, and the ID hash to trailing-slash forms (`/docs/`, `/docs/install/`). Let me read the test helpers and remaining expectations to map the full contract I must preserve.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+Decisive constraint found: tests pin the *fetched* request URL (`itemId`, line 203/522) and the *stored* URL (line 317-318, 667-668) to trailing-slash forms. Let me read the remaining tests and check Crawlee's dedup-key API.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 200 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+No `node_modules` (can't run tests), so I'll favor plain-JS mechanisms I can verify by reading. Let me check the config schema's URL handling and look for any other copy of this normalization.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+Let me verify the remaining untested-by-me region of the test file before writing code.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 120 line(s)]
+
+Now I'll implement. First, the tracking-parameter set, following the existing sorted-`Set` style of `BLOCKED_HOST_RANGES`:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the normalization helper itself, composed on top of the existing `normalizeCrawlUrl`:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the per-crawl seen-set through the frontier:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now let me validate the normalization semantics by running the exact helper logic standalone (no `node_modules` needed for pure URL code):
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 25 line(s)]
+
+All rules collapse correctly while the fetched/stored form is untouched. Let me syntax-check the modified TypeScript and review the final diff:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 106 line(s)]
+
+The diff is minimal and self-contained. Let me try to actually run the connector's test suite:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 5 line(s)]
+
+Installs and tests are blocked in this worktree by design, so I finalized from static reading plus the standalone logic run above. Let me capture exact line numbers for the scope report:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+## What I changed
+
+**One file:** `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts` (+57/−1).
+
+All four rules are implemented in a new `buildUrlDedupKey` (`:636`), composed on top of the existing `normalizeCrawlUrl` so default-port stripping stays the single source of truth. It is applied as a **comparison key** for the crawl frontier (`:204`, `:431`), not as a rewrite of the URL that gets fetched or stored.
+
+That split is forced by the "already indexed documents must keep working" constraint. Document identity is `sha256(…)` (`web-crawler-connector.ts:462`), looked up as `[expr]` (`connector-sync.ts:419-421`), and **nothing in the sync path prunes rows that a later crawl no longer emits** — I searched for prune/stale/orphan logic and there is none. So rewriting the stored URL would change the hash for every page whose URL ends in `/` or carries a `[expr]` param, creating a duplicate row on the next sync while the old row lingers forever, frozen at its last-synced content and still being served. Applying the rules to the fetched URL is separately unsafe: `/a` and `/a/` are distinct resources per HTTP, so a rewritten request can 404.
+
+The repo already has this exact pattern — `normalizeBaseUrl` (`connection-setup.routes.ts:783`) builds a "normalized comparable form" for comparison only, lowercasing host and stripping trailing slashes.
+
+The pinned tests independently confirm this reading: they fix `sourceUrl`/`metadata.url` (`test:163-166`, `:317-318`, `:667-668`), the ID hash (`:178-180`), the fetched URL via `itemId` (`:203`, `:522`), and the title fallback (`:548`) to trailing-slash forms like `/docs/` and `/docs/install/`. A naive rewrite breaks all of those, and I was told not to modify tests.
+
+## Deliberately left unchanged
+
+| Path | Proof it's out of scope |
+|---|---|
+| `normalizeCrawlUrl` — fetched/stored form | `:462` hashes it into the document ID; `connector-sync.ts:419-421` keys rows on it with no prune path |
+| `normalizeCanonicalUrl` (`:598`) | Feeds the same identity hash; also pinned at `test:178-180` |
+| Redirect target `loadedUrl` not added to the seen-set (`:278`, `:291`) | Crawlee dedupes on request URL, not `loadedUrl`; pre-existing, unrelated to URL normalization |
+| `WebCrawlerConfigSchema.startUrl` (`knowledge-connector.ts:348-355`) | Only `ensureProtocol` + validation refinements; normalization belongs at crawl time, where both start URL and discovered links pass through |
+| `normalizeBaseUrl` (`connection-setup.routes.ts:783`) | API base URLs for connection setup; rejects any URL with a query or fragment, so tracking params can't reach it |
+| `normalizeDataUrlMediaType` (`prepare-for-provider.ts:392`) | Chat data-URL media types, not crawl URLs |
+| Other 17 connectors | They build their own IDs; `registry.ts:34` is the only web-crawler wiring |
+
+## Behavior change
+
+Discovered links are claimed once per crawl by comparable form, so URLs differing only by tracking params (`utm_source`/`utm_medium`/`utm_campaign`/`utm_term`/`utm_content`/`gclid`/`fbclid`, case-insensitive), a trailing slash on a non-root path, host casing, a default port, or a fragment are fetched and indexed once instead of N times. Non-tracking query params, paths, ports, schemes, and hosts still distinguish pages. Every already-indexed document keeps its exact `sourceId`, `sourceUrl`, and `metadata.url`, so nothing is orphaned and no backfill is needed.
+
+Host lowercasing is explicit in the helper for the stated contract, though `new URL` already lowercases http/https hosts — it is intent, not a behavior change.
+
+**Verification:** installs and tests are blocked in this worktree (the `pnpm` shim refuses: not bootstrapped, no `node_modules`), so I could not run vitest, biome, or tsc. I extracted the two helpers verbatim and ran them under Node: all nine equivalence groups collapse to one key, all seven must-stay-distinct pairs stay distinct, and `http://127.0.0.1:PORT/docs/` still fetches/stores as `/docs/`. I traced each pinned test by hand against the new filter chain; none of their link sets change.
+
+**Residual risk.** A site that serves genuinely different content at `/a` and `/a/`, or that uses a tracking-param name as a real router key, will now have one of the two variants skipped; its previously-indexed row survives and is still served, but goes stale. For a page with no `[expr]`, the stored URL is whichever variant is discovered first — deterministic for fixed markup, but if the site reorders its links so the other variant is seen first, that page's canonical URL and therefore its ID changes, creating a new row and orphaning the old one. Narrow, and unreachable for pages that declare `[expr]`. Per repo convention #5 a behavior change like this would normally get a test pinning it; the task explicitly forbade adding tests, so I'm flagging the gap rather than silently skipping it.

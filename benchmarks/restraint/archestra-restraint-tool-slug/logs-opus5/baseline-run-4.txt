@@ -1,0 +1,230 @@
+# Bench archestra-restraint-tool-slug — Baseline run 4 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent 7c232fb005694c6b.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to find where MCP tool names are converted into identifiers.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 170 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 91 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 193 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 95 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 161 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 285 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 83 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 181 line(s)]
+
+Found the collision source. Let me check for other name→identifier code paths before implementing.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 115 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 96 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 155 line(s)]
+
+Now implementing the fix in the single minting function:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 45 line(s)]
+
+Now the module-private helpers at the bottom of the file, per the file's layout:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 22 line(s)]
+
+All invariants hold. Now running the real test suite and type checks.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s); non-zero exit]
+
+Tests can't run in this worktree (no node_modules), so I'll verify statically.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 81 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 70 line(s)]
+
+One correction needed — the docstring I wrote asserts a uniqueness guarantee that the schema doesn't actually enforce for MCP tools:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 36 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 46 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+Implementation done. Here's the report.
+
+## Where tool names become identifiers
+
+`ToolModel.slugifyName(…)` — `platform/backend/src/models/tool.ts:95` — is the **only** function that turns an MCP server's tool name into the platform identifier. Every row-creating path funnels through it:
+
+| Caller | Path |
+|---|---|
+| `routes/mcp-server.ts:762`, `:924` | local / remote install discovery |
+| `archestra-mcp-server/mcp-servers.ts:1451`, `:1506` | deploy-time discovery via the built-in MCP tool |
+| `services/mcp-reinstall.ts:406` | reinstall / refresh → `syncToolsForCatalog` |
+| `models/tool.ts:865` | catalog clone (re-mints via `unslugifyName`) |
+| `services/apps/app-mcp-backing.ts:73` | app launch tool (fixed `APP_LAUNCH_TOOL_NAME`) |
+| `clients/mcp-client.ts:2120` | `stripServerPrefix` — prefix only, empty tool name |
+
+The collision: the `[expr]` filter drops characters, so `get.user` and `getuser` both mint `srv__getuser`, and any two non-Latin names both mint `srv__`. Tools are addressed by name alone (`ToolModel.findByNameForAgent`, `tool.ts:502`, `limit(…)`, no ordering), so the colliding tools are indistinguishable and all but one are unreachable.
+
+## Changed
+
+`platform/backend/src/models/tool.ts` only (+58/−4): `slugifyName` now slugifies the server and tool parts separately (provably identical output, since the `__` separator prevents whitespace runs from spanning them) and appends an 8-hex djb2 hash of the folded tool name **only when the charset filter actually dropped something**. Three module-private helpers at the file's helper section: `foldToolNamePart`, `dropRejectedToolNameChars`, `shortToolNameHash`. No tests touched, no schema change.
+
+## Deliberately unchanged
+
+| Path | Proof it's out of scope |
+|---|---|
+| Server-name half of the slug | `[expr]` pin stripped server slugs verbatim (`server_production`, `my-server`); `mcp-client.ts:2120` rebuilds the prefix with `slugifyName(…)` at call time |
+| Case folding (`ListRepos`/`listrepos`) | `tool.test.ts:49` pins lowercasing; `McpClient.resolveActualToolName` (`mcp-client.ts:2134`) resolves upstream names case-insensitively by design |
+| Whitespace folding | `[expr]` pin whitespace → underscore |
+| Empty tool name → `server__` | `tool.test.ts:105`, and `stripServerPrefix` depends on that exact shape |
+| `[expr]` | mints names from *agent* names (`tool.ts:2489`, `:2630`; `delegation.ts:111`), not from a name an MCP server exposes |
+| `makeSyntheticResourceToolName` (`mcp-client.ts:3756`) | mints from a resource *URI* in the no-`tools/list` fallback (`:2863`); its output is already charset-clean, so it passes through unchanged |
+| A2A skill ids (`a2a.ts:145`, `a2a-v2.ts:130`) | agent name → skill id, not a tool identifier |
+| `syncToolsForCatalog` raw-name match (`tool.ts:2160`) | keys on the raw upstream name; for mangled names it misses identically before and after (`tool@name` vs `toolname` → vs `toolname_8c3ca544`) |
+
+## Residual risk
+
+- **Existing mangled rows re-mint.** A stored `srv__getuser` for upstream `get.user` becomes `srv__getuser_fb02d7d2` at the next discovery; its guardrail policies and agent assignments do not follow (sync's raw-name match already missed for these names, so they already churned). No *working* tool moves — the pinned tests plus a cross-product of clean names show zero drift.
+- **Still not invocable upstream.** A mangled-name tool now has its own identity but the call path (`resolveActualToolName`) still can't map the slug back to `get.user`; that needs the raw name persisted, which is a schema change beyond "distinct identifier".
+- **32-bit hash collision** between two mangled names in one catalog degrades to today's shared-slug behavior, no corruption.
+- **Length:** the suffix adds ≤9 chars; this tree enforces no length cap anywhere, so a near-128-char name could cross the provider limit.
+
+Verification caveat: this worktree has no `node_modules`, so vitest/tsc/biome could not run. I re-implemented the old and new algorithms in Node and diffed them across the 10 pinned `slugifyName` cases (all match), a 48-case cross-product of charset-clean names (zero drift), the collision groups (2/4 → 4/4 and 1/3 → 3/3 distinct), and the clone re-slug round trip (stable).
