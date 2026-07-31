@@ -16,7 +16,7 @@ Together, these layers support **intent-driven, context-compiled, contract-verif
 
 **Checkout-local by design.** The live graph and indexes are built from each checkout's working tree and run in memory. Configuration and authored knowledge travel through Git. No database is required.
 
-**Benchmarks.** Across correctness and restraint tasks drawn from large public software repositories, **90% of Repovine runs** passed their case-specific diff gate, compared with **12.5% of baseline runs**. [Explore the results](https://github.com/legann/repovine/blob/main/benchmarks/README.md).
+**Benchmarks.** Across correctness and restraint tasks drawn from large public software repositories, **90% of Repovine runs** passed their case-specific diff gate, compared with **10.6% of baseline runs**. [Explore the results](https://github.com/legann/repovine/blob/main/benchmarks/README.md).
 
 Start in an existing repository:
 
