@@ -12,6 +12,7 @@ import { PROVENANCE_METHODS, ProvenanceSchema, provenance } from '../../src/resp
 import type { McpToolRuntime } from '../../src/mcp/types.js';
 import type { IndexBuildStatus } from '../../src/mcp/build-controller.js';
 import { findFixturesRoot } from './graph-law-helpers.js';
+import { copyFixtureDirSync } from '../helpers/fixture-copy.js';
 
 // The response contract. Input is described by a Zod schema per tool; for a long time the output was
 // not described at all, and the shape drifted: two tools answered outside the envelope, the same
@@ -128,13 +129,21 @@ function truncationBlocks(value: unknown, trail: string[] = []): Array<{ path: s
 
 describe('core-laws MCP envelope (every tool answers in one declared shape)', () => {
   let runtime: McpToolRuntime;
+  let tmpRoot: string;
   let artifactsDir: string;
   let deepArgs: Record<string, Record<string, unknown>>;
   const answers = new Map<string, unknown[]>();
 
   beforeAll(async () => {
-    const fixtureRoot = path.join(findFixturesRoot(), 'basic-typescript');
-    artifactsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-envelope-law-'));
+    // The runtime roots in a copy, not the committed fixture: a build writes .repovine/ state into
+    // its repo root, and refresh_context takes the annotation file lock there. Suites in other jest
+    // workers copy the committed fixture concurrently, and a copied transient lock file names a live
+    // pid — every later acquisition in that copy then waits out the full lock deadline and fails.
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-envelope-law-'));
+    const fixtureRoot = path.join(tmpRoot, 'basic-typescript');
+    copyFixtureDirSync(path.join(findFixturesRoot(), 'basic-typescript'), fixtureRoot);
+    artifactsDir = path.join(tmpRoot, 'artifacts');
+    fs.mkdirSync(artifactsDir, { recursive: true });
     const origLog = console.log;
     console.log = () => {};
     let ctx: RepovineRuntime;
@@ -164,7 +173,7 @@ describe('core-laws MCP envelope (every tool answers in one declared shape)', ()
   }, 120_000);
 
   afterAll(() => {
-    fs.rmSync(artifactsDir, { recursive: true, force: true });
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
   it('refuses a field added beside result', () => {

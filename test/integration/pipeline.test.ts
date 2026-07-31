@@ -10,6 +10,7 @@ import { composeRepositoryGraph } from '../../src/stage2/index.js';
 import { graphStats, buildNodeView, getImpact, getChildren } from '../../src/graph/index.js';
 import { AnnotationStore } from '../../src/annotations/store.js';
 import type { ModuleInfo } from '../../src/types.js';
+import { copyFixtureDirSync } from '../helpers/fixture-copy.js';
 
 function findFixtureSrc(): string {
   const candidates = [
@@ -23,16 +24,6 @@ function findFixtureSrc(): string {
 
 const FIXTURE_SRC = findFixtureSrc();
 
-function copyDirSync(src: string, dest: string): void {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) copyDirSync(srcPath, destPath);
-    else fs.copyFileSync(srcPath, destPath);
-  }
-}
-
 describe('integration: basic-typescript fixture', () => {
   let tmpRoot: string;
   let FIXTURE_ROOT: string;
@@ -40,7 +31,7 @@ describe('integration: basic-typescript fixture', () => {
   beforeAll(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-integration-'));
     FIXTURE_ROOT = path.join(tmpRoot, 'basic-typescript');
-    copyDirSync(FIXTURE_SRC, FIXTURE_ROOT);
+    copyFixtureDirSync(FIXTURE_SRC, FIXTURE_ROOT);
   });
 
   afterAll(() => {
@@ -93,7 +84,7 @@ describe('integration: basic-typescript fixture', () => {
 
   it('does not reuse cached module facts after extraction config changes', async () => {
     const configRoot = path.join(tmpRoot, 'config-reuse');
-    copyDirSync(FIXTURE_SRC, configRoot);
+    copyFixtureDirSync(FIXTURE_SRC, configRoot);
     const snapshot = await collectRepositoryFactsAsync(configRoot);
     const poisoned = {
       ...snapshot,

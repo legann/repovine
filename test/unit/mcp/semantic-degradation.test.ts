@@ -16,6 +16,7 @@ import { RepovineRuntime } from '../../../src/mcp/context.js';
 import { __setTransformersModuleForTest } from '../../../src/semantic/embedder.js';
 import { CONFIG_DEFAULTS } from '../../../src/config.js';
 import type { McpToolRuntime } from '../../../src/mcp/types.js';
+import { copyFixtureDirSync } from '../../helpers/fixture-copy.js';
 
 /** The default a fresh `repovine setup` writes — not the suite-wide `semanticSearchEmbeddings: false`. */
 const EMBEDDINGS_ON_CONFIG = { ...CONFIG_DEFAULTS, semanticSearchEmbeddings: true };
@@ -30,16 +31,6 @@ function findFixtureSrc(): string {
   const root = candidates.find(candidate => fs.existsSync(candidate));
   if (!root) throw new Error(`Could not find basic-typescript fixture. Tried: ${candidates.join(', ')}`);
   return root;
-}
-
-function copyDirSync(src: string, dest: string): void {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) copyDirSync(srcPath, destPath);
-    else fs.copyFileSync(srcPath, destPath);
-  }
 }
 
 type SearchEnvelope = {
@@ -61,7 +52,7 @@ describe('graph build with the opt-in embedder unavailable', () => {
     ({ toolHandlers } = await import('../../../src/mcp/tools/registry.js'));
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-no-embedder-'));
     fixtureRoot = path.join(tmpRoot, 'basic-typescript');
-    copyDirSync(findFixtureSrc(), fixtureRoot);
+    copyFixtureDirSync(findFixtureSrc(), fixtureRoot);
   });
 
   afterEach(() => {

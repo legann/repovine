@@ -37,6 +37,7 @@ import { NextCallSchema } from '../../src/response/next-call.js';
 import type { McpToolRuntime } from '../../src/mcp/types.js';
 import type { IndexBuildStatus } from '../../src/mcp/build-controller.js';
 import { codeFiles, codeLines, findFixturesRoot } from './graph-law-helpers.js';
+import { copyFixtureDirSync } from '../helpers/fixture-copy.js';
 
 /** Every field name that carries a next call, wherever it sits in a response. */
 const NEXT_CALL_FIELDS = ['navigation', 'nextActions', 'nextCalls', 'nextAction', 'next'];
@@ -123,13 +124,20 @@ function missArgs(packageId: string): Record<string, Record<string, unknown>> {
 
 describe('core-laws next-call form (L2)', () => {
   let runtime: McpToolRuntime;
+  let tmpRoot: string;
   let artifactsDir: string;
   let misses: Record<string, Record<string, unknown>>;
   const answers = new Map<string, unknown[]>();
 
   beforeAll(async () => {
-    const fixtureRoot = path.join(findFixturesRoot(), 'basic-typescript');
-    artifactsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-next-call-law-'));
+    // The runtime roots in a copy, not the committed fixture: a build writes .repovine/ state into
+    // its repo root, and suites in other jest workers copy the committed fixture concurrently — a
+    // copied transient lock or temp file poisons their copy (see test/helpers/fixture-copy.ts).
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'repovine-next-call-law-'));
+    const fixtureRoot = path.join(tmpRoot, 'basic-typescript');
+    copyFixtureDirSync(path.join(findFixturesRoot(), 'basic-typescript'), fixtureRoot);
+    artifactsDir = path.join(tmpRoot, 'artifacts');
+    fs.mkdirSync(artifactsDir, { recursive: true });
     const origLog = console.log;
     console.log = () => {};
     let ctx: RepovineRuntime;
@@ -158,7 +166,7 @@ describe('core-laws next-call form (L2)', () => {
   }, 120_000);
 
   afterAll(() => {
-    fs.rmSync(artifactsDir, { recursive: true, force: true });
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
   it('covers every tool on both passes', () => {

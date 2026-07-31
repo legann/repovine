@@ -6,6 +6,7 @@ import { RepovineRuntime } from '../../../src/mcp/context.js';
 import { IndexBuildController } from '../../../src/mcp/build-controller.js';
 import { readBoundaryIndex } from '../../../src/mcp/boundary-index.js';
 import { CONFIG_DEFAULTS } from '../../../src/config.js';
+import { copyFixtureDirSync } from '../../helpers/fixture-copy.js';
 
 /** RepovineRuntime integration tests focus on graph refresh/cache — not semantic search. */
 const TEST_APP_CONFIG = { ...CONFIG_DEFAULTS, semanticSearchEmbeddings: false };
@@ -32,16 +33,6 @@ function findFixtureSrc(): string {
   return root;
 }
 
-function copyDirSync(src: string, dest: string): void {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) copyDirSync(srcPath, destPath);
-    else fs.copyFileSync(srcPath, destPath);
-  }
-}
-
 describe('RepovineRuntime.refresh with IndexBuildController hooks', () => {
   let tmpRoot: string;
   let fixtureRoot: string;
@@ -50,7 +41,7 @@ describe('RepovineRuntime.refresh with IndexBuildController hooks', () => {
   beforeAll(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-refresh-hooks-'));
     fixtureRoot = path.join(tmpRoot, 'basic-typescript');
-    copyDirSync(findFixtureSrc(), fixtureRoot);
+    copyFixtureDirSync(findFixtureSrc(), fixtureRoot);
     artifactsDir = path.join(tmpRoot, '.repovine');
     fs.mkdirSync(artifactsDir, { recursive: true });
   });
@@ -59,7 +50,7 @@ describe('RepovineRuntime.refresh with IndexBuildController hooks', () => {
   // (dirty-skip appends to utils.ts) does not leak state into sibling tests.
   beforeEach(() => {
     fs.rmSync(fixtureRoot, { recursive: true, force: true });
-    copyDirSync(findFixtureSrc(), fixtureRoot);
+    copyFixtureDirSync(findFixtureSrc(), fixtureRoot);
   });
 
   afterAll(() => {
@@ -222,7 +213,7 @@ describe('RepovineRuntime.create cooperative cancel', () => {
   beforeAll(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-cancel-'));
     fixtureRoot = path.join(tmpRoot, 'basic-typescript');
-    copyDirSync(findFixtureSrc(), fixtureRoot);
+    copyFixtureDirSync(findFixtureSrc(), fixtureRoot);
     artifactsDir = path.join(tmpRoot, '.repovine');
     fs.mkdirSync(artifactsDir, { recursive: true });
   });
@@ -257,7 +248,7 @@ describe('RepovineRuntime.refresh per-request cancellation (refcounted)', () => 
   beforeEach(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-refresh-cancel-'));
     fixtureRoot = path.join(tmpRoot, 'basic-typescript');
-    copyDirSync(findFixtureSrc(), fixtureRoot);
+    copyFixtureDirSync(findFixtureSrc(), fixtureRoot);
     artifactsDir = path.join(tmpRoot, '.repovine');
     fs.mkdirSync(artifactsDir, { recursive: true });
   });
@@ -352,7 +343,7 @@ describe('Stage 3 cancel checkpoint after annotation load (H2)', () => {
   beforeAll(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-stage3-cancel-'));
     fixtureRoot = path.join(tmpRoot, 'basic-typescript');
-    copyDirSync(findFixtureSrc(), fixtureRoot);
+    copyFixtureDirSync(findFixtureSrc(), fixtureRoot);
     artifactsDir = path.join(tmpRoot, '.repovine');
     fs.mkdirSync(artifactsDir, { recursive: true });
   });
