@@ -882,6 +882,7 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
         acceptanceCriteria: assignment?.acceptanceCriteria ?? [],
         deliveryVerification: result.deliveryVerification,
         filesChanged: result.filesChanged,
+        verificationPolicy: assignment?.verificationPolicy,
       }),
       ...verifyDeliveryEvidence({
         deliveryVerification: result.deliveryVerification,
@@ -1119,8 +1120,9 @@ function verifyDeliveryRegistry(input: {
   acceptanceCriteria: AcceptanceCriterion[];
   deliveryVerification: DeliveryVerificationResult;
   filesChanged: string[];
+  verificationPolicy?: VerificationPolicy;
 }): DeliveryDiagnostic[] {
-  const { acceptanceCriteria, deliveryVerification, filesChanged } = input;
+  const { acceptanceCriteria, deliveryVerification, filesChanged, verificationPolicy } = input;
   const { criteriaResults, verdict } = deliveryVerification;
   const out: DeliveryDiagnostic[] = [];
 
@@ -1161,6 +1163,28 @@ function verifyDeliveryRegistry(input: {
       code: 'CRITERION_REQUIRED_UNRESULTED',
       message: `Required acceptance criterion(s) have no result in deliveryVerification: ${requiredUnresulted.join(', ')}.`,
       followup: 'Report a result for every required criterion before claiming verification.',
+    });
+  }
+
+  // Policy registry integrity — mirror of the criteria↔results checks above. The frozen policy's
+  // requirements must be a clean registry: no duplicate criterionId (a duplicate silently last-write-
+  // wins when the evidence check builds its allowlist map), and no requirement for a criterion the
+  // assignment does not declare (a dangling requirement).
+  const reqIds = (verificationPolicy?.requirements ?? []).map(r => r.criterionId);
+  const dupReqIds = findDuplicateIds(reqIds);
+  if (dupReqIds.length > 0) {
+    out.push({
+      code: 'POLICY_REQUIREMENT_DUPLICATE',
+      message: `verificationPolicy.requirements has more than one entry for criterion id(s): ${dupReqIds.join(', ')}.`,
+      followup: 'Give each policy requirement a unique criterionId.',
+    });
+  }
+  const unknownReqIds = [...new Set(reqIds.filter(id => !criterionIds.has(id)))];
+  if (unknownReqIds.length > 0) {
+    out.push({
+      code: 'POLICY_REQUIREMENT_UNKNOWN_CRITERION',
+      message: `verificationPolicy.requirements reference criterion id(s) not in the assignment: ${unknownReqIds.join(', ')}.`,
+      followup: 'Remove requirements for criteria the assignment does not declare, or add the criteria.',
     });
   }
 

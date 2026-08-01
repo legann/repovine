@@ -1744,6 +1744,70 @@ describe('compliance validation', () => {
       expect(runFor('ghost.ts').diagnostics.map(d => d.code)).toContain('EVIDENCE_ANCHOR_UNRESOLVED');
     });
 
+    it('rejects a verification policy with a duplicate requirement criterionId', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          filesChanged: [], graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'x' }], explanation: 'done' }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({
+          acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
+          verificationPolicy: { version: 1, requirements: [
+            { criterionId: 'c1', evidenceKinds: ['repository'] },
+            { criterionId: 'c1', evidenceKinds: ['repository'] },
+          ] },
+        }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('POLICY_REQUIREMENT_DUPLICATE');
+    });
+
+    it('rejects a verification policy requirement for an undeclared criterion', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          filesChanged: [], graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'x' }], explanation: 'done' }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({
+          acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
+          verificationPolicy: { version: 1, requirements: [
+            { criterionId: 'c1', evidenceKinds: ['repository'] },
+            { criterionId: 'c-ghost', evidenceKinds: ['repository'] },
+          ] },
+        }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('POLICY_REQUIREMENT_UNKNOWN_CRITERION');
+    });
+
+    it('accepts a clean verification policy registry (unique requirements, all ids declared)', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          filesChanged: [], graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'x' }], explanation: 'done' }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({
+          acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
+          verificationPolicy: { version: 1, requirements: [{ criterionId: 'c1', evidenceKinds: ['repository'] }] },
+        }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      const codes = report.diagnostics.map(d => d.code);
+      expect(codes).not.toContain('POLICY_REQUIREMENT_DUPLICATE');
+      expect(codes).not.toContain('POLICY_REQUIREMENT_UNKNOWN_CRITERION');
+    });
+
     it('rejects an assignment version out of step with its verification policy', () => {
       const report = checkCompliance({
         result: makeResult(),
