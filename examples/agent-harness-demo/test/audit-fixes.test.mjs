@@ -129,7 +129,7 @@ test('normalizeResult: preserves deliveryVerification on a read-only (explore) v
     verdict: { intentVerified: true, deliveryAccepted: true },
   };
   // briefName null: the verify claim-checker carries no manifest, yet its deliveryVerification
-  // must survive to `agents compliance` — otherwise the core never confirms intentVerified.
+  // must survive to `agents compliance` — otherwise the core cannot cross-check the intentVerified claim.
   const out = normalizeResult({ status: 'complete', summary: 's', deliveryVerification, filesChanged: ['pkg/src/a.ts'] }, asg, { briefName: null });
   assert.deepEqual(out.deliveryVerification, deliveryVerification, 'a verifier deliveryVerification must reach compliance intact');
   assert.deepEqual(out.filesChanged, [], 'read-only run still forces zero filesChanged, so DELIVERY_NOT_READONLY cannot fire');

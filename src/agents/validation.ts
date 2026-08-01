@@ -4,13 +4,13 @@
  * Two layers, as specified by the build plan:
  *
  *   1. Schema validation  — is the structured artifact shaped correctly?
- *                           (required fields, enum values, runId linkage,
- *                           supported protocolVersion).
+ *                           (required fields, enum values, supported protocolVersion).
  *   2. Compliance validation — do the claims hold against observable repovine
  *                              state? (declared graph nodes exist, declared
  *                              annotations exist and are fresh, orphans absent
- *                              or reported, requested checks reflected, scope
- *                              matches, refresh_context run when code changed).
+ *                              or reported, registry/evidence claims grounded;
+ *                              advisory signals such as most requested checks,
+ *                              scope drift, and missing refresh are reported).
  *
  * repovine never reads conversational transcripts; it validates structured
  * claims plus observable repository state.
@@ -822,18 +822,18 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
     }
   }
 
-  // Frozen-policy custody: the assignment's version counter must match its verification policy's, so a
-  // policy cannot be swapped under a stale number.
+  // Assignment/policy version linkage: reject a policy counter that is out of step with the
+  // assignment. The counter is a consistency marker, not a content digest or custody proof.
   if (assignment?.verificationPolicy && assignment.version !== assignment.verificationPolicy.version) {
     fail(
       'POLICY_VERSION_MISMATCH',
       `assignment.version (${assignment.version}) does not match verificationPolicy.version (${assignment.verificationPolicy.version}).`,
     );
-    requiredFollowups.push('Align assignment.version with the frozen verificationPolicy.version, or re-freeze the policy under a new version.');
+    requiredFollowups.push('Align assignment.version with verificationPolicy.version, or issue both under a new version.');
   }
 
   // Delivery verification: re-check the self-reported criteria registry and split verdict against the
-  // assignment's acceptance criteria, then the cited evidence against the frozen policy.
+  // assignment's acceptance criteria, then the cited evidence against the supplied policy allowlist.
   if (result.deliveryVerification) {
     // Revision-linked evidence: when the assignment names a base (and optional head) revision,
     // resolve the run's change-set so a covered criterion must cite a node the run actually changed,
@@ -1112,9 +1112,10 @@ function findDuplicateIds(values: string[]): string[] {
  * Re-check a self-reported DeliveryVerificationResult against the assignment's acceptance criteria:
  * unique criterion ids, one result per criterion, no result for an undeclared criterion, a result for
  * every required criterion, and a split verdict that does not contradict the registry. A verification
- * run is read-only — it judges a delivery, it does not produce one. intentVerified is vacuously true
- * when no required criterion exists. Evidence-to-policy checks are applied separately. Role-agnostic
- * and graph-free by construction.
+ * run is read-only — it checks a coverage claim, it does not produce a delivery. intentVerified=true
+ * is rejected when a required criterion is open; a conservative false is not rejected, and with no
+ * required criteria a true claim has no open-criterion contradiction. Evidence-to-policy checks are
+ * applied separately. Role-agnostic and graph-free by construction.
  */
 function verifyDeliveryRegistry(input: {
   acceptanceCriteria: AcceptanceCriterion[];
@@ -1166,7 +1167,7 @@ function verifyDeliveryRegistry(input: {
     });
   }
 
-  // Policy registry integrity — mirror of the criteria↔results checks above. The frozen policy's
+  // Policy registry integrity — mirror of the criteria↔results checks above. The supplied policy's
   // requirements must be a clean registry: no duplicate criterionId (a duplicate silently last-write-
   // wins when the evidence check builds its allowlist map), and no requirement for a criterion the
   // assignment does not declare (a dangling requirement).
@@ -1222,8 +1223,8 @@ function verifyDeliveryRegistry(input: {
 /**
  * Re-check the evidence each criterion result cites. A covered criterion must cite at least one
  * repository-grounded evidence — the baseline the protocol recomputes; non-covered statuses carry no
- * such duty. Cited kinds must stay within the frozen policy's allowed set for that criterion when a
- * policy froze one. custom evidence must name a producer via artifactRef. repository evidence must
+ * such duty. Cited kinds must stay within the assignment policy's allowed set for that criterion when a
+ * policy entry is supplied. custom evidence must name a producer via artifactRef. repository evidence must
  * carry a locator — a graphNodeId that resolves, or a file that maps to a module; an explanation-only
  * anchor is ungrounded. For a delivery criterion, when a change-set is available, its covered
  * repository node must lie within it — an untouched node is not proof of a change. Invariant criteria
@@ -1260,8 +1261,8 @@ function verifyDeliveryEvidence(input: {
       if (allowedKinds && !allowedKinds.includes(e.kind)) {
         out.push({
           code: 'EVIDENCE_KIND_NOT_IN_POLICY',
-          message: `Criterion "${criterionId}" cites evidence kind "${e.kind}" the frozen policy does not allow (allowed: ${allowedKinds.join(', ') || 'none'}).`,
-          followup: 'Cite only evidence kinds the assignment policy froze for this criterion.',
+          message: `Criterion "${criterionId}" cites evidence kind "${e.kind}" the assignment policy does not allow (allowed: ${allowedKinds.join(', ') || 'none'}).`,
+          followup: 'Cite only evidence kinds the assignment policy allows for this criterion.',
         });
       }
       if (e.kind === 'custom' && !e.artifactRef) {

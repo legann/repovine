@@ -37,8 +37,8 @@ function makeTargetRepo() {
   return root;
 }
 
-// A task carrying frozen acceptance criteria + a verification policy, the shape a
-// harness supplies at intake.
+// A task carrying assignment-time acceptance criteria + a verification policy,
+// the shape a harness supplies at intake.
 const sampleTask = {
   id: 'e2e-1',
   task: 'Deduplicate orders and write an audit log',
@@ -102,7 +102,7 @@ function badResult(runId) {
     ...baseResult(runId),
     deliveryVerification: {
       criteriaResults: [
-        // c1 "covered" but cites only a test — no repository evidence, and `test` is outside the frozen policy.
+        // c1 "covered" but cites only a test — no repository evidence, and `test` is outside the policy allowlist.
         { criterionId: 'c1', status: 'covered', evidence: [{ kind: 'test', explanation: 'a test ran' }], explanation: 'x' },
         // ghost is not a declared criterion; c2 (required) has no result at all.
         { criterionId: 'ghost', status: 'gap', evidence: [], explanation: 'undeclared' },

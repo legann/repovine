@@ -401,7 +401,7 @@ An episode is one bounded pass at a goal. The orchestrator is a supervisory stat
 
 ### Phase pipeline
 
-The goal is sharpened into acceptance criteria, implemented in stages, and certified by the feedback path. A red runtime check after the fix budget skips annotation sync and closes the episode honestly.
+The goal is sharpened into acceptance criteria, implemented in stages, and evaluated by the demo's feedback path. A red runtime check after the fix budget skips annotation sync and closes the episode honestly.
 
 ```mermaid
 flowchart LR
@@ -418,7 +418,7 @@ flowchart LR
   S --> C
 ```
 
-`refresh_context` runs as a barrier between stages and before sync. After the last stage it runs only when review is requested, so a plain run reaches verify on the graph the stage left behind. Verify reads the frozen acceptance criteria plus graph-memory obligations from the run-start lore snapshot. It emits a typed `deliveryVerification`: one result per criterion — covered, gap, or needs-human. Each `covered` criterion cites a `repository` anchor grounded through `inspect_node`/`map_context`, and repovine re-resolves that anchor against the built graph. The goal accepts when `intentVerified` holds and every required criterion is covered.
+`refresh_context` runs as a barrier between stages and before sync. After the last stage it runs only when review is requested, so a plain run reaches verify on the graph the stage left behind. Verify reads the assignment criteria plus graph-memory obligations from the run-start lore snapshot. It emits a typed `deliveryVerification`: one result per criterion — covered, gap, or needs-developer. Each `covered` criterion cites a `repository` anchor grounded through `inspect_node`/`map_context`, and repovine re-resolves that anchor against the built graph. This demo's goal gate additionally requires `intentVerified=true` and every required criterion to be covered. That is harness orchestration policy: the protocol only validates the structured claims it can observe, and the gate is not proof of behavioral correctness.
 
 ### Plan gates
 

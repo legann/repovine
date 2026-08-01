@@ -80,10 +80,10 @@ Internal subagent handoffs are an implementation detail behind the aggregated
 | `ContextPack` | agent → harness / harness → agent | First-class exploration artifact: resolved graph anchors, entrypoints, contracts, notes, assumptions, open questions, and recommended next actions. |
 | `ArchitectureAuditResult` | agent → harness/repovine | Triaged architecture findings with status, evidence, affected nodes, and optional proposed implementation assignments. |
 | `CodeReviewResult` | agent → harness/repovine | Structured read-only review verdict for a diff, including reviewed files, test coverage assessment, findings, and residual risks. |
-| `DeliveryVerificationResult` | agent → harness/repovine | Read-only intent verification: per-criterion status (covered/gap/needs-developer) with graph-grounded repository evidence and a verdict (`intentVerified`, `deliveryAccepted`). |
+| `DeliveryVerificationResult` | verifier/harness → repovine | Read-only structural coverage claim: per-criterion status (covered/gap/needs-developer), repository-grounded evidence, optional harness-custodied evidence, and a split verdict. Repovine re-checks the observable portion; it does not execute the cited tests or decide final acceptance. |
 | `ReviewInput` | harness → code-reviewer | Standalone review payload: the original **implementation** assignment, prior context, implementation result, diff base, changed files, and touched graph nodes. Not a field of `AgentAssignment`. |
 | `AgentAssignment` | harness → agent | The scoped request: task, scope, acceptance criteria, constraints, contracts, requested checks, optional context-session policy, optional verification policy (`verificationPolicy`, version matched to `assignment.version`), and optional prior context. |
-| `AgentRunResult` | agent → harness/repovine | The aggregated public result: status, files/nodes/contracts touched, tests, annotations, compliance flags, optional context-session id, optional capability artifacts, optional delivery verification (`deliveryVerification`), blockers. |
+| `AgentRunResult` | agent/harness aggregator → repovine | The aggregated public result: status, files/nodes/contracts touched, declared tests, annotations, compliance flags, optional context-session id, optional capability artifacts, optional delivery verification (`deliveryVerification`), blockers. |
 | `AgentComplianceReport` | repovine → harness | Validation output: errors, warnings, missing fields, stale/orphaned/missing annotations, unresolved nodes, scope collisions, optional context quality report, required follow-ups. |
 
 Internal schema types (`SubagentAssignment`, `SubagentHandoff`) support
@@ -108,9 +108,10 @@ repovine agents protocol --schemas
    `repovine agents compliance` (schema + compliance gate).
    `repovine agents validate-result` is a schema-only structural check; it never
    builds a graph or runs compliance.
-6. **Use `requiredFollowups`** before accepting the run. A run is acceptable
-   when the compliance report is `valid: true` and you are satisfied with the
-   warnings.
+6. **Use `missingFields`, `warnings`, and `requiredFollowups`** before accepting
+   the run. `report.valid: true` means that no hard repovine compliance check
+   failed; the harness still applies execution-owned tests, review, and final
+   acceptance policy.
 
 The repository test suite keeps this flow executable without treating a packaged
 or canonical harness as the contract: `test/integration/agent-protocol-cli-blackbox.test.ts`
@@ -177,7 +178,8 @@ Validation has two layers.
 
 **Schema validation** — is the artifact shaped correctly? Required fields
 present, enum values known, arrays are arrays, `protocolVersion` supported.
-Each artifact is parsed on its own; cross-artifact checks belong to compliance.
+Each artifact is parsed on its own; registry-integrity and cross-artifact checks
+belong to compliance.
 
 **Compliance validation** — do the claims hold against observable repovine
 state?
@@ -187,11 +189,15 @@ state?
 - declared `graphNodesTouched` resolve to real graph nodes;
 - declared `annotationsWritten` exist and are not content/schema stale;
 - orphaned annotations are absent or reported;
-- `compliance.refreshContextRun` is `true` when `filesChanged` is non-empty;
-- requested checks are reflected in `compliance` / `testsRun`;
+- a missing `compliance.refreshContextRun` claim after `filesChanged` is reported
+  as a warning and required follow-up;
+- requested checks are reflected in `compliance` / `testsRun`; a missing
+  `code-review` artifact is a hard error, while the other missing reflections
+  are warnings and required follow-ups;
 - when `requestedChecks` contains `code-review`, `AgentRunResult.review`
   must be present with a verdict and reviewed files;
-- result `scope` stays within the assignment scope;
+- result scope outside the assignment scope is reported as scope drift with a
+  warning and required follow-up;
 - `compliance.annotationsClean` is not claimed while annotation hard checks are
   dirty. Parse/conflict markers, orphaned notes, content/schema-stale work, and
   propagation-stale (`staleKind: propagation`) each block `annotationsClean`.
@@ -234,14 +240,28 @@ state?
   test coverage is not `adequate`, or when `testReview.missingTests` contains a
   blocker/major entry;
 - when `result.deliveryVerification` is present, its criteria registry is
-  re-checked against the assignment `acceptanceCriteria`: each required criterion
-  carries exactly one result, `verdict.intentVerified` / `deliveryAccepted` stay
-  consistent with the registry, and `filesChanged` is empty (verify is read-only);
-- each `covered` criterion cites a `repository` evidence anchor whose `graphNodeId`
-  resolves in the built graph; cited evidence kinds stay within the frozen
-  `verificationPolicy`, and `assignment.version` matches
-  `verificationPolicy.version`. Repository evidence is re-resolved against the
-  graph, the diff is the change footprint;
+  re-checked against the assignment `acceptanceCriteria`: criterion and result
+  ids are unique, results cannot cite undeclared criteria, and every required
+  criterion carries a result. `verdict.intentVerified=true` and
+  `deliveryAccepted=true` cannot contradict an open required criterion, and
+  `filesChanged` is empty because verification is read-only;
+- a supplied `verificationPolicy` is checked for duplicate requirements and
+  requirements that cite undeclared criteria; cited evidence kinds must stay
+  within that criterion's policy allowlist, and `assignment.version` must match
+  `verificationPolicy.version`;
+- every `covered` criterion cites at least one `repository` evidence anchor. A
+  `graphNodeId` must resolve in the built graph; a file-only anchor must resolve
+  to a graph module. Explanation-only repository evidence is rejected;
+- when `assignment.delivery.baseRef` requests revision linkage, repovine computes
+  the base/head change-set. An unavailable requested delta hard-fails covered
+  delivery criteria, and their covered repository anchors must belong to a
+  changed module. With no base ref, change membership is not claimed or checked.
+  `kind="invariant"` is currently an advisory regression guard and is exempt from
+  changed-module membership;
+- `review`, `test`, `build`, `typecheck`, `runtime`, `security`, `developer`, and
+  `custom` evidence are recorded declarations under harness artifact custody.
+  Custom evidence additionally requires an `artifactRef`. Repovine validates
+  their shape and policy admission, not their execution or truth;
 - when `assignment.contextSession.required=true`, repovine recomputes the
   recorded `ContextQualityReport` instead of trusting self-report. Missing,
   unreadable, and rejected sessions currently emit warnings and
@@ -264,7 +284,7 @@ Context quality is computed from repovine MCP tool responses and shaped response
 byte volume, not from the agent's final prose.
 
 That is the determinism boundary: the model may produce prose while working, but
-the acceptance surface is a structured `AgentRunResult` plus optional capability
+the compliance surface is a structured `AgentRunResult` plus optional capability
 artifacts. repovine checks schema, graph/annotation/context claims, and
 deterministic policy signals; harnesses, tests, CI, and developers decide whether
 the actual change is good enough.
@@ -291,7 +311,15 @@ harness surfaces.
 | Implementation | normal `AgentRunResult` fields | Software change attempted, tests/checks reported, graph/annotations refreshed when needed. Implementation complete does not mean reviewed or merge-ready. |
 | Architecture Audit | `architectureAudit` | Read-only triage of architecture candidates into confirmed/suppressed/needs-inspection/accepted-risk findings. |
 | Code Review | `review` | Read-only diff review with a structured verdict. repovine validates structure and observable claims, not subjective completeness. |
-| Delivery Verification | `deliveryVerification` | Read-only re-check of acceptance criteria into covered/gap/needs-developer with graph-grounded repository evidence and an intent verdict. Covered marks structural completeness; behavioral correctness stays with review. |
+| Delivery Verification | `deliveryVerification` | Read-only re-check of a verifier's acceptance-criteria coverage claims. Covered criteria require repository-grounded evidence and, when revision linkage is requested, a changed-module anchor. Declared external evidence remains harness-custodied. Covered marks structural coverage, not behavioral correctness or final acceptance. |
+
+`covered`, `intentVerified`, and the harness verdict fields arrive in the
+aggregated result; repovine does not rewrite them. Compliance rejects a covered
+claim whose repository evidence is missing, unresolved, outside a requested
+change-set, or disallowed by policy. It rejects `intentVerified=true` when a
+required criterion is open, but a conservative `false` remains valid. The
+authoritative repovine outcome is `AgentComplianceReport.valid`; harness-owned
+assurance and acceptance remain separate decisions.
 
 If an assignment is provided but fails schema validation, compliance is skipped:
 there is no `AgentComplianceReport` to accept, because assignment linkage,

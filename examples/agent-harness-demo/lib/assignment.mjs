@@ -29,8 +29,8 @@ export function buildAssignment(task) {
     runId: task.runId || `run-${task.id}`,
     // Required by the schema since S3/S4. `role` is the Agent Protocol role
     // (buildSubAgentTask resolves it from the spec manifest; the main flow defaults
-    // to `main`). `version` is the assignment-revision counter checked against a
-    // frozen verificationPolicy.version; it starts at 1.
+    // to `main`). `version` is the assignment-revision counter checked against
+    // verificationPolicy.version when a policy is supplied; it starts at 1.
     role: task.role ?? 'main',
     task: task.task,
     scope: task.scope ?? [],

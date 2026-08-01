@@ -1507,7 +1507,7 @@ describe('compliance validation', () => {
       expect(report.diagnostics.map(d => d.code)).toContain('CRITERION_COVERED_NO_REPOSITORY_EVIDENCE');
     });
 
-    it('rejects evidence kinds the frozen policy does not allow', () => {
+    it('rejects evidence kinds the assignment policy does not allow', () => {
       const report = checkCompliance({
         result: makeResult({
           deliveryVerification: {

@@ -34,7 +34,7 @@ developer and IDE play that orchestration role and repovine guidance is advisory
 The surfaces build on one bottom-up model:
 
 ```text
-5  Acceptance     explicit Agent Protocol — assignments, run results, compliance
+5  Run validation  explicit Agent Protocol — assignments, run results, compliance
 4  Agent runtime  client/harness-owned reasoning, editing, and review
 3  MCP context    guided, navigable graph slices instead of raw files
 2  Memory         versioned annotations attached to graph nodes
@@ -46,7 +46,7 @@ engine facts (1); MCP results (3) project graph and annotation state; the
 protocol (5) validates observable claims against the graph, snapshot,
 annotations, and recorded context-session state. Durable authored repository
 knowledge enters at layer 2. Ephemeral reasoning and run results remain in the
-client or harness and never feed the deterministic graph. The acceptance layer
+client or harness and never feed the deterministic graph. The run-validation layer
 is harness-facing; the protocol definition and compliance validators live in
 repovine core.
 
@@ -84,7 +84,7 @@ observable repository state.
 | MCP tool results | Graph + snapshot + annotations + indexes | Scope resolution, pagination, confidence/gaps, empty diagnostics, token metadata; optional semantic rank/score on `search_context` | Agent interpretation of results |
 | Annotations | Agent/developer-authored memory | Schema, freshness, orphan/stale state, merge-review markers, field consistency vs graph, secret-shape rejection, write provenance | Insight and completeness beyond checkable fields |
 | Architecture findings | Detectors over graph + annotations | Review candidates, confidence, affected nodes, security/config signals | Proof that a refactor is desirable or safe |
-| `AgentRunResult` | LLM/harness output | Schema, node resolution, requested-check reflection, annotation existence/freshness, context-session quality, review read-only constraints | Business correctness, real test execution, readiness |
+| `AgentRunResult` | LLM/harness output | Schema and optional assignment linkage; graph/annotation claims; review read-only constraints; acceptance-criteria/result/policy registry integrity; repository-evidence grounding; optional revision-delta membership; advisory check/scope/context signals | Business correctness, real test execution, security/readiness, final acceptance |
 
 ### Trust and execution boundaries
 
@@ -846,7 +846,7 @@ Signals, lifecycle, thresholds, and recovery semantics are documented in
 
 The harness-facing contract is `AgentAssignment → AgentRunResult → AgentComplianceReport`. The harness runs the model and owns permissions, retries, tests, review, and final acceptance. repovine owns schemas and validation against observable graph and annotation state.
 
-Compliance can verify that declared nodes resolve, written annotations exist and are fresh, required refresh and requested checks are reflected, assignment scope is respected, and context-session requirements are met. It cannot establish business correctness, real test execution, security readiness, or rollout safety.
+Compliance hard-checks the observable claims it can recompute: declared-node resolution, annotation existence and selected freshness/consistency claims, read-only review/verification constraints, criteria/result/policy registry integrity, repository-evidence grounding, and an explicitly requested revision delta. It reports missing refresh and most requested-check signals, scope drift, and the currently advisory context-quality verdict without presenting them as stronger evidence. It cannot establish business correctness, real test execution, security readiness, rollout safety, or final acceptance.
 
 Public protocol compliance runs through the CLI. The command builds current
 repository state with the same engine pipeline used by MCP and passes that state

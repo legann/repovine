@@ -118,8 +118,8 @@ export function buildSubAgentTask(parentTask, spec, priorHandoffs = [], repoRoot
     task: lines.join('\n'),
     scope: spec.scope,
     acceptanceCriteria: parentTask.acceptanceCriteria ?? [],
-    // The frozen verification policy rides down to every sub-agent assignment so the
-    // verifier's evidence is checked against it; buildAssignment passes it through.
+    // The parent verification policy rides down to every sub-agent assignment so the
+    // verifier's evidence is checked against the same allowlist; buildAssignment passes it through.
     ...(parentTask.verificationPolicy ? { verificationPolicy: parentTask.verificationPolicy } : {}),
     ...(parentTask.delivery ? { delivery: parentTask.delivery } : {}),
     constraints: [

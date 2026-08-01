@@ -1,7 +1,7 @@
-// Structured acceptance criteria + delivery verification for the repovine-native
-// harness process. Orient freezes the acceptance criteria (the sharpened product
-// spec); the read-only verify sub-agent judges each and emits a typed
-// DeliveryVerificationResult that repovine re-checks against the assignment.
+// Structured acceptance criteria + delivery verification for this demo harness.
+// Orient records the sharpened criteria before implementation; the read-only
+// verify sub-agent reports coverage claims that repovine re-checks against the
+// assignment and observable repository state.
 import { extractUserTask, stripPriorRunBlock } from './task-user.mjs';
 
 /** @typedef {{ id: string, statement: string, required: boolean }} AcceptanceCriterion */
@@ -75,10 +75,11 @@ export function mergeCriteria(primary = [], fallback = []) {
 }
 
 /**
- * Freeze the verification policy for a criteria set. The read-only verify phase can
- * only produce repository anchors (no shell/tests/build), and repository is the only
- * evidence kind repovine recomputes, so every criterion is policed to `repository`.
- * `version` is frozen to match the assignment version the schema checks it against.
+ * Build this demo's verification policy for a criteria set. The read-only verify
+ * phase only produces repository anchors (no shell/tests/build), so the demo allows
+ * only `repository`. repovine can re-check those anchors' graph grounding and optional
+ * changed-set membership, not whether an anchor semantically proves the criterion.
+ * `version` is set to the assignment counter compliance checks it against.
  */
 export function buildVerificationPolicy(criteria = [], { version = 1 } = {}) {
   return {

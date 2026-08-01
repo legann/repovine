@@ -255,14 +255,16 @@ export type CodeReviewResult = z.infer<typeof CodeReviewResultSchema>;
 
 // ── Delivery verification artifacts ──
 //
-// Structured intent-to-delivery verification. Acceptance criteria carry stable ids; a
-// verification policy names the evidence each criterion needs; a criterion result binds each
-// criterion to repository-grounded evidence. The verifier's registry (criteria results plus a
-// split delivery verdict) is a self-reported artifact repovine re-checks against observable state.
+// Structured acceptance-criteria coverage verification. Acceptance criteria carry stable ids; a
+// verification policy limits the evidence kinds each criterion may cite; a covered criterion result
+// binds the criterion to repository-grounded or declared external evidence. The verifier/harness
+// registry (criteria results plus a split verdict) is an input artifact repovine re-checks against
+// observable state.
 
 /**
- * Kinds of evidence a criterion result can cite. repovine recomputes truth only for `repository`;
- * the rest are recorded as declared, their execution owned by the harness's artifact custody.
+ * Kinds of evidence a criterion result can cite. For `repository`, repovine can recompute graph
+ * grounding and optional changed-set membership; it does not recompute whether that evidence proves
+ * the criterion. The remaining kinds are declared and their execution belongs to harness custody.
  */
 export const EVIDENCE_KINDS = [
   'repository', 'review', 'test', 'build', 'typecheck', 'runtime', 'security', 'developer', 'custom',
@@ -270,13 +272,14 @@ export const EVIDENCE_KINDS = [
 export const EvidenceKindSchema = z.enum(EVIDENCE_KINDS);
 export type EvidenceKind = z.infer<typeof EvidenceKindSchema>;
 
-/** One acceptance criterion with a stable identity, frozen before implementation. */
+/** One acceptance criterion with a stable identity, declared by the assignment before execution. */
 export const AcceptanceCriterionSchema = z.object({
   id: z.string().min(1),
   statement: z.string().min(1),
   required: z.boolean(),
-  // delivery (absent = delivery): the run must CHANGE the cited node; invariant: a regression guard
-  // the run must NOT change — its evidence is a node left untouched by the change-set.
+  // delivery (absent = delivery): when a revision delta is supplied, covered repository evidence
+  // must anchor a changed node. invariant: an advisory regression guard, exempt from that
+  // changed-node membership check; behavioral enforcement remains harness-owned.
   kind: z.enum(['delivery', 'invariant']).optional(),
 });
 export type AcceptanceCriterion = z.infer<typeof AcceptanceCriterionSchema>;
@@ -295,8 +298,8 @@ export const EvidenceReferenceSchema = z.object({
 export type EvidenceReference = z.infer<typeof EvidenceReferenceSchema>;
 
 /**
- * The harness's frozen choice of evidence per criterion. `version` is a counter checked against
- * the assignment's version; the word "revision" stays reserved for git.
+ * The harness-supplied evidence-kind allowlist per criterion. `version` is a counter checked
+ * against the assignment's version; the word "revision" stays reserved for git.
  */
 export const VerificationPolicySchema = z.object({
   assuranceProfile: z.string().min(1).optional(),
@@ -314,8 +317,9 @@ export const CriterionStatusSchema = z.enum(CRITERION_STATUSES);
 export type CriterionStatus = z.infer<typeof CriterionStatusSchema>;
 
 /**
- * One criterion's coverage result. `covered` carries repository-grounded evidence; a resolved
- * needs-developer keeps status `needs-developer` and adds a custody `resolution` pointing at the artifact.
+ * One criterion's coverage result. At compliance time, `covered` requires evidence that can be
+ * checked at the level supported for its kind. A resolved needs-developer keeps status
+ * `needs-developer` and adds a custody `resolution` pointing at the artifact.
  */
 export const CriterionResultSchema = z.object({
   criterionId: z.string().min(1),
@@ -327,9 +331,10 @@ export const CriterionResultSchema = z.object({
 export type CriterionResult = z.infer<typeof CriterionResultSchema>;
 
 /**
- * The split verdict. repovine owns intentVerified (every required criterion covered). Authoritative
- * protocol validity is AgentComplianceReport.valid — the whole compliance run, including the delivery
- * diagnostics — not a field the agent claims. The harness owns assurancePassed and deliveryAccepted.
+ * The split verdict travels in the verifier/harness input artifact. repovine constrains a true
+ * intentVerified claim against the required-criteria registry but does not derive or rewrite it.
+ * Authoritative protocol validity is AgentComplianceReport.valid — the whole compliance run,
+ * including delivery diagnostics. The harness supplies assurancePassed and deliveryAccepted.
  */
 export const DeliveryVerdictSchema = z.object({
   intentVerified: z.boolean(),
@@ -371,12 +376,11 @@ export type AgentManifest = z.infer<typeof AgentManifestSchema>;
 /**
  * The harness-facing request to repovine or to a repovine-managed main agent.
  *
- * `role` and `version` are validated for shape only: an unknown role is a schema error, but
- * resolving a role's required result fields, cross-checking `version` against a policy version,
- * and requiring `delivery` refs or a `verificationPolicy` for a given assurance level are compliance
- * rules the validator applies, not schema constraints. `delivery.baseRef`/`headRef` name the
- * revisions repovine computes the change-set delta between; their absence leaves the delta
- * unavailable.
+ * `role` and `version` are validated for shape only: an unknown role is a schema error, while the
+ * caller resolves role-specific result fields and compliance cross-checks `version` against a
+ * supplied policy version. `delivery` and `verificationPolicy` are optional. When supplied,
+ * `delivery.baseRef`/`headRef` name the revisions repovine computes the change-set delta between;
+ * their absence means change membership is neither available nor claimed.
  */
 export const AgentAssignmentSchema = z.object({
   protocolVersion: ProtocolVersionSchema,
@@ -404,9 +408,9 @@ export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
 /**
  * Self-reported compliance flags. `annotationsClean` is the one flag repovine re-checks against
  * observable state: a `true` claim over a queue that still needs work is an error. `refreshContextRun`
- * is read only in the `false` direction, against a non-empty `filesChanged`. `architectureChecked` is
- * compared with the presence of `architectureAudit`, itself self-reported. The remaining three stand
- * as the run declares them, and serve as the evidence that a requested check was performed.
+ * is read only in the `false` direction, against a non-empty `filesChanged`. An architecture artifact
+ * with `architectureChecked=false` produces an advisory contradiction; the reverse is not checked.
+ * The remaining flags stand as the run declares them and reflect requested checks structurally.
  */
 export const ComplianceFlagsSchema = z.object({
   refreshContextRun: z.boolean(),

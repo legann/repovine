@@ -36,14 +36,14 @@ Language- and format-specific extraction stays at the producer boundary. Source 
 
 Derived facts and authored knowledge follow different trust models. The graph is rebuilt from repository state independently of annotations. Intent, invariants, risks, and operational constraints live in a separate versioned layer. repovine checks freshness and structural consistency from repository state and validates provenance at the write or run boundary; semantic correctness remains an agent and developer verification responsibility.
 
-Delivery follows the same boundary. Task intent comes from the coding agent, so MCP returns bounded results for explicit search and graph queries. Generated client hooks provide a limited pre-edit path for boundary-scoped risks on file-owned nodes. Developers and harnesses retain execution policy, tests, review, and final acceptance because those decisions require evidence beyond repository-observable state.
+Agent runs follow the same boundary. In an explicit Agent Protocol run, the harness records task intent, acceptance criteria, scope, and optional evidence policy in an assignment before execution; the returned result contains structured claims that repovine re-checks only where repository state is observable. In client mode, MCP returns bounded results for explicit search and graph queries, and generated hooks provide a limited pre-edit path for boundary-scoped risks on file-owned nodes. Developers and harnesses retain execution policy, test execution, behavioral review, and final acceptance because those decisions require evidence beyond repository-observable state.
 
 The same model-agnostic engine supports interactive and autonomous development:
 
 | Mode | What |
 |---|---|
 | **Client (IDE or CLI)** | MCP delivers scoped graph context and annotations in Cursor, Claude Code, or Codex; a developer stays in the loop and repovine's checks are advisory |
-| **Agent Protocol (harness)** | an external harness runs the agent; repovine checks its structured result against the graph and annotation state, while the harness owns tests, retries, and final acceptance. See the [LangGraph harness demo](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo) |
+| **Agent Protocol (harness)** | an external harness runs the agent; repovine checks its structured result against the graph, snapshot, annotations, recorded context, and an optional revision delta, while the harness owns execution, tests, retries, review policy, and final acceptance. See the [LangGraph harness demo](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo) |
 
 ## How it works (Client)
 
@@ -70,7 +70,7 @@ graph LR
 
 ## How it works (Agent Protocol)
 
-repovine provides the protocol: the assignment → result → compliance contract, and the validators that check a run against the repo. A harness applies it: it delivers the task, runs the agent with repovine MCP, and gates on repovine's checks.
+repovine provides the protocol: the assignment → result → compliance contract, and the validators that compare a run's structured claims with observable repository state. A harness applies it: it delivers the task, runs the agent with repovine MCP, and combines repovine's compliance report with execution-owned tests, review, and acceptance policy.
 
 ```mermaid
 graph LR
@@ -84,12 +84,14 @@ Compliance checks the result against the repo; the harness owns the rest:
 
 | repovine checks | harness owns |
 |---|---|
-| touched nodes resolve in the graph | tests run and pass |
-| written annotations exist and are fresh | business logic |
-| annotations are consistent and grounded in-session | security, rollout |
-| refresh and requested-check claims are reflected in the result | final accept/block |
-| result scope within assignment | model, budget, permissions |
-| covered acceptance criteria cite graph-resolvable evidence | behavioral correctness |
+| touched nodes and covered repository-evidence anchors resolve in the graph | tests actually run and pass |
+| declared annotations exist; stale, orphaned, and conflicting state is checked or reported at its configured severity | business logic |
+| claimed annotation writes are checked for same-session grounding and provenance | security, rollout |
+| criteria, result, and evidence-policy registries are internally consistent | final accept/block |
+| when a revision delta is supplied, covered repository evidence for delivery-kind criteria belongs to the observed change-set | runtime behavior and behavioral correctness |
+| missing refresh/requested-check signals and scope drift are reported with their configured severity | model, budget, permissions, retries |
+
+`covered` is a structural evidence claim, not a behavioral verdict. repovine requires repository grounding and rejects contradictions it can recompute; test/build/runtime/review evidence remains harness-custodied, and `AgentComplianceReport.valid` is not merge readiness.
 
 ## MCP tools
 
