@@ -723,8 +723,11 @@ test('deriveMultiRunStatus: signals wiring — happy path, test-floor conjunctio
         allSubAgents: [backendSubAgent],
         subAgents: [backendSubAgent],
         runtimeCheck: { ok: true, skipped: false },
-        verifySubAgent: { ok: true, instanceId: 'verify' },
-        repovineClaims: [{ id: 'c1', text: 'x' }],
+        verifySubAgent: {
+          ok: true, instanceId: 'verify',
+          result: { deliveryVerification: { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } } },
+        },
+        acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
         baselineTree,
         reviewRequired: false,
       };
@@ -897,15 +900,15 @@ test('missingReferencedArtifacts: long-syntax env_file honors required:false; re
   }
 });
 
-test('annotationSyncTask: verified claims ride into the sync brief with a curation contract', async () => {
+test('annotationSyncTask: verified criteria ride into the sync brief with a curation contract', async () => {
   const { annotationSyncTask } = await import('../lib/graph/multi.mjs');
   const subAgent = { role: 'backend', result: { filesChanged: ['backend/src/store.ts'], graphNodesTouched: ['mod:backend/src/store'] } };
-  const withClaims = annotationSyncTask(subAgent, ['backend'], [{ id: 'c1', text: 'completing the last open child auto-closes the parent' }]);
-  assert.match(withClaims, /Behavior contracts decided in this run/);
-  assert.match(withClaims, /auto-closes the parent/);
-  assert.match(withClaims, /curate the owning module's `invariants`/);
-  const withoutClaims = annotationSyncTask(subAgent, ['backend'], []);
-  assert.doesNotMatch(withoutClaims, /Behavior contracts/);
+  const withCriteria = annotationSyncTask(subAgent, ['backend'], [{ id: 'c1', statement: 'completing the last open child auto-closes the parent' }]);
+  assert.match(withCriteria, /Behavior contracts decided in this run/);
+  assert.match(withCriteria, /auto-closes the parent/);
+  assert.match(withCriteria, /curate the owning module's `invariants`/);
+  const withoutCriteria = annotationSyncTask(subAgent, ['backend'], []);
+  assert.doesNotMatch(withoutCriteria, /Behavior contracts/);
 });
 
 // ── Plan-quality gates: over-plan advisory + bounded plan review ───────────────
@@ -915,7 +918,7 @@ test('overPlannedRoles: flags scope with zero orient evidence; conservative ever
   const orient = {
     graphNodes: ['mod:todo-frontend/src/App', 'mod:todo-frontend/src/hooks/useTodos'],
     suggestedScopes: ['frontend'],
-    claims: [{ text: 'Two frontend tests fail on selector anchoring.' }],
+    criteria: [{ statement: 'Two frontend tests fail on selector anchoring.' }],
   };
   const backend = { role: 'backend', scope: ['backend'] };
   const frontend = { role: 'frontend', scope: ['frontend'] };
@@ -929,8 +932,8 @@ test('overPlannedRoles: flags scope with zero orient evidence; conservative ever
   );
   assert.deepEqual(overPlannedRoles([backend], orient, { greenfield: true }), [], 'greenfield never fires');
   assert.deepEqual(overPlannedRoles([backend], {}, { greenfield: false }), [], 'no orient evidence → silent');
-  // Evidence naming the scope token anywhere (claims included) clears the role.
-  const orientWithBackend = { ...orient, claims: [{ text: 'PATCH /todos in the backend must accept text.' }] };
+  // Evidence naming the scope token anywhere (criteria included) clears the role.
+  const orientWithBackend = { ...orient, criteria: [{ statement: 'PATCH /todos in the backend must accept text.' }] };
   assert.deepEqual(overPlannedRoles([backend], orientWithBackend, { greenfield: false }), []);
 });
 
@@ -988,7 +991,7 @@ test('parsePlanReview: uncited revisions are discarded; empty revise coerces to 
 
 // ── Greenfield-only worktree parallelism: stage collapse + hard sequential elsewhere ─
 
-test('applyGreenfieldParallelStages: greenfield collapses implement stages; everything else stays sequential', () => {
+test('applyGreenfieldParallelStages: greenfield batches implementers by scope-disjointness; overlapping scope stays separate', () => {
   const prev = process.env.HARNESS_GREENFIELD_PARALLEL;
   delete process.env.HARNESS_GREENFIELD_PARALLEL;
   try {
@@ -1002,8 +1005,8 @@ test('applyGreenfieldParallelStages: greenfield collapses implement stages; ever
     const parallel = applyGreenfieldParallelStages(sequential, { greenfield: true, planMode: 'auto' });
     assert.deepEqual(
       parallel.map((s) => s.map((x) => x.role)),
-      [['infra', 'backend', 'frontend'], ['review']],
-      'implement roles batch into one stage; review keeps its own stage',
+      [['infra'], ['backend', 'frontend'], ['review']],
+      'infra (root scope ".") overlaps the layers → own stage; disjoint backend+frontend batch parallel; review sequential',
     );
 
     // Continuation NEVER parallelizes — there is no override.
@@ -1167,10 +1170,10 @@ test('continuation: seeded workspace decomposes across touched layers, no re-sca
 
 // ── Post-ladder batch: delivery forms, claims recovery, sync dedup, role stack ──
 
-test('subAgentCsqOnlyDelivered: contractsChanged verdicts are delivered work (verify shape)', () => {
+test('subAgentCsqOnlyDelivered: a deliveryVerification verdict is delivered work (verify shape)', () => {
   const verifyLeaf = {
     role: 'review', ok: false, instanceId: 'verify',
-    result: { status: 'complete', filesChanged: [], contractsChanged: ['VERIFY: covered — c1 — ok'] },
+    result: { status: 'complete', filesChanged: [], deliveryVerification: { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } } },
     report: { errors: ['Context session quality rejected handoff: overall=0.39, reasons=QUALITY_BELOW_THRESHOLD.'] },
   };
   assert.equal(subAgentCsqOnlyDelivered(verifyLeaf), true);
@@ -1183,9 +1186,10 @@ test('deriveMultiRunStatus: a CSQ-only delivered verify still passes the verific
       write(root, 'README.md', 'seed\n');
       assert.equal(ensureGitRepo(root), true);
       const baselineTree = captureTree(root);
+      const passingDelivery = { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } };
       const csqVerify = {
         role: 'review', ok: false, instanceId: 'verify',
-        result: { status: 'complete', filesChanged: [], contractsChanged: ['VERIFY: covered — c1 — ok'] },
+        result: { status: 'complete', filesChanged: [], deliveryVerification: passingDelivery },
         report: { errors: ['Context session quality rejected handoff: overall=0.39, reasons=QUALITY_BELOW_THRESHOLD.'] },
       };
       const derived = deriveMultiRunStatus({
@@ -1194,7 +1198,7 @@ test('deriveMultiRunStatus: a CSQ-only delivered verify still passes the verific
         subAgents: [],
         runtimeCheck: { ok: true, skipped: false },
         verifySubAgent: csqVerify,
-        repovineClaims: [{ id: 'c1', text: 'x' }],
+        acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
         baselineTree,
         reviewRequired: false,
       });
@@ -1203,7 +1207,7 @@ test('deriveMultiRunStatus: a CSQ-only delivered verify still passes the verific
       const hardVerify = { ...csqVerify, report: { errors: ['Declared node mod:x not found in graph.'] } };
       const hard = deriveMultiRunStatus({
         repoRoot: root, allSubAgents: [], subAgents: [], runtimeCheck: { ok: true, skipped: false },
-        verifySubAgent: hardVerify, repovineClaims: [{ id: 'c1', text: 'x' }], baselineTree, reviewRequired: false,
+        verifySubAgent: hardVerify, acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }], baselineTree, reviewRequired: false,
       });
       assert.equal(hard.signals.verificationStatus, 'failed');
     });
@@ -1212,10 +1216,10 @@ test('deriveMultiRunStatus: a CSQ-only delivered verify still passes the verific
   }
 });
 
-test('recoverClaimContractsFromAttempts: newest prior attempt with CLAIMs wins; none → []', async () => {
-  const { recoverClaimContractsFromAttempts } = await import('../lib/graph/repovine-process.mjs');
+test('recoverCriteriaContractsFromAttempts: newest prior attempt with criteria wins; none → []', async () => {
+  const { recoverCriteriaContractsFromAttempts } = await import('../lib/graph/repovine-process.mjs');
   const { subAgentAttemptResultPath } = await import('../lib/harness-paths.mjs');
-  const root = tmpDir('claims-recover-');
+  const root = tmpDir('criteria-recover-');
   try {
     const key = 'run-1.orient';
     const writeAttempt = (n, contracts) => {
@@ -1223,12 +1227,13 @@ test('recoverClaimContractsFromAttempts: newest prior attempt with CLAIMs wins; 
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify({ contractsChanged: contracts }));
     };
-    writeAttempt(1, ['CLAIM: old decision', 'note: not a claim']);
+    const criterion = '{"id":"c-old","statement":"old decision","required":true}';
+    writeAttempt(1, [criterion, 'note: not a criterion']);
     writeAttempt(2, ['nothing here']);
-    // Accepted attempt is 3 (carried no claims) → recover from 2 (none) → 1.
-    assert.deepEqual(recoverClaimContractsFromAttempts(root, key, 3), ['CLAIM: old decision']);
+    // Accepted attempt is 3 (carried no criteria) → recover from 2 (none) → 1.
+    assert.deepEqual(recoverCriteriaContractsFromAttempts(root, key, 3), [criterion]);
     // No prior attempts → [] (single-attempt orients never recover).
-    assert.deepEqual(recoverClaimContractsFromAttempts(root, key, 1), []);
+    assert.deepEqual(recoverCriteriaContractsFromAttempts(root, key, 1), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

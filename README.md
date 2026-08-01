@@ -89,6 +89,7 @@ Compliance checks the result against the repo; the harness owns the rest:
 | annotations are consistent and grounded in-session | security, rollout |
 | refresh and requested-check claims are reflected in the result | final accept/block |
 | result scope within assignment | model, budget, permissions |
+| covered acceptance criteria cite graph-resolvable evidence | behavioral correctness |
 
 ## MCP tools
 

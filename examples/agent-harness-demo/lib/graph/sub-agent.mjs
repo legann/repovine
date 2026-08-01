@@ -118,6 +118,9 @@ export function buildSubAgentTask(parentTask, spec, priorHandoffs = [], repoRoot
     task: lines.join('\n'),
     scope: spec.scope,
     acceptanceCriteria: parentTask.acceptanceCriteria ?? [],
+    // The frozen verification policy rides down to every sub-agent assignment so the
+    // verifier's evidence is checked against it; buildAssignment passes it through.
+    ...(parentTask.verificationPolicy ? { verificationPolicy: parentTask.verificationPolicy } : {}),
     constraints: [
       interSubAgentHandoffConstraint(spec.role, repoRoot),
       `You are the ${spec.role} sub-agent. Stay strictly within scope ${JSON.stringify(spec.scope)}; do not edit other areas.`,

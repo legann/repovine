@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { totalUsage } from './workers/usage.mjs';
 import { formatMcpMetrics, totalMcpMetrics } from './workers/mcp-telemetry.mjs';
+import { mergeCriteriaResults } from './delivery.mjs';
 
 import {
   CURRENT_RUN_BASENAME,
@@ -314,37 +315,40 @@ function loadOrientArtifact(repoRoot, runId) {
 
 export function buildRepovineProcessSummary(state = {}, repoRoot = null) {
   let trail = state.repovineOrientTrail;
-  let claims = state.repovineClaims ?? [];
+  let criteria = state.repovineCriteria ?? [];
   const runId = state.task?.id;
   const root = repoRoot ?? state.repoRoot;
-  if (root && runId && (!trail?.graphNodes?.length || !claims.length)) {
+  if (root && runId && (!trail?.graphNodes?.length || !criteria.length)) {
     const artifact = loadOrientArtifact(root, runId);
     if (artifact?.trail) {
       trail = trail ?? artifact.trail;
-      claims = claims.length ? claims : (artifact.trail?.claims ?? []);
+      criteria = criteria.length ? criteria : (artifact.trail?.criteria ?? []);
     }
   }
   const subAgents = state.subAgents ?? [];
   const orientSubAgent = subAgents.find((l) => l.instanceId === 'orient');
   const verifySubAgent = subAgents.find((l) => l.instanceId === 'verify');
-  if (!trail && !orientSubAgent && !verifySubAgent && !claims.length) return null;
+  if (!trail && !orientSubAgent && !verifySubAgent && !criteria.length) return null;
 
+  const deliveryVerification = verifySubAgent?.result?.deliveryVerification ?? null;
   return {
     enabled: true,
     orient: {
       ok: orientSubAgent?.ok ?? null,
       graphNodeCount: trail?.graphNodes?.length ?? 0,
-      claimCount: claims.length,
+      criterionCount: criteria.length,
       flowChecked: trail?.cliPreOrient?.flowChecked
         ?? orientSubAgent?.result?.compliance?.flowChecked
         ?? null,
       cliPreOrient: trail?.cliPreOrient ?? null,
     },
-    claims: claims.map((c) => ({ id: c.id, text: c.text, status: c.status ?? 'pending' })),
+    criteria: mergeCriteriaResults(criteria, deliveryVerification)
+      .map((c) => ({ id: c.id, statement: c.statement, required: c.required, status: c.status })),
     verify: verifySubAgent
       ? {
         ok: verifySubAgent.ok,
         summary: String(verifySubAgent.result?.summary ?? '').slice(0, 240),
+        verdict: deliveryVerification?.verdict ?? null,
       }
       : null,
     artifacts: {

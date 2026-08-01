@@ -401,11 +401,11 @@ An episode is one bounded pass at a goal. The orchestrator is a supervisory stat
 
 ### Phase pipeline
 
-The goal is sharpened into claims, implemented in stages, and certified by the feedback path. A red runtime check after the fix budget skips annotation sync and closes the episode honestly.
+The goal is sharpened into acceptance criteria, implemented in stages, and certified by the feedback path. A red runtime check after the fix budget skips annotation sync and closes the episode honestly.
 
 ```mermaid
 flowchart LR
-  G[goal] -->|sharpen into claims| O[orient]
+  G[goal] -->|sharpen into criteria| O[orient]
   O --> P[plan]
   P -->|stages| I[implement]
   I --> R[review]
@@ -418,7 +418,7 @@ flowchart LR
   S --> C
 ```
 
-`refresh_context` runs as a barrier between stages and before sync. After the last stage it runs only when review is requested, so a plain run reaches verify on the graph the stage left behind. Verify reads claims plus graph-memory obligations from the run-start lore snapshot.
+`refresh_context` runs as a barrier between stages and before sync. After the last stage it runs only when review is requested, so a plain run reaches verify on the graph the stage left behind. Verify reads the frozen acceptance criteria plus graph-memory obligations from the run-start lore snapshot. It emits a typed `deliveryVerification`: one result per criterion — covered, gap, or needs-human. Each `covered` criterion cites a `repository` anchor grounded through `inspect_node`/`map_context`, and repovine re-resolves that anchor against the built graph. The goal accepts when `intentVerified` holds and every required criterion is covered.
 
 ### Plan gates
 
@@ -885,8 +885,8 @@ reaches which sub-agent — delivery does not depend on the plan mode: a planner
 
 | Payload | Transport | Reaches |
 |---|---|---|
-| Orient anchors, claims digest, navigation guidance | `enrichedTask.repovineOrientSection`; `buildSubAgentTask` appends it whenever `spec.task` overrides the parent text | every sub-agent after orient |
-| Claims (`CLAIM:` lines) | orient handoff → contract ledger | every sub-agent; survives task overrides and provider resume |
+| Orient anchors, criteria digest, navigation guidance | `enrichedTask.repovineOrientSection`; `buildSubAgentTask` appends it whenever `spec.task` overrides the parent text | every sub-agent after orient |
+| Acceptance criteria (JSON objects) + frozen `verificationPolicy` | orient handoff → contract ledger; `enrichedTask.acceptanceCriteria`/`verificationPolicy` → assignment | every sub-agent; survives task overrides and provider resume |
 | inter-sub-agent contracts + prior-sub-agent summaries | handoff ledger → inter-sub-agent section | every sub-agent with prior handoffs |
 | Harness tree-diff (observed change set) | `withReviewTreeDiff` on review specs; `treeDiffSection` param on verify | review, re-review, verify |
 | Custody diff base | `spec.reviewDiffBase`, forced onto `review.reviewedDiffBase` in `runSubAgent` before compliance | review sub-agents |

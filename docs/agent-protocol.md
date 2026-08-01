@@ -80,9 +80,10 @@ Internal subagent handoffs are an implementation detail behind the aggregated
 | `ContextPack` | agent → harness / harness → agent | First-class exploration artifact: resolved graph anchors, entrypoints, contracts, notes, assumptions, open questions, and recommended next actions. |
 | `ArchitectureAuditResult` | agent → harness/repovine | Triaged architecture findings with status, evidence, affected nodes, and optional proposed implementation assignments. |
 | `CodeReviewResult` | agent → harness/repovine | Structured read-only review verdict for a diff, including reviewed files, test coverage assessment, findings, and residual risks. |
+| `DeliveryVerificationResult` | agent → harness/repovine | Read-only intent verification: per-criterion status (covered/gap/needs-human) with graph-grounded repository evidence and a verdict (`protocolValid`, `intentVerified`, `deliveryAccepted`). |
 | `ReviewInput` | harness → code-reviewer | Standalone review payload: the original **implementation** assignment, prior context, implementation result, diff base, changed files, and touched graph nodes. Not a field of `AgentAssignment`. |
-| `AgentAssignment` | harness → agent | The scoped request: task, scope, acceptance criteria, constraints, contracts, requested checks, optional context-session policy, and optional prior context. |
-| `AgentRunResult` | agent → harness/repovine | The aggregated public result: status, files/nodes/contracts touched, tests, annotations, compliance flags, optional context-session id, optional capability artifacts, blockers. |
+| `AgentAssignment` | harness → agent | The scoped request: task, scope, acceptance criteria, constraints, contracts, requested checks, optional context-session policy, optional verification policy (`verificationPolicy`, version matched to `assignment.version`), and optional prior context. |
+| `AgentRunResult` | agent → harness/repovine | The aggregated public result: status, files/nodes/contracts touched, tests, annotations, compliance flags, optional context-session id, optional capability artifacts, optional delivery verification (`deliveryVerification`), blockers. |
 | `AgentComplianceReport` | repovine → harness | Validation output: errors, warnings, missing fields, stale/orphaned/missing annotations, unresolved nodes, scope collisions, optional context quality report, required follow-ups. |
 
 Internal schema types (`SubagentAssignment`, `SubagentHandoff`) support
@@ -232,6 +233,15 @@ state?
 - `review.verdict="approve"` is invalid when blocker/major findings exist, when
   test coverage is not `adequate`, or when `testReview.missingTests` contains a
   blocker/major entry;
+- when `result.deliveryVerification` is present, its criteria registry is
+  re-checked against the assignment `acceptanceCriteria`: each required criterion
+  carries exactly one result, `verdict.intentVerified` / `deliveryAccepted` stay
+  consistent with the registry, and `filesChanged` is empty (verify is read-only);
+- each `covered` criterion cites a `repository` evidence anchor whose `graphNodeId`
+  resolves in the built graph; cited evidence kinds stay within the frozen
+  `verificationPolicy`, and `assignment.version` matches
+  `verificationPolicy.version`. Repository evidence is re-resolved against the
+  graph, the diff is the change footprint;
 - when `assignment.contextSession.required=true`, repovine recomputes the
   recorded `ContextQualityReport` instead of trusting self-report. Missing,
   unreadable, and rejected sessions currently emit warnings and
@@ -272,7 +282,7 @@ Storage, cleanup triggers, thresholds, scoring, and retention are defined in
 
 ## Capabilities
 
-repovine exposes four capability concepts on both local client and external
+repovine exposes five capability concepts on both local client and external
 harness surfaces.
 
 | Capability | Result artifact | Meaning |
@@ -281,6 +291,7 @@ harness surfaces.
 | Implementation | normal `AgentRunResult` fields | Software change attempted, tests/checks reported, graph/annotations refreshed when needed. Implementation complete does not mean reviewed or merge-ready. |
 | Architecture Audit | `architectureAudit` | Read-only triage of architecture candidates into confirmed/suppressed/needs-inspection/accepted-risk findings. |
 | Code Review | `review` | Read-only diff review with a structured verdict. repovine validates structure and observable claims, not subjective completeness. |
+| Delivery Verification | `deliveryVerification` | Read-only re-check of acceptance criteria into covered/gap/needs-human with graph-grounded repository evidence and an intent verdict. Covered marks structural completeness; behavioral correctness stays with review. |
 
 If an assignment is provided but fails schema validation, compliance is skipped:
 there is no `AgentComplianceReport` to accept, because assignment linkage,

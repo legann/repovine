@@ -23,7 +23,7 @@ import { collectSubAgentSessions } from './sessions.mjs';
 import { buildRunUsage } from '../workers/usage.mjs';
 import { buildRunMcp, formatMcpMetrics } from '../workers/mcp-telemetry.mjs';
 import { resolveRole } from '../agents.mjs';
-import { applyVerifyOutcomes } from '../claims.mjs';
+import { deliveryVerificationAccepted } from '../delivery.mjs';
 import {
   available as gitAvailable,
   ensureGitRepo,
@@ -656,19 +656,19 @@ export function deriveAnnotationSyncScope(subAgent) {
   return deriveRootScopedAnnotationScope(subAgent);
 }
 
-export function annotationSyncTask(subAgent, scope, claims = []) {
+export function annotationSyncTask(subAgent, scope, criteria = []) {
   const files = (subAgent.result?.filesChanged ?? []).map((f) => `- ${f}`).join('\n') || '- (none reported)';
   const nodes = (subAgent.result?.graphNodesTouched ?? []).map((n) => `- ${n}`).join('\n') || '- (none reported)';
-  // Claims → invariants bridge (write side): behavior contracts this run decided
+  // Criteria → invariants bridge (write side): behavior contracts this run decided
   // and verification covered belong in the owning module's structured
   // `invariants` — the field the graph-obligations channel delivers to future
   // runs. CURATION, not accumulation: the invariant set reflects the CURRENT
   // contract state.
-  const claimsSection = claims.length
+  const criteriaSection = criteria.length
     ? [
       '',
-      'Behavior contracts decided in this run (claims):',
-      ...claims.map((c) => `- ${c.text ?? c}`),
+      'Behavior contracts decided in this run (acceptance criteria):',
+      ...criteria.map((c) => `- ${c.statement ?? c}`),
       'For the ones your scope OWNS, curate the owning module\'s `invariants`: rewrite the set to the current contract state — behavior contracts go into invariants (not summary prose); no duplicates; drop invariants the code no longer honors.',
     ]
     : [];
@@ -680,7 +680,7 @@ export function annotationSyncTask(subAgent, scope, claims = []) {
     'Run refresh_context, inspect/get_annotation_status({ "view": "queue" }) for this scope and the nodes/files below, write_annotation to detailed tier, then refresh_context({ "cleanupOrphans": true }) and validate_annotations hard checks. Drain the queue to needsWork:0 in scope (content-stale before propagation-stale; propagation-stale is in needsWork).',
     'A domain roll-up in the queue went stale because a member moved, not because its own text did — the member can be a runtime resource, not only a module. Take the members first: a roll-up rewritten before them is stale again by the end of the pass.',
     'Emit an annotation-only AgentRunResult with filesChanged: [], contractsChanged: [], and annotationsWritten containing the canonical node ids you wrote.',
-    ...claimsSection,
+    ...criteriaSection,
     '',
     'Prior sub-agent filesChanged:',
     files,
@@ -730,7 +730,7 @@ export function groupAnnotationSyncTargets(targets, deriveScope) {
   });
 }
 
-async function runPostReviewAnnotationSync({ task, repoRoot, provider, subAgents, handoffs, signal, priorSessions, onSession, greenfieldRun, claims = [] }) {
+async function runPostReviewAnnotationSync({ task, repoRoot, provider, subAgents, handoffs, signal, priorSessions, onSession, greenfieldRun, criteria = [] }) {
   if (!postReviewAnnotationsEnabled() || signal?.aborted) return [];
   const targets = annotationSyncTargets(subAgents);
   if (!targets.length) return [];
@@ -750,7 +750,7 @@ async function runPostReviewAnnotationSync({ task, repoRoot, provider, subAgents
         // Built-in manifest NAME (repovine agents manifests) — it requires annotationsWritten,
         // so a sync subAgent that writes nothing is rejected instead of passing quietly.
         manifest: 'repovine-annotation-writer',
-        task: annotationSyncTask(subAgent, scope, claims),
+        task: annotationSyncTask(subAgent, scope, criteria),
       }),
       instanceId: `${instance}-annotations`,
       contextPhase: 'annotate',
@@ -978,7 +978,7 @@ export function deriveMultiRunStatus({
   fixSubAgent = null,
   runtimeCheck = null,
   verifySubAgent = null,
-  repovineClaims = [],
+  acceptanceCriteria = [],
   repovineOrientTrail = null,
   baselineTree = null,
   reviewRequired = false,
@@ -996,20 +996,26 @@ export function deriveMultiRunStatus({
   const runtimeStatus = runtimeStatusOf(runtimeCheck, runtimeReq);
   const runtimeAccepted = runtimeAcceptedOf(runtimeCheck, runtimeReq);
   const verificationReq = repovineProcessEnabled()
-    && ((repovineClaims?.length ?? 0) > 0 || (repovineOrientTrail?.graphNodes?.length ?? 0) > 0);
+    && ((acceptanceCriteria?.length ?? 0) > 0 || (repovineOrientTrail?.graphNodes?.length ?? 0) > 0);
   // Deterministic floors: a require-tests scope with no test source file, or a
   // declared file reference whose target does not exist, is a verification
   // blocker — it closes verificationAccepted, hence goalOk.
   const testFloorBlockers = missingTestFloorBlockers(repoRoot, subAgents);
   const artifactFloorBlockers = missingReferencedArtifacts(repoRoot);
-  // A verify sub-agent rejected ONLY for a weak context session, with its verdicts
-  // delivered (contractsChanged), counts as a delivered verification: the verification
-  // axis judges the verdicts. The engine emits that rejection as a compliance error only
-  // behind a context-quality hard gate that is currently off, so a weak session reaches
-  // compliance as a warning and this branch reads false on every real report. It takes
-  // effect when the gate turns on.
-  const verifyEffective = verifySubAgent && !verifySubAgent.ok && subAgentCsqOnlyDelivered(verifySubAgent)
-    ? { ...verifySubAgent, ok: true }
+  // A verify sub-agent rejected ONLY for a weak context session, with its verdict
+  // delivered (deliveryVerification), counts as a delivered verification: the
+  // verification axis judges the verdict. The engine emits that rejection as a
+  // compliance error only behind a context-quality hard gate that is currently off, so
+  // a weak session reaches compliance as a warning and the csq branch reads false on
+  // every real report; it takes effect when the gate turns on.
+  //
+  // The delivery verdict is itself the verification axis: a verify sub-agent that RAN
+  // cleanly but reported a required-criterion gap (or emitted no deliveryVerification)
+  // is process-clean, goal-failed. deliveryVerificationAccepted is fail-closed.
+  const verifyRawOk = Boolean(verifySubAgent && (verifySubAgent.ok || subAgentCsqOnlyDelivered(verifySubAgent)));
+  const verdictAccepted = deliveryVerificationAccepted(verifySubAgent?.result?.deliveryVerification, acceptanceCriteria);
+  const verifyEffective = verifySubAgent
+    ? { ...verifySubAgent, ok: verifyRawOk && verdictAccepted }
     : verifySubAgent;
   const verificationStatus = verificationStatusOf(verifyEffective, verificationReq);
   const verificationAccepted = verificationAcceptedOf(verifyEffective, verificationReq)
@@ -1121,7 +1127,7 @@ export async function multiAgent(state, config) {
 
   let workingTask = task;
   let repovineOrientTrail = null;
-  let repovineClaims = [];
+  let acceptanceCriteria = [];
   let greenfield = false;
   const processSubAgents = [];
   const subAgents = [];
@@ -1137,12 +1143,12 @@ export async function multiAgent(state, config) {
       onSession,
     });
     processSubAgents.push(orient.subAgent);
-    // Orient's CLAIM: contracts enter the handoff LEDGER — the one channel that
-    // survives spec.task overrides and provider resume. Without this, claims ride
+    // Orient's criteria contracts enter the handoff LEDGER — the one channel that
+    // survives spec.task overrides and provider resume. Without this, criteria ride
     // only as task prose and vanish for planner-authored subAgents.
     if (orient.subAgent.handoff) handoffs.push(orient.subAgent.handoff);
     repovineOrientTrail = orient.trail;
-    repovineClaims = orient.claims;
+    acceptanceCriteria = orient.criteria;
     greenfield = orient.greenfield ?? false;
     workingTask = orient.enrichedTask;
     if (!signal?.aborted && orient.subAgent.ok) {
@@ -1291,7 +1297,13 @@ export async function multiAgent(state, config) {
   }
 
   let verifySubAgent = null;
-  if (!signal?.aborted && postReviewGatesPassed(subAgents, fixSubAgent, runtimeCheck) && repovineProcessEnabled()) {
+  // Verify runs on an OPEN review gate regardless of runtime_check: it is read-only and
+  // its delivery verdict is the verification axis, separate from the build/test axis. A
+  // failed runtime still fails the goal (runtimeAccepted feeds goalOk independently), but
+  // the criteria verdict stays visible instead of being skipped whenever generated tests
+  // break. The post-review annotation sync below stays runtime-gated — it mutates durable
+  // graph memory and must not write a broken tree.
+  if (!signal?.aborted && reviewGateIsOpen(subAgents, fixSubAgent) && repovineProcessEnabled()) {
     const implementSubAgents = subAgents.filter(
       (l) => l.role === 'backend' || l.role === 'frontend' || l.role === 'infra' || l.role === 'default',
     );
@@ -1305,7 +1317,7 @@ export async function multiAgent(state, config) {
       task: workingTask,
       repoRoot,
       provider,
-      claims: repovineClaims,
+      criteria: acceptanceCriteria,
       orientTrail: repovineOrientTrail,
       implementSubAgents,
       handoffs,
@@ -1320,10 +1332,9 @@ export async function multiAgent(state, config) {
     if (verifySubAgent) {
       processSubAgents.push(verifySubAgent);
       handoffs.push(verifySubAgent.handoff);
-      // Read the verifier's VERIFY: lines back onto the claims. Without this the
-      // serialized claim status stays 'pending' on a fully verified run, which
-      // reads as "verification never happened".
-      repovineClaims = applyVerifyOutcomes(repovineClaims, verifySubAgent.result?.contractsChanged);
+      // The verifier's deliveryVerification rides on verifySubAgent.result: the gate
+      // reads it in deriveMultiRunStatus, and the card/telemetry read it off the verify
+      // sub-agent record. No write-back onto the criteria set.
     }
   }
 
@@ -1369,9 +1380,9 @@ export async function multiAgent(state, config) {
       priorSessions: liveSessions,
       onSession,
       greenfieldRun: greenfield,
-      // Write side of the claims↔graph bridge: verified behavior contracts are
+      // Write side of the criteria↔graph bridge: verified behavior contracts are
       // curated into the owning modules' `invariants` by the sync subAgents.
-      claims: repovineClaims,
+      criteria: acceptanceCriteria,
     });
     if (!annotationSubAgents.length) {
       logAnnotationSyncSkipped(repoRoot, task, 'no accepted sub-agent changed files');
@@ -1407,7 +1418,7 @@ export async function multiAgent(state, config) {
     fixSubAgent,
     runtimeCheck,
     verifySubAgent,
-    repovineClaims,
+    acceptanceCriteria,
     repovineOrientTrail,
     baselineTree,
     reviewRequired,
@@ -1430,7 +1441,7 @@ export async function multiAgent(state, config) {
     signals,
     runtimeCheck,
     repovineOrientTrail,
-    repovineClaims,
+    repovineCriteria: acceptanceCriteria,
     greenfield,
     usage: runUsage?.total ?? null,
     usageRollup: runUsage ?? null,

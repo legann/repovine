@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applyVerifyOutcomes,
-  claimIdFromText,
-  mergeClaims,
-  parseClaimsFromContracts,
-  parseVerifyOutcomes,
+  buildVerificationPolicy,
+  criterionIdFromStatement,
+  deliveryVerificationAccepted,
+  mergeCriteria,
+  parseAcceptanceCriteria,
   scopesFromGraphNodes,
-} from '../lib/claims.mjs';
+} from '../lib/delivery.mjs';
 import {
   isOrientSubAgent,
   isRunGateSubAgent,
@@ -19,13 +19,27 @@ import {
 } from '../lib/graph/repovine-process.mjs';
 import { buildRepovineProcessSummary } from '../lib/telemetry.mjs';
 
-test('parseClaimsFromContracts extracts CLAIM lines', () => {
-  const claims = parseClaimsFromContracts([
+test('parseAcceptanceCriteria reads JSON objects, skips non-JSON, mints ids', () => {
+  const criteria = parseAcceptanceCriteria([
     'UNCHANGED: api ok',
-    'CLAIM: badge clears after direct chat',
+    '{"statement":"badge clears after direct chat","required":true}',
+    '{"id":"c-audit","statement":"audit log records each transition"}',
   ]);
-  assert.equal(claims.length, 1);
-  assert.match(claims[0].text, /badge clears/i);
+  assert.equal(criteria.length, 2);
+  assert.equal(criteria[0].id, 'c-badge-clears-after-direct-chat');
+  assert.equal(criteria[0].required, true);
+  assert.equal(criteria[1].id, 'c-audit');
+  assert.equal(criteria[1].required, true);
+});
+
+test('parseAcceptanceCriteria accepts object entries and dedupes by id', () => {
+  const criteria = parseAcceptanceCriteria([
+    { id: 'c-a', statement: 'first' },
+    { id: 'c-a', statement: 'second' },
+    { statement: '   ' },
+  ]);
+  assert.equal(criteria.length, 1);
+  assert.equal(criteria[0].statement, 'first');
 });
 
 test('scopesFromGraphNodes maps mod ids to package scopes', () => {
@@ -34,6 +48,67 @@ test('scopesFromGraphNodes maps mod ids to package scopes', () => {
     'mod:chat-frontend/src/app/services/user.service',
   ]);
   assert.deepEqual(scopes.sort(), ['chat-backend', 'chat-frontend']);
+});
+
+test('criterionIdFromStatement slugifies', () => {
+  assert.equal(criterionIdFromStatement('Badge clears after chat'), 'c-badge-clears-after-chat');
+});
+
+test('mergeCriteria dedupes by id and defaults required', () => {
+  const merged = mergeCriteria(
+    [{ id: 'c-a', statement: 'first' }],
+    [{ id: 'c-a', statement: 'second' }, { statement: 'user request fallback' }],
+  );
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0].statement, 'first');
+  assert.equal(merged[0].required, true);
+});
+
+test('buildVerificationPolicy: repository per criterion, version 1', () => {
+  const policy = buildVerificationPolicy([
+    { id: 'c-a', statement: 'a', required: true },
+    { id: 'c-b', statement: 'b', required: false },
+  ]);
+  assert.equal(policy.version, 1);
+  assert.equal(policy.assuranceProfile, 'repository');
+  assert.deepEqual(policy.requirements, [
+    { criterionId: 'c-a', evidenceKinds: ['repository'] },
+    { criterionId: 'c-b', evidenceKinds: ['repository'] },
+  ]);
+});
+
+// ── deliveryVerificationAccepted: the enforcing gate predicate ─────────────────
+const coveredResult = (id) => ({
+  criterionId: id, status: 'covered',
+  evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x',
+});
+
+test('deliveryVerificationAccepted: all required covered + intentVerified → true', () => {
+  const criteria = [{ id: 'c-a', statement: 'a', required: true }, { id: 'c-b', statement: 'b', required: false }];
+  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { protocolValid: true, intentVerified: true } };
+  assert.equal(deliveryVerificationAccepted(dv, criteria), true);
+});
+
+test('deliveryVerificationAccepted: a required-criterion gap → false (enforcing)', () => {
+  const criteria = [{ id: 'c-a', statement: 'a', required: true }];
+  const dv = { criteriaResults: [{ criterionId: 'c-a', status: 'gap', evidence: [], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } };
+  assert.equal(deliveryVerificationAccepted(dv, criteria), false);
+});
+
+test('deliveryVerificationAccepted: intentVerified=false → false', () => {
+  const criteria = [{ id: 'c-a', statement: 'a', required: true }];
+  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { protocolValid: true, intentVerified: false } };
+  assert.equal(deliveryVerificationAccepted(dv, criteria), false);
+});
+
+test('deliveryVerificationAccepted: absent deliveryVerification → false (fail-closed)', () => {
+  assert.equal(deliveryVerificationAccepted(null, [{ id: 'c-a', statement: 'a', required: true }]), false);
+});
+
+test('deliveryVerificationAccepted: a required criterion with no result → false', () => {
+  const criteria = [{ id: 'c-a', statement: 'a', required: true }, { id: 'c-b', statement: 'b', required: true }];
+  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { protocolValid: true, intentVerified: true } };
+  assert.equal(deliveryVerificationAccepted(dv, criteria), false);
 });
 
 test('repovineProcessRunOk ignores annotation-sync failures', () => {
@@ -119,19 +194,6 @@ test('isOrientSubAgent', () => {
   assert.equal(isOrientSubAgent({ role: 'repo-explorer' }), false);
 });
 
-test('claimIdFromText slugifies', () => {
-  assert.equal(claimIdFromText('Badge clears after chat'), 'c-badge-clears-after-chat');
-});
-
-test('mergeClaims dedupes by id', () => {
-  const merged = mergeClaims(
-    [{ id: 'c-a', text: 'first' }],
-    [{ id: 'c-a', text: 'second' }],
-  );
-  assert.equal(merged.length, 1);
-  assert.equal(merged[0].text, 'first');
-});
-
 test('orientTask includes greenfield section when greenfield', () => {
   const task = orientTask('build chat from scratch', null, { greenfield: true });
   assert.match(task, /New project \(greenfield sandbox\)/);
@@ -146,75 +208,34 @@ test('orientTask includes CLI pre-orient hints', () => {
     traceScope: 'chat-backend',
   });
   assert.match(task, /CLI pre-orient/);
-  assert.match(task, /CLAIM:/);
+  assert.match(task, /acceptance criteria/i);
   assert.match(task, /flowChecked/);
   assert.match(task, /chat-backend/);
 });
 
-test('buildRepovineProcessSummary includes orient and verify', () => {
+test('buildRepovineProcessSummary includes orient criteria and verify verdict', () => {
   const summary = buildRepovineProcessSummary({
     task: { id: 'run-1' },
     repovineOrientTrail: {
       graphNodes: ['mod:a', 'mod:b'],
       cliPreOrient: { flowChecked: true, traceScope: 'a' },
     },
-    repovineClaims: [{ id: 'c-1', text: 'badge clears', status: 'pending' }],
+    repovineCriteria: [{ id: 'c-1', statement: 'badge clears', required: true }],
     subAgents: [
       { instanceId: 'orient', ok: true, result: { compliance: { flowChecked: true } } },
-      { instanceId: 'verify', ok: true, result: { summary: 'all claims covered' } },
+      {
+        instanceId: 'verify', ok: true,
+        result: {
+          summary: 'all criteria covered',
+          deliveryVerification: { criteriaResults: [coveredResult('c-1')], verdict: { protocolValid: true, intentVerified: true } },
+        },
+      },
     ],
   });
   assert.equal(summary.orient.graphNodeCount, 2);
   assert.equal(summary.orient.flowChecked, true);
-  assert.equal(summary.claims.length, 1);
-  assert.equal(summary.verify.ok, true);
+  assert.equal(summary.criteria.length, 1);
+  assert.equal(summary.criteria[0].status, 'covered');
+  assert.equal(summary.verify.verdict.intentVerified, true);
   assert.equal(summary.artifacts.orient, 'orient.json');
-});
-
-test('parseVerifyOutcomes: reads covered/gap, ignores non-outcomes', () => {
-  const out = parseVerifyOutcomes([
-    'UNCHANGED: api ok',
-    'VERIFY: covered — c-badge-clears — badge state resets on open',
-    'VERIFY: gap — c-sound-plays — no audio path in the diff',
-    'VERIFY: bogus — c-x — not an outcome',
-  ]);
-  assert.deepEqual(out, [
-    { id: 'c-badge-clears', status: 'covered', reason: 'badge state resets on open' },
-    { id: 'c-sound-plays', status: 'gap', reason: 'no audio path in the diff' },
-  ]);
-});
-
-test('applyVerifyOutcomes: claim ids survive their own hyphens', () => {
-  const applied = applyVerifyOutcomes(
-    [
-      { id: 'c-badge-clears', text: 'badge clears', status: 'pending' },
-      { id: 'c-sound-plays', text: 'sound plays', status: 'pending' },
-    ],
-    ['VERIFY: covered — c-badge-clears — reset on open', 'VERIFY: gap — c-sound-plays — missing'],
-  );
-  assert.equal(applied[0].status, 'covered');
-  assert.equal(applied[0].verifyReason, 'reset on open');
-  assert.equal(applied[1].status, 'gap');
-});
-
-test('applyVerifyOutcomes: an unjudged claim stays pending, never covered', () => {
-  const applied = applyVerifyOutcomes(
-    [{ id: 'c-a', text: 'a', status: 'pending' }, { id: 'c-b', text: 'b', status: 'pending' }],
-    ['VERIFY: covered — c-a — done'],
-  );
-  assert.equal(applied[0].status, 'covered');
-  assert.equal(applied[1].status, 'pending');
-});
-
-test('applyVerifyOutcomes: tolerates a dropped c- prefix and a spaced hyphen', () => {
-  const applied = applyVerifyOutcomes(
-    [{ id: 'c-badge-clears', text: 'badge clears', status: 'pending' }],
-    ['VERIFY: covered - badge-clears - ok'],
-  );
-  assert.equal(applied[0].status, 'covered');
-});
-
-test('applyVerifyOutcomes: no VERIFY lines leaves claims untouched', () => {
-  const claims = [{ id: 'c-a', text: 'a', status: 'pending' }];
-  assert.equal(applyVerifyOutcomes(claims, ['UNCHANGED: x']), claims);
 });

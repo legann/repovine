@@ -170,11 +170,11 @@ export async function planSubAgentsAsync(task, repoRoot, provider) {
  */
 export function overPlannedRoles(specs, orientTrail, { greenfield = false } = {}) {
   if (greenfield) return [];
-  const claims = (orientTrail?.claims ?? []).map((c) => (typeof c === 'string' ? c : c?.text ?? ''));
+  const criteria = (orientTrail?.criteria ?? []).map((c) => (typeof c === 'string' ? c : c?.statement ?? ''));
   const evidence = [
     ...(orientTrail?.graphNodes ?? []),
     ...(orientTrail?.suggestedScopes ?? []),
-    ...claims,
+    ...criteria,
   ].join(' ').toLowerCase();
   if (!evidence.trim()) return [];
   const exempt = new Set(['review', 'repo-explorer', 'annotation-writer']);
@@ -195,11 +195,13 @@ export function greenfieldParallelEnabled() {
 }
 
 /**
- * Greenfield-only parallelism: collapse implement-role specs into one batch stage so
- * the scaffold roles fan out in git worktrees. Scope overlap is allowed here — each
- * role builds in its own worktree and the sequential merge surfaces real conflicts as
- * blockers. The inter-stage contract channel (refresh barrier) is traded for
- * wall-clock; role briefs and assignments carry the scaffold contract instead.
+ * Greenfield-only parallelism: fan implement-role specs out into git worktrees, batched
+ * by scope-disjointness. Overlapping scopes (e.g. a root "." infra role) get their own
+ * earlier stage rather than sharing a worktree batch with the layers they span — an
+ * overlapping worktree merge-conflicts and the sequential merge-back drops its whole
+ * branch. Disjoint layers still fan out together; the inter-stage refresh barrier is
+ * traded for wall-clock only where scopes are disjoint. Role briefs and assignments
+ * carry the scaffold contract instead.
  * Applies only to orient-confirmed new-project runs with planner/frame-authored
  * plans. Explicit user-pinned plans keep their stage order. Continuation never
  * parallelizes: the refresh barrier between stages is how real contracts propagate
@@ -218,7 +220,18 @@ export function applyGreenfieldParallelStages(stages, { greenfield = false, plan
   const implementers = flat.filter(isImplement);
   if (implementers.length < 2) return stages;
   const rest = flat.filter((s) => !isImplement(s));
-  return [implementers, ...rest.map((s) => [s])];
+  // Batch implementers by scope-disjointness (ROLE_ORDER first) so an overlapping scope
+  // (e.g. a root "." infra role) does not share a worktree stage with the layers it
+  // spans: overlapping worktrees merge-conflict and the sequential merge-back drops the
+  // loser's whole branch. Disjoint layers still fan out together in one parallel stage.
+  const ordered = [...implementers].sort((a, b) => orderIndex(a.role) - orderIndex(b.role));
+  const batches = [];
+  for (const s of ordered) {
+    const batch = batches.find((b) => b.every((m) => scopesDisjoint(m.scope, s.scope)));
+    if (batch) batch.push(s);
+    else batches.push([s]);
+  }
+  return [...batches, ...rest.map((s) => [s])];
 }
 
 // ── scheduling ───────────────────────────────────────────────────────────────

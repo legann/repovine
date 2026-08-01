@@ -269,8 +269,8 @@ export async function planWithLLM(task, repoRoot, provider) {
 
 /** Prompt for the bounded plan critic. Exported for tests. */
 export function buildPlanReviewPrompt(task, specs) {
-  const claims = (task.repovineOrient?.claims ?? [])
-    .map((c) => (typeof c === 'string' ? c : c?.text ?? ''))
+  const criteria = (task.repovineOrient?.criteria ?? [])
+    .map((c) => (typeof c === 'string' ? c : c?.statement ?? ''))
     .filter(Boolean)
     .map((t) => `- ${t}`);
   const nodes = task.repovineOrient?.graphNodes ?? [];
@@ -282,17 +282,17 @@ export function buildPlanReviewPrompt(task, specs) {
     '',
     `TASK: ${task.task}`,
     '',
-    claims.length ? `ORIENT CLAIMS:\n${claims.join('\n')}` : 'ORIENT CLAIMS: (none)',
+    criteria.length ? `ORIENT ACCEPTANCE CRITERIA:\n${criteria.join('\n')}` : 'ORIENT ACCEPTANCE CRITERIA: (none)',
     '',
     nodes.length ? `ORIENT GRAPH NODES: ${nodes.join(', ')}` : 'ORIENT GRAPH NODES: (none)',
     '',
     `PLAN:\n${plan.join('\n')}`,
     '',
     'Verdict rules:',
-    '- A revision is VALID only when its `evidence` cites a claim fragment or graph node id from above.',
+    '- A revision is VALID only when its `evidence` cites a criterion fragment or graph node id from above.',
     '- Discard any finding you cannot evidence. No valid revisions → verdict "approve".',
-    '- At most 3 revisions. Actions: drop (role owns no requirement), add (uncovered claim),',
-    '  rescope (scope misses or exceeds the cited evidence), retask (role task contradicts a claim).',
+    '- At most 3 revisions. Actions: drop (role owns no requirement), add (uncovered criterion),',
+    '  rescope (scope misses or exceeds the cited evidence), retask (role task contradicts a criterion).',
     '',
     'Output one ```json fenced object (and nothing else after it):',
     '  { "verdict": "approve" | "revise",',

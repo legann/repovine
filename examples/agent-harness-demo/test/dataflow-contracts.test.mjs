@@ -49,14 +49,24 @@ test('contract: the orient PRODUCER subAgent gets no orient section (field absen
   assert.doesNotMatch(subAgent.task, /## Repovine orient/);
 });
 
-test('contract: orient claims in the handoff LEDGER survive a spec.task override', () => {
+test('contract: orient acceptance criteria in the handoff LEDGER survive a spec.task override', () => {
   // multiAgent pushes the orient subAgent handoff into `handoffs`; buildSubAgentTask folds
   // every prior handoff's contractsChanged into assignment contracts + the
   // inter-subAgent section — the one channel that survives task overrides.
-  const orientHandoff = { role: 'repo-explorer', workSummary: 'oriented', contractsChanged: ['CLAIM: users can add todos'], filesChanged: [], blockers: [] };
+  const criterionEntry = '{"id":"c-add-todos","statement":"users can add todos","required":true}';
+  const orientHandoff = { role: 'repo-explorer', workSummary: 'oriented', contractsChanged: [criterionEntry], filesChanged: [], blockers: [] };
   const subAgent = buildSubAgentTask(parentTask(), { role: 'backend', scope: ['backend'], task: 'Planner text.' }, [orientHandoff], '/tmp');
-  assert.ok(subAgent.contracts.includes('CLAIM: users can add todos'), 'claim entered the contract ledger');
-  assert.match(subAgent.task, /CLAIM: users can add todos/, 'ledger renders in the inter-subAgent section');
+  assert.ok(subAgent.contracts.includes(criterionEntry), 'criterion entered the contract ledger');
+  assert.match(subAgent.task, /users can add todos/, 'ledger renders in the inter-subAgent section');
+});
+
+test('contract: acceptanceCriteria + verificationPolicy thread from parent to sub-agent task', () => {
+  const acceptanceCriteria = [{ id: 'c1', statement: 'users can add todos', required: true }];
+  const verificationPolicy = { assuranceProfile: 'repository', version: 1, requirements: [{ criterionId: 'c1', evidenceKinds: ['repository'] }] };
+  const parent = { ...parentTask(), acceptanceCriteria, verificationPolicy };
+  const subAgent = buildSubAgentTask(parent, { role: 'backend', scope: ['backend'] }, [], '/tmp');
+  assert.deepEqual(subAgent.acceptanceCriteria, acceptanceCriteria);
+  assert.deepEqual(subAgent.verificationPolicy, verificationPolicy);
 });
 
 // ── Custody ────────────────────────────────────────────────────────────────────
