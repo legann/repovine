@@ -106,7 +106,7 @@ test('normalizeResult: strips a stray review from a non-code-reviewer subAgent (
 test('normalizeResult: does not invent absent optional artifacts', () => {
   const asg = { runId: 'r1', task: 'x', scope: ['.'] };
   const out = normalizeResult({ status: 'complete', summary: 's' }, asg);
-  for (const key of ['review', 'architectureAudit', 'contextPack', 'internalTrace', 'contextQuality']) {
+  for (const key of ['review', 'architectureAudit', 'contextPack', 'internalTrace', 'contextQuality', 'deliveryVerification']) {
     assert.equal(key in out, false, `must not fabricate ${key}`);
   }
 });
@@ -117,6 +117,39 @@ test('normalizeResult: subAgents a malformed code-reviewer review present for sc
   // A code-reviewer's malformed review is preserved verbatim so `agents validate-result` rejects
   // it, instead of vanishing here.
   assert.equal(out.review, 'not an object');
+});
+
+// ── provider normalizer carries a verifier's deliveryVerification to compliance ──
+test('normalizeResult: preserves deliveryVerification on a read-only (explore) verifier run', () => {
+  const asg = { runId: 'r-verify', task: 'verify delivery', scope: ['.'], contextSession: { phase: 'explore' } };
+  const deliveryVerification = {
+    criteriaResults: [
+      { criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', file: 'pkg/src/a.ts', explanation: 'impl' }], explanation: 'done' },
+    ],
+    verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+  };
+  // briefName null: the verify claim-checker carries no manifest, yet its deliveryVerification
+  // must survive to `agents compliance` — otherwise the core never confirms intentVerified.
+  const out = normalizeResult({ status: 'complete', summary: 's', deliveryVerification, filesChanged: ['pkg/src/a.ts'] }, asg, { briefName: null });
+  assert.deepEqual(out.deliveryVerification, deliveryVerification, 'a verifier deliveryVerification must reach compliance intact');
+  assert.deepEqual(out.filesChanged, [], 'read-only run still forces zero filesChanged, so DELIVERY_NOT_READONLY cannot fire');
+});
+
+test('normalizeResult: strips deliveryVerification outside a read-only phase (by phase, not manifest)', () => {
+  const deliveryVerification = {
+    criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', file: 'a.ts', explanation: 'x' }], explanation: 'x' }],
+    verdict: { protocolValid: true, intentVerified: true },
+  };
+  const run = (phase) => normalizeResult(
+    { status: 'complete', summary: 's', deliveryVerification },
+    { runId: 'r1', task: 'x', scope: ['.'], contextSession: { phase } },
+    { briefName: 'repovine-code-reviewer' },
+  );
+  // An implement/annotate result echoing a delivery verdict would be mis-failed for a field its
+  // role never owns — strip it. explore keeps it even for a manifest-bearing reviewer.
+  assert.equal('deliveryVerification' in run('implement'), false, 'implement-phase result must not carry deliveryVerification');
+  assert.equal('deliveryVerification' in run('annotate'), false, 'annotate-phase result must not carry deliveryVerification');
+  assert.deepEqual(run('explore').deliveryVerification, deliveryVerification, 'explore keeps it even for a manifest-bearing reviewer');
 });
 
 // ── E4: resolveAuth is fail-closed for cloud providers ─────────────────────────

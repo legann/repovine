@@ -56,7 +56,8 @@ test('subAgentGateEffectivelyOk accepts implement with only out-of-scope infra b
 
 test('shouldDeferImplementAnnotationRetry skips sync-only retry after code delivery', () => {
   const result = { status: 'complete', filesChanged: ['backend/src/routes/direct.ts'] };
-  const report = { valid: false, errors: ['Annotation coverage incomplete in scope (1 node(s) unannotated/stale): mod:x (stale).'] };
+  const message = 'Annotation coverage incomplete in scope (1 node(s) unannotated/stale): mod:x (stale).';
+  const report = { valid: false, errors: [message], diagnostics: [{ code: 'ANNOTATION_COVERAGE_INCOMPLETE', message }] };
   const assignment = { contextSession: { phase: 'implement' } };
   assert.equal(shouldDeferImplementAnnotationRetry(result, report, assignment), true);
 });
@@ -101,7 +102,11 @@ test('resolveHarnessBrief: every assignment phase falls back to a real engine br
 
 // ── An invented node id is a false claim, not an annotation-sync gap ───────────
 test('isSyncOnlyReport: an unresolved graph node is NOT sync-only (it gets retried)', () => {
-  const report = { valid: false, errors: ['Declared graphNodesTouched not found in graph: pkg:todo-app.'] };
+  const report = {
+    valid: false,
+    errors: ['Declared graphNodesTouched not found in graph: pkg:todo-app.'],
+    diagnostics: [{ code: 'GRAPH_NODE_UNRESOLVED', message: 'Declared graphNodesTouched not found in graph: pkg:todo-app.' }],
+  };
   assert.equal(isSyncOnlyReport(report), false);
   // ...so the implement sub-agent retries and fixes the id instead of deferring it.
   const result = { status: 'complete', filesChanged: ['package.json'] };
@@ -115,6 +120,7 @@ test('requiredFieldsRejected: a role that omits its required field is not accept
   const report = {
     valid: true,
     errors: [],
+    missingFields: ['review'],
     requiredFollowups: ['Populate required result field(s): review.'],
   };
   assert.equal(requiredFieldsRejected(report), true);

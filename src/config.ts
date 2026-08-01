@@ -288,6 +288,11 @@ const RepoContextConfigSchema = z.object({
   analyze_architecture: AnalyzeArchitectureConfigSchema.optional(),
   // Deterministic scoring of repovine MCP context sessions.
   contextQuality: ContextQualityConfigSchema.optional(),
+  // Agent Protocol project config (agents.roles and related). The agents layer reads the raw file
+  // and validates role internals with its own messages, so this only registers the key so zod stops
+  // stripping it and warning; a strict shape that rejected a role block would drop sibling config to
+  // defaults.
+  agents: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type RepoContextFileConfig = z.infer<typeof RepoContextConfigSchema>;

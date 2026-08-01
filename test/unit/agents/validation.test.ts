@@ -22,10 +22,10 @@ import {
   validateReviewInput,
   checkCompliance,
   resolveGraphNodeId,
-  validateAndCheckCompliance,
   type ComplianceState,
 } from '../../../src/agents/validation.js';
 import { nodeInScopeHints } from '../../../src/annotations/scope-hints.js';
+import { getManifest } from '../../../src/agents/manifests.js';
 import type { AgentRunResult, AgentAssignment } from '../../../src/agents/protocol.js';
 import type { ContextQualityReport } from '../../../src/context-quality/types.js';
 
@@ -159,12 +159,27 @@ function makeResult(overrides: Partial<AgentRunResult> = {}): AgentRunResult {
   };
 }
 
+/**
+ * Resolve a built-in manifest into the role-agnostic inputs checkCompliance now takes: the required
+ * result fields and, for a read-only manifest, its name. Mirrors what the CLI resolves from a role;
+ * keeps the manifest→field mapping in the test rather than the validator.
+ */
+function manifestArgs(name: string): { requiredRunResultFields?: string[]; readOnlyManifestName?: string } {
+  const m = getManifest(name);
+  return {
+    requiredRunResultFields: m?.requiredRunResultFields,
+    readOnlyManifestName: m && m.canEditFiles === false ? m.name : undefined,
+  };
+}
+
 function makeAssignment(overrides: Partial<AgentAssignment> = {}): AgentAssignment {
   return {
     protocolVersion: '1',
     runId: 'r1',
+    role: 'implementer',
     task: 't',
     scope: [],
+    version: 1,
     acceptanceCriteria: [],
     constraints: [],
     contracts: [],
@@ -451,7 +466,7 @@ describe('compliance validation', () => {
         annotated: ['mod:backend/src/a'],
         stale: ['infra:docker-compose:docker-compose.yml'],
       }),
-      manifestName: 'project-subagent-sample',
+      ...manifestArgs('project-subagent-sample'),
     });
     expect(report.valid).toBe(true);
     expect(report.errors).toEqual([]);
@@ -474,7 +489,7 @@ describe('compliance validation', () => {
         annotated: ['mod:backend/src/a'],
         stale: ['mod:frontend/src/b'], // sibling scope still draining — not this sub-agent's job
       }),
-      manifestName: 'repovine-annotation-writer',
+      ...manifestArgs('repovine-annotation-writer'),
     });
     expect(report.errors.join(' ')).not.toMatch(/annotation hard checks are not clean/);
     expect(report.warnings.join(' ')).toMatch(/outside-scope debt to annotation-sync/);
@@ -499,7 +514,7 @@ describe('compliance validation', () => {
         contextSession: { required: false, mode: 'harness', phase: 'implement' },
       }),
       state: st,
-      manifestName: 'project-subagent-sample',
+      ...manifestArgs('project-subagent-sample'),
     });
     expect(scanSpy).toHaveBeenCalledTimes(1);
   });
@@ -580,7 +595,7 @@ describe('compliance validation', () => {
         contextSession: { required: false, mode: 'harness', phase: 'implement' },
       }),
       state: { repoRoot, graph, snapshot, annotations },
-      manifestName: 'project-subagent-sample',
+      ...manifestArgs('project-subagent-sample'),
     });
 
     expect(scanSpy).toHaveBeenCalledTimes(1);
@@ -601,7 +616,7 @@ describe('compliance validation', () => {
         contextSession: { required: false, mode: 'harness', phase: 'implement' },
       }),
       state: state({ nodes: ['mod:a/b'], annotated: ['mod:a/b'], stale: ['mod:a/b'] }),
-      manifestName: 'project-subagent-sample',
+      ...manifestArgs('project-subagent-sample'),
     });
     expect(report.valid).toBe(true);
     expect(report.errors).toEqual([]);
@@ -789,6 +804,48 @@ describe('compliance validation', () => {
     expect(report.errors.join(' ')).toMatch(/approve/);
   });
 
+  it('codes every compliance error in diagnostics, aligned 1:1 with errors', () => {
+    // Read-only violation + approve-with-serious-findings yields ≥2 errors, so this exercises the
+    // errors↔diagnostics alignment invariant rather than a single-error path.
+    const report = checkCompliance({
+      result: makeResult({
+        filesChanged: ['packages/a/src/b.ts'],
+        review: {
+          verdict: 'approve',
+          reviewedFiles: ['packages/a/src/b.ts'],
+          reviewedDiffBase: 'HEAD~1',
+          criteriaChecked: ['tests pass'],
+          testReview: {
+            claimedTestsRun: [],
+            reviewerTestsRun: [],
+            coverageAssessment: 'adequate',
+            missingTests: [],
+          },
+          findings: [{
+            severity: 'major',
+            file: 'packages/a/src/b.ts',
+            graphNodeId: 'mod:a/b',
+            summary: 'Breaks contract',
+            evidence: 'returns wrong shape',
+            recommendation: 'fix return type',
+          }],
+          residualRisks: [],
+        },
+      }),
+      assignment: makeAssignment({ scope: ['packages/a'], requestedChecks: ['code-review'] }),
+      state: state({ nodes: ['mod:a/b'] }),
+    });
+    // Every error is carried in diagnostics, in the same order and with a non-empty code. A bare
+    // errors.push that bypasses fail() breaks length equality and toEqual — this is the guard.
+    expect(report.errors.length).toBeGreaterThanOrEqual(2);
+    expect(report.diagnostics.length).toBe(report.errors.length);
+    expect(report.diagnostics.map(d => d.message)).toEqual(report.errors);
+    expect(report.diagnostics.every(d => typeof d.code === 'string' && d.code.length > 0)).toBe(true);
+    expect(report.diagnostics.map(d => d.code)).toEqual(
+      expect.arrayContaining(['REVIEW_NOT_READONLY', 'APPROVE_WITH_SERIOUS_FINDINGS']),
+    );
+  });
+
   it('rejects an otherwise-valid approve when test coverage is not adequate', () => {
     // Isolate the coverageAssessment gate: read-only (no filesChanged), no serious
     // findings, no serious missingTests (minor keeps the missing-tests gate quiet
@@ -872,12 +929,35 @@ describe('compliance validation', () => {
     expect(report.errors.join(' ')).toMatch(/missingTests contains 1 blocker\/major/);
   });
 
+  it('accepts a review that omits the optional testReview and keeps the coverage gate neutral', () => {
+    // testReview is optional: an approve review with no testReview validates, and the coverage /
+    // missing-tests gates do not fire (they are guarded on testReview presence). Behavior when
+    // testReview IS present is unchanged.
+    const report = checkCompliance({
+      result: makeResult({
+        review: {
+          verdict: 'approve',
+          reviewedFiles: ['packages/a/src/b.ts'],
+          reviewedDiffBase: 'HEAD~1',
+          criteriaChecked: [],
+          findings: [],
+          residualRisks: [],
+        },
+      }),
+      assignment: makeAssignment({ requestedChecks: [] }),
+      state: state(),
+    });
+    expect(report.valid).toBe(true);
+    expect(report.errors).toEqual([]);
+    expect(report.errors.join(' ')).not.toMatch(/coverageAssessment|missingTests/);
+  });
+
   it('rejects a read-only manifest that reports source edits', () => {
     const report = checkCompliance({
       result: makeResult({ filesChanged: ['packages/a/src/b.ts'], graphNodesTouched: ['mod:a/b'] }),
       assignment: makeAssignment({ scope: ['packages/a'] }),
       state: state({ nodes: ['mod:a/b'] }),
-      manifestName: 'repovine-code-reviewer',
+      ...manifestArgs('repovine-code-reviewer'),
     });
     expect(report.valid).toBe(false);
     expect(report.errors.join(' ')).toMatch(/read-only \(canEditFiles=false\).*filesChanged/);
@@ -891,7 +971,7 @@ describe('compliance validation', () => {
         contextSession: { required: false, mode: 'harness', phase: 'annotate' },
       }),
       state: state({ nodes: ['mod:a/b'] }),
-      manifestName: 'repovine-annotation-writer',
+      ...manifestArgs('repovine-annotation-writer'),
     });
     expect(report.valid).toBe(false);
     expect(report.errors.join(' ')).toMatch(/phase="annotate".*filesChanged is non-empty/);
@@ -907,7 +987,7 @@ describe('compliance validation', () => {
       }),
       assignment: makeAssignment({ scope: ['packages/a'] }),
       state: state({ nodes: ['mod:a/b'], annotated: ['mod:a/b'] }),
-      manifestName: 'repovine-annotation-writer',
+      ...manifestArgs('repovine-annotation-writer'),
     });
     expect(report.errors.join(' ')).not.toMatch(/canEditFiles=false/);
   });
@@ -954,7 +1034,7 @@ describe('compliance validation', () => {
     const report = checkCompliance({
       result: makeResult({ summary: '', filesChanged: [], graphNodesTouched: [] }),
       state: state(),
-      manifestName: 'project-subagent-sample',
+      ...manifestArgs('project-subagent-sample'),
     });
     expect(report.missingFields).toEqual(expect.arrayContaining(['summary', 'filesChanged', 'graphNodesTouched']));
   });
@@ -1158,17 +1238,382 @@ describe('compliance validation', () => {
     expect(consumed).toEqual([{ id: 'sess-1', retain: true }]);
   });
 
-  it('skips compliance when the provided assignment is malformed', () => {
-    const out = validateAndCheckCompliance({
-      result: makeResult(),
-      assignment: { protocolVersion: '1', runId: 'r1' },
-      state: state(),
+  // Characterization of the gates that later schema/validation work will move. Each test
+  // pins today's observable verdict so a future change to the gate is forced to update it
+  // consciously rather than passing silently. These lock the baseline; they do not endorse it.
+  describe('characterization baseline: current compliance gate behavior', () => {
+    it('does not check review.criteriaChecked against assignment.acceptanceCriteria', () => {
+      // The assignment names two acceptance criteria; the review addresses none of them
+      // (criteriaChecked is empty and disjoint). Neither field is read back, so the report is
+      // valid and nothing mentions criteria coverage. A criteria-coverage gate is what would
+      // link the two lists.
+      const report = checkCompliance({
+        result: makeResult({
+          review: {
+            verdict: 'approve',
+            reviewedFiles: ['packages/a/src/b.ts'],
+            reviewedDiffBase: 'HEAD~1',
+            criteriaChecked: [],
+            testReview: {
+              claimedTestsRun: [],
+              reviewerTestsRun: [],
+              coverageAssessment: 'adequate',
+              missingTests: [],
+            },
+            findings: [],
+            residualRisks: [],
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [
+          { id: 'c-idempotent', statement: 'order is idempotent', required: true },
+          { id: 'c-duplicate', statement: 'duplicate is rejected', required: true },
+        ] }),
+        state: state(),
+      });
+      expect(report.valid).toBe(true);
+      expect(report.errors).toEqual([]);
+      const surfaced = [...report.errors, ...report.warnings, ...report.requiredFollowups].join(' ');
+      expect(surfaced).not.toMatch(/criteri/i);
     });
-    expect(out.schema.valid).toBe(true);
-    expect(out.assignmentSchema?.valid).toBe(false);
-    expect(out.complianceSkipped).toBe(true);
-    expect(out.skipReason).toBe('assignment failed schema validation');
-    expect(out.compliance).toBeUndefined();
+
+    it('records a missing required result field without failing the report', () => {
+      // A role manifest requires scope/filesChanged/graphNodesTouched; the result leaves them
+      // (and summary) empty. Today the gap lands in missingFields and a followup, but the
+      // verdict stays valid — a missing required field does not move errors.
+      const report = checkCompliance({
+        result: makeResult({ summary: '', scope: [], filesChanged: [], graphNodesTouched: [] }),
+        state: state(),
+        ...manifestArgs('project-subagent-sample'),
+      });
+      expect(report.missingFields).toEqual(
+        expect.arrayContaining(['summary', 'scope', 'filesChanged', 'graphNodesTouched']),
+      );
+      expect(report.requiredFollowups.join(' ')).toMatch(/Populate required result field/);
+      expect(report.errors).toEqual([]);
+      expect(report.valid).toBe(true);
+    });
+
+    // Target behavior for the required-field gate: a result that omits a manifest-required
+    // field must not report itself valid. `it.failing` keeps CI green while the field stays
+    // advisory — the assertion below throws under today's behavior. When the validator is
+    // changed to reject the gap, this test starts passing, Jest flips it to failing, and it
+    // should be converted to a plain `it`.
+    it.failing('a missing required result field should invalidate the report', () => {
+      const report = checkCompliance({
+        result: makeResult({ summary: '', scope: [], filesChanged: [], graphNodesTouched: [] }),
+        state: state(),
+        ...manifestArgs('project-subagent-sample'),
+      });
+      expect(report.valid).toBe(false);
+    });
+
+    it('rejects an approve verdict on non-adequate coverage even with no tests requested or run', () => {
+      // The coverage gate is unconditional today: approve + coverageAssessment != 'adequate'
+      // is an error regardless of whether the assignment requested tests or the result ran any.
+      const report = checkCompliance({
+        result: makeResult({
+          testsRun: [],
+          review: {
+            verdict: 'approve',
+            reviewedFiles: ['packages/a/src/b.ts'],
+            reviewedDiffBase: 'HEAD~1',
+            criteriaChecked: [],
+            testReview: {
+              claimedTestsRun: [],
+              reviewerTestsRun: [],
+              coverageAssessment: 'insufficient',
+              missingTests: [{ behavior: 'error path', suggestedTest: 'add case', severity: 'minor' }],
+            },
+            findings: [],
+            residualRisks: [],
+          },
+        }),
+        assignment: makeAssignment({ requestedChecks: [] }), // no 'tests', no 'code-review'
+        state: state(),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.errors.join(' ')).toMatch(/testReview\.coverageAssessment="insufficient"/);
+    });
+
+    it('keeps every context-quality failure advisory while the hard gate stays disabled', () => {
+      // The context-quality hard gate is off pending a validated return bar
+      // (docs/context-quality.md), so no context-quality outcome can fail a report — each
+      // downgrades to a warning. Both guarded outcomes are exercised under full strict,
+      // enforceable conditions (harness mode, required session, prior annotated context).
+      const missingId = checkCompliance({
+        result: makeResult(), // required session but no contextSessionId reported
+        assignment: makeAssignment({ contextSession: { required: true, mode: 'harness', phase: 'explore' } }),
+        state: state({ annotated: ['mod:prior'] }),
+      });
+      expect(missingId.valid).toBe(true);
+      expect(missingId.errors).toEqual([]);
+      expect(missingId.warnings.join(' ')).toMatch(/contextSessionId is missing/);
+
+      const rejected = checkCompliance({
+        result: makeResult({ contextSessionId: 'sess-1' }),
+        assignment: makeAssignment({ contextSession: { required: true, mode: 'harness' } }),
+        state: state({
+          annotated: ['mod:prior'],
+          contextQualityReport: qualityReport({ acceptHandoff: false, overall: 0.2, rejectReasons: ['QUALITY_BELOW_THRESHOLD'] }),
+        }),
+      });
+      expect(rejected.valid).toBe(true);
+      expect(rejected.errors).toEqual([]);
+      expect(rejected.warnings.join(' ')).toMatch(/did not accept handoff/);
+    });
+  });
+
+  describe('delivery verification registry', () => {
+    const covered = (criterionId: string) => ({
+      criterionId,
+      status: 'covered' as const,
+      evidence: [{ kind: 'repository' as const, graphNodeId: 'mod:a/b', explanation: 'implemented here' }],
+      explanation: 'done',
+    });
+
+    it('accepts a fully covered registry with a consistent verdict', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [covered('c1')],
+            verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'do x', required: true }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.errors).toEqual([]);
+      expect(report.valid).toBe(true);
+    });
+
+    it('rejects duplicate acceptance criterion ids', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: { criteriaResults: [], verdict: { protocolValid: true, intentVerified: false } },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [
+          { id: 'c1', statement: 'x', required: false },
+          { id: 'c1', statement: 'y', required: false },
+        ] }),
+        state: state(),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('CRITERION_ID_DUPLICATE');
+    });
+
+    it('rejects a result for a criterion the assignment does not declare', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: { criteriaResults: [covered('ghost')], verdict: { protocolValid: true, intentVerified: true } },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: false }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('CRITERION_RESULT_UNKNOWN');
+    });
+
+    it('rejects more than one result for the same criterion', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [
+              covered('c1'),
+              { criterionId: 'c1', status: 'gap', evidence: [], explanation: 'also' },
+            ],
+            verdict: { protocolValid: true, intentVerified: false },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: false }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('CRITERION_RESULT_DUPLICATE');
+    });
+
+    it('rejects a required criterion with no result', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: { criteriaResults: [], verdict: { protocolValid: true, intentVerified: false } },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state(),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('CRITERION_REQUIRED_UNRESULTED');
+    });
+
+    it('rejects intentVerified=true while a required criterion is open', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'gap', evidence: [], explanation: 'not yet' }],
+            verdict: { protocolValid: true, intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state(),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('INTENT_VERIFIED_WITH_OPEN_CRITERION');
+    });
+
+    it('rejects deliveryAccepted=true against an unverified registry', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'gap', evidence: [], explanation: 'not yet' }],
+            verdict: { protocolValid: true, intentVerified: false, deliveryAccepted: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state(),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('VERDICT_INCONSISTENT_WITH_REGISTRY');
+    });
+
+    it('rejects a delivery verification that changed files', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          filesChanged: ['packages/a/src/b.ts'],
+          deliveryVerification: { criteriaResults: [], verdict: { protocolValid: true, intentVerified: true } },
+        }),
+        assignment: makeAssignment(),
+        state: state(),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('DELIVERY_NOT_READONLY');
+    });
+
+    it('rejects a covered criterion citing no repository evidence', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [{
+              criterionId: 'c1',
+              status: 'covered',
+              evidence: [{ kind: 'test', explanation: 'a test ran' }],
+              explanation: 'done',
+            }],
+            verdict: { protocolValid: true, intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('CRITERION_COVERED_NO_REPOSITORY_EVIDENCE');
+    });
+
+    it('rejects evidence kinds the frozen policy does not allow', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [{
+              criterionId: 'c1',
+              status: 'covered',
+              evidence: [
+                { kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'here' },
+                { kind: 'test', explanation: 'a test ran' },
+              ],
+              explanation: 'done',
+            }],
+            verdict: { protocolValid: true, intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({
+          acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
+          verificationPolicy: { version: 1, requirements: [{ criterionId: 'c1', evidenceKinds: ['repository'] }] },
+        }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('EVIDENCE_KIND_NOT_IN_POLICY');
+    });
+
+    it('rejects custom evidence without an artifactRef', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [{
+              criterionId: 'c1',
+              status: 'covered',
+              evidence: [
+                { kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'here' },
+                { kind: 'custom', explanation: 'a bespoke check' },
+              ],
+              explanation: 'done',
+            }],
+            verdict: { protocolValid: true, intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({
+          acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
+          verificationPolicy: { version: 1, requirements: [{ criterionId: 'c1', evidenceKinds: ['repository', 'custom'] }] },
+        }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('EVIDENCE_CUSTOM_UNGROUNDED');
+    });
+
+    it('rejects repository evidence for a node not in the graph', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [{
+              criterionId: 'c1',
+              status: 'covered',
+              evidence: [{ kind: 'repository', graphNodeId: 'mod:ghost', explanation: 'nowhere' }],
+              explanation: 'done',
+            }],
+            verdict: { protocolValid: true, intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('EVIDENCE_ANCHOR_UNRESOLVED');
+    });
+
+    it('rejects an assignment version out of step with its verification policy', () => {
+      const report = checkCompliance({
+        result: makeResult(),
+        assignment: makeAssignment({
+          version: 1,
+          verificationPolicy: { version: 2, requirements: [] },
+        }),
+        state: state(),
+      });
+      expect(report.valid).toBe(false);
+      expect(report.diagnostics.map(d => d.code)).toContain('POLICY_VERSION_MISMATCH');
+    });
+
+    it('accepts a policy-consistent, fully grounded delivery', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          deliveryVerification: {
+            criteriaResults: [{
+              criterionId: 'c1',
+              status: 'covered',
+              evidence: [{ kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'here' }],
+              explanation: 'done',
+            }],
+            verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+          },
+        }),
+        assignment: makeAssignment({
+          version: 1,
+          acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
+          verificationPolicy: { version: 1, requirements: [{ criterionId: 'c1', evidenceKinds: ['repository'] }] },
+        }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.errors).toEqual([]);
+      expect(report.valid).toBe(true);
+    });
   });
 });
 

@@ -43,6 +43,7 @@ describe('agent protocol', () => {
       [SCHEMA_IDS.architectureAuditResult]: 'findings',
       [SCHEMA_IDS.codeReviewResult]: 'verdict',
       [SCHEMA_IDS.reviewInput]: 'assignment',
+      [SCHEMA_IDS.deliveryVerificationResult]: 'criteriaResults',
     };
 
     for (const id of Object.values(SCHEMA_IDS)) {
@@ -82,8 +83,10 @@ describe('agent protocol', () => {
     const ok = AgentAssignmentSchema.safeParse({
       protocolVersion: '1',
       runId: 'r1',
+      role: 'implementer',
       task: 't',
       scope: [],
+      version: 1,
       acceptanceCriteria: [],
       constraints: [],
       contracts: [],
@@ -108,8 +111,10 @@ describe('agent protocol', () => {
     const clientMode = AgentAssignmentSchema.safeParse({
       protocolVersion: '1',
       runId: 'r1',
+      role: 'explorer',
       task: 't',
       scope: [],
+      version: 1,
       acceptanceCriteria: [],
       constraints: [],
       contracts: [],

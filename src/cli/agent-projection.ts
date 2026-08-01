@@ -293,19 +293,3 @@ Honesty rules. repovine re-checks the first four against the graph and the annot
 export function renderContextQualityGuidance(): string {
   return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine agents compliance\`. The score and its thresholds are advisory until the labelled-corpus return bar in \`docs/context-quality.md\` is met; evidence-backed annotation checks remain enforceable.`;
 }
-
-/**
- * Marker and phrases carried by every asset that renders an Agent Protocol section.
- *
- * A reading aid for that set, not an input to a check. Drift in a managed asset is caught by the
- * byte-for-byte comparison against its template, and the phrase list a client's surfaces are
- * checked against is `REQUIRED_CLIENT_TOPICS` in `client-topics.ts`.
- */
-export const PROJECTION_REQUIRED_SNIPPETS = {
-  marker: AGENT_PROTOCOL_MARKER,
-  protocolVersion: `Agent Protocol v${PROTOCOL_VERSION}`,
-  clientGating: 'Normal client conversations are not Agent Protocol runs',
-  refreshContext: 'refresh_context',
-  writeAnnotation: 'write_annotation',
-  sharedMemory: 'repovine.annots.json',
-} as const;

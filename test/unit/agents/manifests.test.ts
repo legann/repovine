@@ -5,7 +5,7 @@ import {
   getManifestByRole,
   getModelHints,
 } from '../../../src/agents/manifests.js';
-import { AGENT_ROLES } from '../../../src/agents/protocol.js';
+import { AGENT_ROLES, AgentRunResultSchema } from '../../../src/agents/protocol.js';
 
 describe('built-in manifests', () => {
   it('covers all declared roles with unique names', () => {
@@ -49,6 +49,20 @@ describe('built-in manifests', () => {
       expect(m.requiredRunResultFields.length).toBeGreaterThan(0);
       expect(m.requiredRunResultFields).toContain('summary');
     }
+  });
+
+  it('lists only real AgentRunResult schema keys in requiredRunResultFields', () => {
+    // The manifest field drives compliance, but nothing tied it to the schema: a typo, or a stale name
+    // after an optional artifact field (review / architectureAudit) is renamed, would validate against
+    // nothing and pass. The projection skeleton test does not catch the optional-key case — its example
+    // echoes the old key and the renamed optional field is absent-and-valid. Read the keys from the
+    // schema shape so the guard cannot drift from the source of truth.
+    const realKeys = new Set(Object.keys(AgentRunResultSchema.shape));
+    expect(realKeys.size).toBeGreaterThan(0);
+    const offenders = BUILTIN_MANIFESTS.flatMap(m =>
+      m.requiredRunResultFields.filter(f => !realKeys.has(f)).map(f => `${m.name}: ${f}`),
+    );
+    expect(offenders).toEqual([]);
   });
 
   it('requires editors to report files and touched nodes', () => {

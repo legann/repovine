@@ -123,7 +123,7 @@ export function toContractStrings(v) {
 // never coerces a malformed shape into a valid-looking object. A malformed optional
 // artifact must survive to `agents validate-result` rejection, not silently vanish
 // here. contextSessionId is handled separately (harness-forced linkage).
-const OPTIONAL_ARTIFACT_KEYS = ['contextQuality', 'contextPack', 'architectureAudit', 'review', 'internalTrace'];
+const OPTIONAL_ARTIFACT_KEYS = ['contextQuality', 'contextPack', 'architectureAudit', 'review', 'deliveryVerification', 'internalTrace'];
 
 /** Copy through schema-supported optional artifacts the model actually returned, unchanged. */
 export function preserveOptionalArtifacts(parsed) {
@@ -145,6 +145,13 @@ export function normalizeResult(parsed, assignment, { briefName } = {}) {
   // phase=explore, so a phase strip would drop the legitimate review (dropping the legitimate review).
   const optional = preserveOptionalArtifacts(parsed);
   if (briefName !== 'repovine-code-reviewer') delete optional.review;
+  // deliveryVerification is a read-only verifier artifact: the core hard-fails
+  // DELIVERY_NOT_READONLY against a non-empty filesChanged, so an implement/annotate-phase
+  // result echoing one would be mis-failed for a field its role never owns. Keep it only on a
+  // read-only (explore) run — the verify/code-review path. Strip by PHASE, not manifest: the
+  // verify claim-checker carries no manifest but is a legitimate emitter, so a manifest strip
+  // (like `review`) would wrongly drop it.
+  if (assignment.contextSession?.phase !== 'explore') delete optional.deliveryVerification;
   // A read-only review (explore phase) changes no files, touches no graph nodes, writes no
   // annotations, and runs BEFORE the post-review annotation-sync phase. Models sometimes
   // echo the files they REVIEWED into filesChanged and assert annotationsClean=true — but
@@ -196,11 +203,12 @@ export function normalizeResult(parsed, assignment, { briefName } = {}) {
     },
     blockers: asArray(parsed.blockers, []),
     // Preserve schema-supported optional artifacts (review, architectureAudit, contextPack,
-    // contextQuality, internalTrace) RAW so a code-reviewer's `review` and an auditor's
-    // `architectureAudit` reach validation intact. Malformed shapes stay present for
-    // `validate-result` to reject rather than being laundered away. Placed last: it must not
-    // overwrite the harness-forced linkage/phase fields above (its keys never collide).
-    // `review` is stripped above for any non-code-reviewer subAgent.
+    // contextQuality, deliveryVerification, internalTrace) RAW so a code-reviewer's `review`, an
+    // auditor's `architectureAudit`, and a verifier's `deliveryVerification` reach validation
+    // intact. Malformed shapes stay present for `validate-result` to reject rather than being
+    // laundered away. Placed last: it must not overwrite the harness-forced linkage/phase fields
+    // above (its keys never collide). `review` is stripped above for any non-code-reviewer
+    // subAgent; `deliveryVerification` for any non-read-only (non-explore) phase.
     ...optional,
   };
 }

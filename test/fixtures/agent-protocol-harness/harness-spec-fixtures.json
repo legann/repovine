@@ -49,13 +49,15 @@
   "implementationAssignment": {
     "protocolVersion": "1",
     "runId": "run-impl-001",
+    "role": "implementer",
     "task": "Add an audit-log writer to the orders service.",
     "scope": [
       "packages/orders/src"
     ],
+    "version": 1,
     "acceptanceCriteria": [
-      "Writes one audit row per order transition.",
-      "Relevant unit tests pass."
+      { "id": "c-audit-row", "statement": "Writes one audit row per order transition.", "required": true },
+      { "id": "c-tests-pass", "statement": "Relevant unit tests pass.", "required": true }
     ],
     "constraints": [
       "No new env vars."
@@ -153,12 +155,14 @@
   "architectureAuditAssignment": {
     "protocolVersion": "1",
     "runId": "run-audit-001",
+    "role": "architecture-auditor",
     "task": "Audit the order transition and audit writer boundary.",
     "scope": [
       "packages/orders/src"
     ],
+    "version": 1,
     "acceptanceCriteria": [
-      "Triage architecture findings and propose follow-up tasks."
+      { "id": "c-triage", "statement": "Triage architecture findings and propose follow-up tasks.", "required": true }
     ],
     "constraints": [
       "Read-only audit."
@@ -294,12 +298,14 @@
   "codeReviewAssignment": {
     "protocolVersion": "1",
     "runId": "run-review-001",
+    "role": "code-reviewer",
     "task": "Review the audit-log implementation diff.",
     "scope": [
       "packages/orders/src"
     ],
+    "version": 1,
     "acceptanceCriteria": [
-      "Review changed files against the implementation assignment and contracts."
+      { "id": "c-review", "statement": "Review changed files against the implementation assignment and contracts.", "required": true }
     ],
     "constraints": [
       "Read-only review."
@@ -428,13 +434,15 @@
     "assignment": {
       "protocolVersion": "1",
       "runId": "run-impl-001",
+      "role": "implementer",
       "task": "Add an audit-log writer to the orders service.",
       "scope": [
         "packages/orders/src"
       ],
+      "version": 1,
       "acceptanceCriteria": [
-        "Writes one audit row per order transition.",
-        "Relevant unit tests pass."
+        { "id": "c-audit-row", "statement": "Writes one audit row per order transition.", "required": true },
+        { "id": "c-tests-pass", "statement": "Relevant unit tests pass.", "required": true }
       ],
       "constraints": [
         "No new env vars."

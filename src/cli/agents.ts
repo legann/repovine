@@ -23,7 +23,7 @@ import { loadConfig } from '../config.js';
 import { loadProjectRoleSource } from '../agents/roles-source.js';
 import { RepovineRuntime } from '../mcp/context.js';
 import { buildAgentProtocol, AGENT_JSON_SCHEMAS, type AgentRole } from '../agents/protocol.js';
-import { BUILTIN_MANIFESTS } from '../agents/manifests.js';
+import { BUILTIN_MANIFESTS, getManifest, getManifestByRole } from '../agents/manifests.js';
 import {
   validateAssignment,
   validateRunResult,
@@ -266,11 +266,21 @@ export async function runAgentsCli(argv: string[], env: AgentsCliEnv): Promise<n
           return 1;
         }
       }
+      // Resolve the run's manifest once: an explicit --manifest wins, else the assignment's role
+      // (closing the silent ['summary'] fallback). The validator stays role-agnostic — it receives the
+      // required fields and the read-only flag, not the manifest.
+      const manifestFlag = flagValue(rest, '--manifest');
+      const manifest = manifestFlag
+        ? getManifest(manifestFlag)
+        : assignment?.value
+          ? getManifestByRole(assignment.value.role)
+          : undefined;
       const report = checkCompliance({
         result: schema.value,
         assignment: assignment?.value,
         state: await buildComplianceState(env),
-        manifestName: flagValue(rest, '--manifest'),
+        requiredRunResultFields: manifest?.requiredRunResultFields,
+        readOnlyManifestName: manifest && manifest.canEditFiles === false ? manifest.name : undefined,
         greenfieldRun: rest.includes('--greenfield-run'),
       });
       print({

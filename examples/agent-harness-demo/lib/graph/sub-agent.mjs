@@ -26,6 +26,7 @@ import {
   shouldDeferImplementAnnotationRetry,
 } from './retry.mjs';
 import { subAgentModelRole } from '../model-role.mjs';
+import { protocolRoleForSpec } from '../agents.mjs';
 import {
   buildInterSubAgentTaskSection,
   contractHandoffViolations,
@@ -110,6 +111,10 @@ export function buildSubAgentTask(parentTask, spec, priorHandoffs = [], repoRoot
   ];
   return {
     id: `${parentTask.id}.${instanceId}`,
+    // Agent Protocol role for the assignment schema — the spec's manifest resolves
+    // it (buildAssignment reads task.role). The demo planner label on `spec.role`
+    // stays separate; it never reaches the schema.
+    role: protocolRoleForSpec(spec),
     task: lines.join('\n'),
     scope: spec.scope,
     acceptanceCriteria: parentTask.acceptanceCriteria ?? [],

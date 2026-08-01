@@ -296,9 +296,14 @@ when `schemaValid === true`, `assignmentSchemaValid !== false`, and
 {
   "protocolVersion": "1",
   "runId": "run-2026-05-31-001",
+  "role": "implementer",
   "task": "Add an audit-log writer to the orders service",
   "scope": ["packages/orders/src"],
-  "acceptanceCriteria": ["writes one row per order transition", "unit tests pass"],
+  "version": 1,
+  "acceptanceCriteria": [
+    { "id": "c-audit-row", "statement": "writes one row per order transition", "required": true },
+    { "id": "c-tests-pass", "statement": "unit tests pass", "required": true }
+  ],
   "constraints": ["no new env vars"],
   "contracts": ["POST /internal/audit"],
   "requestedChecks": ["dependencies", "tests", "annotations"],

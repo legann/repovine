@@ -14,36 +14,54 @@
 export const COMPACT_RETRY_BASE =
   'Continue the SAME assignment in this resumed session — its scope, contracts, and inter-sub-agent handoff are already in our conversation above; do not restate or redo them.';
 
-// Errors that are fixable WITHOUT touching code (just the repovine sync step).
-//
-// `coverage` is absent on purpose: bare, it also matched the engine's review-verdict error
-// (`testReview.coverageAssessment="insufficient"`), so a reviewer that approved a change with
-// inadequate tests was retried with "the code is accepted, just finish the annotation sync".
-// Dropping it costs nothing here — the annotation-coverage error the harness gate raises reads
-// "Annotation coverage incomplete in scope (N node(s) unannotated/stale)", which `annotation`
-// already carries.
-const SYNC_ONLY = /annotation|orphan|tier|refresh_context|annotationsClean|graphNodesTouched|stale|missing fields|recommendedFields/i;
+// ── Compliance classification by diagnostics code (Agent Protocol Р9) ──────────
+// The engine stamps every compliance error with a stable code in report.diagnostics[]
+// ({ code, message }, one per error in order). The harness routes retries by CODE, so
+// the error prose is free to change without breaking classification.
 
-// Harness contract-handoff failures require code or contractsChanged — never sync-only skip.
+// Annotation-sync errors: fixable WITHOUT touching code, just the repovine sync step.
+// The propagation-stale family has scoped/global variants, so match it by prefix.
+const SYNC_ONLY_CODES = new Set([
+  'ANNOTATIONS_UNCLEAN',
+  'ANNOTATIONS_UNCLEAN_IN_SCOPE',
+  'ANNOTATIONS_ORPHANED',
+  'ANNOTATION_COVERAGE_INCOMPLETE',
+  'ANNOTATION_THIN',
+  'ANNOTATION_MISSING',
+]);
+const isSyncOnlyCode = (code) =>
+  SYNC_ONLY_CODES.has(code) || String(code).startsWith('ANNOTATION_PROPAGATION_STALE');
+
+// A node id the graph does not have — in graphNodesTouched, review/arch findings,
+// context-pack anchors, or delivery evidence — is a FALSE CLAIM about the result, not
+// an annotation-sync gap. Never sync-only: the agent re-reads the graph and corrects
+// the id list instead of the rejection deferring to the annotation subAgent unchecked.
+const FALSE_CLAIM_CODES = new Set([
+  'GRAPH_NODE_UNRESOLVED',
+  'REVIEW_FINDING_NODE_UNRESOLVED',
+  'ARCH_FINDING_NODE_UNRESOLVED',
+  'CONTEXT_PACK_ANCHOR_UNRESOLVED',
+  'EVIDENCE_ANCHOR_UNRESOLVED',
+]);
+
+// Harness contract-handoff failures require code or contractsChanged — never a
+// sync-only skip. These come from the harness's own gate (applyHarnessContractGate)
+// and validateReviewInput, neither of which carries a diagnostics code, so this stays
+// a prose match over report.errors.
 const CONTRACT_HANDOFF = /inter-sub-agent contract|contractsChanged/i;
 
-// A node id the graph does not have is a FALSE CLAIM about the result, not an
-// annotation-sync gap — even though the message names graphNodesTouched and so
-// matches SYNC_ONLY. Sync-only rejections are deferred to the post-review
-// annotation subAgent and never retried, which would let an invented node id ride
-// through unchallenged. Retry instead: the agent re-reads the graph and corrects
-// the id list.
-const FALSE_CLAIM = /not found in graph|do not exist|invented/i;
+/** Stable diagnostics codes on a report, in error order (empty for legacy/synthesized reports). */
+const diagnosticCodes = (report) =>
+  (report?.diagnostics ?? []).map((d) => d?.code).filter(Boolean);
 
-// Manifest-required result fields (repovine reports them as requiredFollowups, not
-// errors — a general validator stays advisory). The HARNESS applies the policy: a
-// role that omits its required field has not delivered its result. Same shape as
-// the annotation-grounding policy below.
-const MISSING_REQUIRED_FIELDS = /Populate required result field/i;
-
-/** True when the result omits a field its manifest role requires. */
+/**
+ * True when the result omits a field its manifest role requires. repovine reports the
+ * miss structurally in `missingFields` (a general validator keeps the followup
+ * advisory); the HARNESS treats a non-empty list as a rejection — no annotation
+ * subAgent can re-emit a field the run itself left empty.
+ */
 export function requiredFieldsRejected(report) {
-  return (report?.requiredFollowups ?? []).some((f) => MISSING_REQUIRED_FIELDS.test(String(f)));
+  return (report?.missingFields?.length ?? 0) > 0;
 }
 
 /**
@@ -216,9 +234,15 @@ export function isSyncOnlyReport(report) {
   // Grounding-only rejection (no hard errors, just provenance/consistency facts surfaced as
   // warnings) is always annotation-sync fixable — the code was accepted.
   if (errors.length === 0) return groundingRejected(report);
+  // Contract-handoff errors carry no code; the prose match still classifies them (never sync-only),
+  // and it also catches the harness gate's errors appended to `errors` past the diagnostics list.
   if (errors.some((e) => CONTRACT_HANDOFF.test(e))) return false;
-  if (errors.some((e) => FALSE_CLAIM.test(e))) return false;
-  return errors.every((e) => SYNC_ONLY.test(e));
+  const codes = diagnosticCodes(report);
+  // A non-empty errors list with no codes is a legacy or synthesized report (e.g. a schema
+  // failure): not provably sync-only, so retry it as real work.
+  if (codes.length === 0) return false;
+  if (codes.some((c) => FALSE_CLAIM_CODES.has(c))) return false;
+  return codes.every(isSyncOnlyCode);
 }
 
 function syncOnlyAnnotationScope(workResult = {}) {

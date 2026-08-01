@@ -255,9 +255,17 @@ test('isGreenfieldContext: empty orient + stub annotations', async (t) => {
 });
 
 // ── isSyncOnlyReport: don't re-implement code for an annotation-only rejection ─
-test('isSyncOnlyReport: annotation/graph-only errors are sync-only', () => {
-  assert.equal(isSyncOnlyReport({ errors: ['annotation coverage below threshold'] }), true);
-  assert.equal(isSyncOnlyReport({ errors: ['refresh_context not run', 'orphan annotations'] }), true);
+// Classification routes by diagnostics[].code (Р9), not error prose. A coded report
+// carries one { code, message } per error, in order.
+const codedReport = (...codes) => ({
+  errors: codes.map((c) => `${c} message`),
+  diagnostics: codes.map((c) => ({ code: c, message: `${c} message` })),
+});
+
+test('isSyncOnlyReport: annotation-sync codes are sync-only', () => {
+  assert.equal(isSyncOnlyReport(codedReport('ANNOTATION_COVERAGE_INCOMPLETE')), true);
+  assert.equal(isSyncOnlyReport(codedReport('ANNOTATIONS_UNCLEAN', 'ANNOTATIONS_ORPHANED')), true);
+  assert.equal(isSyncOnlyReport(codedReport('ANNOTATION_PROPAGATION_STALE_IN_SCOPE')), true);
 });
 
 test('isSyncOnlyReport: no errors is not sync-only', () => {
@@ -265,19 +273,32 @@ test('isSyncOnlyReport: no errors is not sync-only', () => {
   assert.equal(isSyncOnlyReport({}), false);
 });
 
-test('isSyncOnlyReport: a real code defect is not sync-only', () => {
+test('isSyncOnlyReport: an unresolved node (false claim) is not sync-only', () => {
+  assert.equal(isSyncOnlyReport(codedReport('GRAPH_NODE_UNRESOLVED')), false);
+  assert.equal(isSyncOnlyReport(codedReport('EVIDENCE_ANCHOR_UNRESOLVED')), false);
+});
+
+test('isSyncOnlyReport: an uncoded error is not sync-only (legacy/synthesized report)', () => {
   assert.equal(isSyncOnlyReport({ errors: ['missing GET /health route'] }), false);
 });
 
 test('isSyncOnlyReport: a contract-handoff miss is never sync-only', () => {
+  // Contract-handoff errors carry no code; the harness gate appends them to `errors`
+  // past the diagnostics list, so the prose match still catches them.
   assert.equal(
-    isSyncOnlyReport({ errors: ['annotation stale', 'inter-sub-agent contract missing'] }),
+    isSyncOnlyReport({
+      ...codedReport('ANNOTATION_PROPAGATION_STALE'),
+      errors: ['ANNOTATION_PROPAGATION_STALE message', 'inter-sub-agent contract missing'],
+    }),
     false,
   );
 });
 
-test('isSyncOnlyReport: any non-sync error makes the whole report non-sync', () => {
-  assert.equal(isSyncOnlyReport({ errors: ['annotation coverage', 'unrelated failure'] }), false);
+test('isSyncOnlyReport: any non-sync code makes the whole report non-sync', () => {
+  assert.equal(
+    isSyncOnlyReport(codedReport('ANNOTATION_COVERAGE_INCOMPLETE', 'APPROVE_COVERAGE_INADEQUATE')),
+    false,
+  );
 });
 
 // ── annotation-grounding policy: harness rejects on repovine's mode-independent facts ──
@@ -374,7 +395,10 @@ test('mergeSyncOnlyResult: drops phantom graphNodesTouched from work attempt', (
 });
 
 test('foldRetryContext: sync-only retry scopes annotation to accepted filesChanged', () => {
-  const task = foldRetryContext('Fix blockers.', { errors: ['annotation stale'] }, {
+  const task = foldRetryContext('Fix blockers.', {
+    errors: ['ANNOTATION_PROPAGATION_STALE message'],
+    diagnostics: [{ code: 'ANNOTATION_PROPAGATION_STALE', message: 'ANNOTATION_PROPAGATION_STALE message' }],
+  }, {
     workResult: {
       filesChanged: ['backend/src/app.ts', 'frontend/package.json'],
       graphNodesTouched: ['mod:backend/src/app'],

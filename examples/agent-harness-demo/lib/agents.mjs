@@ -212,6 +212,35 @@ export function manifestForRole(role) {
   return (roleCatalog().get(role) ?? ROLES.default).manifest;
 }
 
+// repovine manifest NAME -> Agent Protocol role. The manifest a spec already carries
+// is the authoritative source (repovine core maps name -> role); project roles all
+// carry `project-subagent-sample`, so they resolve to `implementer` for free.
+const MANIFEST_PROTOCOL_ROLE = {
+  main: 'main',
+  'project-subagent-sample': 'implementer',
+  'repovine-repo-explorer': 'explorer',
+  'repovine-annotation-writer': 'annotation-writer',
+  'repovine-architecture-auditor': 'architecture-auditor',
+  'repovine-code-reviewer': 'code-reviewer',
+};
+
+/**
+ * The Agent Protocol `role` for a sub-agent spec's assignment. The repovine schema
+ * validates `role` against a fixed enum (main | explorer | implementer |
+ * annotation-writer | architecture-auditor | code-reviewer), so the demo's planner
+ * labels (backend/frontend/infra/review/…) cannot ride into the assignment as-is.
+ * The spec's manifest name resolves it; a manifest-less spec (the verify
+ * claim-checker) falls back to its context phase. Unknown -> implementer, the
+ * editing default.
+ */
+export function protocolRoleForSpec(spec = {}) {
+  const byManifest = MANIFEST_PROTOCOL_ROLE[spec.manifest];
+  if (byManifest) return byManifest;
+  if (spec.contextPhase === 'annotate') return 'annotation-writer';
+  if (spec.contextPhase === 'explore') return 'explorer';
+  return 'implementer';
+}
+
 /** Resolve a full subAgent spec for a role, with optional per-task scope/task overrides. */
 export function resolveRole(role, _repoRoot, overrides = {}) {
   const known = isKnownRole(role) ? role : 'default';

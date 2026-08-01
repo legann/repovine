@@ -239,7 +239,7 @@ export const CodeReviewResultSchema = z.object({
       suggestedTest: z.string(),
       severity: z.enum(['blocker', 'major', 'minor']),
     })),
-  }),
+  }).optional(),
   findings: z.array(z.object({
     severity: z.enum(['blocker', 'major', 'minor', 'nit']),
     file: z.string().optional(),
@@ -252,6 +252,96 @@ export const CodeReviewResultSchema = z.object({
   residualRisks: z.array(z.string()),
 });
 export type CodeReviewResult = z.infer<typeof CodeReviewResultSchema>;
+
+// ── Delivery verification artifacts ──
+//
+// Structured intent-to-delivery verification. Acceptance criteria carry stable ids; a
+// verification policy names the evidence each criterion needs; a criterion result binds each
+// criterion to repository-grounded evidence. The verifier's registry (criteria results plus a
+// split delivery verdict) is a self-reported artifact repovine re-checks against observable state.
+
+/**
+ * Kinds of evidence a criterion result can cite. repovine recomputes truth only for `repository`;
+ * the rest are recorded as declared, their execution owned by the harness's artifact custody.
+ */
+export const EVIDENCE_KINDS = [
+  'repository', 'review', 'test', 'build', 'typecheck', 'runtime', 'security', 'human', 'custom',
+] as const;
+export const EvidenceKindSchema = z.enum(EVIDENCE_KINDS);
+export type EvidenceKind = z.infer<typeof EvidenceKindSchema>;
+
+/** One acceptance criterion with a stable identity, frozen before implementation. */
+export const AcceptanceCriterionSchema = z.object({
+  id: z.string().min(1),
+  statement: z.string().min(1),
+  required: z.boolean(),
+});
+export type AcceptanceCriterion = z.infer<typeof AcceptanceCriterionSchema>;
+
+/** A pointer to observable evidence for a criterion; `repository` anchors resolve against the graph. */
+export const EvidenceReferenceSchema = z.object({
+  kind: EvidenceKindSchema,
+  file: z.string().optional(),
+  line: z.number().int().min(1).optional(),
+  graphNodeId: z.string().min(1).optional(),
+  symbol: z.string().optional(),
+  artifactRef: z.string().optional(),
+  revision: z.string().optional(),
+  explanation: z.string(),
+});
+export type EvidenceReference = z.infer<typeof EvidenceReferenceSchema>;
+
+/**
+ * The harness's frozen choice of evidence per criterion. `version` is a counter checked against
+ * the assignment's version; the word "revision" stays reserved for git.
+ */
+export const VerificationPolicySchema = z.object({
+  assuranceProfile: z.string().min(1).optional(),
+  version: z.number().int().min(1),
+  requirements: z.array(z.object({
+    criterionId: z.string().min(1),
+    evidenceKinds: z.array(EvidenceKindSchema),
+  })),
+});
+export type VerificationPolicy = z.infer<typeof VerificationPolicySchema>;
+
+/** Terminal coverage status of one acceptance criterion. */
+export const CRITERION_STATUSES = ['covered', 'gap', 'needs-human'] as const;
+export const CriterionStatusSchema = z.enum(CRITERION_STATUSES);
+export type CriterionStatus = z.infer<typeof CriterionStatusSchema>;
+
+/**
+ * One criterion's coverage result. `covered` carries repository-grounded evidence; a resolved
+ * needs-human keeps status `needs-human` and adds a custody `resolution` pointing at the artifact.
+ */
+export const CriterionResultSchema = z.object({
+  criterionId: z.string().min(1),
+  status: CriterionStatusSchema,
+  evidence: z.array(EvidenceReferenceSchema),
+  explanation: z.string(),
+  resolution: z.object({ artifactRef: z.string().min(1) }).optional(),
+});
+export type CriterionResult = z.infer<typeof CriterionResultSchema>;
+
+/**
+ * The split verdict. repovine owns protocolValid (schema/linkage/grounding) and intentVerified
+ * (every required criterion covered); the harness owns assurancePassed and deliveryAccepted.
+ */
+export const DeliveryVerdictSchema = z.object({
+  protocolValid: z.boolean(),
+  intentVerified: z.boolean(),
+  assuranceProfile: z.string().min(1).optional(),
+  assurancePassed: z.boolean().optional(),
+  deliveryAccepted: z.boolean().optional(),
+});
+export type DeliveryVerdict = z.infer<typeof DeliveryVerdictSchema>;
+
+/** The verifier's registry of per-criterion results plus the delivery verdict; distinct from open review. */
+export const DeliveryVerificationResultSchema = z.object({
+  criteriaResults: z.array(CriterionResultSchema),
+  verdict: DeliveryVerdictSchema,
+});
+export type DeliveryVerificationResult = z.infer<typeof DeliveryVerificationResultSchema>;
 
 // ── AgentManifest ──
 
@@ -275,16 +365,32 @@ export type AgentManifest = z.infer<typeof AgentManifestSchema>;
 
 // ── AgentAssignment ──
 
-/** The harness-facing request to repovine or to a repovine-managed main agent. */
+/**
+ * The harness-facing request to repovine or to a repovine-managed main agent.
+ *
+ * `role` and `version` are validated for shape only: an unknown role is a schema error, but
+ * resolving a role's required result fields, cross-checking `version` against a policy version,
+ * and requiring `delivery` refs or a `verificationPolicy` for a given assurance level are compliance
+ * rules the validator applies, not schema constraints. `delivery.baseRef`/`headRef` name the
+ * revisions repovine computes the change-set delta between; their absence leaves the delta
+ * unavailable.
+ */
 export const AgentAssignmentSchema = z.object({
   protocolVersion: ProtocolVersionSchema,
   runId: z.string().min(1),
+  role: AgentRoleSchema,
   task: z.string().min(1),
   scope: z.array(z.string()),
-  acceptanceCriteria: z.array(z.string()),
+  version: z.number().int().min(1),
+  acceptanceCriteria: z.array(AcceptanceCriterionSchema),
   constraints: z.array(z.string()),
   contracts: z.array(z.string()),
   requestedChecks: z.array(RequestedCheckSchema),
+  delivery: z.object({
+    baseRef: z.string().min(1).optional(),
+    headRef: z.string().min(1).optional(),
+  }).optional(),
+  verificationPolicy: VerificationPolicySchema.optional(),
   contextSession: ContextSessionPolicySchema.optional(),
   priorContext: PriorContextSchema.optional(),
 });
@@ -338,6 +444,7 @@ export const AgentRunResultSchema = z.object({
   contextPack: ContextPackSchema.optional(),
   architectureAudit: ArchitectureAuditResultSchema.optional(),
   review: CodeReviewResultSchema.optional(),
+  deliveryVerification: DeliveryVerificationResultSchema.optional(),
   internalTrace: InternalTraceSchema.optional(),
 });
 export type AgentRunResult = z.infer<typeof AgentRunResultSchema>;
@@ -361,6 +468,12 @@ export const AgentComplianceReportSchema = z.object({
   valid: z.boolean(),
   errors: z.array(z.string()),
   warnings: z.array(z.string()),
+  /**
+   * Machine-readable companion to `errors`: one entry per error, in the same order, each carrying a
+   * stable `code` beside the verbatim `message`. Consumers classify by `code` without matching prose.
+   * `.default([])` keeps pre-diagnostics report literals valid.
+   */
+  diagnostics: z.array(z.object({ code: z.string(), message: z.string() })).default([]),
   missingFields: z.array(z.string()),
   staleAnnotations: z.array(z.string()),
   orphanedAnnotations: z.array(z.string()),
@@ -425,6 +538,7 @@ export const AgentProtocolSchema = z.object({
     architectureAuditResult: z.string(),
     codeReviewResult: z.string(),
     reviewInput: z.string(),
+    deliveryVerificationResult: z.string(),
   }),
   mcpTools: z.array(z.string()),
   cliCommands: z.array(z.string()),
@@ -441,6 +555,7 @@ export const SCHEMA_IDS = {
   architectureAuditResult: 'ArchitectureAuditResult',
   codeReviewResult: 'CodeReviewResult',
   reviewInput: 'ReviewInput',
+  deliveryVerificationResult: 'DeliveryVerificationResult',
 } as const;
 
 /** Agent Protocol is CLI-only for harness/integration; worker MCP exposes context tools only. */
@@ -482,26 +597,5 @@ export const AGENT_JSON_SCHEMAS: Record<string, unknown> = {
   [SCHEMA_IDS.architectureAuditResult]: toJSONSchema(ArchitectureAuditResultSchema),
   [SCHEMA_IDS.codeReviewResult]: toJSONSchema(CodeReviewResultSchema),
   [SCHEMA_IDS.reviewInput]: toJSONSchema(ReviewInputSchema),
+  [SCHEMA_IDS.deliveryVerificationResult]: toJSONSchema(DeliveryVerificationResultSchema),
 };
-
-/** Field names the AgentRunResult schema declares, in schema order; the last six are optional. */
-export const RUN_RESULT_FIELDS = [
-  'protocolVersion',
-  'runId',
-  'status',
-  'summary',
-  'scope',
-  'filesChanged',
-  'graphNodesTouched',
-  'contractsChanged',
-  'testsRun',
-  'annotationsWritten',
-  'compliance',
-  'blockers',
-  'contextSessionId',
-  'contextQuality',
-  'contextPack',
-  'architectureAudit',
-  'review',
-  'internalTrace',
-] as const;

@@ -91,7 +91,7 @@ describe('runAgentsCli', () => {
   it('validates a well-formed assignment file', async () => {
     const file = path.join(repoRoot, 'a.json');
     fs.writeFileSync(file, JSON.stringify({
-      protocolVersion: PROTOCOL_VERSION, runId: 'r', task: 't', scope: [], acceptanceCriteria: [], constraints: [], contracts: [], requestedChecks: [],
+      protocolVersion: PROTOCOL_VERSION, runId: 'r', role: 'implementer', task: 't', scope: [], version: 1, acceptanceCriteria: [], constraints: [], contracts: [], requestedChecks: [],
     }));
     expect(await runAgentsCli(['validate-assignment', file], env)).toBe(0);
     expect((lastJson() as { valid: boolean }).valid).toBe(true);
@@ -122,7 +122,7 @@ describe('runAgentsCli', () => {
       blockers: [],
     };
     const assignment = {
-      protocolVersion: PROTOCOL_VERSION, runId: 'run-1', task: 't', scope: ['pkg/src'],
+      protocolVersion: PROTOCOL_VERSION, runId: 'run-1', role: 'implementer', task: 't', scope: ['pkg/src'], version: 1,
       acceptanceCriteria: [], constraints: [], contracts: [], requestedChecks: [],
     };
     const reviewInput = { assignment, implementationResult: impl, diffBase: 'tree-1', changedFiles: ['pkg/src/a.ts'], graphNodesTouched: ['mod:pkg/src/a'] };

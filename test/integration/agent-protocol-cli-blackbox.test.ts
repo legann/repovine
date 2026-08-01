@@ -203,6 +203,25 @@ describe('agent protocol CLI black-box harness surface', () => {
     }
   });
 
+  it('resolves required result fields from the assignment role when --manifest is omitted', () => {
+    // With no --manifest, the CLI resolves the manifest from the assignment's role instead of the
+    // silent ['summary'] fallback, so the implementation result validates against the implementer
+    // manifest's required fields exactly as the explicit --manifest run does.
+    const assignmentFile = writeJson(repoRoot, 'role-resolved-assignment.json', fixture.implementationAssignment);
+    const resultFile = writeJson(repoRoot, 'role-resolved-result.json', fixture.implementationResult);
+
+    const compliance = run([
+      'agents',
+      'compliance',
+      resultFile,
+      '--assignment',
+      assignmentFile,
+    ], repoRoot);
+    expectExit0(compliance);
+    expect(compliance.json).toHaveProperty('report.valid', true);
+    expect(compliance.json).toHaveProperty('report.errors', []);
+  });
+
   it('validates a standalone ReviewInput and rejects linkage/set mismatches', () => {
     const reviewInput = fixture.reviewInput as JsonObject;
     const validFile = writeJson(repoRoot, 'review-input.json', reviewInput);

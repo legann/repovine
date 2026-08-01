@@ -13,7 +13,17 @@ import {
   ReviewInputSchema,
 } from '../../../src/agents/protocol.js';
 import { checkCompliance, type ComplianceState } from '../../../src/agents/validation.js';
+import { getManifest } from '../../../src/agents/manifests.js';
 import type { RepositoryGraph, RepositoryFactsSnapshot } from '../../../src/types.js';
+
+/** Resolve a built-in manifest into the role-agnostic inputs checkCompliance takes. */
+function manifestArgs(name: string): { requiredRunResultFields?: string[]; readOnlyManifestName?: string } {
+  const m = getManifest(name);
+  return {
+    requiredRunResultFields: m?.requiredRunResultFields,
+    readOnlyManifestName: m && m.canEditFiles === false ? m.name : undefined,
+  };
+}
 
 const fixturePath = path.join(
   process.cwd(),
@@ -96,7 +106,7 @@ describe('agent protocol harness spec fixtures', () => {
       assignment: AgentAssignmentSchema.parse(f.implementationAssignment),
       result: AgentRunResultSchema.parse(f.implementationResult),
       state: complianceState,
-      manifestName: 'project-subagent-sample',
+      ...manifestArgs('project-subagent-sample'),
     });
     expect(implementation.valid).toBe(true);
     expect(implementation.errors).toEqual([]);
@@ -105,7 +115,7 @@ describe('agent protocol harness spec fixtures', () => {
       assignment: AgentAssignmentSchema.parse(f.architectureAuditAssignment),
       result: AgentRunResultSchema.parse(f.architectureAuditRunResult),
       state: complianceState,
-      manifestName: 'repovine-architecture-auditor',
+      ...manifestArgs('repovine-architecture-auditor'),
     });
     expect(architectureAudit.valid).toBe(true);
     expect(architectureAudit.errors).toEqual([]);
@@ -114,7 +124,7 @@ describe('agent protocol harness spec fixtures', () => {
       assignment: AgentAssignmentSchema.parse(f.codeReviewAssignment),
       result: AgentRunResultSchema.parse(f.codeReviewRunResult),
       state: complianceState,
-      manifestName: 'repovine-code-reviewer',
+      ...manifestArgs('repovine-code-reviewer'),
     });
     expect(codeReview.valid).toBe(true);
     expect(codeReview.errors).toEqual([]);
