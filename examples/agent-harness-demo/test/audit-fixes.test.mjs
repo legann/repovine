@@ -126,7 +126,7 @@ test('normalizeResult: preserves deliveryVerification on a read-only (explore) v
     criteriaResults: [
       { criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', file: 'pkg/src/a.ts', explanation: 'impl' }], explanation: 'done' },
     ],
-    verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+    verdict: { intentVerified: true, deliveryAccepted: true },
   };
   // briefName null: the verify claim-checker carries no manifest, yet its deliveryVerification
   // must survive to `agents compliance` — otherwise the core never confirms intentVerified.
@@ -138,7 +138,7 @@ test('normalizeResult: preserves deliveryVerification on a read-only (explore) v
 test('normalizeResult: strips deliveryVerification outside a read-only phase (by phase, not manifest)', () => {
   const deliveryVerification = {
     criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', file: 'a.ts', explanation: 'x' }], explanation: 'x' }],
-    verdict: { protocolValid: true, intentVerified: true },
+    verdict: { intentVerified: true },
   };
   const run = (phase) => normalizeResult(
     { status: 'complete', summary: 's', deliveryVerification },

@@ -22,6 +22,11 @@ export function criterionIdFromStatement(statement, index = 0) {
  * result normalizer has coerced it). Non-JSON / statement-less entries are skipped;
  * ids are minted from the statement when absent; deduped by id.
  */
+// Invariant kind is EXPLICIT only: orient tags a regression guard {"kind":"invariant"}. No prose
+// heuristic classifies it — a regex over "stays unchanged / не менялся" silently mislabels (a
+// mislabelled delivery becomes a false exempt), and orient owns intent. An untagged regression guard
+// stays a required delivery and honestly fails the run rather than passing on an untouched node.
+
 export function parseAcceptanceCriteria(contracts = []) {
   /** @type {AcceptanceCriterion[]} */
   const out = [];
@@ -39,7 +44,10 @@ export function parseAcceptanceCriteria(contracts = []) {
     if (!statement) continue;
     const id = obj.id ? String(obj.id) : criterionIdFromStatement(statement, out.length);
     if (out.some((c) => c.id === id)) continue;
-    out.push({ id, statement, required: obj.required ?? true });
+    // Invariant only when orient tagged it explicitly; otherwise delivery. An invariant is advisory
+    // (required:false, does not gate) and exempt from the change-set check.
+    const kind = obj.kind === 'invariant' ? 'invariant' : 'delivery';
+    out.push({ id, statement, required: kind === 'invariant' ? false : (obj.required ?? true), kind });
   }
   return out;
 }
@@ -61,7 +69,7 @@ export function mergeCriteria(primary = [], fallback = []) {
     if (!statement) continue;
     const id = c.id || criterionIdFromStatement(statement, byId.size);
     if (byId.has(id)) continue;
-    byId.set(id, { id, statement, required: c.required ?? true });
+    byId.set(id, { id, statement, required: c.required ?? true, ...(c.kind === 'invariant' ? { kind: 'invariant' } : {}) });
   }
   return [...byId.values()];
 }
@@ -101,7 +109,7 @@ export function deliveryVerificationAccepted(deliveryVerification, criteria = []
  * Roll criteria + their results into a display list for the card and telemetry.
  * `status` is display-only here: a criterion the verifier never resulted reads
  * `pending` (= not judged). The protocol CriterionResult.status the verifier emits
- * is only covered|gap|needs-human — `pending` never leaves this display roll-up.
+ * is only covered|gap|needs-developer — `pending` never leaves this display roll-up.
  */
 export function mergeCriteriaResults(criteria = [], deliveryVerification = null) {
   const byId = new Map((deliveryVerification?.criteriaResults ?? []).map((r) => [r.criterionId, r]));

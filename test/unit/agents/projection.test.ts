@@ -61,7 +61,7 @@ describe('agent projection helpers', () => {
     const block = JSON.parse(fence![1]);
     expect(block).toHaveProperty('review.verdict');
     expect(block).toHaveProperty('review.testReview.coverageAssessment');
-    expect(brief).toContain('approve | changes-requested | needs-human | blocked');
+    expect(brief).toContain('approve | changes-requested | needs-developer | blocked');
   });
 
   it('embeds marker, conditional protocol guidance, and required fields in client guidance', () => {

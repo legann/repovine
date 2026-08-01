@@ -42,6 +42,7 @@ const FALSE_CLAIM_CODES = new Set([
   'ARCH_FINDING_NODE_UNRESOLVED',
   'CONTEXT_PACK_ANCHOR_UNRESOLVED',
   'EVIDENCE_ANCHOR_UNRESOLVED',
+  'EVIDENCE_ANCHOR_UNCHANGED',
 ]);
 
 // Harness contract-handoff failures require code or contractsChanged — never a

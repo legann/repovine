@@ -1224,6 +1224,11 @@ export async function multiAgent(state, config) {
   // means the run does not claim a clean diff (fail-closed), never a subAgent-union fallback.
   const baselineTree = captureWorkspaceRevision(repoRoot, { backend: REVISION_BACKEND });
   if (!baselineTree) log('workspace revision capture unavailable — run will not claim a clean diff (fail-closed)');
+  // Revision-linked delivery evidence: the run-start tree is the base the core diffs against the
+  // working tree at verify time, so a covered criterion must cite a node the run actually changed
+  // (else EVIDENCE_ANCHOR_UNCHANGED). baseRef only — head is the working tree at compliance. This is
+  // captured at run-start, independent of HARNESS_RUNTIME_CHECK; a null capture leaves the delta off.
+  if (baselineTree) workingTask.delivery = { baseRef: baselineTree.digest };
   // Run-start annotation snapshot: verify obligations must reflect PRIOR runs'
   // contracts even if a sub-agent writes annotations mid-run.
   const baselineAnnotations = readAnnotationsSnapshot(repoRoot);

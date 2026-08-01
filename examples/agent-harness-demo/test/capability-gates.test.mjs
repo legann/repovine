@@ -725,7 +725,7 @@ test('deriveMultiRunStatus: signals wiring — happy path, test-floor conjunctio
         runtimeCheck: { ok: true, skipped: false },
         verifySubAgent: {
           ok: true, instanceId: 'verify',
-          result: { deliveryVerification: { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } } },
+          result: { deliveryVerification: { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { intentVerified: true } } },
         },
         acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
         baselineTree,
@@ -1173,7 +1173,7 @@ test('continuation: seeded workspace decomposes across touched layers, no re-sca
 test('subAgentCsqOnlyDelivered: a deliveryVerification verdict is delivered work (verify shape)', () => {
   const verifyLeaf = {
     role: 'review', ok: false, instanceId: 'verify',
-    result: { status: 'complete', filesChanged: [], deliveryVerification: { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } } },
+    result: { status: 'complete', filesChanged: [], deliveryVerification: { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { intentVerified: true } } },
     report: { errors: ['Context session quality rejected handoff: overall=0.39, reasons=QUALITY_BELOW_THRESHOLD.'] },
   };
   assert.equal(subAgentCsqOnlyDelivered(verifyLeaf), true);
@@ -1186,7 +1186,7 @@ test('deriveMultiRunStatus: a CSQ-only delivered verify still passes the verific
       write(root, 'README.md', 'seed\n');
       assert.equal(ensureGitRepo(root), true);
       const baselineTree = captureTree(root);
-      const passingDelivery = { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } };
+      const passingDelivery = { criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a', explanation: 'x' }], explanation: 'x' }], verdict: { intentVerified: true } };
       const csqVerify = {
         role: 'review', ok: false, instanceId: 'verify',
         result: { status: 'complete', filesChanged: [], deliveryVerification: passingDelivery },

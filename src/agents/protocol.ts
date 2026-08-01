@@ -226,7 +226,7 @@ export const ArchitectureAuditResultSchema = z.object({
 export type ArchitectureAuditResult = z.infer<typeof ArchitectureAuditResultSchema>;
 
 export const CodeReviewResultSchema = z.object({
-  verdict: z.enum(['approve', 'changes-requested', 'needs-human', 'blocked']),
+  verdict: z.enum(['approve', 'changes-requested', 'needs-developer', 'blocked']),
   reviewedFiles: z.array(z.string()),
   reviewedDiffBase: z.string(),
   criteriaChecked: z.array(z.string()),
@@ -265,7 +265,7 @@ export type CodeReviewResult = z.infer<typeof CodeReviewResultSchema>;
  * the rest are recorded as declared, their execution owned by the harness's artifact custody.
  */
 export const EVIDENCE_KINDS = [
-  'repository', 'review', 'test', 'build', 'typecheck', 'runtime', 'security', 'human', 'custom',
+  'repository', 'review', 'test', 'build', 'typecheck', 'runtime', 'security', 'developer', 'custom',
 ] as const;
 export const EvidenceKindSchema = z.enum(EVIDENCE_KINDS);
 export type EvidenceKind = z.infer<typeof EvidenceKindSchema>;
@@ -275,6 +275,9 @@ export const AcceptanceCriterionSchema = z.object({
   id: z.string().min(1),
   statement: z.string().min(1),
   required: z.boolean(),
+  // delivery (absent = delivery): the run must CHANGE the cited node; invariant: a regression guard
+  // the run must NOT change — its evidence is a node left untouched by the change-set.
+  kind: z.enum(['delivery', 'invariant']).optional(),
 });
 export type AcceptanceCriterion = z.infer<typeof AcceptanceCriterionSchema>;
 
@@ -306,13 +309,13 @@ export const VerificationPolicySchema = z.object({
 export type VerificationPolicy = z.infer<typeof VerificationPolicySchema>;
 
 /** Terminal coverage status of one acceptance criterion. */
-export const CRITERION_STATUSES = ['covered', 'gap', 'needs-human'] as const;
+export const CRITERION_STATUSES = ['covered', 'gap', 'needs-developer'] as const;
 export const CriterionStatusSchema = z.enum(CRITERION_STATUSES);
 export type CriterionStatus = z.infer<typeof CriterionStatusSchema>;
 
 /**
  * One criterion's coverage result. `covered` carries repository-grounded evidence; a resolved
- * needs-human keeps status `needs-human` and adds a custody `resolution` pointing at the artifact.
+ * needs-developer keeps status `needs-developer` and adds a custody `resolution` pointing at the artifact.
  */
 export const CriterionResultSchema = z.object({
   criterionId: z.string().min(1),
@@ -324,11 +327,11 @@ export const CriterionResultSchema = z.object({
 export type CriterionResult = z.infer<typeof CriterionResultSchema>;
 
 /**
- * The split verdict. repovine owns protocolValid (schema/linkage/grounding) and intentVerified
- * (every required criterion covered); the harness owns assurancePassed and deliveryAccepted.
+ * The split verdict. repovine owns intentVerified (every required criterion covered). Authoritative
+ * protocol validity is AgentComplianceReport.valid — the whole compliance run, including the delivery
+ * diagnostics — not a field the agent claims. The harness owns assurancePassed and deliveryAccepted.
  */
 export const DeliveryVerdictSchema = z.object({
-  protocolValid: z.boolean(),
   intentVerified: z.boolean(),
   assuranceProfile: z.string().min(1).optional(),
   assurancePassed: z.boolean().optional(),

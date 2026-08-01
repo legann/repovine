@@ -1,4 +1,5 @@
 import { asHostPath, asPkgRelPath } from '@repovine/plugin-sdk';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -1376,7 +1377,7 @@ describe('compliance validation', () => {
         result: makeResult({
           deliveryVerification: {
             criteriaResults: [covered('c1')],
-            verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+            verdict: { intentVerified: true, deliveryAccepted: true },
           },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'do x', required: true }] }),
@@ -1389,7 +1390,7 @@ describe('compliance validation', () => {
     it('rejects duplicate acceptance criterion ids', () => {
       const report = checkCompliance({
         result: makeResult({
-          deliveryVerification: { criteriaResults: [], verdict: { protocolValid: true, intentVerified: false } },
+          deliveryVerification: { criteriaResults: [], verdict: { intentVerified: false } },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [
           { id: 'c1', statement: 'x', required: false },
@@ -1404,7 +1405,7 @@ describe('compliance validation', () => {
     it('rejects a result for a criterion the assignment does not declare', () => {
       const report = checkCompliance({
         result: makeResult({
-          deliveryVerification: { criteriaResults: [covered('ghost')], verdict: { protocolValid: true, intentVerified: true } },
+          deliveryVerification: { criteriaResults: [covered('ghost')], verdict: { intentVerified: true } },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: false }] }),
         state: state({ nodes: ['mod:a/b'] }),
@@ -1421,7 +1422,7 @@ describe('compliance validation', () => {
               covered('c1'),
               { criterionId: 'c1', status: 'gap', evidence: [], explanation: 'also' },
             ],
-            verdict: { protocolValid: true, intentVerified: false },
+            verdict: { intentVerified: false },
           },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: false }] }),
@@ -1434,7 +1435,7 @@ describe('compliance validation', () => {
     it('rejects a required criterion with no result', () => {
       const report = checkCompliance({
         result: makeResult({
-          deliveryVerification: { criteriaResults: [], verdict: { protocolValid: true, intentVerified: false } },
+          deliveryVerification: { criteriaResults: [], verdict: { intentVerified: false } },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
         state: state(),
@@ -1448,7 +1449,7 @@ describe('compliance validation', () => {
         result: makeResult({
           deliveryVerification: {
             criteriaResults: [{ criterionId: 'c1', status: 'gap', evidence: [], explanation: 'not yet' }],
-            verdict: { protocolValid: true, intentVerified: true },
+            verdict: { intentVerified: true },
           },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
@@ -1463,7 +1464,7 @@ describe('compliance validation', () => {
         result: makeResult({
           deliveryVerification: {
             criteriaResults: [{ criterionId: 'c1', status: 'gap', evidence: [], explanation: 'not yet' }],
-            verdict: { protocolValid: true, intentVerified: false, deliveryAccepted: true },
+            verdict: { intentVerified: false, deliveryAccepted: true },
           },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
@@ -1477,7 +1478,7 @@ describe('compliance validation', () => {
       const report = checkCompliance({
         result: makeResult({
           filesChanged: ['packages/a/src/b.ts'],
-          deliveryVerification: { criteriaResults: [], verdict: { protocolValid: true, intentVerified: true } },
+          deliveryVerification: { criteriaResults: [], verdict: { intentVerified: true } },
         }),
         assignment: makeAssignment(),
         state: state(),
@@ -1496,7 +1497,7 @@ describe('compliance validation', () => {
               evidence: [{ kind: 'test', explanation: 'a test ran' }],
               explanation: 'done',
             }],
-            verdict: { protocolValid: true, intentVerified: true },
+            verdict: { intentVerified: true },
           },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
@@ -1519,7 +1520,7 @@ describe('compliance validation', () => {
               ],
               explanation: 'done',
             }],
-            verdict: { protocolValid: true, intentVerified: true },
+            verdict: { intentVerified: true },
           },
         }),
         assignment: makeAssignment({
@@ -1545,7 +1546,7 @@ describe('compliance validation', () => {
               ],
               explanation: 'done',
             }],
-            verdict: { protocolValid: true, intentVerified: true },
+            verdict: { intentVerified: true },
           },
         }),
         assignment: makeAssignment({
@@ -1568,7 +1569,7 @@ describe('compliance validation', () => {
               evidence: [{ kind: 'repository', graphNodeId: 'mod:ghost', explanation: 'nowhere' }],
               explanation: 'done',
             }],
-            verdict: { protocolValid: true, intentVerified: true },
+            verdict: { intentVerified: true },
           },
         }),
         assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
@@ -1576,6 +1577,171 @@ describe('compliance validation', () => {
       });
       expect(report.valid).toBe(false);
       expect(report.diagnostics.map(d => d.code)).toContain('EVIDENCE_ANCHOR_UNRESOLVED');
+    });
+
+    it('rejects a covered criterion citing a node the run did not change (revision-linked)', () => {
+      const g = (args: string[]) => execFileSync('git', ['-C', repoRoot, ...args], { stdio: 'ignore' });
+      g(['init', '-q']);
+      g(['config', 'user.email', 'test@example.com']);
+      g(['config', 'user.name', 'Test']);
+      fs.writeFileSync(path.join(repoRoot, 'a.ts'), 'export const a = 1;\n');
+      fs.writeFileSync(path.join(repoRoot, 'b.ts'), 'export const b = 1;\n');
+      g(['add', '-A']);
+      g(['commit', '-qm', 'base']);
+      const baseRef = execFileSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+      fs.writeFileSync(path.join(repoRoot, 'b.ts'), 'export const b = 2;\n'); // change only b
+      g(['add', '-A']);
+      g(['commit', '-qm', 'change b']);
+
+      const modA = { id: 'mod:a', type: 'module', label: 'a', description: '', data: {} } as unknown as GraphNode;
+      const modB = { id: 'mod:b', type: 'module', label: 'b', description: '', data: {} } as unknown as GraphNode;
+      const st: ComplianceState = {
+        repoRoot,
+        graph: realGraph([modA, modB], []),
+        snapshot: {} as unknown as RepositoryFactsSnapshot,
+        annotations: fakeStore({}),
+      };
+      const runFor = (nodeId: string) => checkCompliance({
+        result: makeResult({
+          filesChanged: [],
+          graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{
+              criterionId: 'c1',
+              status: 'covered',
+              evidence: [{ kind: 'repository', graphNodeId: nodeId, explanation: 'here' }],
+              explanation: 'done',
+            }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({
+          acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }],
+          delivery: { baseRef },
+        }),
+        state: st,
+      });
+      // Cites a.ts, which the run left untouched → flagged as unchanged.
+      expect(runFor('mod:a').diagnostics.map(d => d.code)).toContain('EVIDENCE_ANCHOR_UNCHANGED');
+      // Cites b.ts, which the run changed → not flagged.
+      expect(runFor('mod:b').diagnostics.map(d => d.code)).not.toContain('EVIDENCE_ANCHOR_UNCHANGED');
+    });
+
+    it('exempts an invariant criterion from the change-set delivery check', () => {
+      const g = (args: string[]) => execFileSync('git', ['-C', repoRoot, ...args], { stdio: 'ignore' });
+      g(['init', '-q']);
+      g(['config', 'user.email', 'test@example.com']);
+      g(['config', 'user.name', 'Test']);
+      fs.writeFileSync(path.join(repoRoot, 'a.ts'), 'export const a = 1;\n');
+      fs.writeFileSync(path.join(repoRoot, 'b.ts'), 'export const b = 1;\n');
+      g(['add', '-A']);
+      g(['commit', '-qm', 'base']);
+      const baseRef = execFileSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+      fs.writeFileSync(path.join(repoRoot, 'b.ts'), 'export const b = 2;\n'); // change only b
+      g(['add', '-A']);
+      g(['commit', '-qm', 'change b']);
+
+      const modA = { id: 'mod:a', type: 'module', label: 'a', description: '', data: {} } as unknown as GraphNode;
+      const modB = { id: 'mod:b', type: 'module', label: 'b', description: '', data: {} } as unknown as GraphNode;
+      const st: ComplianceState = {
+        repoRoot,
+        graph: realGraph([modA, modB], []),
+        snapshot: {} as unknown as RepositoryFactsSnapshot,
+        annotations: fakeStore({}),
+      };
+      const runFor = (nodeId: string) => checkCompliance({
+        result: makeResult({
+          filesChanged: [],
+          graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{
+              criterionId: 'c1',
+              status: 'covered',
+              evidence: [{ kind: 'repository', graphNodeId: nodeId, explanation: 'here' }],
+              explanation: 'done',
+            }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({
+          acceptanceCriteria: [{ id: 'c1', statement: 'a stays unchanged', required: true, kind: 'invariant' }],
+          delivery: { baseRef },
+        }),
+        state: st,
+      });
+      // Invariant criteria are advisory regression guards — exempt from the change-set check whether
+      // the cited node was left untouched (mod:a) or changed (mod:b).
+      const untouched = runFor('mod:a').diagnostics.map(d => d.code);
+      expect(untouched).not.toContain('EVIDENCE_ANCHOR_UNCHANGED');
+      const changed = runFor('mod:b').diagnostics.map(d => d.code);
+      expect(changed).not.toContain('EVIDENCE_ANCHOR_UNCHANGED');
+      expect(changed).not.toContain('INVARIANT_NODE_CHANGED');
+    });
+
+    it('fails closed when delivery.baseRef is set but the change-set cannot be computed', () => {
+      // repoRoot (the suite temp dir) is not a git repo, so the change-set is unavailable.
+      const report = checkCompliance({
+        result: makeResult({
+          filesChanged: [], graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'x' }], explanation: 'done' }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }], delivery: { baseRef: 'no-such-ref' } }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.diagnostics.map(d => d.code)).toContain('DELIVERY_CHANGESET_UNAVAILABLE');
+    });
+
+    it('stays silent when delivery.baseRef is absent (revision linkage not requested)', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          filesChanged: [], graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'x' }], explanation: 'done' }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.diagnostics.map(d => d.code)).not.toContain('DELIVERY_CHANGESET_UNAVAILABLE');
+    });
+
+    it('flags a covered criterion whose repository evidence has no locator', () => {
+      const report = checkCompliance({
+        result: makeResult({
+          filesChanged: [], graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', explanation: 'implemented here' }], explanation: 'done' }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      expect(report.diagnostics.map(d => d.code)).toContain('EVIDENCE_REPOSITORY_UNGROUNDED');
+    });
+
+    it('grounds file-only repository evidence through file→module resolution', () => {
+      const runFor = (file: string) => checkCompliance({
+        result: makeResult({
+          filesChanged: [], graphNodesTouched: [],
+          deliveryVerification: {
+            criteriaResults: [{ criterionId: 'c1', status: 'covered', evidence: [{ kind: 'repository', file, explanation: 'here' }], explanation: 'done' }],
+            verdict: { intentVerified: true },
+          },
+        }),
+        assignment: makeAssignment({ acceptanceCriteria: [{ id: 'c1', statement: 'x', required: true }] }),
+        state: state({ nodes: ['mod:a/b'] }),
+      });
+      // 'a/b.ts' maps to mod:a/b → grounded (no unresolved/ungrounded).
+      const ok = runFor('a/b.ts').diagnostics.map(d => d.code);
+      expect(ok).not.toContain('EVIDENCE_ANCHOR_UNRESOLVED');
+      expect(ok).not.toContain('EVIDENCE_REPOSITORY_UNGROUNDED');
+      // 'ghost.ts' maps to no module → unresolved.
+      expect(runFor('ghost.ts').diagnostics.map(d => d.code)).toContain('EVIDENCE_ANCHOR_UNRESOLVED');
     });
 
     it('rejects an assignment version out of step with its verification policy', () => {
@@ -1601,7 +1767,7 @@ describe('compliance validation', () => {
               evidence: [{ kind: 'repository', graphNodeId: 'mod:a/b', explanation: 'here' }],
               explanation: 'done',
             }],
-            verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+            verdict: { intentVerified: true, deliveryAccepted: true },
           },
         }),
         assignment: makeAssignment({

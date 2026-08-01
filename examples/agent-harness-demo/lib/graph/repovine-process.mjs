@@ -130,6 +130,7 @@ export function orientTask(userTask, cliOrient = null, { greenfield = false } = 
     '- contractsChanged: one acceptance criterion per entry, as a JSON object {"id":"c-<slug>","statement":"<plain-language product behavior the user expects>","required":true} (omit id to have it minted from the statement)',
     '- SHARPEN the request into decided criteria: the user task may be one vague sentence — you own turning it into an unambiguous spec. For every ambiguity pick a sensible default and emit it as its OWN criterion: inverse/undo transitions (what un-doing an action does), empty/absent cases (entity with no children, empty list), defaults, and boundary behavior. Implementers build toward your criteria; the verifier checks exactly them — an undecided ambiguity becomes a gap later.',
     '- Sharpen PRODUCT BEHAVIOR only — never decide technology, framework, or architecture (client-side vs server-side, storage engine): the planner owns the stack. A criterion that pins a stack choice will conflict with the plan and read as a verification gap.',
+    '- A criterion is a DELIVERABLE by default — what the run changes or adds; each required one is verified against a node the run touches. A regression guard ("stays unchanged / still works / as before / do not break / X не менялся") is DIFFERENT: emit it with "kind":"invariant" — then it is advisory (does not gate the goal, exempt from the change-set check). You MUST tag it: an untagged regression guard is treated as a required delivery, and since its evidence is a node the run did NOT touch, it fails the run. Tag guards, leave deliverables untagged.',
     '- summary: one paragraph — graph path from entrypoint to persistence/SSE/client patch (or "greenfield — no product graph yet")',
     '- compliance.flowChecked: true after trace_flow on realtime/API scope when a graph exists',
     greenfieldSection,
@@ -141,7 +142,7 @@ export function orientTask(userTask, cliOrient = null, { greenfield = false } = 
 }
 
 export function verifyClaimsTask({ criteria = [], orientTrail = null, implementSummaries = [], treeDiffSection = '', graphObligationsSection = '' }) {
-  const criterionLines = criteria.map((c) => `- [${c.id}] ${c.statement} (required: ${c.required !== false})`).join('\n') || '- (none)';
+  const criterionLines = criteria.map((c) => `- [${c.id}] (${c.kind === 'invariant' ? 'invariant' : 'delivery'}) ${c.statement} (required: ${c.required !== false})`).join('\n') || '- (none)';
   const nodes = (orientTrail?.graphNodes ?? []).map((n) => `- ${n}`).join('\n') || '- (none)';
   const impl = implementSummaries.filter(Boolean).join('\n\n') || '(none)';
   return [
@@ -149,9 +150,10 @@ export function verifyClaimsTask({ criteria = [], orientTrail = null, implementS
     'Do not edit files. Use inspect_node, trace_flow, validate_annotations on touched scope.',
     'ANCHOR FIRST: inspect_node the orient graph nodes below before any free-text search — resolved anchors, not broad OR searches, pass the context-session gate on continuation runs.',
     'Emit a deliveryVerification object (NOT free text). One criteriaResults entry per criterion below, plus a split verdict:',
-    '  {"criteriaResults":[{"criterionId":"<id from below>","status":"covered|gap|needs-human","evidence":[{"kind":"repository","graphNodeId":"mod:<pkg>/<path> (canonical id from inspect_node)","explanation":"<what at this node satisfies the criterion>"}],"explanation":"<how the evidence proves it>"}],',
-    '   "verdict":{"protocolValid":true,"intentVerified":<true only when EVERY required criterion is covered with repository evidence>}}',
-    'A covered criterion MUST cite at least one repository evidence anchor. In graphNodeId put a CANONICAL repovine node id (e.g. mod:pkg/path or export:...) copied verbatim from an inspect_node / map_context response — NOT a source file path: a raw path does not resolve against the graph and the anchor is rejected. If you only have a path, put it in a "file" field instead of graphNodeId. Use gap/needs-human otherwise. Do not set intentVerified=true while any required criterion is gap/needs-human.',
+    '  {"criteriaResults":[{"criterionId":"<id from below>","status":"covered|gap|needs-developer","evidence":[{"kind":"repository","graphNodeId":"mod:<pkg>/<path> (canonical id from inspect_node)","explanation":"<what at this node satisfies the criterion>"}],"explanation":"<how the evidence proves it>"}],',
+    '   "verdict":{"intentVerified":<true only when EVERY required criterion is covered with repository evidence>}}',
+    'A covered criterion MUST cite at least one repository evidence anchor. In graphNodeId put a CANONICAL repovine node id (e.g. mod:pkg/path or export:...) copied verbatim from an inspect_node / map_context response — NOT a source file path: a raw path does not resolve against the graph and the anchor is rejected. If you only have a path, put it in a "file" field instead of graphNodeId. Use gap/needs-developer otherwise. Do not set intentVerified=true while any required criterion is gap/needs-developer.',
+    'Each criterion is tagged (delivery) or (invariant). A (delivery) criterion must cite a node the run CHANGED — the core rejects a delivery grounded in an untouched node. An (invariant) criterion is an advisory regression guard: cite the node it preserves and report its status honestly; it is exempt from the change-set check and does not gate the goal.',
     'Blockers only for clear contract violations (wrong nodes untouched, annotation invariants contradict a criterion).',
     'Do not run shell, npm test, or Playwright.',
     '',

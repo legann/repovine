@@ -42,6 +42,35 @@ test('parseAcceptanceCriteria accepts object entries and dedupes by id', () => {
   assert.equal(criteria[0].statement, 'first');
 });
 
+test('parseAcceptanceCriteria: invariant only when explicitly tagged (no prose inference)', () => {
+  const criteria = parseAcceptanceCriteria([
+    { id: 'c-add', statement: 'a new priority badge is shown', required: true },
+    { id: 'c-guard', statement: 'the empty state stays unchanged', kind: 'invariant', required: true },
+    { id: 'c-untagged', statement: 'the empty state stays unchanged', required: true },
+  ]);
+  const byId = Object.fromEntries(criteria.map((c) => [c.id, c]));
+  // Deliverable → delivery, required kept.
+  assert.equal(byId['c-add'].kind, 'delivery');
+  assert.equal(byId['c-add'].required, true);
+  // Explicitly tagged regression guard → advisory invariant (required:false).
+  assert.equal(byId['c-guard'].kind, 'invariant');
+  assert.equal(byId['c-guard'].required, false);
+  // Same "unchanged" wording WITHOUT a tag → required delivery (no prose heuristic classifies it).
+  assert.equal(byId['c-untagged'].kind, 'delivery');
+  assert.equal(byId['c-untagged'].required, true);
+});
+
+test('mergeCriteria preserves the invariant kind through the merge', () => {
+  const merged = mergeCriteria(
+    [{ id: 'c-i', statement: 'x unchanged', kind: 'invariant', required: false }],
+    [{ id: 'c-d', statement: 'y', required: true }],
+  );
+  const byId = Object.fromEntries(merged.map((c) => [c.id, c]));
+  assert.equal(byId['c-i'].kind, 'invariant');
+  assert.equal(byId['c-i'].required, false);
+  assert.equal(byId['c-d'].kind, undefined); // a delivery carries no kind field through merge
+});
+
 test('scopesFromGraphNodes maps mod ids to package scopes', () => {
   const scopes = scopesFromGraphNodes([
     'mod:chat-backend/src/services/directMessageService',
@@ -85,19 +114,19 @@ const coveredResult = (id) => ({
 
 test('deliveryVerificationAccepted: all required covered + intentVerified → true', () => {
   const criteria = [{ id: 'c-a', statement: 'a', required: true }, { id: 'c-b', statement: 'b', required: false }];
-  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { protocolValid: true, intentVerified: true } };
+  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { intentVerified: true } };
   assert.equal(deliveryVerificationAccepted(dv, criteria), true);
 });
 
 test('deliveryVerificationAccepted: a required-criterion gap → false (enforcing)', () => {
   const criteria = [{ id: 'c-a', statement: 'a', required: true }];
-  const dv = { criteriaResults: [{ criterionId: 'c-a', status: 'gap', evidence: [], explanation: 'x' }], verdict: { protocolValid: true, intentVerified: true } };
+  const dv = { criteriaResults: [{ criterionId: 'c-a', status: 'gap', evidence: [], explanation: 'x' }], verdict: { intentVerified: true } };
   assert.equal(deliveryVerificationAccepted(dv, criteria), false);
 });
 
 test('deliveryVerificationAccepted: intentVerified=false → false', () => {
   const criteria = [{ id: 'c-a', statement: 'a', required: true }];
-  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { protocolValid: true, intentVerified: false } };
+  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { intentVerified: false } };
   assert.equal(deliveryVerificationAccepted(dv, criteria), false);
 });
 
@@ -107,7 +136,7 @@ test('deliveryVerificationAccepted: absent deliveryVerification → false (fail-
 
 test('deliveryVerificationAccepted: a required criterion with no result → false', () => {
   const criteria = [{ id: 'c-a', statement: 'a', required: true }, { id: 'c-b', statement: 'b', required: true }];
-  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { protocolValid: true, intentVerified: true } };
+  const dv = { criteriaResults: [coveredResult('c-a')], verdict: { intentVerified: true } };
   assert.equal(deliveryVerificationAccepted(dv, criteria), false);
 });
 
@@ -227,7 +256,7 @@ test('buildRepovineProcessSummary includes orient criteria and verify verdict', 
         instanceId: 'verify', ok: true,
         result: {
           summary: 'all criteria covered',
-          deliveryVerification: { criteriaResults: [coveredResult('c-1')], verdict: { protocolValid: true, intentVerified: true } },
+          deliveryVerification: { criteriaResults: [coveredResult('c-1')], verdict: { intentVerified: true } },
         },
       },
     ],

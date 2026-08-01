@@ -16,6 +16,7 @@ export function toAcceptanceCriteria(raw) {
         id: String(c.id ?? `c${i + 1}`),
         statement: String(c.statement ?? ''),
         required: c.required ?? true,
+        ...(c.kind === 'invariant' || c.kind === 'delivery' ? { kind: c.kind } : {}),
       };
     }
     return { id: `c${i + 1}`, statement: String(c), required: true };

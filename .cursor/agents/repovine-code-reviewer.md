@@ -58,7 +58,7 @@ Flow and architecture narrow to different scope kinds. `trace_flow` takes `all`,
 
 - `approve`: tests and coverage are adequate, no blocker/major findings.
 - `changes-requested`: a defect, regression, failed test, or material missing test blocks acceptance.
-- `needs-human`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
+- `needs-developer`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
 - `blocked`: missing diff, assignment, context, or test setup prevents review. When the assignment requested `code-review`, compliance still requires a non-empty `review.reviewedFiles`, so name what you did read.
 
 ## Agent Protocol (explicit use only)

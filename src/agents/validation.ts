@@ -48,6 +48,7 @@ import { stripIndexBasename, stripModuleIdSuffix } from '../plugin-host/source-s
 import { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
 export { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
 import { moduleNodeId } from '../graph/node-ids.js';
+import { computeChangedPaths } from './change-set.js';
 import { resolveRelPath, toPosixPath } from '../platform/paths.js';
 import { shortenList, omittedNote } from '../platform/text.js';
 
@@ -791,18 +792,18 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
     const seriousFindings = result.review.findings.filter(f => f.severity === 'blocker' || f.severity === 'major');
     if (result.review.verdict === 'approve' && seriousFindings.length > 0) {
       fail('APPROVE_WITH_SERIOUS_FINDINGS', 'review.verdict="approve" but blocker/major review findings are present.');
-      requiredFollowups.push('Use changes-requested/needs-human, or downgrade/remove serious findings with evidence.');
+      requiredFollowups.push('Use changes-requested/needs-developer, or downgrade/remove serious findings with evidence.');
     }
     if (result.review.testReview && result.review.verdict === 'approve' && result.review.testReview.coverageAssessment !== 'adequate') {
       fail('APPROVE_COVERAGE_INADEQUATE', `review.verdict="approve" but testReview.coverageAssessment="${result.review.testReview.coverageAssessment}".`);
-      requiredFollowups.push('Use needs-human/changes-requested or record adequate test coverage evidence.');
+      requiredFollowups.push('Use needs-developer/changes-requested or record adequate test coverage evidence.');
     }
     const seriousMissingTests = (result.review.testReview?.missingTests ?? []).filter(
       t => t.severity === 'blocker' || t.severity === 'major',
     );
     if (result.review.verdict === 'approve' && seriousMissingTests.length > 0) {
       fail('APPROVE_MISSING_TESTS', `review.verdict="approve" but testReview.missingTests contains ${seriousMissingTests.length} blocker/major entr${seriousMissingTests.length === 1 ? 'y' : 'ies'}.`);
-      requiredFollowups.push('Use changes-requested/needs-human, or resolve the blocker/major missing tests before approving.');
+      requiredFollowups.push('Use changes-requested/needs-developer, or resolve the blocker/major missing tests before approving.');
     }
     const unresolvedReviewNodes = result.review.findings
       .map(f => f.graphNodeId)
@@ -834,6 +835,48 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
   // Delivery verification: re-check the self-reported criteria registry and split verdict against the
   // assignment's acceptance criteria, then the cited evidence against the frozen policy.
   if (result.deliveryVerification) {
+    // Revision-linked evidence: when the assignment names a base (and optional head) revision,
+    // resolve the run's change-set so a covered criterion must cite a node the run actually changed,
+    // not merely an existing one. Absent refs leave changedPaths null and the check is skipped. Base
+    // and head are the harness's run-start and verify snapshots; this never reads runtime-check state.
+    const changedPaths = computeChangedPaths(state.repoRoot, assignment?.delivery?.baseRef, assignment?.delivery?.headRef);
+    const criterionKinds = new Map((assignment?.acceptanceCriteria ?? []).map((c) => [c.id, c.kind ?? 'delivery']));
+    // Fail-closed on requested-but-unavailable revision linkage. A set baseRef means the harness asked
+    // for a change-set; a null result then means git could not compute it (unresolvable ref / not a git
+    // repo / git failure), not that linkage was unrequested. A covered delivery grounded in repository
+    // evidence cannot be re-checked against that missing change-set, so it is unverified, not passed.
+    // Scoped to an actually-affected covered delivery; an absent baseRef, or an all-invariant /
+    // no-repository result, stays silent.
+    if (assignment?.delivery?.baseRef && changedPaths === null) {
+      const hasCoveredDeliveryRepoEvidence = result.deliveryVerification.criteriaResults.some(
+        cr => cr.status === 'covered'
+          && (criterionKinds.get(cr.criterionId) ?? 'delivery') !== 'invariant'
+          && cr.evidence.some(e => e.kind === 'repository'),
+      );
+      if (hasCoveredDeliveryRepoEvidence) {
+        fail(
+          'DELIVERY_CHANGESET_UNAVAILABLE',
+          'assignment.delivery.baseRef is set but the change-set could not be computed (git unavailable or unresolvable ref); covered delivery criteria cannot be revision-checked.',
+        );
+        requiredFollowups.push('Provide a resolvable delivery.baseRef (and headRef) in a git repository so covered delivery criteria can be revision-checked.');
+      }
+    }
+    // Resolve the changed files to the modules they back — the same file→module resolver the
+    // annotation-grounding check uses — so a covered criterion must cite a node the run's change-set
+    // actually touched. Absent change-set (null) leaves nodeChangedInRun null and the check is skipped.
+    const changedModuleIds = changedPaths
+      ? new Set([...changedPaths].flatMap((f) => modulesForFile(graph, state.snapshot, f)))
+      : null;
+    const nodeChangedInRun = changedModuleIds
+      ? (nodeId: string): boolean => {
+        const id = resolveGraphNodeId(graph, nodeId);
+        if (!id) return false;
+        if (changedModuleIds.has(id)) return true;
+        if (!id.startsWith('export:')) return false;
+        const owner = owningModuleId(id);
+        return owner != null && changedModuleIds.has(owner);
+      }
+      : null;
     const deliveryDiagnostics = [
       ...verifyDeliveryRegistry({
         acceptanceCriteria: assignment?.acceptanceCriteria ?? [],
@@ -844,6 +887,9 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
         deliveryVerification: result.deliveryVerification,
         verificationPolicy: assignment?.verificationPolicy,
         resolveAnchor: (nodeId) => Boolean(resolveGraphNodeId(graph, nodeId)),
+        nodeChangedInRun,
+        criterionKinds,
+        resolveFileToModule: (file) => modulesForFile(graph, state.snapshot, file)[0],
       }),
     ];
     for (const d of deliveryDiagnostics) {
@@ -1126,7 +1172,7 @@ function verifyDeliveryRegistry(input: {
   if (verdict.intentVerified === true && requiredOpen.length > 0) {
     out.push({
       code: 'INTENT_VERIFIED_WITH_OPEN_CRITERION',
-      message: `deliveryVerification.verdict.intentVerified=true but required criterion(s) are unresolved (gap/needs-human or no result): ${requiredOpen.join(', ')}.`,
+      message: `deliveryVerification.verdict.intentVerified=true but required criterion(s) are unresolved (gap/needs-developer or no result): ${requiredOpen.join(', ')}.`,
       followup: 'Set intentVerified=false while a required criterion is unresolved, or resolve it with evidence.',
     });
   }
@@ -1153,16 +1199,22 @@ function verifyDeliveryRegistry(input: {
  * Re-check the evidence each criterion result cites. A covered criterion must cite at least one
  * repository-grounded evidence — the baseline the protocol recomputes; non-covered statuses carry no
  * such duty. Cited kinds must stay within the frozen policy's allowed set for that criterion when a
- * policy froze one. custom evidence must name a producer via artifactRef. A repository evidence's
- * graphNodeId, when present, must resolve against the graph. Role-agnostic; the graph is reached only
- * through the injected resolver.
+ * policy froze one. custom evidence must name a producer via artifactRef. repository evidence must
+ * carry a locator — a graphNodeId that resolves, or a file that maps to a module; an explanation-only
+ * anchor is ungrounded. For a delivery criterion, when a change-set is available, its covered
+ * repository node must lie within it — an untouched node is not proof of a change. Invariant criteria
+ * are advisory regression guards, exempt from the change-set check. Role-agnostic; the graph and
+ * change-set are reached only through the injected predicates.
  */
 function verifyDeliveryEvidence(input: {
   deliveryVerification: DeliveryVerificationResult;
   verificationPolicy?: VerificationPolicy;
   resolveAnchor: (nodeId: string) => boolean;
+  nodeChangedInRun?: ((nodeId: string) => boolean) | null;
+  criterionKinds?: Map<string, string>;
+  resolveFileToModule?: (file: string) => string | undefined;
 }): DeliveryDiagnostic[] {
-  const { deliveryVerification, verificationPolicy, resolveAnchor } = input;
+  const { deliveryVerification, verificationPolicy, resolveAnchor, nodeChangedInRun, criterionKinds, resolveFileToModule } = input;
   const out: DeliveryDiagnostic[] = [];
   const allowedKindsByCriterion = new Map(
     (verificationPolicy?.requirements ?? []).map(r => [r.criterionId, r.evidenceKinds]),
@@ -1175,7 +1227,7 @@ function verifyDeliveryEvidence(input: {
       out.push({
         code: 'CRITERION_COVERED_NO_REPOSITORY_EVIDENCE',
         message: `Criterion "${criterionId}" is covered but cites no repository evidence.`,
-        followup: 'Cite a repository anchor for a covered criterion, or lower its status to gap/needs-human.',
+        followup: 'Cite a repository anchor for a covered criterion, or lower its status to gap/needs-developer.',
       });
     }
 
@@ -1195,12 +1247,45 @@ function verifyDeliveryEvidence(input: {
           followup: 'Give custom evidence an artifactRef pointing at its producer or schema.',
         });
       }
-      if (e.kind === 'repository' && e.graphNodeId && !resolveAnchor(e.graphNodeId)) {
-        out.push({
-          code: 'EVIDENCE_ANCHOR_UNRESOLVED',
-          message: `Criterion "${criterionId}" cites repository evidence for a node not found in graph: ${e.graphNodeId}.`,
-          followup: 'Refresh context and correct the evidence graphNodeId to a canonical node id.',
-        });
+      if (e.kind === 'repository') {
+        // Ground the anchor: an explicit graphNodeId, or the module a bare file locator resolves to.
+        // repository evidence must carry one — an explanation-only anchor proves nothing.
+        const anchorId = e.graphNodeId
+          ? (resolveAnchor(e.graphNodeId) ? e.graphNodeId : undefined)
+          : (e.file ? resolveFileToModule?.(e.file) : undefined);
+        if (e.graphNodeId && !anchorId) {
+          out.push({
+            code: 'EVIDENCE_ANCHOR_UNRESOLVED',
+            message: `Criterion "${criterionId}" cites repository evidence for a node not found in graph: ${e.graphNodeId}.`,
+            followup: 'Refresh context and correct the evidence graphNodeId to a canonical node id.',
+          });
+        } else if (!e.graphNodeId && e.file && !anchorId) {
+          out.push({
+            code: 'EVIDENCE_ANCHOR_UNRESOLVED',
+            message: `Criterion "${criterionId}" cites repository evidence for a file that resolves to no module: ${e.file}.`,
+            followup: 'Cite a graphNodeId, or a file that maps to a graph module.',
+          });
+        } else if (!e.graphNodeId && !e.file && status === 'covered') {
+          out.push({
+            code: 'EVIDENCE_REPOSITORY_UNGROUNDED',
+            message: `Criterion "${criterionId}" is covered by repository evidence with no graphNodeId or file locator.`,
+            followup: 'Ground repository evidence with a graphNodeId or file locator, or lower the status to gap/needs-developer.',
+          });
+        } else if (
+          anchorId
+          && status === 'covered'
+          && nodeChangedInRun
+          && criterionKinds?.get(criterionId) !== 'invariant'
+          && !nodeChangedInRun(anchorId)
+        ) {
+          // A delivery criterion's proof must be a node the run changed; an existing, untouched node
+          // cited as proof is a false-"covered". Invariant criteria (advisory) are exempt.
+          out.push({
+            code: 'EVIDENCE_ANCHOR_UNCHANGED',
+            message: `Criterion "${criterionId}" cites repository evidence at a node unchanged in this run's change-set: ${anchorId}.`,
+            followup: 'Cite a node the run changed, or lower the criterion status to gap/needs-developer.',
+          });
+        }
       }
     }
   }

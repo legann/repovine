@@ -111,7 +111,7 @@ const PINNED: ReadonlyArray<readonly [string, { shape: Record<string, unknown> }
     'protocolVersion', 'schemas', 'mcpTools', 'cliCommands',
   ]],
   ['AcceptanceCriterionSchema', AcceptanceCriterionSchema, [
-    'id', 'statement', 'required',
+    'id', 'statement', 'required', 'kind',
   ]],
   ['EvidenceReferenceSchema', EvidenceReferenceSchema, [
     'kind', 'file', 'line', 'graphNodeId', 'symbol', 'artifactRef', 'revision', 'explanation',
@@ -123,7 +123,7 @@ const PINNED: ReadonlyArray<readonly [string, { shape: Record<string, unknown> }
     'criterionId', 'status', 'evidence', 'explanation', 'resolution',
   ]],
   ['DeliveryVerdictSchema', DeliveryVerdictSchema, [
-    'protocolValid', 'intentVerified', 'assuranceProfile', 'assurancePassed', 'deliveryAccepted',
+    'intentVerified', 'assuranceProfile', 'assurancePassed', 'deliveryAccepted',
   ]],
   ['DeliveryVerificationResultSchema', DeliveryVerificationResultSchema, [
     'criteriaResults', 'verdict',

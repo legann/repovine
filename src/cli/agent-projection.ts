@@ -105,7 +105,7 @@ const REQUIRED_FIELD_EXAMPLES: Record<string, unknown> = {
 /** Enum vocabularies for the artifacts above — a wrong value fails schema validation. */
 const REQUIRED_FIELD_ENUM_HINTS: Record<string, string> = {
   review:
-    '`review.verdict`: approve | changes-requested | needs-human | blocked. '
+    '`review.verdict`: approve | changes-requested | needs-developer | blocked. '
     + '`review.testReview.coverageAssessment`: adequate | insufficient | not-run | unclear. '
     + '`review.findings[].severity`: blocker | major | minor | nit. '
     + 'Merge-blocking findings ALSO belong in top-level `blockers`.',

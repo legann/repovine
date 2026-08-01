@@ -92,7 +92,7 @@ function goodResult(runId) {
         { criterionId: 'c1', status: 'covered', evidence: [repoEvidence], explanation: 'deduped' },
         { criterionId: 'c2', status: 'covered', evidence: [repoEvidence], explanation: 'audited' },
       ],
-      verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+      verdict: { intentVerified: true, deliveryAccepted: true },
     },
   };
 }
@@ -108,7 +108,7 @@ function badResult(runId) {
         { criterionId: 'ghost', status: 'gap', evidence: [], explanation: 'undeclared' },
       ],
       // Both verdict flags claim success while a required criterion is unresolved.
-      verdict: { protocolValid: true, intentVerified: true, deliveryAccepted: true },
+      verdict: { intentVerified: true, deliveryAccepted: true },
     },
   };
 }

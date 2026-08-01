@@ -172,7 +172,7 @@ The auditor should return an `architectureAudit` object. If you audit locally, p
 
 - `approve`: no blocker/major findings, claimed/rerun tests are credible, and coverage is adequate.
 - `changes-requested`: defect, regression, failed relevant test, broken contract, or material missing test.
-- `needs-human`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
+- `needs-developer`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
 - `blocked`: missing diff, assignment, context, or test setup prevents review. When the assignment requested `code-review`, compliance still requires a non-empty `review.reviewedFiles`, so name what you did read.
 
 ## Report format
