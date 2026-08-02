@@ -291,5 +291,8 @@ export function redactSecretLikeText(text: string): string {
   return text
     .replace(/\b(sk_(?:live|test)_[A-Za-z0-9]{8,}|xox[baprs]-[A-Za-z0-9-]{8,}|gh[pousr]_[A-Za-z0-9_]{16,}|AKIA[0-9A-Z]{16})\b/g, '[REDACTED_SECRET]')
     .replace(/(-----BEGIN [A-Z ]*PRIVATE KEY-----)[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----)/g, '$1\n[REDACTED_SECRET]\n$2')
-    .replace(/\b((?:secret|token|password|api[_ -]?key|client[_ -]?secret)\s*[:=]\s*['"]?)[A-Za-z0-9_./+=-]{12,}/ig, '$1[REDACTED_SECRET]');
+    // Generic `keyword = value` secrets. The lookahead skips values whose run of secret-like chars
+    // runs straight into `(` — a call/member expression such as `token = missingToken.toLowerCase()`,
+    // never a literal. A real secret ends at a quote, separator, or line break before any `(`.
+    .replace(/\b((?:secret|token|password|api[_ -]?key|client[_ -]?secret)\s*[:=]\s*['"]?)(?![A-Za-z0-9_./+=-]*\()[A-Za-z0-9_./+=-]{12,}/ig, '$1[REDACTED_SECRET]');
 }

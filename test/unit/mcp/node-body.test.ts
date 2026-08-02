@@ -7,6 +7,7 @@ import {
   isUnsafeRegexPattern,
   MAX_GREP_LINE_CHARS,
   readNodeBody,
+  redactSecretLikeText,
   scanLinesWithRegex,
 } from '../../../src/mcp/lib/node-body.js';
 import type { ModuleInfo, RepositoryGraph } from '../../../src/types.js';
@@ -106,6 +107,47 @@ describe('grepBody regex safety', () => {
       expect(result.totalMatches).toBe(1);
       expect(result.matchIndices).toEqual([0]);
     }
+  });
+});
+
+describe('redactSecretLikeText', () => {
+  it('keeps a variable assigned a call expression whose name matches a secret keyword', () => {
+    // Regression: the generic `keyword = value` rule swallowed `missingToken.toLowerCase` because the
+    // value char class includes `.` and the quote was optional, printing `token = [REDACTED_SECRET]()`.
+    const line = '  const token = missingToken.toLowerCase();';
+    expect(redactSecretLikeText(line)).toBe(line);
+  });
+
+  it.each([
+    'const token = missingToken.toLowerCase();',
+    'const secret = config.getSecret();',
+    'password = req.body.userPassword.trim();',
+    'const password = getPasswordFromVault();',
+  ])('does not redact the call expression %s', line => {
+    // A literal secret ends at a quote, separator, or line break before any `(`; a call expression
+    // runs identifier-dot-identifier straight into `(`. The lookahead keeps the latter intact.
+    expect(redactSecretLikeText(line)).toBe(line);
+    expect(redactSecretLikeText(line)).not.toContain('[REDACTED_SECRET]');
+  });
+
+  it.each([
+    ['quoted generic',    'password: "hunter2hunter2hunter2"', 'hunter2hunter2hunter2'],
+    ['single-quoted',     "secret = 'abcdefghijklmnop'",       'abcdefghijklmnop'],
+    ['unquoted env',      'TOKEN=abcdef1234567890',            'abcdef1234567890'],
+    ['unquoted yaml',     'client_secret: abcdef1234567890xyz','abcdef1234567890xyz'],
+    ['jwt-shaped',        'token: "eyJhbGciOi.eyJzdWIiOi.SflKxwRJ"', 'eyJhbGciOi.eyJzdWIiOi.SflKxwRJ'],
+  ])('still redacts the %s secret literal', (_label, line, value) => {
+    const out = redactSecretLikeText(line);
+    expect(out).toContain('[REDACTED_SECRET]');
+    expect(out).not.toContain(value);
+  });
+
+  it('still redacts prefixed provider tokens and private keys', () => {
+    expect(redactSecretLikeText('const k = "sk_live_abcdefgh1234";')).toContain('[REDACTED_SECRET]');
+    expect(redactSecretLikeText('AKIAIOSFODNN7EXAMPLE')).toContain('[REDACTED_SECRET]');
+    expect(
+      redactSecretLikeText('-----BEGIN PRIVATE KEY-----\nMIIBVgIBADANBg\n-----END PRIVATE KEY-----'),
+    ).toContain('[REDACTED_SECRET]');
   });
 });
 
