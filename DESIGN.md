@@ -11,7 +11,7 @@ retain mechanics that directly justify those contracts.
 
 repovine is a verifiable software-development layer for coding agents. It builds
 repository context for exploration, implementation, and review; preserves
-authored knowledge as versioned annotations; and, in explicit Agent Protocol
+authored knowledge as versioned annotations; and, in explicit Delivery Protocol
 runs, validates structured claims against repository state.
 
 ### Surfaces
@@ -22,7 +22,7 @@ One product, three interfaces:
 |---|---|---|
 | **Engine** | Builds deterministic repo facts and checked memory. | Stage 1 syntax snapshot, Stage 2 graph, annotation store, freshness/orphans, consistency checks, context-session quality. |
 | **MCP** | Gives an agent repo context during a session. | `search_context`, `map_context`, `inspect_node`, impact/flow/config/architecture/annotation tools, `refresh_context`. |
-| **Agent Protocol** | Defines how a completed run is scoped, reported, and validated. | Schemas, manifests, projections, CLI validators (`repovine agents validate-*`, `compliance`). |
+| **Delivery Protocol** | Defines how a completed run is scoped, reported, and validated. | Schemas, manifests, projections, CLI validators (`repovine agents validate-*`, `compliance`). |
 
 The **harness** runs the model, chooses provider/runtime, owns retries,
 scheduling, isolation, permissions, budgets, CI/review gates, and final
@@ -34,7 +34,7 @@ developer and IDE play that orchestration role and repovine guidance is advisory
 The surfaces build on one bottom-up model:
 
 ```text
-5  Run validation  explicit Agent Protocol — assignments, run results, compliance
+5  Run validation  explicit Delivery Protocol — assignments, run results, compliance
 4  Agent runtime  client/harness-owned reasoning, editing, and review
 3  MCP context    guided, navigable graph slices instead of raw files
 2  Memory         versioned annotations attached to graph nodes
@@ -113,16 +113,16 @@ The same engine and MCP surface serve interactive clients and autonomous harness
 | Orchestrator | Developer and IDE | External runner, CI, bot, or workflow engine |
 | Agent runtime | Cursor, Claude Code, or Codex in the user session | Provider adapter in an isolated worker |
 | MCP | Repository context during the session | The same context tools inside the worker |
-| Agent Protocol | Inactive by default; explicit structured result/validation only | Assignment, result, and compliance boundary |
+| Delivery Protocol | Inactive by default; explicit structured result/validation only | Assignment, result, and compliance boundary |
 | Enforcement | Advisory by default | Harness policy may retry, block, or accept |
 | Final acceptance | Developer | Harness, tests, review, and CI |
 
-MCP is the repository API while an agent works. Agent Protocol is activated only
+MCP is the repository API while an agent works. Delivery Protocol is activated only
 for an explicit completed-run contract. Client guidance and harness assignments
 share the same graph and annotation model; orchestration and final acceptance
 remain outside repovine.
 
-Integration details live in [Agent Protocol](docs/agent-protocol.md) and [CLI and setup](docs/scripts.md).
+Integration details live in [Delivery Protocol](docs/delivery-protocol.md) and [CLI and setup](docs/scripts.md).
 
 ### repovine vs RAG
 
@@ -295,7 +295,7 @@ constraints:
 1. **agent altitude** — architectural-reasoning granularity, not machine-precise tracing;
 2. **cross-language survivability** — only contract boundaries survive a paradigm change;
 3. **incremental-extraction cost** — per-file `contentHash` re-extraction; deep resolution is on-demand;
-4. **validability** — nodes are durable, stable-ID artifacts for Agent Protocol compliance.
+4. **validability** — nodes are durable, stable-ID artifacts for Delivery Protocol compliance.
 
 A different goal — refactor engine, taint scanner — has a different minimal cut.
 For repovine's query set, the seven graph node types and fourteen graph edge kinds
@@ -807,7 +807,7 @@ In harness mode a fifth path carries the same fields. `renderHarnessImplementerB
 directs the agent to read a note's `invariants`, `risks`, `sideEffects`, and
 `integrationPoints` as edit-time obligations — preserve, mitigate/test/accept, then
 close each as satisfied, tested, scoped-out, or a blocker. Harness projection
-details live in [Agent Protocol](docs/agent-protocol.md#projections).
+details live in [Delivery Protocol](docs/delivery-protocol.md#projections).
 
 </details>
 
@@ -821,7 +821,7 @@ Diagnostics include bounded retry/navigation suggestions. Semantic scope suggest
 
 Response size is an architectural constraint. Concise mode omits empty/default fields, shortens repeated ids through session refs, pages collections, bounds source bodies, and caps navigation and attention. Larger bodies, limits, or debug envelopes require explicit caller choice.
 
-## Agent work and Agent Protocol
+## Agent work and Delivery Protocol
 
 **Layers 4–5.** repovine supplies agents with **shared graph tools + committed
 annotations** and, for an explicit protocol run, validates the completed result.
@@ -842,7 +842,7 @@ session and enforce its threshold through assignment and compliance policy.
 Signals, lifecycle, thresholds, and recovery semantics are documented in
 [Context Session Quality](docs/context-quality.md).
 
-### Agent Protocol boundary
+### Delivery Protocol boundary
 
 The harness-facing contract is `AgentAssignment → AgentRunResult → AgentComplianceReport`. The harness runs the model and owns permissions, retries, tests, review, and final acceptance. repovine owns schemas and validation against observable graph and annotation state.
 
@@ -852,7 +852,7 @@ Public protocol compliance runs through the CLI. The command builds current
 repository state with the same engine pipeline used by MCP and passes that state
 to the core validator; protocol validation itself is not an MCP tool.
 
-Protocol objects, projections, commands, lifecycle, and integration examples are documented in [Agent Protocol](docs/agent-protocol.md).
+Protocol objects, projections, commands, lifecycle, and integration examples are documented in [Delivery Protocol](docs/delivery-protocol.md).
 
 ## Executable contracts
 
@@ -865,7 +865,7 @@ at their narrowest observable boundary:
 | Stage 1 extraction compatibility | `test/laws/extract-output-golden.test.ts` | Extracted facts changed; the change must be reviewed together with the analysis-version and cache-compatibility decision. |
 | Plugin boundary and conformance | plugin law tests and `test/unit/plugin-sdk/conformance.test.ts` | A producer crossed the semantics-only boundary or no longer satisfies the public SDK contract. |
 | Annotation delivery | focused MCP tests for investigate refs, self-attention, and boundary index | Pointer, salience, carrier, or pre-edit projection changed. |
-| Agent Protocol | `test/integration/agent-protocol-cli-blackbox.test.ts` | Assignment, result, compliance, JSON, or exit-code behavior changed at the harness boundary. |
+| Delivery Protocol | `test/integration/delivery-protocol-cli-blackbox.test.ts` | Assignment, result, compliance, JSON, or exit-code behavior changed at the harness boundary. |
 
 These tests protect architectural boundaries rather than freeze every output.
 Golden extraction detects a fact-level change; graph laws determine whether the
@@ -932,7 +932,7 @@ number can move. Rows 3 to 5 are engineering, unblocked.
 
 - [README](README.md) — product overview, tools, setup, supported stacks, and examples.
 - [Workspace files](docs/workspace-files.md) — configuration, domains, annotations, cache, and merge workflows.
-- [Agent Protocol](docs/agent-protocol.md) — harness and CI integration.
+- [Delivery Protocol](docs/delivery-protocol.md) — harness and CI integration.
 - [Plugin authoring](docs/plugin-authoring.md) — source and IaC producer contracts.
 - [CLI and setup](docs/scripts.md) — commands and managed assets.
 - [Contributing](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md) — development workflow and module ownership.

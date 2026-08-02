@@ -78,7 +78,7 @@ mechanical consistency checks, not evidence that the score predicts outcomes.
    })
    ```
 
-5. For Agent Protocol gating, add `assignment.contextSession.required=true` and
+5. For Delivery Protocol gating, add `assignment.contextSession.required=true` and
    return `result.contextSessionId`. `repovine agents compliance` recomputes the
    report from the stored session and **consumes** it after a passing decision —
    a report with compliance errors retains the session for retry (harness path).
@@ -218,7 +218,7 @@ export-symbol, runtime-resource, template, or infra node. Other tools deliberate
 anchors — a scoped `get_config_surface` or `get_entrypoints` hit proves you saw
 one facet of the node, not that you read it. Beyond scoring structure, this set
 is the **provenance** evidence for
-annotation grounding (see `repovine/docs/agent-protocol.md`): during compliance,
+annotation grounding (see `repovine/docs/delivery-protocol.md`): during compliance,
 each code module in the run's `annotationsWritten` is "grounded" when it was
 
 - edited in this run (`filesChanged` maps to the module), or

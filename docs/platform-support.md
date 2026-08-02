@@ -22,9 +22,9 @@ Target tiers. A row is promoted only after its gate in [CI](https://github.com/l
 | `setup` / `doctor` / `clear` | Tier 1 | Tier 1 | Tier 1 | Tier 1 |
 | Cursor / Claude / Codex projections and hooks | Tier 1 after per-client behavioral smoke | Tier 1 after per-client behavioral smoke | Tier 1 after per-client behavioral smoke | Tier 1 |
 | Optional local embedder | Tier 1 | Tier 1 arm64 | Tier 1 x64 | Tier 1 x64 |
-| Agent-harness demo (sandbox / attach / host mode) | per-mode | per-mode | per-mode | per-mode |
+| Delivery Protocol harness demo (sandbox / attach / host mode) | per-mode | per-mode | per-mode | per-mode |
 
-Harness demo modes carry separate contracts; see [usage.md, "Platform support"](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo/docs/usage.md).
+Harness demo modes carry separate contracts; see [usage.md, "Platform support"](https://github.com/legann/repovine/blob/main/examples/delivery-protocol-harness-demo/docs/usage.md).
 
 Embedder floor on macOS: `@huggingface/transformers` 4.x. The 3.8.1 floor bundles onnxruntime 1.21, whose exit teardown aborts on darwin — inference completes, the exit code is corrupt. The embedder matrix records this as a documented exclusion.
 
@@ -45,9 +45,9 @@ Core (package, CLI, stdio MCP, graph/cache/annotations) runs its full suite nati
 | Component | Requirement | Used by |
 |---|---|---|
 | Node | `>= 22` | everything |
-| Git | any recent | Agent Protocol roles at a revision, annotation merge repair, harness attach/worktrees. Graph builds locate the repo root via the `.git` entry and run without the git executable |
+| Git | any recent | Delivery Protocol roles at a revision, annotation merge repair, harness attach/worktrees. Graph builds locate the repo root via the `.git` entry and run without the git executable |
 | Python 3 | optional | Python source plugin (skipped when absent) |
-| Docker + Compose | optional | agent-harness demo only |
+| Docker + Compose | optional | Delivery Protocol harness demo only |
 
 Windows repos with paths beyond 260 characters require the OS `LongPathsEnabled` registry value; `doctor --json` reports the state as `platform.longPaths`.
 
@@ -59,5 +59,5 @@ With `core.autocrlf=true`, a role-brief read from the working tree yields CRLF b
 |---|---|
 | Core Tier 1 on an OS | Green, required native CI job on that OS |
 | Client integration Tier 1 | Run under the client's real shell/cwd/env semantics; GUI-launch minimal-PATH proof recorded as manual evidence |
-| Docker Desktop support | Actual-container smoke on a real macOS / WSL2 machine (hosted runners have no Docker there). Record a release-evidence entry per harness-affecting release: {date, host OS + arch, Docker Desktop version, engine/compose versions from `docker compose version`, repo commit SHA, egress-smoke result, IPv6 leg: exercised or named-skip, render-matrix result incl. the drive-letter cell}. macOS is sandbox mode only — attach is Unsupported there, so the entry never implies attach coverage; the attach design is [ADR 0001](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo/docs/adr/0001-macos-attach-mount-topology.md) (Proposed). Windows evidence notes the checkout on WSL2 ext4 and is where the drive-letter cell gets its real-mount verification |
+| Docker Desktop support | Actual-container smoke on a real macOS / WSL2 machine (hosted runners have no Docker there). Record a release-evidence entry per harness-affecting release: {date, host OS + arch, Docker Desktop version, engine/compose versions from `docker compose version`, repo commit SHA, egress-smoke result, IPv6 leg: exercised or named-skip, render-matrix result incl. the drive-letter cell}. macOS is sandbox mode only — attach is Unsupported there, so the entry never implies attach coverage; the attach design is [ADR 0001](https://github.com/legann/repovine/blob/main/examples/delivery-protocol-harness-demo/docs/adr/0001-macos-attach-mount-topology.md) (Proposed). Windows evidence notes the checkout on WSL2 ext4 and is where the drive-letter cell gets its real-mount verification |
 | Any surface on any OS | Every unsupported path carries a stable, actionable message: the entrypoint refuses, or `doctor` reports it as a warning with the remedy |

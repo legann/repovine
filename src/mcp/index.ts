@@ -245,7 +245,7 @@ ${cli.bold('Usage:')}
   repovine status             Unified graph/config/annotation health snapshot
   repovine doctor             Diagnose MCP setup, cache, annotations, and client projections
   repovine clear              Preview and confirm removing generated setup
-  repovine agents <cmd>       Harness/CI Agent Protocol CLI (repovine agents --help)
+  repovine agents <cmd>       Harness/CI Delivery Protocol CLI (repovine agents --help)
 
 ${cli.bold('Setup clients:')}
   cursor    .cursor/ (mcp.json, rules, agents, hooks) + .agents/skills

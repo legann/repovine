@@ -44,9 +44,9 @@ suggestions pending in `.repovine/onboarding-state.json` for an agent to review
 through `suggest_domains_config`. `--no-build` skips this advisor pass until the
 first build/refresh.
 
-`repovine agents` contains the CLI-only Agent Protocol commands used by
+`repovine agents` contains the CLI-only Delivery Protocol commands used by
 harnesses and CI. Their syntax and integration semantics are defined in
-[agent-protocol.md — Protocol CLI surface](agent-protocol.md#protocol-cli-surface).
+[delivery-protocol.md — Protocol CLI surface](delivery-protocol.md#protocol-cli-surface).
 Worker MCP exposes context tools only; protocol validation is not on `tools/list`.
 
 The same command group also contains one non-protocol utility:
@@ -60,7 +60,7 @@ repovine agents orient --query "<task text>" [--scope <pkg>]
 **Client projections** (MCP config, rules, managed agents, `AGENTS.md`): `repovine
 setup` — not `repovine agents`. **Drift checks:** `repovine doctor` (interactive) or
 `repovine doctor --json` (CI). Details:
-[agent-protocol.md — Projections](agent-protocol.md#projections).
+[delivery-protocol.md — Projections](delivery-protocol.md#projections).
 
 ### Plugin marketplace bundles
 

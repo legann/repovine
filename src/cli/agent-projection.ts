@@ -1,11 +1,11 @@
 /**
- * Agent-protocol projection helpers.
+ * Delivery Protocol projection helpers.
  *
- * The Agent Protocol (src/agents/*) is canonical. Generated client assets are
+ * The Delivery Protocol (src/agents/*) is canonical. Generated client assets are
  * PROJECTIONS of it. This module renders the protocol-governed pieces that get
  * embedded into onboarding assets:
  *   - a stable marker comment stamping the protocol and projection versions;
- *   - conditional client guidance for explicit Agent Protocol runs;
+ *   - conditional client guidance for explicit Delivery Protocol runs;
  *   - the structured AgentRunResult block harness workers must return.
  *
  * It depends only on the protocol + manifests, never on onboarding-assets, so
@@ -35,11 +35,11 @@ import { getManifest } from '../agents/manifests.js';
 export const PROJECTION_VERSION = '1' as const;
 
 /** Stable marker embedded in every protocol-governed asset, carrying both versions. */
-export const AGENT_PROTOCOL_MARKER =
-  `<!-- repovine:agent-protocol protocolVersion=${PROTOCOL_VERSION} projection=${PROJECTION_VERSION} -->`;
+export const DELIVERY_PROTOCOL_MARKER =
+  `<!-- repovine:delivery-protocol protocolVersion=${PROTOCOL_VERSION} projection=${PROJECTION_VERSION} -->`;
 
-/** Path of the Agent Protocol integration guide, relative to the repovine package. */
-export const AGENT_PROTOCOL_GUIDE_PATH = 'docs/agent-protocol.md';
+/** Path of the Delivery Protocol integration guide, relative to the repovine package. */
+export const DELIVERY_PROTOCOL_GUIDE_PATH = 'docs/delivery-protocol.md';
 
 /** Canonical example AgentRunResult, matching the harness projection block. */
 const EXAMPLE_RUN_RESULT = {
@@ -141,7 +141,7 @@ const OBSERVABLE_CLAIMS_VALIDATION =
   + '`architectureAudit`; code reviews use `review`. Never hand-edit `repovine.annots.json`.';
 
 /** H2 heading of the governed result-block section in the harness demo agent briefs. */
-export const RESULT_BLOCK_HEADING = 'Agent Protocol result block';
+export const RESULT_BLOCK_HEADING = 'Delivery Protocol result block';
 
 /**
  * Result-block section for a harness agent brief: the marker, the skeleton the sub-agent must
@@ -156,9 +156,9 @@ export function renderResultBlockSection(manifest: AgentManifest): string {
     ? manifest.requiredRunResultFields.map(f => `\`${f}\``).join(', ')
     : '`summary`';
   const artifactHints = renderRequiredArtifactHints(manifest);
-  return `${AGENT_PROTOCOL_MARKER}
+  return `${DELIVERY_PROTOCOL_MARKER}
 
-When the run finishes, return an **Agent Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** block so the harness (or repovine) can validate it. Prose may surround it, but the structured block is the contract — emit it verbatim and fill the values:
+When the run finishes, return a **Delivery Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** block so the harness (or repovine) can validate it. Prose may surround it, but the structured block is the contract — emit it verbatim and fill the values:
 
 \`\`\`json
 ${renderStructuredResultBlock(manifest)}
@@ -170,11 +170,11 @@ Every list field is a flat array of strings. One \`testsRun\` entry is one strin
 
 ${OBSERVABLE_CLAIMS_VALIDATION}
 
-Field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
+Field reference: \`repovine agents protocol --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
- * Client-facing Agent Protocol guidance embedded into generated agent assets.
+ * Client-facing Delivery Protocol guidance embedded into generated agent assets.
  * Normal IDE/client conversations should not emit AgentRunResult JSON; this
  * section describes when the protocol is explicitly active and which fields
  * become required in that mode.
@@ -183,13 +183,13 @@ export function renderClientProtocolGuidanceSection(manifest: AgentManifest): st
   const required = manifest.requiredRunResultFields.length > 0
     ? manifest.requiredRunResultFields.map(f => `\`${f}\``).join(', ')
     : '`summary`';
-  return `## Agent Protocol (explicit use only)
+  return `## Delivery Protocol (explicit use only)
 
-${AGENT_PROTOCOL_MARKER}
+${DELIVERY_PROTOCOL_MARKER}
 
-Normal client conversations are not Agent Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an \`AgentRunResult\` JSON block as a session summary.
+Normal client conversations are not Delivery Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an \`AgentRunResult\` JSON block as a session summary.
 
-Only return an **Agent Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** when the current task explicitly uses Agent Protocol: a harness/CI provides an \`AgentAssignment\` or \`runId\`, a command asks for \`validate-result\` / \`compliance\` output, or the user explicitly requests an \`AgentRunResult\`.
+Only return a **Delivery Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** when the current task explicitly uses Delivery Protocol: a harness/CI provides an \`AgentAssignment\` or \`runId\`, a command asks for \`validate-result\` / \`compliance\` output, or the user explicitly requests an \`AgentRunResult\`.
 
 When explicit protocol mode is active for the \`${manifest.role}\` role, these fields must be present and non-empty: ${required}.
 
@@ -197,28 +197,28 @@ In explicit protocol mode, ${OBSERVABLE_CLAIMS_VALIDATION}
 
 Annotation quality has three orthogonal axes, so the \`quality.score\` (0–10) means **completeness only — not correctness or trust**. repovine separately validates \`quality.consistency\` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-\`pure\` while the graph detects side effects) and, as an observable signal over \`annotationsWritten\`, **provenance**: an annotated code module counts as grounded when the SAME \`contextSessionId\` carries an \`inspect_node\`, \`map_context\`, or \`analyze_dependencies\` call that resolved to it (an \`export:\` of it counts; a \`pkg:\`/\`domain:\` does not), when you edited its file, or when you list it in \`graphNodesTouched\`. Those last two channels are your own report; \`write_annotation\` warns whenever the session anchored no call on the node. So inspect the node you annotate in the same session, and never fill a field you cannot back from \`inspect_node\` or source — an empty field beats a fabricated one.
 
-Schema and field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
+Schema and field reference: \`repovine agents protocol --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
- * Main-agent protocol section for AGENTS.md. Frames the harness/CI boundary and
+ * Main-agent Delivery Protocol section for AGENTS.md. Frames the harness/CI boundary and
  * embeds conditional client guidance for the `main` role.
  */
-export function renderMainAgentProtocolSection(): string {
+export function renderMainDeliveryProtocolSection(): string {
   const main = getManifest('main');
   if (!main) throw new Error('agent-projection: no manifest registered for "main"');
   const required = main.requiredRunResultFields.length > 0
     ? main.requiredRunResultFields.map(f => `\`${f}\``).join(', ')
     : '`summary`';
-  return `## Agent Protocol (explicit use only)
+  return `## Delivery Protocol (explicit use only)
 
-${AGENT_PROTOCOL_MARKER}
+${DELIVERY_PROTOCOL_MARKER}
 
-Normal client conversations are not Agent Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an \`AgentRunResult\` JSON block as a session summary.
+Normal client conversations are not Delivery Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an \`AgentRunResult\` JSON block as a session summary.
 
-Only return an **Agent Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** when a harness/CI provides an \`AgentAssignment\` or \`runId\`, a command asks for \`validate-result\` / \`compliance\`, or the user explicitly requests an \`AgentRunResult\`. For the \`${main.role}\` role, required fields are: ${required}.
+Only return a **Delivery Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** when a harness/CI provides an \`AgentAssignment\` or \`runId\`, a command asks for \`validate-result\` / \`compliance\`, or the user explicitly requests an \`AgentRunResult\`. For the \`${main.role}\` role, required fields are: ${required}.
 
-In explicit protocol mode, pass \`contextSessionId\` on repovine MCP calls, run \`refresh_context\` after file changes, and never hand-edit \`repovine.annots.json\`; use \`write_annotation\`, \`merge_annotations\`, and \`validate_annotations\` for annotation state. Schema and field reference: \`repovine agents protocol --schemas\`, or \`${AGENT_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
+In explicit protocol mode, pass \`contextSessionId\` on repovine MCP calls, run \`refresh_context\` after file changes, and never hand-edit \`repovine.annots.json\`; use \`write_annotation\`, \`merge_annotations\`, and \`validate_annotations\` for annotation state. Schema and field reference: \`repovine agents protocol --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
@@ -266,7 +266,7 @@ Workflow:
    a. Edit files under the current working directory to satisfy the task, staying inside scope.
    b. After any edit, run refresh_context so the graph reflects your files.
    c. Report annotation state honestly for the phase you were given. Whether annotation sync runs in this phase or is deferred to a separate annotate-phase leaf is the harness's scheduling decision, not a protocol rule — this brief neither requires nor forbids write_annotation in an implement phase. Whatever you report is re-checked against the graph: annotationsWritten lists ONLY node ids you actually wrote (they must exist and be fresh after write_annotation), and compliance.annotationsClean=true only when annotation checks are clean for your scope. If your harness defers annotation sync to a later phase, set annotationsClean=false and leave annotationsWritten empty (\`[]\`).
-5. FINALLY, output exactly ONE fenced \`\`\`json code block — with nothing after it — containing an Agent Protocol v1 AgentRunResult:
+5. FINALLY, output exactly ONE fenced \`\`\`json code block — with nothing after it — containing a Delivery Protocol v1 AgentRunResult:
 
 \`\`\`json
 ${renderStructuredResultBlock(manifest)}

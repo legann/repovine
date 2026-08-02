@@ -246,7 +246,7 @@ describe('core-laws paths, labels and id minting', () => {
   // ── minting and un-minting ───────────────────────────────────────────────────────────────────
 
   it('pairs every id mint with its inverse', () => {
-    for (const pkg of ['app', '@scope/pkg', 'repovine-agent-harness-demo']) {
+    for (const pkg of ['app', '@scope/pkg', 'repovine-delivery-protocol-harness-demo']) {
       expect(packageNameFromId(packageNodeId(pkg))).toBe(pkg);
       const moduleId = mintModuleId(pkg, 'src/lib/thing.ts', { stripSuffixes: ['.ts'] });
       expect(owningModuleId(exportSymbolId(moduleId, 'handle'))).toBe(moduleId);
@@ -445,7 +445,7 @@ describe('core-laws paths, labels and id minting', () => {
     expect(packageScopeOf(scoped)).toBe('@repovine/plugin-sdk');
     expect(packageScopeOf('pkg:@repovine/plugin-sdk')).toBe('@repovine/plugin-sdk');
     expect(packageScopeOf(mintModuleId('plain', 'src/x.ts', { stripSuffixes: ['.ts'] }))).toBe('plain');
-    expect(packageScopeOf('pkg:repovine-agent-harness-demo')).toBe('repovine-agent-harness-demo');
+    expect(packageScopeOf('pkg:repovine-delivery-protocol-harness-demo')).toBe('repovine-delivery-protocol-harness-demo');
     expect(packageScopeOf('domain:orders')).toBeUndefined();
   });
 });

@@ -299,7 +299,7 @@ export const INIT_ANNOTATION_QUEUE_HINT =
  * baseline, not gold-plating a few notes to `comprehensive`. Depth is cheap to
  * add later, when a module is touched during real work — driven there by the
  * `write_annotation` `quality.score`/`tier`/`missingFields` echo plus the live
- * three-axis quality guidance in the Agent Protocol section
+ * three-axis quality guidance in the Delivery Protocol section
  * (`renderClientProtocolGuidanceSection`), so no separate depth constant is kept.
  */
 export const BULK_ANNOTATION_BREADTH =
@@ -1210,7 +1210,7 @@ You run read-only architecture audits. You turn \`analyze_architecture\` candida
 2. Treat architecture findings as candidates until inspected.
 3. Use \`detailFindingId\`, \`inspect_node\`, \`analyze_dependencies\`, \`trace_flow\`, and \`get_config_surface\` only as needed to confirm or suppress each finding.
 4. Keep proposed assignments scoped and explicit: task, scope, acceptance criteria, constraints, contracts, and requested checks.
-5. Report an \`architectureAudit\` object only when an Agent Protocol result is explicitly required; otherwise report the same audit fields in prose.
+5. Report an \`architectureAudit\` object only when a Delivery Protocol result is explicitly required; otherwise report the same audit fields in prose.
 
 ## Workflow
 
@@ -1261,7 +1261,7 @@ You perform read-only code review of an implementation diff against the assignme
 3. Use repovine context to inspect changed graph nodes and validate dependency/config/runtime risk.
 4. Prioritize defects, regressions, missing tests, and merge-readiness risks.
 5. Treat relevant annotation \`invariants\`, \`risks\`, \`dataFlow\`, \`integrationPoints\`, and \`sideEffects\` as review evidence, not background prose.
-6. Report a \`review\` object only when an Agent Protocol result is explicitly required; otherwise report the same review fields in prose.
+6. Report a \`review\` object only when a Delivery Protocol result is explicitly required; otherwise report the same review fields in prose.
 
 ## Workflow
 
@@ -1469,7 +1469,7 @@ graphNodesTouched: <node ids if known>
 requested checks: dependencies/config/runtime-flow/architecture/tests as relevant
 \`\`\`
 
-The reviewer should return a \`review\` object. If you review locally, produce the same structure in prose or in \`AgentRunResult.review\` when an Agent Protocol result is required.
+The reviewer should return a \`review\` object. If you review locally, produce the same structure in prose or in \`AgentRunResult.review\` when a Delivery Protocol result is required.
 
 If using \`repovine-architecture-auditor\`, pass an explicit audit packet:
 
@@ -1482,7 +1482,7 @@ priorContext: <contextPack if available>
 must verify with: dependencies/config/runtime-flow/entrypoints/tests as relevant
 \`\`\`
 
-The auditor should return an \`architectureAudit\` object. If you audit locally, produce the same structure in prose or in \`AgentRunResult.architectureAudit\` when an Agent Protocol result is required.
+The auditor should return an \`architectureAudit\` object. If you audit locally, produce the same structure in prose or in \`AgentRunResult.architectureAudit\` when a Delivery Protocol result is required.
 
 ## Verdict guidance
 
@@ -1640,7 +1640,7 @@ You are a **leaf subagent** for this repository. The main chat agent delegates s
 5. **Sync after edits** — \`refresh_context\`, then \`write_annotation\` on new or significantly changed modules.
 6. **Return a handoff** — list files touched, contracts, env vars, and what sibling agents still need.
 
-Baseline repovine policy lives in \`AGENTS.md\` and client rules (Cursor: \`.cursor/rules/repovine-policy.mdc\`). Protocol projection details in the repovine source repository: \`docs/agent-protocol.md#projections\`.
+Baseline repovine policy lives in \`AGENTS.md\` and client rules (Cursor: \`.cursor/rules/repovine-policy.mdc\`). Protocol projection details in the repovine source repository: \`docs/delivery-protocol.md#projections\`.
 
 ## Scope
 

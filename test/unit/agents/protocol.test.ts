@@ -10,23 +10,23 @@ import {
   CodeReviewResultSchema,
   AgentComplianceReportSchema,
   SubagentHandoffSchema,
-  buildAgentProtocol,
+  buildDeliveryProtocol,
   AGENT_JSON_SCHEMAS,
   SCHEMA_IDS,
-  AGENT_PROTOCOL_MCP_TOOLS,
+  DELIVERY_PROTOCOL_MCP_TOOLS,
 } from '../../../src/agents/protocol.js';
 
-describe('agent protocol', () => {
+describe('delivery protocol', () => {
   it('pins protocol version independently from the repovine package version', () => {
     expect(PROTOCOL_VERSION).toBe('1');
   });
 
   it('builds a self-consistent protocol descriptor', () => {
-    const protocol = buildAgentProtocol();
+    const protocol = buildDeliveryProtocol();
     expect(protocol.protocolVersion).toBe(PROTOCOL_VERSION);
     expect(protocol.schemas).toEqual(SCHEMA_IDS);
     expect(protocol.mcpTools).toEqual([]);
-    expect(AGENT_PROTOCOL_MCP_TOOLS).toEqual([]);
+    expect(DELIVERY_PROTOCOL_MCP_TOOLS).toEqual([]);
     expect(protocol.cliCommands.length).toBeGreaterThan(0);
   });
 

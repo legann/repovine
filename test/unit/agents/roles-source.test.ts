@@ -81,7 +81,7 @@ describe('loadProjectRoleSource', () => {
   it('hard contamination fails loud and is never auto-cleaned', () => {
     fs.writeFileSync(
       path.join(repoRoot, '.cursor', 'agents', 'acme-backend.md'),
-      `${BRIEF}\n<!-- repovine:agent-protocol protocolVersion=1 -->\n`,
+      `${BRIEF}\n<!-- repovine:delivery-protocol protocolVersion=1 -->\n`,
     );
     writeConfig(repoRoot, { roles: { 'acme-backend': { brief: '.cursor/agents/acme-backend.md' } } });
     const result = loadProjectRoleSource(repoRoot);

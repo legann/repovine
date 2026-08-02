@@ -386,7 +386,7 @@ describe('resource identity', () => {
     ['resource:k8s:default/Deployment/web', 'k8s', 'default/Deployment/web'],
     ['resource:k8s:_/StatefulSet/db', 'k8s', '_/StatefulSet/db'],
     ['resource:vercel:function:api/hello', 'vercel', 'function:api/hello'],
-    ['resource:generic:examples/agent-harness-demo/Dockerfile', 'generic', 'examples/agent-harness-demo/Dockerfile'],
+    ['resource:generic:examples/delivery-protocol-harness-demo/Dockerfile', 'generic', 'examples/delivery-protocol-harness-demo/Dockerfile'],
   ])('mints and recovers %s', (id, namespace, localKey) => {
     expect(makeResourceId({ namespace, localKey })).toBe(id);
     expect(parseResourceId(id)).toEqual({ namespace, localKey });

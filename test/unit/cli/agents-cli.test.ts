@@ -40,7 +40,7 @@ describe('runAgentsCli', () => {
     expect((lastJson() as { protocol: { protocolVersion: string } }).protocol.protocolVersion).toBe(PROTOCOL_VERSION);
   });
 
-  it('includes all Agent Protocol v1 JSON schemas with --schemas', async () => {
+  it('includes all Delivery Protocol v1 JSON schemas with --schemas', async () => {
     await runAgentsCli(['protocol', '--schemas'], env);
     const out = lastJson() as { jsonSchemas: Record<string, unknown> };
     for (const id of Object.values(SCHEMA_IDS)) {

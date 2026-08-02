@@ -16,16 +16,16 @@ integration checks. The runners verify the examples; they are not required to
 install or use a plugin. Start with the [plugin authoring
 guide](../docs/plugin-authoring.md) for the public contracts and publishing flow.
 
-## Agent Protocol and harnesses
+## Delivery Protocol and harnesses
 
 | Example | Demonstrates | Requirements |
 |---|---|---|
-| [Agent Harness Demo](agent-harness-demo) | A live LangGraph harness with provider adapters, sandboxed workers, retries, channels, review, and compliance gates. | Docker for the isolated path, or a local Node setup; provider credentials for live agents. |
+| [Delivery Protocol Harness Demo](delivery-protocol-harness-demo) | A live LangGraph harness with provider adapters, sandboxed workers, retries, channels, review, and compliance gates. | Docker for the isolated path, or a local Node setup; provider credentials for live agents. |
 
 Use the LangGraph demo when evaluating a complete external orchestration flow.
 The deterministic CLI contract, including rejection of false graph-node claims,
 is covered by the
-[Agent Protocol blackbox test](../test/integration/agent-protocol-cli-blackbox.test.ts).
+[Delivery Protocol blackbox test](../test/integration/delivery-protocol-cli-blackbox.test.ts).
 repovine defines the protocol and validators; the harness is not part of repovine core.
 
 ## Illustrative documentation

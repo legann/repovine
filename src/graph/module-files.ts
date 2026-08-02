@@ -52,7 +52,7 @@ export function isBarrelRelPath(relPath: string): boolean {
  * source extension and a trailing index basename, neither of which the mint keeps.
  *
  * One implementation because a string accepted here and refused elsewhere is the same defect from
- * two directions — `mod:pkg/src/worker.mjs` used to resolve for the agent-protocol validator and
+ * two directions — `mod:pkg/src/worker.mjs` used to resolve for the delivery-protocol validator and
  * not for the MCP scope resolver, in the same repository.
  */
 export function resolveNodeIdByShape(graph: RepositoryGraph, rawId: string): string | undefined {

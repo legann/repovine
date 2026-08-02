@@ -52,7 +52,7 @@ function authorTrees(root: string): AuthorTree[] {
   const examplesRoot = path.join(root, 'examples');
   if (fs.existsSync(examplesRoot)) {
     for (const entry of fs.readdirSync(examplesRoot, { withFileTypes: true })) {
-      // Only the plugin examples: `agent-harness-demo` is a consumer of the engine, not a plugin
+      // Only the plugin examples: `delivery-protocol-harness-demo` is a consumer of the engine, not a plugin
       // author, and it is entitled to import the engine it demonstrates.
       if (!entry.isDirectory() || !entry.name.startsWith('repovine-plugin-')) continue;
       trees.push({

@@ -36,14 +36,14 @@ Language- and format-specific extraction stays at the producer boundary. Source 
 
 Derived facts and authored knowledge follow different trust models. The graph is rebuilt from repository state independently of annotations. Intent, invariants, risks, and operational constraints live in a separate versioned layer. repovine checks freshness and structural consistency from repository state and validates provenance at the write or run boundary; semantic correctness remains an agent and developer verification responsibility.
 
-Agent runs follow the same boundary. In an explicit Agent Protocol run, the harness records task intent, acceptance criteria, scope, and optional evidence policy in an assignment before execution; the returned result contains structured claims that repovine re-checks only where repository state is observable. In client mode, MCP returns bounded results for explicit search and graph queries, and generated hooks provide a limited pre-edit path for boundary-scoped risks on file-owned nodes. Developers and harnesses retain execution policy, test execution, behavioral review, and final acceptance because those decisions require evidence beyond repository-observable state.
+Agent runs follow the same boundary. In an explicit Delivery Protocol run, the harness records task intent, acceptance criteria, scope, and optional evidence policy in an assignment before execution; the returned result contains structured claims that repovine re-checks only where repository state is observable. In client mode, MCP returns bounded results for explicit search and graph queries, and generated hooks provide a limited pre-edit path for boundary-scoped risks on file-owned nodes. Developers and harnesses retain execution policy, test execution, behavioral review, and final acceptance because those decisions require evidence beyond repository-observable state.
 
 The same model-agnostic engine supports interactive and autonomous development:
 
 | Mode | What |
 |---|---|
 | **Client (IDE or CLI)** | MCP delivers scoped graph context and annotations in Cursor, Claude Code, or Codex; a developer stays in the loop and repovine's checks are advisory |
-| **Agent Protocol (harness)** | an external harness runs the agent; repovine checks its structured result against the graph, snapshot, annotations, recorded context, and an optional revision delta, while the harness owns execution, tests, retries, review policy, and final acceptance. See the [LangGraph harness demo](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo) |
+| **Delivery Protocol (harness)** | an external harness runs the agent; repovine checks its structured result against the graph, snapshot, annotations, recorded context, and an optional revision delta, while the harness owns execution, tests, retries, review policy, and final acceptance. See the [LangGraph harness demo](https://github.com/legann/repovine/blob/main/examples/delivery-protocol-harness-demo) |
 
 ## How it works (Client)
 
@@ -68,7 +68,7 @@ graph LR
 | Stage 3: build search index | graph + annotations | token index; optional embeddings to assist fuzzy search |
 | MCP | graph + annotations + index | bounded graph and annotation query results |
 
-## How it works (Agent Protocol)
+## How it works (Delivery Protocol)
 
 repovine provides the protocol: the assignment → result → compliance contract, and the validators that compare a run's structured claims with observable repository state. A harness applies it: it delivers the task, runs the agent with repovine MCP, and combines repovine's compliance report with execution-owned tests, review, and acceptance policy.
 
@@ -201,9 +201,9 @@ Delivery mechanics are the core extension point for edit-relevant signals derive
 ## Examples
 
 [Browse all runnable examples](https://github.com/legann/repovine/blob/main/examples/README.md), including plugin authoring,
-an offline Agent Protocol fixture, and the live harness below.
+an offline Delivery Protocol fixture, and the live harness below.
 
-[`examples/agent-harness-demo`](https://github.com/legann/repovine/blob/main/examples/agent-harness-demo) is a runnable harness that applies the protocol with LangGraph: channels (Telegram bot, HTTP, CLI), role agents (greenfield scaffolds fan out in parallel git worktrees), and retries. Agents run write-only inside an egress-restricted Docker sandbox. Providers: Claude, Cursor, Codex via API, or a local model.
+[`examples/delivery-protocol-harness-demo`](https://github.com/legann/repovine/blob/main/examples/delivery-protocol-harness-demo) is a runnable harness that applies the protocol with LangGraph: channels (Telegram bot, HTTP, CLI), role agents (greenfield scaffolds fan out in parallel git worktrees), and retries. Agents run write-only inside an egress-restricted Docker sandbox. Providers: Claude, Cursor, Codex via API, or a local model.
 
 ```mermaid
 graph LR
@@ -219,7 +219,7 @@ graph LR
   J --> R["reply"]
 ```
 
-Guide: [docs/agent-protocol.md](docs/agent-protocol.md).
+Guide: [docs/delivery-protocol.md](docs/delivery-protocol.md).
 
 ## Learn more
 
@@ -227,7 +227,7 @@ Guide: [docs/agent-protocol.md](docs/agent-protocol.md).
 - [Platform support](docs/platform-support.md): per-surface OS tiers, prerequisites, and promotion rules
 - [DESIGN.md](DESIGN.md): system boundaries, graph contract, trust model, and limitations
 - [CONTRIBUTING.md](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md): dev setup, quality gates
-- [examples](https://github.com/legann/repovine/blob/main/examples/README.md): runnable plugins and Agent Protocol harnesses
+- [examples](https://github.com/legann/repovine/blob/main/examples/README.md): runnable plugins and Delivery Protocol harnesses
 
 ## License
 

@@ -1,8 +1,8 @@
 /**
- * Agent Protocol v1 — canonical schemas and types.
+ * Delivery Protocol v1 — canonical schemas and types.
  *
  * repovine is the contract + validation + projection layer for verifiable
- * software development with coding agents. Agent Protocol is the harness-facing
+ * software development with coding agents. Delivery Protocol is the harness-facing
  * integration contract inside repovine core. This module is the single source of
  * truth for the protocol objects a harness or IDE projection exchanges with
  * repovine:
@@ -21,7 +21,7 @@
 import { z, toJSONSchema } from 'zod';
 import { CONTEXT_ENFORCEMENT_MODES, CONTEXT_PHASES } from '../context-quality/types.js';
 
-/** Current Agent Protocol schema-contract version (independent from package.json). */
+/** Current Delivery Protocol schema-contract version (independent from package.json). */
 export const PROTOCOL_VERSION = '1' as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
@@ -531,10 +531,10 @@ export const SubagentHandoffSchema = z.object({
 });
 export type SubagentHandoff = z.infer<typeof SubagentHandoffSchema>;
 
-// ── AgentProtocol descriptor ──
+// ── DeliveryProtocol descriptor ──
 
 /** Describes the protocol version, available schema ids, and surfaces. */
-export const AgentProtocolSchema = z.object({
+export const DeliveryProtocolSchema = z.object({
   protocolVersion: ProtocolVersionSchema,
   schemas: z.object({
     agentManifest: z.string(),
@@ -550,9 +550,9 @@ export const AgentProtocolSchema = z.object({
   mcpTools: z.array(z.string()),
   cliCommands: z.array(z.string()),
 });
-export type AgentProtocol = z.infer<typeof AgentProtocolSchema>;
+export type DeliveryProtocol = z.infer<typeof DeliveryProtocolSchema>;
 
-/** Stable schema-id names referenced by the AgentProtocol descriptor. */
+/** Stable schema-id names referenced by the DeliveryProtocol descriptor. */
 export const SCHEMA_IDS = {
   agentManifest: 'AgentManifest',
   agentAssignment: 'AgentAssignment',
@@ -565,11 +565,11 @@ export const SCHEMA_IDS = {
   deliveryVerificationResult: 'DeliveryVerificationResult',
 } as const;
 
-/** Agent Protocol is CLI-only for harness/integration; worker MCP exposes context tools only. */
-export const AGENT_PROTOCOL_MCP_TOOLS = [] as const;
+/** Delivery Protocol is CLI-only for harness/integration; worker MCP exposes context tools only. */
+export const DELIVERY_PROTOCOL_MCP_TOOLS = [] as const;
 
 /** CLI commands for harness/integration (`repovine agents <cmd>`). */
-export const AGENT_PROTOCOL_CLI_COMMANDS = [
+export const DELIVERY_PROTOCOL_CLI_COMMANDS = [
   'agents protocol',
   'agents manifests',
   'agents validate-assignment',
@@ -582,13 +582,13 @@ export const AGENT_PROTOCOL_CLI_COMMANDS = [
   'agents orient',
 ] as const;
 
-/** Build the AgentProtocol descriptor object. */
-export function buildAgentProtocol(): AgentProtocol {
+/** Build the DeliveryProtocol descriptor object. */
+export function buildDeliveryProtocol(): DeliveryProtocol {
   return {
     protocolVersion: PROTOCOL_VERSION,
     schemas: { ...SCHEMA_IDS },
-    mcpTools: [...AGENT_PROTOCOL_MCP_TOOLS],
-    cliCommands: [...AGENT_PROTOCOL_CLI_COMMANDS],
+    mcpTools: [...DELIVERY_PROTOCOL_MCP_TOOLS],
+    cliCommands: [...DELIVERY_PROTOCOL_CLI_COMMANDS],
   };
 }
 

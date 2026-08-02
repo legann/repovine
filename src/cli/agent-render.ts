@@ -1,5 +1,5 @@
 /**
- * Render agent-protocol assets from the canonical manifests.
+ * Render Delivery Protocol assets from the canonical manifests.
  *
  * Internal projection helper used by `repovine setup` to write protocol-governed
  * assets (per-client agent files, the AGENTS.md main-agent block, the project
@@ -30,7 +30,7 @@ import {
 } from './onboarding-assets.js';
 import { AGENTS_MD, AGENTS_MD_BEGIN_MARKER, AGENTS_MD_END_MARKER } from './templates.js';
 import { PROJECTION_VERSION } from './agent-projection.js';
-import { PROTOCOL_VERSION, buildAgentProtocol } from '../agents/protocol.js';
+import { PROTOCOL_VERSION, buildDeliveryProtocol } from '../agents/protocol.js';
 import { BUILTIN_MANIFESTS } from '../agents/manifests.js';
 
 export type RenderClient = 'claude' | 'cursor' | 'codex' | 'agents-md' | 'json';
@@ -163,9 +163,9 @@ function agentsMdAsset(): RenderedAgentAsset {
 function jsonAsset(): RenderedAgentAsset {
   return {
     client: 'json',
-    path: 'repovine.agent-protocol.json',
+    path: 'repovine.delivery-protocol.json',
     content: JSON.stringify(
-      { protocol: buildAgentProtocol(), manifests: BUILTIN_MANIFESTS },
+      { protocol: buildDeliveryProtocol(), manifests: BUILTIN_MANIFESTS },
       null,
       2,
     ),
@@ -231,7 +231,7 @@ function contentToWrite(repoRoot: string, asset: RenderedAgentAsset): string {
 }
 
 /**
- * Project agent-protocol assets from the manifests. When `write` is true,
+ * Project Delivery Protocol assets from the manifests. When `write` is true,
  * writable assets are written to their standard locations under `repoRoot`.
  * Per-client generated agent files are overwritten; AGENTS.md goes through
  * `computeAgentsMdDiskContent`.

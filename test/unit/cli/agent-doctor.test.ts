@@ -201,7 +201,7 @@ describe('doctorAgentAssets', () => {
     fs.writeFileSync(
       rel,
       current.replace(
-        'Normal client conversations are not Agent Protocol runs',
+        'Normal client conversations are not Delivery Protocol runs',
         'When the run finishes, return an AgentRunResult block',
       ),
     );
@@ -223,16 +223,16 @@ describe('doctorAgentAssets', () => {
   });
 
   it('never scans harness demo paths — the doctor checks only surfaces core owns', () => {
-    const handoffDir = path.join(repoRoot, 'repovine/examples/agent-harness-demo/lib/handoff');
+    const handoffDir = path.join(repoRoot, 'repovine/examples/delivery-protocol-harness-demo/lib/handoff');
     fs.mkdirSync(handoffDir, { recursive: true });
     fs.writeFileSync(path.join(handoffDir, 'handoff.md'), '# stale handoff\n');
-    const agentsDir = path.join(repoRoot, 'repovine/examples/agent-harness-demo/lib/agents');
+    const agentsDir = path.join(repoRoot, 'repovine/examples/delivery-protocol-harness-demo/lib/agents');
     fs.mkdirSync(agentsDir, { recursive: true });
     fs.writeFileSync(path.join(agentsDir, 'repo-explorer.md'), '# stale\n## Harness orient phase\n\nold\n');
 
     const report = doctorAgentAssets({ repoRoot, validToolNames, client: 'cursor' });
-    expect(report.scanned.some(f => f.includes('agent-harness-demo'))).toBe(false);
-    expect(report.findings.some(f => f.file.includes('agent-harness-demo'))).toBe(false);
+    expect(report.scanned.some(f => f.includes('delivery-protocol-harness-demo'))).toBe(false);
+    expect(report.findings.some(f => f.file.includes('delivery-protocol-harness-demo'))).toBe(false);
   });
 
   it('matches setup all for shared .agents/skills when cursor and codex are both in scope', () => {
@@ -345,7 +345,7 @@ describe('doctorAgentAssets', () => {
         '',
         '# Local project agent',
         '',
-        '<!-- repovine:agent-protocol protocolVersion=1 projection=1 -->',
+        '<!-- repovine:delivery-protocol protocolVersion=1 projection=1 -->',
         '',
         'Use `search_context` before edits.',
         '',

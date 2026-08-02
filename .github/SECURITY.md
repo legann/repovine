@@ -40,7 +40,7 @@ Do not run `npm audit fix --force`: it downgrades `@modelcontextprotocol/sdk`
 from 1.29.0 to 1.24.3 — a breaking major downgrade to a release predating the
 SDK's HTTP transport — and does not fix `sharp`.
 
-The agent-harness demo (`examples/agent-harness-demo`) carries its own lockfile
+The Delivery Protocol harness demo (`examples/delivery-protocol-harness-demo`) carries its own lockfile
 and is gated by the same script and allowlist: the `harness-linux` CI job runs
 `audit-gate.mjs` in the demo directory. The `@hono/node-server` advisory reaches
 the demo through the same `@modelcontextprotocol/sdk` pin (a peer of

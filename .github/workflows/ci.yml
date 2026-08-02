@@ -155,15 +155,15 @@ jobs:
 
       - name: Install demo dependencies
         run: npm ci
-        working-directory: examples/agent-harness-demo
+        working-directory: examples/delivery-protocol-harness-demo
 
       - name: Audit demo dependencies (same allowlist as the engine)
         run: node ../../scripts/audit-gate.mjs
-        working-directory: examples/agent-harness-demo
+        working-directory: examples/delivery-protocol-harness-demo
 
       - name: Demo tests
         run: npm test
-        working-directory: examples/agent-harness-demo
+        working-directory: examples/delivery-protocol-harness-demo
 
       - name: Docker versions
         run: docker version && docker compose version
@@ -183,11 +183,11 @@ jobs:
 
       - name: Docker container smokes (egress + local-model forward)
         run: npm run test:docker-smoke
-        working-directory: examples/agent-harness-demo
+        working-directory: examples/delivery-protocol-harness-demo
         env:
           HARNESS_SMOKE_STRICT: '1'
 
       - name: Compose down
         if: always()
         run: docker compose --profile cli down -v --remove-orphans || true
-        working-directory: examples/agent-harness-demo
+        working-directory: examples/delivery-protocol-harness-demo

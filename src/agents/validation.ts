@@ -1,5 +1,5 @@
 /**
- * Agent Protocol validators.
+ * Delivery Protocol validators.
  *
  * Two layers, as specified by the build plan:
  *
@@ -931,7 +931,7 @@ export function checkCompliance(input: CheckComplianceInput): AgentComplianceRep
     );
   }
 
-  // Context Session Quality is opt-in for Agent Protocol v1. When an assignment marks
+  // Context Session Quality is opt-in for Delivery Protocol v1. When an assignment marks
   // it required, repovine recomputes the report from the session store instead
   // of trusting the agent's optional self-report. Both modes currently emit
   // warnings + requiredFollowups: the weighted score never beat a trivial baseline on

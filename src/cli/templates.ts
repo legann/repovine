@@ -2,7 +2,7 @@
 // Stored as template strings -- they end up in dist/ alongside the JS.
 
 import { REPOVINE_MCP_SERVER_NAME } from './merge-config.js';
-import { renderMainAgentProtocolSection, renderContextQualityGuidance } from './agent-projection.js';
+import { renderMainDeliveryProtocolSection, renderContextQualityGuidance } from './agent-projection.js';
 import {
   CLIENT_CAPABILITIES,
   hookDispatcherPath,
@@ -359,7 +359,7 @@ Claude uses \`.claude/agents/*.md\` and \`.claude/skills/*/SKILL.md\`. Codex use
 
 Commit \`repovine.annots.json\`. Never store secrets in annotations; the engine records env var names, not values, and rejects obvious secret values written through \`write_annotation\`.
 
-${renderMainAgentProtocolSection()}
+${renderMainDeliveryProtocolSection()}
 ${AGENTS_MD_END_MARKER}
 `;
 

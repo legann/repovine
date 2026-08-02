@@ -114,7 +114,7 @@ change, not an addition. Contract and current mechanics:
 | Annotation memory and quality | `src/annotations/` |
 | Semantic node-card index | `src/semantic/` |
 | MCP tools and response shaping | `src/mcp/tools/`, `src/mcp/lib/`, `src/mcp/response/` |
-| Agent Protocol and compliance | `src/agents/`, `src/context-quality/` |
+| Delivery Protocol and compliance | `src/agents/`, `src/context-quality/` |
 | CLI setup and projections | `src/cli/` |
 | Schema laws | `test/laws/` |
 | Examples / fixtures | `examples/`, `test/` |

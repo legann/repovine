@@ -1,5 +1,5 @@
 /**
- * `repovine agents <cmd>` — CLI-only Agent Protocol surface (harness / CI).
+ * `repovine agents <cmd>` — CLI-only Delivery Protocol surface (harness / CI).
  *
  * Gives CI and non-MCP harnesses a file-in / JSON-out integration path:
  *
@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import { loadConfig } from '../config.js';
 import { loadProjectRoleSource } from '../agents/roles-source.js';
 import { RepovineRuntime } from '../mcp/context.js';
-import { buildAgentProtocol, AGENT_JSON_SCHEMAS, type AgentRole } from '../agents/protocol.js';
+import { buildDeliveryProtocol, AGENT_JSON_SCHEMAS, type AgentRole } from '../agents/protocol.js';
 import { BUILTIN_MANIFESTS, getManifest, getManifestByRole } from '../agents/manifests.js';
 import {
   validateAssignment,
@@ -53,7 +53,7 @@ function printUsage(): void {
       'Usage: repovine agents <command>',
       '',
       'Commands:',
-      '  protocol [--schemas]                         Print the Agent Protocol descriptor',
+      '  protocol [--schemas]                         Print the Delivery Protocol descriptor',
       '  manifests [--role <role>] [--name <name>]    Print built-in agent manifests',
       '  run-brief [--role <role>] [--name <name>]    Pre-run JSON: the manifest-derived protocol brief',
       '  roles [--at <tree-ish>]                      Repository role source (agents.roles in repovine.config.json); --at reads a committed tree',
@@ -121,8 +121,8 @@ export async function runAgentsCli(argv: string[], env: AgentsCliEnv): Promise<n
     case 'protocol': {
       const includeSchemas = rest.includes('--schemas');
       print(includeSchemas
-        ? { protocol: buildAgentProtocol(), jsonSchemas: AGENT_JSON_SCHEMAS }
-        : { protocol: buildAgentProtocol() });
+        ? { protocol: buildDeliveryProtocol(), jsonSchemas: AGENT_JSON_SCHEMAS }
+        : { protocol: buildDeliveryProtocol() });
       return 0;
     }
 

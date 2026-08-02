@@ -29,7 +29,7 @@ const fixturePath = path.join(
   process.cwd(),
   'test',
   'fixtures',
-  'agent-protocol-harness',
+  'delivery-protocol-harness',
   'harness-spec-fixtures.json',
 );
 
@@ -55,7 +55,7 @@ function fakeStore(): AnnotationStore {
   } as unknown as AnnotationStore;
 }
 
-describe('agent protocol harness spec fixtures', () => {
+describe('delivery protocol harness spec fixtures', () => {
   let repoRoot: string;
 
   beforeEach(() => {
@@ -76,7 +76,7 @@ describe('agent protocol harness spec fixtures', () => {
     };
   }
 
-  it('keeps agent protocol harness fixtures aligned with every harness-facing schema', () => {
+  it('keeps delivery protocol harness fixtures aligned with every harness-facing schema', () => {
     const f = readFixture();
     expect(f.protocolVersion).toBe(PROTOCOL_VERSION);
     expect(Array.isArray(f.graphNodes)).toBe(true);

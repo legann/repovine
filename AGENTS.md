@@ -55,13 +55,13 @@ Claude uses `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`. Codex uses `.
 
 Commit `repovine.annots.json`. Never store secrets in annotations; the engine records env var names, not values, and rejects obvious secret values written through `write_annotation`.
 
-## Agent Protocol (explicit use only)
+## Delivery Protocol (explicit use only)
 
-<!-- repovine:agent-protocol protocolVersion=1 projection=1 -->
+<!-- repovine:delivery-protocol protocolVersion=1 projection=1 -->
 
-Normal client conversations are not Agent Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an `AgentRunResult` JSON block as a session summary.
+Normal client conversations are not Delivery Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an `AgentRunResult` JSON block as a session summary.
 
-Only return an **Agent Protocol v1 `AgentRunResult`** when a harness/CI provides an `AgentAssignment` or `runId`, a command asks for `validate-result` / `compliance`, or the user explicitly requests an `AgentRunResult`. For the `main` role, required fields are: `summary`, `scope`, `compliance`.
+Only return a **Delivery Protocol v1 `AgentRunResult`** when a harness/CI provides an `AgentAssignment` or `runId`, a command asks for `validate-result` / `compliance`, or the user explicitly requests an `AgentRunResult`. For the `main` role, required fields are: `summary`, `scope`, `compliance`.
 
-In explicit protocol mode, pass `contextSessionId` on repovine MCP calls, run `refresh_context` after file changes, and never hand-edit `repovine.annots.json`; use `write_annotation`, `merge_annotations`, and `validate_annotations` for annotation state. Schema and field reference: `repovine agents protocol --schemas`, or `docs/agent-protocol.md` in the repovine source repository.
+In explicit protocol mode, pass `contextSessionId` on repovine MCP calls, run `refresh_context` after file changes, and never hand-edit `repovine.annots.json`; use `write_annotation`, `merge_annotations`, and `validate_annotations` for annotation state. Schema and field reference: `repovine agents protocol --schemas`, or `docs/delivery-protocol.md` in the repovine source repository.
 <!-- repovine:agents-md:end -->

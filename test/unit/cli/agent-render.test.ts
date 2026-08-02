@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
 import { renderAgentAssets, RENDER_CLIENTS } from '../../../src/cli/agent-render.js';
-import { AGENT_PROTOCOL_MARKER } from '../../../src/cli/agent-projection.js';
+import { DELIVERY_PROTOCOL_MARKER } from '../../../src/cli/agent-projection.js';
 import { AGENTS_MD_BEGIN_MARKER, AGENTS_MD_END_MARKER } from '../../../src/cli/templates.js';
 import { PROTOCOL_VERSION } from '../../../src/agents/protocol.js';
 
@@ -30,8 +30,8 @@ describe('renderAgentAssets', () => {
   it('embeds the protocol marker + explicit-use gating in every rendered agent', () => {
     const result = renderAgentAssets({ repoRoot, client: 'claude' });
     for (const asset of result.preview!) {
-      expect(asset.content).toContain(AGENT_PROTOCOL_MARKER);
-      expect(asset.content).toContain('Normal client conversations are not Agent Protocol runs');
+      expect(asset.content).toContain(DELIVERY_PROTOCOL_MARKER);
+      expect(asset.content).toContain('Normal client conversations are not Delivery Protocol runs');
       expect(asset.content).not.toContain(`"protocolVersion": "${PROTOCOL_VERSION}"`);
       expect(asset.content).toContain('contextSessionId');
     }
@@ -82,7 +82,7 @@ describe('renderAgentAssets', () => {
     // Even with write:true the json target is not written to disk.
     const written = renderAgentAssets({ repoRoot, client: 'json', write: true });
     expect(written.assets.find(a => a.client === 'json')?.written).toBe(false);
-    expect(fs.existsSync(path.join(repoRoot, 'repovine.agent-protocol.json'))).toBe(false);
+    expect(fs.existsSync(path.join(repoRoot, 'repovine.delivery-protocol.json'))).toBe(false);
 
     // Its content (available in preview mode) carries protocol + manifests.
     const preview = renderAgentAssets({ repoRoot, client: 'json' });
@@ -102,7 +102,7 @@ describe('renderAgentAssets', () => {
     expect(content).toContain('# Team rules');
     expect(content).toContain('Keep this.');
     expect(content).toContain(AGENTS_MD_BEGIN_MARKER);
-    expect(content).toContain(AGENT_PROTOCOL_MARKER);
+    expect(content).toContain(DELIVERY_PROTOCOL_MARKER);
   });
 
   it('replaces only the marked repovine section in AGENTS.md', () => {
@@ -131,7 +131,7 @@ describe('renderAgentAssets', () => {
     expect(content).toContain('Before.');
     expect(content).toContain('After.');
     expect(content).not.toContain('old repovine block');
-    expect(content).toContain(AGENT_PROTOCOL_MARKER);
+    expect(content).toContain(DELIVERY_PROTOCOL_MARKER);
   });
 
   it('renders only the canonical cursor asset set and leaves unrelated .cursor/agents files untouched', () => {

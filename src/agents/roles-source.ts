@@ -26,10 +26,10 @@ const CONFIG_FILENAME = 'repovine.config.json';
 
 /** Deterministic hard-contamination signatures (never auto-cleaned). */
 const CONTAMINATION_SIGNATURES = [
-  '<!-- repovine:agent-protocol',
+  '<!-- repovine:delivery-protocol',
   '<!-- repovine:harness-agent-briefs',
   '<!-- repovine:harness-handoff',
-  '## Agent Protocol result block',
+  '## Delivery Protocol result block',
 ] as const;
 
 const ROLE_ID_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;

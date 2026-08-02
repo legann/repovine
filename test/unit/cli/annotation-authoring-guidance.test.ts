@@ -12,7 +12,7 @@ import { renderAgentAssets } from '../../../src/cli/agent-render.js';
 // The altitude counter-note was intentionally dropped (option A) because it was
 // added to ANNOTATION_QUALITY_PUSH, an unwired/dead constant; that constant has
 // since been deleted, and its three-axis completeness/consistency/provenance
-// message is delivered live by the Agent Protocol section embedded in every
+// message is delivered live by the Delivery Protocol section embedded in every
 // rendered agent (renderClientProtocolGuidanceSection).
 describe('annotation authoring — risk-text altitude guidance', () => {
   describe('ANNOTATION_RISK_SHAPE_GUIDANCE (SSOT, wired into agents + skills)', () => {

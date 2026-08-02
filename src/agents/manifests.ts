@@ -9,7 +9,7 @@
  * names so the projection layer can look identity up by name. Utility agents
  * are prefixed `repovine-` so they never collide with (or silently shadow) a
  * user's personal agents of the same generic name; roles stay unprefixed —
- * they are Agent Protocol vocabulary, not file identity:
+ * they are Delivery Protocol vocabulary, not file identity:
  *   - 'repovine-repo-explorer'        -> REPO_EXPLORER_AGENT
  *   - 'repovine-annotation-writer'    -> ANNOTATION_WRITER_AGENT
  *   - 'project-subagent-sample'    -> PROJECT_SAMPLE_SUBAGENT_*

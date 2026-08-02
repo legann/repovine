@@ -1,12 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   PROJECTION_VERSION,
-  AGENT_PROTOCOL_MARKER,
+  DELIVERY_PROTOCOL_MARKER,
   renderStructuredResultBlock,
   renderResultBlockSection,
   renderClientProtocolGuidanceSection,
   renderContextQualityGuidance,
-  renderMainAgentProtocolSection,
+  renderMainDeliveryProtocolSection,
   renderImplementerBrief,
 } from '../../../src/cli/agent-projection.js';
 import { PROTOCOL_VERSION, AgentRunResultSchema } from '../../../src/agents/protocol.js';
@@ -66,10 +66,10 @@ describe('agent projection helpers', () => {
 
   it('embeds marker, conditional protocol guidance, and required fields in client guidance', () => {
     const section = renderClientProtocolGuidanceSection(getManifest('project-subagent-sample')!);
-    expect(section).toContain(AGENT_PROTOCOL_MARKER);
-    expect(section).toContain(`Agent Protocol v${PROTOCOL_VERSION}`);
-    expect(section).toContain('Normal client conversations are not Agent Protocol runs');
-    expect(section).toContain('Only return an **Agent Protocol');
+    expect(section).toContain(DELIVERY_PROTOCOL_MARKER);
+    expect(section).toContain(`Delivery Protocol v${PROTOCOL_VERSION}`);
+    expect(section).toContain('Normal client conversations are not Delivery Protocol runs');
+    expect(section).toContain('Only return a **Delivery Protocol');
     expect(section).not.toContain(`"protocolVersion": "${PROTOCOL_VERSION}"`);
     expect(section).toContain('refresh_context');
     expect(section).toContain('write_annotation');
@@ -83,7 +83,7 @@ describe('agent projection helpers', () => {
     const protocolSurfaces = [
       renderResultBlockSection(manifest),
       renderClientProtocolGuidanceSection(manifest),
-      renderMainAgentProtocolSection(),
+      renderMainDeliveryProtocolSection(),
     ];
     const contextSurface = renderContextQualityGuidance();
     const onboardingSurface = PROJECT_SUBAGENT_TEMPLATE_MD;
@@ -94,15 +94,15 @@ describe('agent projection helpers', () => {
     }
     for (const surface of protocolSurfaces) {
       expect(surface).toContain('repovine agents protocol --schemas');
-      expect(surface).toContain('docs/agent-protocol.md');
+      expect(surface).toContain('docs/delivery-protocol.md');
     }
     expect(contextSurface).toContain('docs/context-quality.md');
-    expect(onboardingSurface).toContain('docs/agent-protocol.md#projections');
+    expect(onboardingSurface).toContain('docs/delivery-protocol.md#projections');
   });
 
   it('bakes the current projection version into the marker', () => {
-    expect(AGENT_PROTOCOL_MARKER).toContain(`protocolVersion=${PROTOCOL_VERSION}`);
-    expect(AGENT_PROTOCOL_MARKER).toContain(`projection=${PROJECTION_VERSION}`);
+    expect(DELIVERY_PROTOCOL_MARKER).toContain(`protocolVersion=${PROTOCOL_VERSION}`);
+    expect(DELIVERY_PROTOCOL_MARKER).toContain(`projection=${PROJECTION_VERSION}`);
   });
 
   it('describes implement vs annotate phases in the harness brief', () => {
@@ -155,26 +155,26 @@ describe('projection inversion (identity from manifests)', () => {
 
   it('embeds conditional protocol guidance in all built-in utility agents', () => {
     for (const asset of [ANNOTATION_WRITER_AGENT, REPO_EXPLORER_AGENT, ARCHITECTURE_AUDITOR_AGENT, CODE_REVIEWER_AGENT]) {
-      expect(asset.body).toContain(AGENT_PROTOCOL_MARKER);
-      expect(asset.body).toContain('Normal client conversations are not Agent Protocol runs');
+      expect(asset.body).toContain(DELIVERY_PROTOCOL_MARKER);
+      expect(asset.body).toContain('Normal client conversations are not Delivery Protocol runs');
       expect(asset.body).not.toContain(`"protocolVersion": "${PROTOCOL_VERSION}"`);
     }
   });
 
   it('embeds conditional protocol guidance in the project subagent scaffold', () => {
-    expect(PROJECT_SAMPLE_SUBAGENT_MD).toContain(AGENT_PROTOCOL_MARKER);
-    expect(PROJECT_SAMPLE_SUBAGENT_MD).toContain('Normal client conversations are not Agent Protocol runs');
+    expect(PROJECT_SAMPLE_SUBAGENT_MD).toContain(DELIVERY_PROTOCOL_MARKER);
+    expect(PROJECT_SAMPLE_SUBAGENT_MD).toContain('Normal client conversations are not Delivery Protocol runs');
     expect(PROJECT_SAMPLE_SUBAGENT_MD).not.toContain(`"protocolVersion": "${PROTOCOL_VERSION}"`);
   });
 
-  it('embeds the main-agent protocol section into AGENTS.md', () => {
-    expect(AGENTS_MD).toContain('## Agent Protocol');
-    expect(AGENTS_MD).toContain(AGENT_PROTOCOL_MARKER);
-    expect(AGENTS_MD).toContain(`Agent Protocol v${PROTOCOL_VERSION}`);
+  it('embeds the main-agent Delivery Protocol section into AGENTS.md', () => {
+    expect(AGENTS_MD).toContain('## Delivery Protocol');
+    expect(AGENTS_MD).toContain(DELIVERY_PROTOCOL_MARKER);
+    expect(AGENTS_MD).toContain(`Delivery Protocol v${PROTOCOL_VERSION}`);
     expect(AGENTS_MD).toContain('get_context_session_quality');
     expect(AGENTS_MD).toContain('repovine.annots.json');
-    expect(renderMainAgentProtocolSection()).toContain('Normal client conversations are not Agent Protocol runs');
-    expect(renderMainAgentProtocolSection()).not.toContain(`"protocolVersion": "${PROTOCOL_VERSION}"`);
+    expect(renderMainDeliveryProtocolSection()).toContain('Normal client conversations are not Delivery Protocol runs');
+    expect(renderMainDeliveryProtocolSection()).not.toContain(`"protocolVersion": "${PROTOCOL_VERSION}"`);
   });
 
   it('keeps AGENTS.md thin while Cursor carries full orchestration rules', () => {

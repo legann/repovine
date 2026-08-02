@@ -128,9 +128,9 @@ Omit any block to keep engine defaults. When this file is missing,
 }
 ```
 
-`agents.roles` is read by the Agent Protocol role loader, outside the config schema: each entry names
+`agents.roles` is read by the Delivery Protocol role loader, outside the config schema: each entry names
 a repository-relative brief and an optional scope. Field reference:
-[agent-protocol.md](agent-protocol.md).
+[delivery-protocol.md](delivery-protocol.md).
 
 ### Field reference
 
@@ -733,5 +733,5 @@ Build performance model: [DESIGN.md — Build model](../DESIGN.md#build-model-an
 | Doc | Topic |
 |---|---|
 | [DESIGN.md](../DESIGN.md) | System boundaries, graph contract, annotation trust model |
-| [agent-protocol.md](agent-protocol.md) | External harness contracts |
+| [delivery-protocol.md](delivery-protocol.md) | External harness contracts |
 | [scripts.md](scripts.md) | CLI vs npm scripts (`repovine build`, `setup`, …) |

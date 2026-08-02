@@ -273,7 +273,7 @@ try {
     !existsSync(path.join(consumer, 'node_modules', '@huggingface')),
     '@huggingface/transformers stays opt-in (an install does not pull ~700MB of ONNX runtime)',
   );
-  for (const doc of ['docs/agent-protocol.md', 'docs/context-quality.md']) {
+  for (const doc of ['docs/delivery-protocol.md', 'docs/context-quality.md']) {
     check(existsSync(path.join(installed, doc)), `${doc} ships in the package (AGENTS.md points agents at it)`);
   }
   // The Python plugin runs this script as a subprocess and resolves it beside its own compiled

@@ -14,7 +14,7 @@ export function nodeInScopeHints(nodeId: string, scopeHints?: string[]): boolean
   if (!scopeHints?.length || scopeHints.includes('.')) return true;
   // A hint written as a path is a prefix guess, so `backend` is allowed to reach `backend-api/…`.
   // A hint written as `pkg:` is a name the graph holds exactly, and the same relaxation would put
-  // every module of `pkg:repovine-agent-harness-demo` inside the scope `pkg:repovine`.
+  // every module of `pkg:repovine-delivery-protocol-harness-demo` inside the scope `pkg:repovine`.
   const expanded = scopeHints.flatMap(hint => hint.startsWith('pkg:')
     ? [{ text: hint, exactName: true }, { text: packageNameFromId(hint), exactName: true }]
     : [{ text: hint, exactName: false }]);

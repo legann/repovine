@@ -1,7 +1,7 @@
-# agent-harness-demo image (build context: repovine/)
+# delivery-protocol-harness-demo image (build context: repovine/)
 .git
 node_modules
 .repovine
 **/node_modules
-examples/agent-harness-demo/.workspace
+examples/delivery-protocol-harness-demo/.workspace
 **/.env

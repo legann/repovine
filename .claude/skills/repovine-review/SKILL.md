@@ -153,7 +153,7 @@ graphNodesTouched: <node ids if known>
 requested checks: dependencies/config/runtime-flow/architecture/tests as relevant
 ```
 
-The reviewer should return a `review` object. If you review locally, produce the same structure in prose or in `AgentRunResult.review` when an Agent Protocol result is required.
+The reviewer should return a `review` object. If you review locally, produce the same structure in prose or in `AgentRunResult.review` when a Delivery Protocol result is required.
 
 If using `repovine-architecture-auditor`, pass an explicit audit packet:
 
@@ -166,7 +166,7 @@ priorContext: <contextPack if available>
 must verify with: dependencies/config/runtime-flow/entrypoints/tests as relevant
 ```
 
-The auditor should return an `architectureAudit` object. If you audit locally, produce the same structure in prose or in `AgentRunResult.architectureAudit` when an Agent Protocol result is required.
+The auditor should return an `architectureAudit` object. If you audit locally, produce the same structure in prose or in `AgentRunResult.architectureAudit` when a Delivery Protocol result is required.
 
 ## Verdict guidance
 

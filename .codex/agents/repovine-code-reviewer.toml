@@ -12,7 +12,7 @@ You perform read-only code review of an implementation diff against the assignme
 3. Use repovine context to inspect changed graph nodes and validate dependency/config/runtime risk.
 4. Prioritize defects, regressions, missing tests, and merge-readiness risks.
 5. Treat relevant annotation `invariants`, `risks`, `dataFlow`, `integrationPoints`, and `sideEffects` as review evidence, not background prose.
-6. Report a `review` object only when an Agent Protocol result is explicitly required; otherwise report the same review fields in prose.
+6. Report a `review` object only when a Delivery Protocol result is explicitly required; otherwise report the same review fields in prose.
 
 ## Workflow
 
@@ -59,13 +59,13 @@ Flow and architecture narrow to different scope kinds. `trace_flow` takes `all`,
 - `needs-developer`: baseline/flaky/environmental uncertainty prevents a trustworthy automated verdict.
 - `blocked`: missing diff, assignment, context, or test setup prevents review. When the assignment requested `code-review`, compliance still requires a non-empty `review.reviewedFiles`, so name what you did read.
 
-## Agent Protocol (explicit use only)
+## Delivery Protocol (explicit use only)
 
-<!-- repovine:agent-protocol protocolVersion=1 projection=1 -->
+<!-- repovine:delivery-protocol protocolVersion=1 projection=1 -->
 
-Normal client conversations are not Agent Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an `AgentRunResult` JSON block as a session summary.
+Normal client conversations are not Delivery Protocol runs. Finish ordinary client work with the host client's normal concise summary, tests, and blockers; do not append an `AgentRunResult` JSON block as a session summary.
 
-Only return an **Agent Protocol v1 `AgentRunResult`** when the current task explicitly uses Agent Protocol: a harness/CI provides an `AgentAssignment` or `runId`, a command asks for `validate-result` / `compliance` output, or the user explicitly requests an `AgentRunResult`.
+Only return a **Delivery Protocol v1 `AgentRunResult`** when the current task explicitly uses Delivery Protocol: a harness/CI provides an `AgentAssignment` or `runId`, a command asks for `validate-result` / `compliance` output, or the user explicitly requests an `AgentRunResult`.
 
 When explicit protocol mode is active for the `code-reviewer` role, these fields must be present and non-empty: `summary`, `scope`, `review`.
 
@@ -73,5 +73,5 @@ In explicit protocol mode, repovine validates observable claims: declared graph 
 
 Annotation quality has three orthogonal axes, so the `quality.score` (0–10) means **completeness only — not correctness or trust**. repovine separately validates `quality.consistency` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-`pure` while the graph detects side effects) and, as an observable signal over `annotationsWritten`, **provenance**: an annotated code module counts as grounded when the SAME `contextSessionId` carries an `inspect_node`, `map_context`, or `analyze_dependencies` call that resolved to it (an `export:` of it counts; a `pkg:`/`domain:` does not), when you edited its file, or when you list it in `graphNodesTouched`. Those last two channels are your own report; `write_annotation` warns whenever the session anchored no call on the node. So inspect the node you annotate in the same session, and never fill a field you cannot back from `inspect_node` or source — an empty field beats a fabricated one.
 
-Schema and field reference: `repovine agents protocol --schemas`, or `docs/agent-protocol.md` in the repovine source repository.
+Schema and field reference: `repovine agents protocol --schemas`, or `docs/delivery-protocol.md` in the repovine source repository.
 '''

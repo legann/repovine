@@ -51,7 +51,7 @@ body:
     id: docker
     attributes:
       label: Docker backend (harness demo only)
-      description: For agent-harness-demo defects, the output of `docker compose version` and the backend.
+      description: For delivery-protocol-harness-demo defects, the output of `docker compose version` and the backend.
       placeholder: "Docker Desktop 4.43 (virtiofs) / Docker Engine 27 on Linux / WSL2 backend"
   - type: textarea
     id: repro
