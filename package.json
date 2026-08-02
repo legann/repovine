@@ -62,7 +62,7 @@
     "api:report:check": "npm run build:sdk && node scripts/generate-plugin-api-report.mjs --check"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@repovine/plugin-default-preset": "0.1.0",
     "@repovine/plugin-iac-docker-compose": "0.1.0",
     "@repovine/plugin-iac-dockerfile": "0.1.0",
