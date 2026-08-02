@@ -21,7 +21,13 @@
 // Zero extra deps: node:http.
 import http from 'node:http';
 import { invokeGraph } from '../graph/workflow.mjs';
-import { ATTACH_RESET_DISABLED, resetTarget, resolveTargetFromEnv, targetPolicy } from '../target-repo.mjs';
+import {
+  ATTACH_RESET_DISABLED,
+  ensureTarget,
+  resetTarget,
+  resolveTargetFromEnv,
+  targetPolicy,
+} from '../target-repo.mjs';
 import { reapAll } from '../sandbox-procs.mjs';
 import { isKnownRole, agentsMode } from '../agents.mjs';
 import { runAsk } from '../ask.mjs';
@@ -224,6 +230,14 @@ export async function startHttp({ graph, port = 8080, host = '0.0.0.0', token = 
     if (askBusy) {
       return send(res, 409, { ok: false, error: 'an ask is already running — retry when idle' });
     }
+    // /reset intentionally leaves the sandbox empty. /ask bypasses graph intake,
+    // so restore the target before repoRoot becomes the provider process cwd.
+    // Existing sandboxes are preserved; attach targets are validation-only.
+    try {
+      ensureTarget(resolvedTarget);
+    } catch (e) {
+      return send(res, 500, { ok: false, error: `ask workspace initialization failed: ${e.message}` });
+    }
     askBusy = true;
 
     const threadKey = payload.thread != null && String(payload.thread).trim()
@@ -270,7 +284,7 @@ export async function startHttp({ graph, port = 8080, host = '0.0.0.0', token = 
 
   // Destructive housekeeping for the long-lived shared sandbox — the HTTP analogue
   // of the Telegram /reset. Reaps stray servers/containers a prior worker left
-  // bound, wipes .workspace (the next /goal re-seeds the stubs via intake), and
+  // bound, wipes .workspace (the next /goal or /ask lazily re-seeds the stubs), and
   // drops all /ask session continuity. Two guards keep it safe in the synchronous
   // model where the only run handle is the open request itself:
   //   - {"confirm":true} required — an accidental POST cannot wipe the tree;
@@ -301,7 +315,7 @@ export async function startHttp({ graph, port = 8080, host = '0.0.0.0', token = 
     }
     try {
       await reapAll(repoRoot); // kill servers/containers the worker left bound
-      resetTarget(resolvedTarget); // empty the sandbox workspace; next /goal intake re-seeds the stubs
+      resetTarget(resolvedTarget); // empty the sandbox; the next /goal or /ask lazily re-seeds the stubs
       askThreads.clear(); // drop every /ask session — fresh chats next time
       return send(res, 200, { ok: true, reset: true });
     } catch (e) {

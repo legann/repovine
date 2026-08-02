@@ -14,10 +14,12 @@ const sent = [];
 let gotFileDownload = false;
 const updateQueue = [
   [{ update_id: 1, message: { chat: { id: 1 }, from: { id: 1 }, text: '/reset' } }],
-  // In attach the confirmation flow must never arm: this "confirm" is plain text
-  // and must land on help, not a wipe. In sandbox it confirms the wipe.
   [{ update_id: 2, message: { chat: { id: 1 }, from: { id: 1 }, text: 'confirm' } }],
-  [{ update_id: 3, message: { chat: { id: 1 }, from: { id: 1 }, caption: '/task use the photo', photo: [{ file_id: 'F1' }] } }],
+  // Regression: /ask bypasses graph intake, but must still lazily re-seed the
+  // sandbox that /reset emptied. The unsupported provider makes the ask finish
+  // deterministically without launching or spending on a real model.
+  [{ update_id: 3, message: { chat: { id: 1 }, from: { id: 1 }, text: '/ask inspect the reset workspace' } }],
+  [{ update_id: 4, message: { chat: { id: 1 }, from: { id: 1 }, caption: '/task use the photo', photo: [{ file_id: 'F1' }] } }],
 ];
 
 const server = http.createServer((req, res) => {
@@ -55,7 +57,7 @@ server.listen(0, '127.0.0.1', async () => {
     graph,
     token: 'T',
     allowedIds: ['1'],
-    provider: 'claude',
+    provider: 'unsupported-test-provider',
     repoRoot,
     target: { mode, repoRoot },
   }).catch((e) => {
@@ -67,7 +69,7 @@ server.listen(0, '127.0.0.1', async () => {
   const settle = setInterval(() => {
     // Done when every scripted update produced its replies (photo task sends the
     // start announcement + the graph reply) or the deadline passes.
-    const complete = sent.length >= 4 && gotFileDownload;
+    const complete = sent.length >= 6 && gotFileDownload;
     if (!complete && Date.now() < deadline) return;
     clearInterval(settle);
     const attachmentsDir = path.join(repoRoot, '.harness', 'attachments', 'task');

@@ -49,12 +49,14 @@ test('attach live path: /reset arms the keyboard, confirm restores the baseline,
   const { repoRoot, out, cleanup } = runDriver('attach');
   try {
     assert.ok(out.sent.length >= 4, `expected 4 replies, got ${JSON.stringify(out.sent)}`);
-    const [resetReply, confirmReply, taskAnnounce] = out.sent;
+    const [resetReply, confirmReply, askWorking, askFailed, taskAnnounce] = out.sent;
     // Phase 2: attach arms the same confirmation flow as sandbox, with
     // baseline wording instead of the wipe warning.
     assert.equal(resetReply.hasKeyboard, true, 'attach arms the confirmation keyboard');
     assert.match(resetReply.text, /launch baseline/);
     assert.match(confirmReply.text, /restored to the launch baseline/);
+    assert.match(askWorking.text, /Working on your question/);
+    assert.match(askFailed.text, /unsupported LLM_PROVIDER/);
     assert.match(taskAnnounce.text, /attach mode \(worktree\)/, 'task announcement names attach, not sandbox');
 
     // The confirm actually restored the baseline through the real message path.
@@ -72,11 +74,14 @@ test('attach live path: /reset arms the keyboard, confirm restores the baseline,
 test('sandbox live path: /reset arms the keyboard and the confirm wipes the workspace', () => {
   const { out, cleanup } = runDriver('sandbox');
   try {
-    const [resetReply, confirmReply, taskAnnounce] = out.sent;
+    const [resetReply, confirmReply, askWorking, askFailed, taskAnnounce] = out.sent;
     assert.equal(resetReply.hasKeyboard, true, 'sandbox arms the confirmation keyboard');
     assert.match(confirmReply.text, /Reset done/);
+    assert.match(askWorking.text, /Working on your question/);
+    assert.match(askFailed.text, /unsupported LLM_PROVIDER/);
     assert.match(taskAnnounce.text, /sandbox mode/, 'sandbox announcement wording unchanged');
     assert.ok(!out.rootEntries.includes('keep.txt'), 'confirm actually wiped the workspace');
+    assert.ok(out.rootEntries.includes('repovine.config.json'), '/ask re-seeded the reset sandbox before provider launch');
   } finally {
     cleanup();
   }

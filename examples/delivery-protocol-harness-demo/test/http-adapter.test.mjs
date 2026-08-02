@@ -13,12 +13,12 @@ import { makeAttachWorkspace } from './fixtures/attach-workspace.mjs';
 
 const stubGraph = { invoke: async () => ({ mode: 'single', ok: true, result: { status: 'complete' } }) };
 
-async function withServer(token, fn) {
+async function withServer(token, fn, { provider = 'claude' } = {}) {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'http-'));
-  const server = await startHttp({ graph: stubGraph, port: 0, host: '127.0.0.1', token, provider: 'claude', repoRoot });
+  const server = await startHttp({ graph: stubGraph, port: 0, host: '127.0.0.1', token, provider, repoRoot });
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    await fn(base);
+    await fn(base, repoRoot);
   } finally {
     await new Promise((r) => server.close(r));
     fs.rmSync(repoRoot, { recursive: true, force: true });
@@ -169,4 +169,30 @@ test('sandbox: /status keeps resetAllowed true and sandbox target labeling', asy
     assert.equal(body.targetMode, 'sandbox');
     assert.equal(body.resetAllowed, true);
   });
+});
+
+test('sandbox: POST /ask lazily re-seeds the workspace emptied by POST /reset', async () => {
+  await withServer('', async (base, repoRoot) => {
+    fs.writeFileSync(path.join(repoRoot, 'keep.txt'), 'remove me\n');
+
+    const reset = await fetch(`${base}/reset`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{"confirm":true}',
+    });
+    assert.equal(reset.status, 200);
+    assert.deepEqual(fs.readdirSync(repoRoot), [], 'reset leaves the sandbox empty');
+
+    const ask = await fetch(`${base}/ask`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{"question":"inspect the reset workspace"}',
+    });
+    assert.equal(ask.status, 502, 'unsupported provider stops after workspace initialization');
+    assert.match((await ask.json()).error, /unsupported LLM_PROVIDER/);
+    assert.ok(fs.existsSync(path.join(repoRoot, 'repovine.config.json')));
+    assert.ok(fs.existsSync(path.join(repoRoot, 'repovine.annots.json')));
+    assert.ok(fs.existsSync(path.join(repoRoot, '.git')), '/ask restored a usable sandbox cwd');
+    assert.ok(!fs.existsSync(path.join(repoRoot, 'keep.txt')), 'initialization never restores reset user files');
+  }, { provider: 'unsupported-test-provider' });
 });

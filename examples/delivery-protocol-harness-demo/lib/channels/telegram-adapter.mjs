@@ -24,7 +24,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { invokeGraph } from '../graph/workflow.mjs';
-import { resetTarget, resolveTargetFromEnv, targetPolicy } from '../target-repo.mjs';
+import { ensureTarget, resetTarget, resolveTargetFromEnv, targetPolicy } from '../target-repo.mjs';
 import { reapAll } from '../sandbox-procs.mjs';
 import { isKnownRole, agentsMode, rolesFromMentions } from '../agents.mjs';
 import { runAsk, splitForTelegram } from '../ask.mjs';
@@ -374,6 +374,15 @@ export async function startTelegram({ graph, token, allowedIds, provider, repoRo
     if (activeAsks.has(chatId)) {
       return send(chatId, '⏳ Already answering — wait for the reply or ask again after it finishes.');
     }
+    // /reset intentionally leaves the sandbox empty. Unlike /goal, /ask bypasses
+    // graph intake, so it must lazily restore the target before using repoRoot as
+    // the Claude process cwd. ensureTarget is idempotent and non-destructive when
+    // the sandbox already exists; attach mode only re-validates its workspace.
+    try {
+      ensureTarget(resolvedTarget);
+    } catch (e) {
+      return send(chatId, `❌ Ask workspace initialization failed: ${e.message}`);
+    }
     // /ask is conversational: a NEW photo replaces the dialog's prior image; a text-only
     // turn keeps it so the agent can re-read it (the image also rides the resumed session
     // history). /new clears it. Only clear+download when this turn actually carries a photo.
@@ -465,7 +474,7 @@ export async function startTelegram({ graph, token, allowedIds, provider, repoRo
     await stopAndWait(chatId); // stop the worker BEFORE wiping the tree it writes to
     await stopAskAndWait(chatId);
     await reapAll(repoRoot); // kill any servers/containers the worker left bound
-    resetTarget(resolvedTarget); // empty .workspace contents; next graph intake re-seeds the stubs
+    resetTarget(resolvedTarget); // empty .workspace; the next /goal or /ask lazily re-seeds the stubs
     bumpThread(chatId); // fresh graph thread (clears turn counter)
     askSessions.delete(chatId);
     pendingReset.delete(chatId);
