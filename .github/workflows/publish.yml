@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      checks: read      # read the Tier-1 check-runs on the tagged commit (the green-gate step below)
       id-token: write   # mint the OIDC token npm exchanges for a publish credential
     steps:
       - uses: actions/checkout@v5
@@ -47,6 +48,12 @@ jobs:
           sdk_version="$(node -p 'require("./packages/plugin-sdk/package.json").version')"
           printf 'ROOT_VERSION=%s\n' "$root_version" >> "$GITHUB_ENV"
           printf 'SDK_VERSION=%s\n' "$sdk_version" >> "$GITHUB_ENV"
+
+      # server.json (the MCP registry manifest) repeats the version. A release must
+      # not ship a registry manifest that disagrees with the npm package, so fail
+      # closed here rather than register a mismatched version later.
+      - name: Verify server.json version is in lockstep
+        run: node scripts/sync-version.mjs --check
 
       - name: Verify tag matches package version
         if: github.event_name == 'push'

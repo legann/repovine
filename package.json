@@ -2,6 +2,7 @@
   "name": "repovine",
   "version": "0.1.0",
   "description": "repovine turns your repository into a structured, queryable context framework for AI coding agents.",
+  "mcpName": "io.github.legann/repovine",
   "type": "module",
   "packageManager": "npm@10.9.7",
   "workspaces": [
@@ -52,6 +53,8 @@
     "smoke:canary-plugins": "npm run build && node scripts/smoke-canary-plugins.mjs",
     "check:embedder": "npm run build && node scripts/check-embedder.mjs",
     "audit:check": "node scripts/audit-gate.mjs",
+    "sync:version": "node scripts/sync-version.mjs",
+    "sync:version:check": "node scripts/sync-version.mjs --check",
     "prepack": "npm run build",
     "prepublishOnly": "npm run typecheck && npm run lint && npm test",
     "cli": "node dist/mcp/index.js",

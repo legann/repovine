@@ -22,6 +22,15 @@ mitigation. We will acknowledge the report within three business days, provide
 an initial assessment within seven calendar days, and send status updates at
 least every seven calendar days until the report is resolved or closed.
 
+## Scope
+
+| In scope | Out of scope |
+| --- | --- |
+| repovine source in this repository | Compromise of the host running repovine (OS, shell, filesystem, credentials on the machine) |
+| The published `repovine` and `@repovine/plugin-sdk` npm packages | Coding agents and MCP clients that consume repovine |
+| Direct dependencies repovine pins and ships in its tarball | Transitive advisories repovine cannot reach or fix (see Known audit findings) |
+| The MCP tool surface served over stdio | Third-party plugins not maintained in this repository |
+
 ## Secrets and repository data
 
 The engine records environment-variable names, not their values, and

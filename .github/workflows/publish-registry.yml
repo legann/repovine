@@ -1,0 +1,50 @@
+name: Publish to MCP Registry
+
+# Registers repovine in the official MCP Registry as io.github.legann/repovine.
+#
+# Ordering: the registry proves ownership against the LIVE npm package (its
+# `mcpName` field), and repovine publishes through a staged flow where a version
+# goes live only after manual 2FA approval. `release: published` fires from the
+# `gh release create` step of the release runbook, which runs after that approval,
+# so the npm version is live by the time this job registers it. The live-check
+# guards manual (workflow_dispatch) re-runs.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish-registry:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC grants the io.github.<owner>/* namespace; no domain or token needed
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Read server.json version
+        run: echo "VERSION=$(node -p 'require("./server.json").version')" >> "$GITHUB_ENV"
+
+      # The registry reads `mcpName` from the live npm package. A staged-but-
+      # unapproved version 404s on the read path; refuse to register it rather
+      # than fail deeper inside mcp-publisher.
+      - name: Verify repovine is live on npm
+        run: |
+          if ! npm view "repovine@${VERSION}" version >/dev/null 2>&1; then
+            echo "::error::repovine@${VERSION} is not live on npm; approve the staged publish before registering"
+            exit 1
+          fi
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Login via GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish

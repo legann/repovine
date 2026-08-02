@@ -1,0 +1,34 @@
+# repovine
+
+> Repository context assembled and conveyed to coding agents. repovine normalizes a repository's source code and infrastructure into one deterministic, queryable graph, attaches version-controlled annotations for intent and risk, and serves both to agents over an MCP server (search, map, inspect, dependency, config, and flow tools).
+
+repovine is checkout-local: the graph and indexes are built from each checkout's working tree and run in memory; configuration and authored knowledge travel through Git. It ships as the npm package `repovine`, wired into a coding agent with `npx repovine setup claude|codex|cursor|all`. The links below point at repovine's own documentation.
+
+## Documentation
+
+- [README](https://github.com/legann/repovine/blob/main/README.md): the repository knowledge layer, MCP tool surface, install and setup.
+- [DESIGN](https://github.com/legann/repovine/blob/main/DESIGN.md): system boundaries, design rationale, core contracts, and trade-offs.
+- [AGENTS](https://github.com/legann/repovine/blob/main/AGENTS.md): quick reference for coding agents — when to call which MCP tool, the working loop, and artifacts.
+- [Docs index](https://github.com/legann/repovine/blob/main/docs/README.md): entry point to the reference documentation.
+
+## Reference
+
+- [Workspace files](https://github.com/legann/repovine/blob/main/docs/workspace-files.md): `repovine.config.json`, `repovine.annots.json`, `repovine.domains.json`, and the `.repovine/` cache.
+- [Context quality](https://github.com/legann/repovine/blob/main/docs/context-quality.md): Context Session Quality scoring of MCP responses, thresholds, and the return bar.
+- [Platform support](https://github.com/legann/repovine/blob/main/docs/platform-support.md): the per-surface cross-platform support contract and its CI evidence.
+- [Scripts](https://github.com/legann/repovine/blob/main/docs/scripts.md): repository maintenance and build scripts.
+
+## Plugin SDK
+
+- [Plugin authoring](https://github.com/legann/repovine/blob/main/docs/plugin-authoring.md): writing source and IaC plugins against `@repovine/plugin-sdk`.
+- [Plugin API compatibility](https://github.com/legann/repovine/blob/main/docs/plugin-api-compatibility.md): the SDK contract surface, preview status, and the condition for leaving preview.
+- [Plugin API report](https://github.com/legann/repovine/blob/main/docs/plugin-api-report.md): the generated reachable SDK API surface.
+
+## Delivery Protocol
+
+- [Delivery Protocol v1](https://github.com/legann/repovine/blob/main/docs/delivery-protocol.md): the harness-facing contract for verifiable agent runs — `AgentAssignment`, `AgentRunResult`, `AgentComplianceReport`, and the CLI integration surface.
+
+## Optional
+
+- [CONTRIBUTING](https://github.com/legann/repovine/blob/main/CONTRIBUTING.md): development setup, checks, and contribution flow.
+- [CHANGELOG](https://github.com/legann/repovine/blob/main/CHANGELOG.md): release notes.
