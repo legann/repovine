@@ -6,7 +6,7 @@
 // Keeping the contract identical across surfaces is the whole point of the seam.
 //
 // The brief itself is the SINGLE-SOURCE autonomous harness brief fetched from
-// `repovine agents run-brief` (authored once in the engine), not a copy kept
+// `repovine delivery run-brief` (authored once in the engine), not a copy kept
 // here. A tiny fallback keeps the demo runnable against an older CLI.
 import { harnessBrief } from '../repovine.mjs';
 import { logLine } from '../log.mjs';
@@ -56,7 +56,7 @@ const FALLBACK_BRIEF = [
   'emit exactly one ```json Delivery Protocol v1 AgentRunResult block.',
 ].join('\n');
 
-// Engine role names (repovine agents run-brief --role): main | explorer |
+// Engine role names (repovine delivery run-brief --role): main | explorer |
 // implementer | annotation-writer | architecture-auditor | code-reviewer.
 // A name outside that set resolves to no manifest, and the brief silently
 // degrades to FALLBACK_BRIEF — the sub-agent then runs without the honesty

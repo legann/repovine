@@ -170,7 +170,7 @@ Every list field is a flat array of strings. One \`testsRun\` entry is one strin
 
 ${OBSERVABLE_CLAIMS_VALIDATION}
 
-Field reference: \`repovine agents protocol --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
+Field reference: \`repovine delivery --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
@@ -197,7 +197,7 @@ In explicit protocol mode, ${OBSERVABLE_CLAIMS_VALIDATION}
 
 Annotation quality has three orthogonal axes, so the \`quality.score\` (0–10) means **completeness only — not correctness or trust**. repovine separately validates \`quality.consistency\` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-\`pure\` while the graph detects side effects) and, as an observable signal over \`annotationsWritten\`, **provenance**: an annotated code module counts as grounded when the SAME \`contextSessionId\` carries an \`inspect_node\`, \`map_context\`, or \`analyze_dependencies\` call that resolved to it (an \`export:\` of it counts; a \`pkg:\`/\`domain:\` does not), when you edited its file, or when you list it in \`graphNodesTouched\`. Those last two channels are your own report; \`write_annotation\` warns whenever the session anchored no call on the node. So inspect the node you annotate in the same session, and never fill a field you cannot back from \`inspect_node\` or source — an empty field beats a fabricated one.
 
-Schema and field reference: \`repovine agents protocol --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
+Schema and field reference: \`repovine delivery --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
@@ -218,7 +218,7 @@ Normal client conversations are not Delivery Protocol runs. Finish ordinary clie
 
 Only return a **Delivery Protocol v${PROTOCOL_VERSION} \`AgentRunResult\`** when a harness/CI provides an \`AgentAssignment\` or \`runId\`, a command asks for \`validate-result\` / \`compliance\`, or the user explicitly requests an \`AgentRunResult\`. For the \`${main.role}\` role, required fields are: ${required}.
 
-In explicit protocol mode, pass \`contextSessionId\` on repovine MCP calls, run \`refresh_context\` after file changes, and never hand-edit \`repovine.annots.json\`; use \`write_annotation\`, \`merge_annotations\`, and \`validate_annotations\` for annotation state. Schema and field reference: \`repovine agents protocol --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
+In explicit protocol mode, pass \`contextSessionId\` on repovine MCP calls, run \`refresh_context\` after file changes, and never hand-edit \`repovine.annots.json\`; use \`write_annotation\`, \`merge_annotations\`, and \`validate_annotations\` for annotation state. Schema and field reference: \`repovine delivery --schemas\`, or \`${DELIVERY_PROTOCOL_GUIDE_PATH}\` in the repovine source repository.`;
 }
 
 /**
@@ -229,7 +229,7 @@ In explicit protocol mode, pass \`contextSessionId\` on repovine MCP calls, run 
  * where there is no human-in-the-loop reviewer. Client assets (AGENTS.md, the
  * Cursor/Claude/Codex agent files, project-subagent scaffolds) stay human-review
  * toned — do NOT route this text into {@link renderClientProtocolGuidanceSection} or the
- * onboarding scaffolds. Harnesses fetch it via `repovine agents run-brief`
+ * onboarding scaffolds. Harnesses fetch it via `repovine delivery run-brief`
  * and overlay it on top of whatever (client-toned) role prose they loaded, so the
  * brief lives in exactly one place and the harness never hand-maintains a copy.
  *
@@ -291,5 +291,5 @@ Honesty rules. repovine re-checks the first four against the graph and the annot
 
 /** Context Session Quality guidance embedded in AGENTS.md. */
 export function renderContextQualityGuidance(): string {
-  return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine agents compliance\`. The score and its thresholds are advisory until the labelled-corpus return bar in \`docs/context-quality.md\` is met; evidence-backed annotation checks remain enforceable.`;
+  return `Context Session Quality scores repovine MCP responses, not agent prose. Pass \`contextSessionId\` on MCP calls and inspect with \`get_context_session_quality\`; harnesses recompute via \`repovine delivery compliance\`. The score and its thresholds are advisory until the labelled-corpus return bar in \`docs/context-quality.md\` is met; evidence-backed annotation checks remain enforceable.`;
 }

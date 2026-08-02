@@ -703,7 +703,7 @@ export interface ContextSessionBootstrapResult {
 
 /**
  * Client MCP processes start with a clean session store so stale files from prior
- * IDE runs do not affect scoring. Harness runs rely on `repovine agents compliance`
+ * IDE runs do not affect scoring. Harness runs rely on `repovine delivery compliance`
  * consume by default; set purgeSessionsOnMcpStart=true to also purge on harness MCP boot.
  */
 export function bootstrapContextSessionsOnMcpStart(

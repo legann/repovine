@@ -66,7 +66,7 @@ export function requiredFieldsRejected(report) {
 }
 
 /**
- * Compliance report for one attempt. `agents compliance` answers a schema failure
+ * Compliance report for one attempt. `delivery compliance` answers a schema failure
  * with `{schemaValid:false, schemaErrors}` and NO report — an undefined report
  * carries no retry notes, so the malformed result would be accepted as final and
  * the sub-agent would never learn its JSON was rejected. Synthesize a report so

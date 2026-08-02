@@ -93,7 +93,7 @@ describe('agent projection helpers', () => {
       expect(surface).not.toContain('node_modules/repovine/docs');
     }
     for (const surface of protocolSurfaces) {
-      expect(surface).toContain('repovine agents protocol --schemas');
+      expect(surface).toContain('repovine delivery --schemas');
       expect(surface).toContain('docs/delivery-protocol.md');
     }
     expect(contextSurface).toContain('docs/context-quality.md');

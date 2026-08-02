@@ -10,6 +10,7 @@ import { runDomainsAdvisorAfterBuild, type DomainsAdvisorCliResult } from '../cl
 import { runClear } from '../cli/clear.js';
 import { runBuild } from '../cli/build.js';
 import { runAgentsCli } from '../cli/agents.js';
+import { runDeliveryCli } from '../cli/delivery.js';
 import {
   runDoctorCli,
   runStatusCli,
@@ -31,7 +32,7 @@ const command = args[0];
  * "mutex lock failed") outlives that release, and the transformers 4.x floor
  * is what closes it (docs/platform-support.md). process.exit() also discards
  * queued pipe writes past the 64KB pipe buffer, truncating JSON payloads
- * mid-document (reproducible: `repovine agents protocol --schemas | wc -c` →
+ * mid-document (reproducible: `repovine delivery --schemas | wc -c` →
  * 65536), so both streams are flushed via an empty write whose callback fires
  * after the prior queue. */
 async function exitAfterFlush(code: number): Promise<never> {
@@ -177,6 +178,11 @@ if (command === 'doctor') {
   await exitAfterFlush(exitCode);
 }
 
+if (command === 'delivery') {
+  const exitCode = await runDeliveryCli(args.slice(1), { repoRoot, artifactsDir });
+  await exitAfterFlush(exitCode);
+}
+
 if (command === 'agents') {
   const exitCode = await runAgentsCli(args.slice(1), { repoRoot, artifactsDir });
   await exitAfterFlush(exitCode);
@@ -245,7 +251,8 @@ ${cli.bold('Usage:')}
   repovine status             Unified graph/config/annotation health snapshot
   repovine doctor             Diagnose MCP setup, cache, annotations, and client projections
   repovine clear              Preview and confirm removing generated setup
-  repovine agents <cmd>       Harness/CI Delivery Protocol CLI (repovine agents --help)
+  repovine delivery <cmd>     Harness/CI Delivery Protocol CLI (repovine delivery --help)
+  repovine agents <cmd>       Harness/CI agent utilities: roles, orient, session-quality (repovine agents --help)
 
 ${cli.bold('Setup clients:')}
   cursor    .cursor/ (mcp.json, rules, agents, hooks) + .agents/skills

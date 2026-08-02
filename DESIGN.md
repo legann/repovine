@@ -14,6 +14,49 @@ repository context for exploration, implementation, and review; preserves
 authored knowledge as versioned annotations; and, in explicit Delivery Protocol
 runs, validates structured claims against repository state.
 
+repovine models a repository as a set of cross-unit contract boundaries
+connected by deterministic structural relations. A boundary becomes a graph
+level when its meaning survives across languages and another repository unit
+addresses it as a contract. This yields the `root → package → module →
+export-symbol` code hierarchy, with templates and runtime resources as parallel
+contract surfaces. Domains form a logical navigation and scoping layer across
+the physical graph, grouping related nodes while the containment hierarchy
+retains repository structure. Below exported symbols, analysis enters
+implementation internals handled by source inspection, language tooling, and
+execution.
+
+This cut keeps the graph at the level of repository-wide architectural
+reasoning. It supports deterministic incremental extraction, durable identities
+for annotations, and bounded queries for navigation, impact, configuration, and
+runtime topology. The ontology is query-driven: a primitive belongs in core when
+it has a deterministic producer and changes the result of a supported query.
+
+Language- and format-specific extraction stays at the producer boundary. Source
+and IaC plugins emit validated facts; core assigns identity and owns ontology,
+linking, and query semantics. Core analysis heuristics also match file-naming
+conventions that no plugin capability declares. New producers expand extraction
+coverage while every tool continues to operate on one graph vocabulary.
+Extraction depth may vary, and unsupported facts remain absent.
+
+Derived facts and authored knowledge follow different trust models. The graph is
+rebuilt from repository state independently of annotations. Intent, invariants,
+risks, and operational constraints live in a separate versioned layer. repovine
+checks freshness and structural consistency from repository state and validates
+provenance at the write or run boundary; semantic correctness remains an agent
+and developer verification responsibility.
+
+Agent runs follow the same boundary. In an explicit Delivery Protocol run, the
+harness records task intent, acceptance criteria, scope, and optional evidence
+policy in an assignment before execution; the returned result contains
+structured claims that repovine re-checks only where repository state is
+observable. In client mode, MCP returns bounded results for explicit search and
+graph queries, and generated hooks provide a limited pre-edit path for
+boundary-scoped risks on file-owned nodes. Developers and harnesses retain
+execution policy, test execution, behavioral review, and final acceptance
+because those decisions require evidence beyond repository-observable state.
+
+The same model-agnostic engine supports interactive and autonomous development.
+
 ### Surfaces
 
 One product, three interfaces:
@@ -98,6 +141,10 @@ these trust decisions explicitly:
 | Annotations | Schema, freshness, consistency checks, provenance signals, rejection of obvious secret-shaped values. | Authored meaning and completeness remain claims to verify. |
 | MCP and client hooks | Bounded repository context and deterministic pre-edit boundary lookup. | The host client controls model execution, commands, file permissions, and user approval. |
 | Harness runs | Protocol schemas and validation against observable repository state. | Isolation, network policy, tests, retries, budgets, review, and acceptance belong to the harness. |
+
+Operational guidance follows the same boundary: keep tokens and customer data
+out of issues, fixtures, and annotations. repovine records environment-variable
+names, and `write_annotation` rejects obvious secret-shaped values.
 
 Installing and listing a plugin is therefore an execution trust decision by the
 repository owner. Fact validation prevents malformed output from corrupting the

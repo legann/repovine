@@ -13,9 +13,9 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLED_DIR = path.join(HERE, 'agents');
 
-// `manifest` is a built-in repovine manifest NAME (repovine agents manifests). It
-// drives two things: the required AgentRunResult fields `agents compliance` checks,
-// and the engine-authored brief the worker prepends (`agents run-brief --name`).
+// `manifest` is a built-in repovine manifest NAME (repovine delivery manifests). It
+// drives two things: the required AgentRunResult fields `delivery compliance` checks,
+// and the engine-authored brief the worker prepends (`delivery run-brief --name`).
 // A null or unknown name drops both: compliance falls back to the `summary`-only
 // required-field floor, and the prompt loses the honesty rules. The rest of
 // compliance (graph nodes, annotations, scope, review consistency) still runs.

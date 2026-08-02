@@ -2,7 +2,7 @@
  * Pre-run prompt material for harnesses: the generic protocol brief derived
  * from a built-in capability manifest.
  *
- * Backed by `repovine agents run-brief` (CLI only — not an MCP tool).
+ * Backed by `repovine delivery run-brief` (CLI only — not an MCP tool).
  */
 import type { AgentRole } from '../agents/protocol.js';
 import { getManifest, getManifestByRole } from '../agents/manifests.js';

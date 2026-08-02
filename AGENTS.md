@@ -11,7 +11,7 @@ If the MCP call fails with a connection error, the server is not running. Ask th
 
 If a tool returns `result.status:"building"`, call `get_build_status({ "waitSec": 45 })` once instead of polling. `stageEtaSec` estimates only the current stage; use `stage` and `remainingStages` to report progress. If the long-poll still returns building, continue with direct file reads only when the task can proceed without graph structure. To abandon a cold build, call `get_build_status({ "cancel": true })`; it stops Stage 1 workers and returns `cancelled` (no graph) or keeps a prior `ready` graph.
 
-Context Session Quality scores repovine MCP responses, not agent prose. Pass `contextSessionId` on MCP calls and inspect with `get_context_session_quality`; harnesses recompute via `repovine agents compliance`. The score and its thresholds are advisory until the labelled-corpus return bar in `docs/context-quality.md` is met; evidence-backed annotation checks remain enforceable.
+Context Session Quality scores repovine MCP responses, not agent prose. Pass `contextSessionId` on MCP calls and inspect with `get_context_session_quality`; harnesses recompute via `repovine delivery compliance`. The score and its thresholds are advisory until the labelled-corpus return bar in `docs/context-quality.md` is met; evidence-backed annotation checks remain enforceable.
 
 ## Working loop
 
@@ -63,5 +63,5 @@ Normal client conversations are not Delivery Protocol runs. Finish ordinary clie
 
 Only return a **Delivery Protocol v1 `AgentRunResult`** when a harness/CI provides an `AgentAssignment` or `runId`, a command asks for `validate-result` / `compliance`, or the user explicitly requests an `AgentRunResult`. For the `main` role, required fields are: `summary`, `scope`, `compliance`.
 
-In explicit protocol mode, pass `contextSessionId` on repovine MCP calls, run `refresh_context` after file changes, and never hand-edit `repovine.annots.json`; use `write_annotation`, `merge_annotations`, and `validate_annotations` for annotation state. Schema and field reference: `repovine agents protocol --schemas`, or `docs/delivery-protocol.md` in the repovine source repository.
+In explicit protocol mode, pass `contextSessionId` on repovine MCP calls, run `refresh_context` after file changes, and never hand-edit `repovine.annots.json`; use `write_annotation`, `merge_annotations`, and `validate_annotations` for annotation state. Schema and field reference: `repovine delivery --schemas`, or `docs/delivery-protocol.md` in the repovine source repository.
 <!-- repovine:agents-md:end -->

@@ -568,18 +568,17 @@ export const SCHEMA_IDS = {
 /** Delivery Protocol is CLI-only for harness/integration; worker MCP exposes context tools only. */
 export const DELIVERY_PROTOCOL_MCP_TOOLS = [] as const;
 
-/** CLI commands for harness/integration (`repovine agents <cmd>`). */
+/** CLI commands for harness/integration (`repovine delivery <cmd>`). Bare `delivery`
+ *  prints this descriptor. General agent utilities (roles, orient, session-quality)
+ *  live under `repovine agents` and are not part of the protocol. */
 export const DELIVERY_PROTOCOL_CLI_COMMANDS = [
-  'agents protocol',
-  'agents manifests',
-  'agents validate-assignment',
-  'agents validate-result',
-  'agents validate-review-input',
-  'agents compliance',
-  'agents session-quality',
-  'agents run-brief',
-  'agents roles',
-  'agents orient',
+  'delivery',
+  'delivery manifests',
+  'delivery run-brief',
+  'delivery validate-assignment',
+  'delivery validate-result',
+  'delivery validate-review-input',
+  'delivery compliance',
 ] as const;
 
 /** Build the DeliveryProtocol descriptor object. */

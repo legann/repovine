@@ -79,7 +79,7 @@ mechanical consistency checks, not evidence that the score predicts outcomes.
    ```
 
 5. For Delivery Protocol gating, add `assignment.contextSession.required=true` and
-   return `result.contextSessionId`. `repovine agents compliance` recomputes the
+   return `result.contextSessionId`. `repovine delivery compliance` recomputes the
    report from the stored session and **consumes** it after a passing decision —
    a report with compliance errors retains the session for retry (harness path).
    Interactive IDE sessions rely on MCP-start purge plus optional manual
@@ -95,7 +95,7 @@ Persisted files: `.repovine/.cache/sessions/<sessionId>.json`. There is no TTL.
 | Trigger | Who | When |
 |---|---|---|
 | **MCP process start (client default)** | MCP server on boot | `purgeSessionsOnMcpStart=true` (default when `enforcement.mode=client`) deletes all session files before serving tools — automatic, not an MCP tool call. |
-| **Harness compliance** | `repovine agents compliance` | Recomputes the report and emits warnings/follow-ups. An accepted report is consumed after the remaining compliance checks pass; a rejected advisory report is retained for review. Default for `enforcement.mode=harness`: no startup purge. |
+| **Harness compliance** | `repovine delivery compliance` | Recomputes the report and emits warnings/follow-ups. An accepted report is consumed after the remaining compliance checks pass; a rejected advisory report is retained for review. Default for `enforcement.mode=harness`: no startup purge. |
 | **Manual** | Agent or harness | `get_context_session_quality({ consume: true })` or `repovine agents session-quality … --consume`. |
 
 Config knobs: `contextQuality.purgeSessionsOnMcpStart`, `contextQuality.retainSessions`,

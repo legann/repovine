@@ -200,6 +200,6 @@ describe the old engine.
 - **MCP stdio**: stdout = JSON-RPC only; build progress on stderr or silent.
 - **Interactive commands** (`status`, `doctor`, `setup`, `clear`, `build` summary): readable text on stdout.
 - **JSON flags** (`doctor --json`, `status --json`): machine output on stdout. `doctor --help` lists `--json`; `status --json` is accepted but omitted from `status --help` so the default remains concise prose.
-- **Harness / CI commands** (`repovine agents validate-*`, `repovine agents compliance`, `repovine agents protocol`, `repovine agents session-quality`): JSON on stdout for file-in/file-out; progress on stderr.
+- **Harness / CI commands** (`repovine delivery validate-*`, `repovine delivery compliance`, `repovine delivery` descriptor, `repovine agents session-quality`): JSON on stdout for file-in/file-out; progress on stderr.
 
 ANSI colors follow TTY / `NO_COLOR` / `FORCE_COLOR`; pipes and CI get plain text.

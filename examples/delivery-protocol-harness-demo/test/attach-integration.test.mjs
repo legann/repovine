@@ -62,11 +62,11 @@ test('attach over a real worktree: startup preserves the repovine workspace byte
 });
 
 test('root pinning is pure command construction: CLI and MCP both carry REPOVINE_ROOT + cwd = /workspace', () => {
-  const cli = buildCliCommand(['agents', 'compliance', 'result.json'], { repoRoot: '/workspace' });
+  const cli = buildCliCommand(['delivery', 'compliance', 'result.json'], { repoRoot: '/workspace' });
   assert.equal(cli.cwd, '/workspace');
   assert.equal(cli.env.REPOVINE_ROOT, '/workspace');
   assert.equal(cli.command, 'node');
-  assert.ok(cli.args.includes('agents'));
+  assert.ok(cli.args.includes('delivery'));
 
   const mcp = buildRepovineMcpStdio('/workspace', 'ctx-session-1');
   assert.equal(mcp.env.REPOVINE_ROOT, '/workspace');

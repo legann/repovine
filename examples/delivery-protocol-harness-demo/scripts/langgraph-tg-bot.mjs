@@ -75,7 +75,7 @@ if (!getProtocol(repoRoot)) {
     'telegram',
     cliMissing
       ? `repovine CLI not found at ${REPOVINE_CLI}.\nRebuild the image after:  (cd repovine && npm run build)`
-      : `repovine CLI failed at ${REPOVINE_CLI} (agents protocol).\nRebuild: docker compose build --no-cache`,
+      : `repovine CLI failed at ${REPOVINE_CLI} (delivery).\nRebuild: docker compose build --no-cache`,
   );
   process.exit(1);
 }

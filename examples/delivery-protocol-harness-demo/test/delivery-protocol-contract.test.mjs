@@ -2,11 +2,11 @@
 // accepts, proven by spawning the real `agents` CLI — not by asserting demo internals.
 //
 // This closes the "green ≠ working" gap the S3/S4 schema reshape opened: the rest of
-// the demo suite spawns only `agents(['manifests'])` (no graph, no assignment schema),
+// the demo suite spawns only `delivery(['manifests'])` (no graph, no assignment schema),
 // so a `buildAssignment` that drifted from AgentAssignmentSchema (missing role/version,
 // string criteria) stayed green while the real dispatch would reject it before any
-// worker ran. Here `buildAssignment` output goes through `agents validate-assignment`,
-// and a full AgentRunResult through `agents compliance`, in a clean target repo.
+// worker ran. Here `buildAssignment` output goes through `delivery validate-assignment`,
+// and a full AgentRunResult through `delivery compliance`, in a clean target repo.
 //
 // Requires the built CLI (`npm run build` at the repovine root); lib/repovine.mjs
 // resolves dist/mcp/index.js by walking up from this package.
@@ -119,7 +119,7 @@ function writeJson(root, name, value) {
   return file;
 }
 
-test('§17.1 contract: buildAssignment output passes `agents validate-assignment`', () => {
+test('§17.1 contract: buildAssignment output passes `delivery validate-assignment`', () => {
   const root = makeTargetRepo();
   try {
     const assignment = buildAssignment(sampleTask);
@@ -170,7 +170,7 @@ test('§17.1 contract: the OLD assignment shape (no role/version) is rejected by
   }
 });
 
-test('§17.1 contract: a well-formed delivery result passes `agents compliance`', () => {
+test('§17.1 contract: a well-formed delivery result passes `delivery compliance`', () => {
   const root = makeTargetRepo();
   try {
     const assignment = buildAssignment(sampleTask);

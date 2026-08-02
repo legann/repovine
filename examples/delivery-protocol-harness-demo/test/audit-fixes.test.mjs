@@ -114,7 +114,7 @@ test('normalizeResult: does not invent absent optional artifacts', () => {
 test('normalizeResult: subAgents a malformed code-reviewer review present for schema rejection', () => {
   const asg = { runId: 'r1', task: 'x', scope: ['.'], contextSession: { phase: 'explore' } };
   const out = normalizeResult({ status: 'complete', summary: 's', review: 'not an object' }, asg, { briefName: 'repovine-code-reviewer' });
-  // A code-reviewer's malformed review is preserved verbatim so `agents validate-result` rejects
+  // A code-reviewer's malformed review is preserved verbatim so `delivery validate-result` rejects
   // it, instead of vanishing here.
   assert.equal(out.review, 'not an object');
 });
@@ -129,7 +129,7 @@ test('normalizeResult: preserves deliveryVerification on a read-only (explore) v
     verdict: { intentVerified: true, deliveryAccepted: true },
   };
   // briefName null: the verify claim-checker carries no manifest, yet its deliveryVerification
-  // must survive to `agents compliance` — otherwise the core cannot cross-check the intentVerified claim.
+  // must survive to `delivery compliance` — otherwise the core cannot cross-check the intentVerified claim.
   const out = normalizeResult({ status: 'complete', summary: 's', deliveryVerification, filesChanged: ['pkg/src/a.ts'] }, asg, { briefName: null });
   assert.deepEqual(out.deliveryVerification, deliveryVerification, 'a verifier deliveryVerification must reach compliance intact');
   assert.deepEqual(out.filesChanged, [], 'read-only run still forces zero filesChanged, so DELIVERY_NOT_READONLY cannot fire');

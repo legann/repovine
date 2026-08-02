@@ -3,7 +3,7 @@
 // Provider worker for the LangGraph harness. It launches repovine as an MCP
 // server scoped to repoRoot, lets Claude gather context + edit files, then asks
 // it to emit a protocol AgentRunResult. The graph still runs that result through
-// `agents compliance`, so the model is never trusted blindly.
+// `delivery compliance`, so the model is never trusted blindly.
 //
 // Requires:  npm install   (inside this demo dir; adds @anthropic-ai/claude-agent-sdk)
 // Auth — pick ONE (in .env or export):
@@ -34,7 +34,7 @@ const RUN_STATUSES = ['complete', 'partial', 'blocked', 'failed'];
 export const supportsResume = true;
 
 // The implementer brief is the SINGLE-SOURCE autonomous harness brief, fetched
-// from `repovine agents run-brief` (authored once in the engine). We do not
+// from `repovine delivery run-brief` (authored once in the engine). We do not
 // hand-maintain a copy here. A tiny fallback keeps the demo runnable if an older
 // CLI lacks the command.
 function systemAppend(repoRoot, assignment, briefName) {
@@ -121,7 +121,7 @@ export function toContractStrings(v) {
 // Schema-supported optional AgentRunResult artifacts. The normalizer preserves
 // them RAW when the model returned one: it never invents an absent artifact and
 // never coerces a malformed shape into a valid-looking object. A malformed optional
-// artifact must survive to `agents validate-result` rejection, not silently vanish
+// artifact must survive to `delivery validate-result` rejection, not silently vanish
 // here. contextSessionId is handled separately (harness-forced linkage).
 const OPTIONAL_ARTIFACT_KEYS = ['contextQuality', 'contextPack', 'architectureAudit', 'review', 'deliveryVerification', 'internalTrace'];
 

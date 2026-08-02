@@ -746,7 +746,7 @@ Full design rationale: [`langgraph-orchestrator-design.md`](langgraph-orchestrat
 | `scripts/attach-launcher.mjs` | Attach host launcher (`npm run attach`): fail-closed preflight, launch state layout + disposable baseline repo, compose invocation |
 | `lib/graph/` | LangGraph state, nodes, workflow, planner, multi-agent sub-agents |
 | `lib/assignment.mjs` | Goal → `AgentAssignment` (Delivery Protocol v1) |
-| `lib/repovine.mjs` | Single repovine CLI wrapper (agents protocol, validate-*, compliance, run-brief; `repovine build` / `refreshGraph`) |
+| `lib/repovine.mjs` | Single repovine CLI wrapper (delivery: descriptor, validate-*, compliance, run-brief; agents: roles/orient; `repovine build` / `refreshGraph`) |
 | `lib/runtime-check.mjs` | Orchestrator dependency install + build/test (`runtime_check`) in the product sandbox |
 | `lib/agents/` | Demo role prose briefs (source of truth — edit to customize sub-agents) |
 | `lib/agents.mjs` | Role loader (`loadRolePrompt`, `resolveRole`, `AGENTS` mode) |

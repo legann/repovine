@@ -275,7 +275,7 @@ export async function runSubAgent({
         capture,
         signal,
         modelRole: spec.modelRole || subAgentModelRole(spec.role),
-        // The manifest selects the engine-authored brief (`agents run-brief --name`), so
+        // The manifest selects the engine-authored brief (`delivery run-brief --name`), so
         // each sub-agent is briefed for the role it is validated against.
         briefName: spec.manifest,
         ...(resume ? { resume } : {}),

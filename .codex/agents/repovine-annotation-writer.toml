@@ -137,5 +137,5 @@ In explicit protocol mode, repovine validates observable claims: declared graph 
 
 Annotation quality has three orthogonal axes, so the `quality.score` (0–10) means **completeness only — not correctness or trust**. repovine separately validates `quality.consistency` (filled fields must not contradict graph facts — e.g. keyExports/env names that do not exist, or declared-`pure` while the graph detects side effects) and, as an observable signal over `annotationsWritten`, **provenance**: an annotated code module counts as grounded when the SAME `contextSessionId` carries an `inspect_node`, `map_context`, or `analyze_dependencies` call that resolved to it (an `export:` of it counts; a `pkg:`/`domain:` does not), when you edited its file, or when you list it in `graphNodesTouched`. Those last two channels are your own report; `write_annotation` warns whenever the session anchored no call on the node. So inspect the node you annotate in the same session, and never fill a field you cannot back from `inspect_node` or source — an empty field beats a fabricated one.
 
-Schema and field reference: `repovine agents protocol --schemas`, or `docs/delivery-protocol.md` in the repovine source repository.
+Schema and field reference: `repovine delivery --schemas`, or `docs/delivery-protocol.md` in the repovine source repository.
 '''

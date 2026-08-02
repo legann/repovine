@@ -56,7 +56,7 @@ RUN mkdir -p .workspace
 ENV REPOVINE_CLI=/app/repovine/dist/mcp/index.js
 
 # Smoke check: the CLI must actually answer (catches a broken build / runtime dep).
-RUN node /app/repovine/dist/mcp/index.js agents protocol >/dev/null \
+RUN node /app/repovine/dist/mcp/index.js delivery >/dev/null \
   || (echo "repovine CLI smoke check failed — rebuild image" >&2 && exit 1)
 
 # Drop privileges: run as the base image's unprivileged `node` user. The worker

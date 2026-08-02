@@ -11,7 +11,7 @@ import {
   shouldDeferImplementAnnotationRetry,
 } from '../lib/graph/retry.mjs';
 import { knownRoles, manifestForRole } from '../lib/agents.mjs';
-import { agents, harnessBrief } from '../lib/repovine.mjs';
+import { delivery, harnessBrief } from '../lib/repovine.mjs';
 import { resolveHarnessBrief } from '../lib/workers/prompt.mjs';
 
 test('stripPriorRunBlock keeps user typing task', () => {
@@ -68,7 +68,7 @@ test('shouldDeferImplementAnnotationRetry skips sync-only retry after code deliv
 // 4-line stub, and the orient + review sub-agents ran without the honesty rules or the
 // result-block contract. A name that resolves to nothing must fail here, not in a run.
 test('every ROLES manifest name resolves to a built-in engine manifest', () => {
-  const listed = agents(['manifests'], { repoRoot: process.cwd() });
+  const listed = delivery(['manifests'], { repoRoot: process.cwd() });
   const manifests = listed.json?.manifests ?? listed.json ?? [];
   assert.ok(Array.isArray(manifests) && manifests.length > 0, 'engine listed no manifests');
   const names = new Set(manifests.map((m) => m.name));

@@ -1,13 +1,14 @@
-// Thin wrapper around the built `repovine agents <cmd>` CLI.
+// Thin wrapper around the built `repovine delivery <cmd>` and `repovine agents <cmd>` CLIs.
 //
 // This is the ONLY contact surface with repovine: file-in / JSON-out, exactly
 // the way test/integration/delivery-protocol-cli-blackbox.test.ts drives it via
-//   spawnSync('node', [dist/mcp/index.js, 'agents', ...])
+//   spawnSync('node', [dist/mcp/index.js, 'delivery', ...]) / [..., 'agents', ...]
 //
 // repovine is the contract + validation layer. It never runs the agent; the
-// harness (this demo) does. So every call here is either:
-//   - discovery  (protocol / manifests / run-brief), or
+// harness (this demo) does. Delivery Protocol I/O lives under `delivery`:
+//   - discovery  (descriptor / manifests / run-brief), or
 //   - validation (validate-assignment / validate-result / compliance).
+// General agent utilities (roles / orient / session-quality) live under `agents`.
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -42,9 +43,9 @@ export function buildCliCommand(cliArgs, { repoRoot } = {}) {
   };
 }
 
-/** Run `repovine agents <args>` against `repoRoot` and parse stdout JSON. */
-export function agents(args, { repoRoot } = {}) {
-  const cmd = buildCliCommand(['agents', ...args], { repoRoot });
+/** Run `repovine <namespace> <args>` against `repoRoot` and parse stdout JSON. */
+function runCli(namespace, args, { repoRoot } = {}) {
+  const cmd = buildCliCommand([namespace, ...args], { repoRoot });
   const res = spawnSync(cmd.command, cmd.args, {
     cwd: cmd.cwd,
     env: cmd.env,
@@ -58,6 +59,16 @@ export function agents(args, { repoRoot } = {}) {
     json = undefined;
   }
   return { status: res.status, stdout: res.stdout, stderr: res.stderr, json };
+}
+
+/** Run `repovine agents <args>` (roles / orient / session-quality). */
+export function agents(args, { repoRoot } = {}) {
+  return runCli('agents', args, { repoRoot });
+}
+
+/** Run `repovine delivery <args>` (Delivery Protocol I/O: descriptor, manifests, run-brief, validate-*, compliance). */
+export function delivery(args, { repoRoot } = {}) {
+  return runCli('delivery', args, { repoRoot });
 }
 
 /**
@@ -104,7 +115,7 @@ export function annotationHealth(repoRoot) {
 }
 
 /**
- * Pre-run prompt material from repovine (`repovine agents run-brief`): role brief +
+ * Pre-run prompt material from repovine (`repovine delivery run-brief`): role brief +
  * inter-subAgent handoff policy. Cached per process (repo-independent for brief/spec).
  */
 const _runBriefCache = new Map();
@@ -114,7 +125,7 @@ export function runBrief(repoRoot, { role, name } = {}) {
   const args = ['run-brief'];
   if (name) args.push('--name', name);
   else if (role) args.push('--role', role);
-  const res = agents(args, { repoRoot });
+  const res = delivery(args, { repoRoot });
   if (res.json?.error) return undefined;
   _runBriefCache.set(key, res.json);
   return res.json;
@@ -145,21 +156,22 @@ export function orientQuery(repoRoot, query, { scope } = {}) {
 
 // ── Discovery ──────────────────────────────────────────────────────────────
 // Discovery may still touch repovine workspace/cache state, so callers pass the
-// sandbox repoRoot just like validation/compliance calls.
-export const getProtocol = (repoRoot) => agents(['protocol'], { repoRoot }).json;
+// sandbox repoRoot just like validation/compliance calls. Bare `delivery` prints
+// the Delivery Protocol descriptor.
+export const getProtocol = (repoRoot) => delivery([], { repoRoot }).json;
 export const getManifests = (role, repoRoot) =>
-  agents(role ? ['manifests', '--role', role] : ['manifests'], { repoRoot }).json;
+  delivery(role ? ['manifests', '--role', role] : ['manifests'], { repoRoot }).json;
 
 // ── Validation ─────────────────────────────────────────────────────────────
 export function validateAssignment(file, repoRoot) {
-  return agents(['validate-assignment', file], { repoRoot });
+  return delivery(['validate-assignment', file], { repoRoot });
 }
 
 export function validateResult(file, { repoRoot } = {}) {
   // `validate-result` is schema-only: it takes just the result file and ignores
   // --assignment/--manifest (those belong to `compliance`). Callers may still pass
   // them; they are destructured away here rather than sent as no-op flags.
-  const res = agents(['validate-result', file], { repoRoot });
+  const res = delivery(['validate-result', file], { repoRoot });
   // CLI returns `valid`; graph nodes read `schemaValid`.
   if (res.json) res.json.schemaValid = res.json.schemaValid ?? res.json.valid ?? false;
   return res;
@@ -175,7 +187,7 @@ export function compliance(file, { assignment, manifest, repoRoot, greenfieldRun
     // see it from a single subAgent's on-disk snapshot.
     ...(greenfieldRun ? ['--greenfield-run'] : []),
   ];
-  return agents(['compliance', file, ...flags], { repoRoot });
+  return delivery(['compliance', file, ...flags], { repoRoot });
 }
 
 /** Context session quality report for a worker's contextSessionId (MCP call ledger). */

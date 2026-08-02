@@ -22,6 +22,26 @@ packaged or canonical harness. It is not part of the `repovine` npm package and
 may change with the protocol. Deterministic CLI contract coverage lives in the
 [Delivery Protocol blackbox test](../../test/integration/delivery-protocol-cli-blackbox.test.ts).
 
+## End-to-end flow
+
+The CLI, HTTP, and Telegram channels invoke the same LangGraph workflow. It plans
+the work, runs role agents with repovine MCP, validates protocol results, applies
+the demo's retry and runtime-check policy, and composes a reply.
+
+```mermaid
+graph LR
+  TG["Telegram bot"] --> I["intake"]
+  CLI["CLI"] --> I
+  HTTP["HTTP"] --> I
+  I --> P["plan + assignments"]
+  P --> A["role agents"]
+  A <-->|"repository context"| MCP["repovine MCP"]
+  A --> C["protocol validation + compliance"]
+  C -->|"actionable retry"| A
+  C --> RC["runtime check"]
+  RC --> R["reply"]
+```
+
 ## What this demonstrates
 
 1. **The protocol is the contract, not the framework.** The canonical schemas and

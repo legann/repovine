@@ -227,7 +227,7 @@ export const BUILTIN_AGENT_DEFS: BuiltinAgentDef[] = [
   CODE_REVIEWER_DEF,
 ];
 
-/** Public manifests only (what `repovine agents manifests` and projections expose). */
+/** Public manifests only (what `repovine delivery manifests` and projections expose). */
 export const BUILTIN_MANIFESTS: AgentManifest[] = BUILTIN_AGENT_DEFS.map(d => d.manifest);
 
 const defsByName = new Map(BUILTIN_AGENT_DEFS.map(d => [d.manifest.name, d]));

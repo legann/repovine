@@ -92,21 +92,21 @@ subagent coordination behind the aggregated `AgentRunResult`.
 Fetch the canonical JSON Schema for every object:
 
 ```bash
-repovine agents protocol --schemas
+repovine delivery --schemas
 ```
 
 ## Integration steps
 
 1. **Read the protocol and manifests.**
-   `repovine agents protocol` / `repovine agents manifests` (CLI).
+   `repovine delivery` (descriptor) / `repovine delivery manifests` (CLI).
 2. **Build an `AgentAssignment`** for the chosen role. Validate it with
-   `repovine agents validate-assignment` before dispatch.
+   `repovine delivery validate-assignment` before dispatch.
 3. **Run the chosen main agent or harness flow.** repovine does not execute it.
 4. **Collect the aggregated `AgentRunResult`.** Explicit protocol assignments
    instruct the agent to emit it as a structured block (see "Projections").
 5. **Validate the result and compliance.**
-   `repovine agents compliance` (schema + compliance gate).
-   `repovine agents validate-result` is a schema-only structural check; it never
+   `repovine delivery compliance` (schema + compliance gate).
+   `repovine delivery validate-result` is a schema-only structural check; it never
    builds a graph or runs compliance.
 6. **Use `missingFields`, `warnings`, and `requiredFollowups`** before accepting
    the run. `report.valid: true` means that no hard repovine compliance check
@@ -115,7 +115,7 @@ repovine agents protocol --schemas
 
 The repository test suite keeps this flow executable without treating a packaged
 or canonical harness as the contract: `test/integration/delivery-protocol-cli-blackbox.test.ts`
-builds repovine and drives `node dist/mcp/index.js agents ...` against the
+builds repovine and drives `node dist/mcp/index.js delivery ...` against the
 harness fixtures in `test/fixtures/delivery-protocol-harness/`.
 
 ## MCP surface (worker)
@@ -124,19 +124,27 @@ Worker MCP exposes **context tools only** (search/map/inspect, annotations,
 `refresh_context`, `get_context_session_quality`, `get_build_status`, …).
 Delivery Protocol validation is **not** on `tools/list` — harnesses use the CLI
 below. During a run, pass `contextSessionId` on repovine MCP calls; inspect quality
-with `get_context_session_quality` or let `repovine agents compliance` recompute it.
+with `get_context_session_quality` or let `repovine delivery compliance` recompute it.
 
 ## Protocol CLI surface
 
+Delivery Protocol I/O lives under `repovine delivery`; bare `delivery` prints the descriptor.
+
 ```bash
-repovine agents protocol [--schemas]
-repovine agents manifests [--role <role>] [--name <name>]
-repovine agents run-brief [--role <role>] [--name <name>]
+repovine delivery [--schemas]
+repovine delivery manifests [--role <role>] [--name <name>]
+repovine delivery run-brief [--role <role>] [--name <name>]
+repovine delivery validate-assignment assignment.json
+repovine delivery validate-result result.json
+repovine delivery validate-review-input review-input.json
+repovine delivery compliance result.json [--assignment a.json] [--manifest <name>] [--greenfield-run]
+```
+
+General agent utilities live under `repovine agents`:
+
+```bash
 repovine agents roles [--at <tree-ish>]
-repovine agents validate-assignment assignment.json
-repovine agents validate-result result.json
-repovine agents validate-review-input review-input.json
-repovine agents compliance result.json [--assignment a.json] [--manifest <name>] [--greenfield-run]
+repovine agents orient --query "<task text>" [--scope <pkg>]
 repovine agents session-quality <sessionId> [--phase explore|implement|annotate] [--mode harness|client] [--threshold n] [--warning-threshold n] [--min-anchors n] [--byte-budget n] [--max-recovery-attempts n] [--events] [--consume] [--retain]
 ```
 
@@ -410,7 +418,7 @@ when `schemaValid === true`, `assignmentSchemaValid !== false`, and
 Validate:
 
 ```bash
-repovine agents compliance result.json --assignment assignment.json
+repovine delivery compliance result.json --assignment assignment.json
 ```
 
 A clean run returns an `AgentComplianceReport` with `valid: true` and an empty
@@ -474,7 +482,7 @@ implementation assignment
 assignment is a separate dispatch envelope with its own `runId`. `implementationResult`
 is the implementation aggregate under review.
 
-`repovine agents validate-review-input` enforces schema plus linkage:
+`repovine delivery validate-review-input` enforces schema plus linkage:
 
 | Check | Rule |
 |---|---|

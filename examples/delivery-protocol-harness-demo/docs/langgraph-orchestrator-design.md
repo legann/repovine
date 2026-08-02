@@ -109,12 +109,12 @@ Reuse [`lib/repovine.mjs`](../lib/repovine.mjs) — file-in / JSON-out, `REPOVIN
 | Graph node | CLI / action |
 |------------|----------------|
 | `build_assignment` | [`buildAssignment`](../lib/assignment.mjs) + write `.harness/<id>.assignment.json` |
-| `validate_assignment` | `agents validate-assignment <file>` |
+| `validate_assignment` | `delivery validate-assignment <file>` |
 | `run_sub_agent` | `runAgent(…)` → **provider adapter** (`claude` \| `local`) |
-| `validate_result` | `agents validate-result <file>` |
-| `compliance` | `agents compliance <file> --assignment … [--greenfield-run]` (the flag marks a run that started with no annotated context) |
+| `validate_result` | `delivery validate-result <file>` |
+| `compliance` | `delivery compliance <file> --assignment … [--greenfield-run]` (the flag marks a run that started with no annotated context) |
 | multi-agent barriers | `refreshGraph` → `repovine build` (`--cleanup-orphans` on join) |
-| worker prompts | `harnessBrief` / `runBrief` → `agents run-brief` |
+| worker prompts | `harnessBrief` / `runBrief` → `delivery run-brief` |
 | `format_reply` | Map `AgentComplianceReport` → Telegram markdown (reuse `verdictText` from bot) |
 
 Free-form chat goals: pass `manifest: null` to skip implementer-only field nagging (same as Telegram today).
@@ -733,12 +733,12 @@ two kinds of clauses, consumed at two levels:
 |---|---|---|
 | **Judgment** (needs a model) | "delegate to `project-subagent-sample` unless named"; which roles a goal needs | **LLM nodes** — `plan` + each sub-agent read the projected prose, exactly like an IDE main agent and its sub-agents |
 | **Invariant** (deterministic) | "parallel execution is greenfield-only"; "sub-agents never call each other"; "`refresh_context` between dependent phases"; "handoffs must include scope/criteria/contracts/…" | **graph code** — topology + guards; never left to an LLM to honor |
-| **Role data** (structured) | required result fields per role | **`repovine agents manifests`** (CLI) — drives the `compliance` manifest per sub-agent |
+| **Role data** (structured) | required result fields per role | **`repovine delivery manifests`** (CLI) — drives the `compliance` manifest per sub-agent |
 
 ```text
         repovine projection (single source of truth)
         ├── prose      → bundled lib/agents briefs + .claude assets → read by LLM (plan node + sub-agents)
-        └── manifests  → repovine agents manifests / protocol (CLI) → read by CODE (topology, compliance manifest)
+        └── manifests  → repovine delivery manifests / delivery descriptor (CLI) → read by CODE (topology, compliance manifest)
 ```
 
 Do **not** expect graph code to "read the prose and behave" — code reads manifest

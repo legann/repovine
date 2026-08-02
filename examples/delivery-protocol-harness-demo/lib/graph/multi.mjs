@@ -747,7 +747,7 @@ async function runPostReviewAnnotationSync({ task, repoRoot, provider, subAgents
     const spec = {
       ...resolveRole(subAgent.role, repoRoot, {
         scope,
-        // Built-in manifest NAME (repovine agents manifests) — it requires annotationsWritten,
+        // Built-in manifest NAME (repovine delivery manifests) — it requires annotationsWritten,
         // so a sync subAgent that writes nothing is rejected instead of passing quietly.
         manifest: 'repovine-annotation-writer',
         task: annotationSyncTask(subAgent, scope, criteria),

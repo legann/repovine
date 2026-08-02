@@ -144,8 +144,8 @@ describe('delivery protocol CLI black-box harness surface', () => {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   });
 
-  it('validates the full harness contract through node dist/mcp/index.js agents ...', () => {
-    const protocol = run(['agents', 'protocol', '--schemas'], repoRoot);
+  it('validates the full harness contract through node dist/mcp/index.js delivery ...', () => {
+    const protocol = run(['delivery', '--schemas'], repoRoot);
     expectExit0(protocol);
     // A missing json means stdout was not one complete JSON document; surface its tail.
     expect({ parsed: protocol.json !== undefined, stdoutTail: protocol.stdout.slice(-300) }).toMatchObject({
@@ -157,11 +157,11 @@ describe('delivery protocol CLI black-box harness surface', () => {
     expect(protocol.json).toHaveProperty('jsonSchemas.CodeReviewResult');
     expect(protocol.json).toHaveProperty('jsonSchemas.ReviewInput');
 
-    const codeReviewer = run(['agents', 'manifests', '--role', 'code-reviewer'], repoRoot);
+    const codeReviewer = run(['delivery', 'manifests', '--role', 'code-reviewer'], repoRoot);
     expectExit0(codeReviewer);
     expect(codeReviewer.json).toHaveProperty('manifests.0.name', 'repovine-code-reviewer');
 
-    const architectureAuditor = run(['agents', 'manifests', '--role', 'architecture-auditor'], repoRoot);
+    const architectureAuditor = run(['delivery', 'manifests', '--role', 'architecture-auditor'], repoRoot);
     expectExit0(architectureAuditor);
     expect(architectureAuditor.json).toHaveProperty('manifests.0.name', 'repovine-architecture-auditor');
 
@@ -175,13 +175,13 @@ describe('delivery protocol CLI black-box harness surface', () => {
       const assignmentFile = writeJson(repoRoot, `${label.replace(/\s+/g, '-')}-assignment.json`, fixture[assignmentKey]);
       const resultFile = writeJson(repoRoot, `${label.replace(/\s+/g, '-')}-result.json`, fixture[resultKey]);
 
-      const assignment = run(['agents', 'validate-assignment', assignmentFile], repoRoot);
+      const assignment = run(['delivery', 'validate-assignment', assignmentFile], repoRoot);
       expectExit0(assignment);
       expect(assignment.json).toHaveProperty('valid', true);
 
       // validate-result is schema-only (structural) — no compliance report.
       const validateResult = run([
-        'agents',
+        'delivery',
         'validate-result',
         resultFile,
       ], repoRoot);
@@ -189,7 +189,7 @@ describe('delivery protocol CLI black-box harness surface', () => {
       expect(validateResult.json).toHaveProperty('valid', true);
 
       const compliance = run([
-        'agents',
+        'delivery',
         'compliance',
         resultFile,
         '--assignment',
@@ -211,7 +211,7 @@ describe('delivery protocol CLI black-box harness surface', () => {
     const resultFile = writeJson(repoRoot, 'role-resolved-result.json', fixture.implementationResult);
 
     const compliance = run([
-      'agents',
+      'delivery',
       'compliance',
       resultFile,
       '--assignment',
@@ -225,7 +225,7 @@ describe('delivery protocol CLI black-box harness surface', () => {
   it('validates a standalone ReviewInput and rejects linkage/set mismatches', () => {
     const reviewInput = fixture.reviewInput as JsonObject;
     const validFile = writeJson(repoRoot, 'review-input.json', reviewInput);
-    const valid = run(['agents', 'validate-review-input', validFile], repoRoot);
+    const valid = run(['delivery', 'validate-review-input', validFile], repoRoot);
     expectExit0(valid);
     expect(valid.json).toHaveProperty('valid', true);
     expect(valid.json).toHaveProperty('errors', []);
@@ -236,7 +236,7 @@ describe('delivery protocol CLI black-box harness surface', () => {
       assignment: fixture.codeReviewAssignment,
     };
     const badLinkFile = writeJson(repoRoot, 'review-input-badlink.json', badLink);
-    const badLinkRun = run(['agents', 'validate-review-input', badLinkFile], repoRoot);
+    const badLinkRun = run(['delivery', 'validate-review-input', badLinkFile], repoRoot);
     expect(badLinkRun.status).not.toBe(0);
     expect(badLinkRun.json).toHaveProperty('valid', false);
     expect(String((badLinkRun.json as JsonObject).errors)).toMatch(/linkage: assignment\.runId/);
@@ -244,14 +244,14 @@ describe('delivery protocol CLI black-box harness surface', () => {
     // changedFiles must set-equal implementationResult.filesChanged.
     const badFiles = { ...reviewInput, changedFiles: ['packages/orders/src/audit-log-writer.ts'] };
     const badFilesFile = writeJson(repoRoot, 'review-input-badfiles.json', badFiles);
-    const badFilesRun = run(['agents', 'validate-review-input', badFilesFile], repoRoot);
+    const badFilesRun = run(['delivery', 'validate-review-input', badFilesFile], repoRoot);
     expect(badFilesRun.status).not.toBe(0);
     expect(String((badFilesRun.json as JsonObject).errors)).toMatch(/changedFiles must set-equal/);
 
     // graphNodesTouched must set-equal implementationResult.graphNodesTouched.
     const badNodes = { ...reviewInput, graphNodesTouched: ['mod:orders/src/audit-log-writer'] };
     const badNodesFile = writeJson(repoRoot, 'review-input-badnodes.json', badNodes);
-    const badNodesRun = run(['agents', 'validate-review-input', badNodesFile], repoRoot);
+    const badNodesRun = run(['delivery', 'validate-review-input', badNodesFile], repoRoot);
     expect(badNodesRun.status).not.toBe(0);
     expect(String((badNodesRun.json as JsonObject).errors)).toMatch(/graphNodesTouched must set-equal/);
   });
@@ -274,12 +274,12 @@ describe('delivery protocol CLI black-box harness surface', () => {
 
     // The claim is structurally valid AgentRunResult JSON; only repository-aware
     // compliance can determine that the declared node does not exist.
-    const validateResult = run(['agents', 'validate-result', resultFile], repoRoot);
+    const validateResult = run(['delivery', 'validate-result', resultFile], repoRoot);
     expect(validateResult.status).toBe(0);
     expect(validateResult.json).toHaveProperty('valid', true);
 
     const compliance = run([
-      'agents',
+      'delivery',
       'compliance',
       resultFile,
       '--assignment',
