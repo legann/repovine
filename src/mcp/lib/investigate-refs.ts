@@ -21,15 +21,15 @@ export const INVESTIGATE_PRIORITY: readonly InvestigateTag[] = DELIVERY_MECHANIC
 export { HUB_IMPORTER_FLOOR } from '../../mechanics/registry.js';
 /** Percentile of the import in-degree distribution at/above which a target is a `hub`. */
 export const HUB_PERCENTILE = 0.95;
-/** Max `hub`-tagged refs per response; `hub` is advisory, so a hard cap stops it flooding. */
+/** Max `hub`-tagged refs per response; the inline-only structural signal is capped to stop flooding. */
 export const MAX_HUB_REFS = 2;
-/** Max `wiring`-tagged refs per response; topology-driven advisory tag, capped like `hub`. */
+/** Max `wiring`-tagged refs per response; inline-only on refs and capped like `hub`. */
 export const MAX_WIRING_REFS = 2;
-/** Max `co-change`-tagged refs per response; topology-driven advisory tag, capped like `hub`. */
+/** Max `co-change`-tagged refs per response; inline-only on refs and capped like `hub`. */
 export const MAX_CO_CHANGE_REFS = 2;
 
 /**
- * Per-response caps for the advisory structural tags. Excess carriers lose only the capped tag;
+ * Per-response caps for inline-only structural tags. Excess carriers lose only the capped tag;
  * `hub` keeps the highest-importer refs, the topology-edge tags keep collection order.
  */
 const STRUCTURAL_REF_CAPS: ReadonlyArray<{ tag: InvestigateTag; cap: number }> = [
@@ -175,10 +175,10 @@ export function applyInvestigateTags(
     .sort((a, b) => (b.rank - a.rank) || (a.order - b.order))
     .slice(0, MAX_INVESTIGATE_REFS);
 
-  // Advisory-tag caps: hub/wiring/co-change are advisory; keep each on at most its cap of refs so
-  // they never flood. `hub` keeps the highest-importer refs (importerCount is present whenever hub
-  // fires); the topology-edge tags keep collection order — first-collected carriers win, so a ref
-  // whose only signal is the tag is not silently emptied in favor of an already-elevated ref.
+  // Inline structural-tag caps: keep hub/wiring/co-change on at most their cap of refs so they never
+  // flood. `hub` keeps the highest-importer refs (importerCount is present whenever hub fires); the
+  // topology-edge tags keep collection order — first-collected carriers win, so a ref whose only
+  // signal is the tag is not silently emptied in favor of an already-elevated ref.
   // Strip the capped tag from the rest; a ref left with no tags is simply not assigned.
   for (const { tag, cap } of STRUCTURAL_REF_CAPS) {
     const withTag = kept.filter((c) => c.tags.includes(tag));

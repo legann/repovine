@@ -5,47 +5,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.1.0] - 2026-07-25
 
-Initial public release.
+Initial public preview release.
 
 ### Added
 
-**Repository graph** — packages, modules, exports, imports, domains, services, entrypoints, config surface, runtime/resource links, and dependency edges over TypeScript/JS, Python, and infra-only repositories. A post-composition integrity gate checks that every Stage 1 module and template projects to a node and no edge dangles — warns by default, throws under `REPOVINE_DEV`.
+**Repository graph and context tools** — a language-agnostic graph of packages, modules, exported symbols, domains, templates, entrypoints, configuration, runtime resources, and their relationships. MCP tools support navigation, dependency impact, runtime-flow tracing, configuration discovery, architecture review, and graph maintenance.
 
-**Annotations** — AI semantic annotations in `repovine.annots.json` with freshness/quality reporting, a unified bottom-up queue across modules, services, infra, and domains, orphan detection, and semantic merge for conflicted annotation files. Writes persist through a single-writer debounced save chain: concurrent edits to different fields of one node merge at field granularity, a save fails closed rather than overwrite a file changed externally to a conflicted state, and shutdown drains pending saves before exit. `write_annotation` reports persistence state and accepts `durable: true` to block on the disk flush.
+**Language and infrastructure coverage** — first-class TypeScript/JavaScript extraction, partial Python extraction, supported framework semantics, and selected SAM/CloudFormation, Terraform, Kubernetes, Helm, Dockerfile, docker-compose, and Vercel resources. Repositories containing supported IaC can be indexed without a source project. See [supported stacks](README.md#supported-stacks).
 
-**Carrier-link advisories** — `validate_annotations` flags missing-carrier-link candidates: runtime 2-hop delegation chains (`I → M → T`, both hops value imports) to consumer-risk SSOTs not named in the importer's `integrationPoints`. `get_annotation_status({ "view": "carrier-gaps" })` pages candidates grouped by SSOT target with reviewed state. `decline_advisory` records reviewed-not-a-gap decisions in workspace-local `.repovine/carrier-review.json`; each decision stores a `riskHash` of the target's consumer risks, so a changed risk set re-surfaces the target, and `suppressedTargets` keeps a fully-suppressed repo auditable.
+**Semantic context** — Git-versioned annotations with freshness, validation, merge, and review guidance. Deterministic token search works locally by default; optional local embeddings improve fuzzy retrieval without requiring a database.
 
-**Investigate tags** — `inspect_node` flags a 1-hop ref worth inspecting before treating its target unchanged. Annotation-sourced tags: `risk` (consumer-scoped risk), `boundary` (off-limits surface), `effect` (persistent side effect). Topology-sourced tags read graph edges: `wiring` (runtime `infra` in-edge or `binds_to` out-edge — deployed topology dispatches into or binds from the node), `co-change` (either side of an `implements` edge). `hub` fires on import in-degree. Obligation tags hoist to a top-level `attention` block; `hub`/`wiring`/`co-change` stay inline, capped at 2 refs each. A runtime-wired node also gets a self `attention` item naming its resources with a `trace_flow` bridge.
+**Client integration and CLI** — setup for Cursor, Claude Code, and Codex, including MCP configuration, skills, hooks, agents, and instructions. The CLI provides setup, graph build, status, diagnostics, and cleanup commands.
 
-**MCP server** — 18 public context tools:
-- Context: `search_context`, `map_context`, `inspect_node`, `get_entrypoints`, `trace_flow`, `analyze_dependencies`, `get_config_surface`, `analyze_architecture`
-- Annotations: `get_annotation_status`, `get_annotation_merge_status`, `merge_annotations`, `validate_annotations`, `write_annotation`
-- Domains advisor: `suggest_domains_config`
-- Advisory declines: `decline_advisory` (kind: `domains-config` | `carrier-link-gaps`; workspace-local state)
-- Sync & quality: `refresh_context`, `get_context_session_quality`, `get_build_status` (`waitSec` long-poll returns when the build settles)
+**Delivery Protocol v1** — a harness/CI contract for structured assignments, agent results, and compliance reports grounded in observable repository state. The release includes protocol and validation CLI surfaces plus a runnable [LangGraph harness demo](examples/delivery-protocol-harness-demo). See the [integration guide](docs/delivery-protocol.md).
 
-**Semantic search** — local embeddings augment `search_context`: graph node cards are embedded with a local MiniLM model (`all-MiniLM-L6-v2`, 384-dim, via `@huggingface/transformers` on CPU) and fused with the deterministic token index. Brute-force cosine over normalized vectors, no vector database; the index is cached under `.repovine/.cache` and re-embedded incrementally by card hash. Enabled when the optional `@huggingface/transformers` peer resolves; pin either way with `semantic_search_embeddings`. First use downloads the model (~91 MB) into the local cache.
+**Plugin SDK preview** — `@repovine/plugin-sdk@0.1.0` and runtime `apiVersion: 1` expose public fact-producing contracts for built-in and third-party source and IaC plugins while core retains graph identities and ontology. See the [plugin authoring guide](docs/plugin-authoring.md).
 
-**Delivery Protocol v1** — harness-facing contract for verifiable agent runs: `AgentAssignment` → `AgentRunResult` → `AgentComplianceReport`. Zod-authoritative schemas, six built-in role manifests (utility agents are `repovine-*` prefixed), two-layer validation (schema + observable repo state), harness strict vs client advisory enforcement. **CLI-only integration surface:** `repovine delivery` (descriptor), `delivery manifests`, `delivery validate-assignment`, `delivery validate-result`, `delivery compliance`, `delivery run-brief`; agent utilities under `repovine agents` (`roles`, `orient`, `session-quality`). Integration guide: [docs/delivery-protocol.md](docs/delivery-protocol.md).
+**Tier-1 platforms and distribution** — the package, CLI, stdio MCP server, client integration, and optional semantic search support Linux x64, Windows x64, and macOS arm64. npm and MCP Registry distribution metadata are included. See [platform support](docs/platform-support.md).
 
-**Client assets** — `repovine setup {cursor|claude|codex|all}` projects MCP config, hooks, rules, skills, managed agents, and the marked `AGENTS.md` section from the same manifests. Drift checks: `repovine doctor` (human) or `repovine doctor --json` (CI).
+### Notes
 
-**CLI & server** — `setup`, `build`, `status`, `doctor`, `clear`, `agents`; `setup` builds the graph by default (`--no-build` defers to first MCP start). MCP over stdio only in v1.
-
-**Language & framework extraction** — framework-aware for React, Next.js, Remix, Nuxt, SvelteKit, Angular, NestJS, serverless monorepos, and Vue/Svelte SFCs; built-in source adapters for TypeScript/JS and Python, with additional languages/formats addable as `@repovine/plugin-sdk` plugins.
-
-**IaC indexing** — SAM/CloudFormation, Terraform, Kubernetes, Helm, Dockerfile, docker-compose, and Vercel, through a plugin contract; infra-only repos build a graph without source packages.
-
-**Plugin SDK — `@repovine/plugin-sdk@0.1.0`, runtime contract `apiVersion: 1`, status preview.** One manifest, descriptor, lifecycle, two-phase composer and conformance kit for built-in and third-party plugins alike; the nine built-ins ship bundled in the `repovine` tarball and are the dogfood of the same surface. Preview means an export can still be removed, renamed or tightened — that arrives as a minor SDK bump and an entry here, so pin the exact version. Four authoring subpaths carry the contract (`.`, `/plugin`, `/source-plugin`, `/iac-plugin`); `/internal` also resolves, is host machinery outside semver, and is refused for plugins by law. The reachable surface is generated into [docs/plugin-api-report.md](docs/plugin-api-report.md), its runtime half is registered in writing in [docs/plugin-api-contract.json](docs/plugin-api-contract.json), and the pairing plus the written condition for leaving preview are in [docs/plugin-api-compatibility.md](docs/plugin-api-compatibility.md).
-
-**Architecture analysis** — review candidates for duplication, boundary issues, frontend state/effect problems, UI-domain coupling, route/flow convergence, annotation risk, and security-sensitive boundaries, with strictness profiles and per-knob overrides. The report fails loud on an empty detector registry instead of silently returning no findings.
-
-**Cross-platform Tier 1** — native Windows x64 and macOS arm64 join Linux x64 for the package, CLI, stdio MCP server, client projections, and the optional embedder. Support is a per-surface contract with CI evidence: [docs/platform-support.md](docs/platform-support.md). Required merge gates: `core-linux`, `core-windows`, `core-macos-arm`, `harness-linux`, plus a 3-OS embedder matrix (floor and latest-resolvable of each accepted `@huggingface/transformers` major; 3.8.1 on macOS excluded for a documented onnxruntime 1.21 exit defect). Host paths go through a canonical key contract (`src/platform/paths.ts`: win32-only case folding, non-ASCII paths); git repo-membership checks additionally expand 8.3 short names and strip `\\?\`/UNC prefixes. Python extraction is UTF-8-forced on Windows. `doctor --json` reports platform, filesystem case, and the embedder install; embedder models cache under the OS user cache dir (`REPOVINE_MODEL_CACHE` overrides). Config edits preserve per-file EOL; mixed-EOL files stay byte-exact.
-
-**Harness demo sandbox** (cross-platform hosts, Linux container runtime) — compose attach services live in a required-variable overlay (`compose.attach.yaml`, fail-closed before Docker); host binds set `create_host_path: false`; a gateway loopback forwarder makes `LOCAL_BASE_URL=http://127.0.0.1:11434/v1` one constant on every platform; an actual-container egress smoke (default-deny rule order, DNS NXDOMAIN sinkhole, non-degenerate IPv6 drop, in-image hardening probe) runs strict in CI. The attach launcher enumerates the host mount table through a tri-state adapter — cannot-enumerate refuses before Docker — and proves filesystem types: projection/network types refused everywhere, WSL accepts ext4 checkouts only. macOS attach refuses; the lifting design is [ADR 0001](https://github.com/legann/repovine/blob/main/examples/delivery-protocol-harness-demo/docs/adr/0001-macos-attach-mount-topology.md) (Proposed).
-
-**Release gate** — `publish.yml` verifies every Tier-1 gate completed green on the exact tagged commit before npm publish. A bug-report issue template collects `doctor --json` and platform evidence.
-
-**MCP Registry listing** — `server.json` declares the server as `io.github.legann/repovine`; `mcpName` in `package.json` proves npm ownership. `publish-registry.yml` registers it over GitHub OIDC once the npm version is live. `scripts/sync-version.mjs` keeps `server.json` in lockstep with `package.json` and fails a release on version drift.
-
-**llms.txt** — a root `llms.txt` indexes repovine's own documentation for direct agent ingestion.
+- Requires Node.js 22 or later.
+- MCP uses stdio transport only in v1.
+- The Plugin SDK is preview; pin its exact version and consult release notes before upgrading.
+- Python and IaC coverage are partial and expand through plugins.
+- Optional semantic embeddings download a model into the local cache on first use.

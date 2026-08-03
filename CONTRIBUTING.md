@@ -21,10 +21,6 @@
   governed by the executable law-suite in `test/laws/`: a new primitive needs a
   producer **and** a consumer witness **and** a law update — a "schema-only" PR
   will not go green.
-- **Fixtures & examples** — a redacted IaC manifest plus the relationship it
-  should expose; a tiny fixture for a node/edge repovine misses; a note about
-  where the graph misread your repo. Good first contributions.
-- **Docs** — corrections and gaps.
 
 ## Dev setup (self-dogfood)
 
@@ -34,9 +30,9 @@ Requires **Node ≥ 22**. Source development uses npm, pinned by
 changes.
 
 ```bash
-git clone https://github.com/<you>/repovine && cd repovine
+git clone https://github.com/legann/repovine && cd repovine
 npm ci
-npm run build                          # engine + @repovine/plugin-sdk
+npm run build                          # engine + SDK + plugin workspaces
 node dist/mcp/index.js setup claude    # or: cursor | codex | all
 ```
 
@@ -46,7 +42,7 @@ client and enable the MCP. (`--published` forces the npx launcher; an existing
 `repovine` MCP entry is not overwritten, so re-run after `repovine clear` to
 switch one over. See [docs/scripts.md](docs/scripts.md).)
 
-**Loop:** edit `src/…` → `npm run build` → restart the MCP (or call
+**Loop:** edit `src/…` or `packages/…` → `npm run build` → restart the MCP (or call
 `refresh_context`) → query the graph.
 
 A rebuild changes the engine-build id in a git checkout, so the next build
@@ -55,17 +51,7 @@ reused, and no manual `rm -rf .repovine` is needed. Installed packages skip this
 check, so an engine upgrade keeps warm caches. Force dev behavior anywhere with
 `REPOVINE_DEV=1`.
 
-## Before you open a PR
-
-```bash
-npm run typecheck && npm run lint && npm test
-```
-
-CI (Node 22) runs typecheck, lint, build, and test on every PR to `main`. Keep PRs
-small and focused, and say what the graph should now show. Don't hand-edit
-`repovine.annots.json` — use the annotation MCP tools / CLI.
-
-### Changing Stage-1 extract output
+## Changing Stage-1 extract output
 
 `test/laws/extract-output-golden.test.ts` pins the Stage-1 extract fingerprint on
 a fixture corpus. A change to how modules are extracted reds it. Regenerate and
@@ -75,12 +61,16 @@ decide on the cache version:
 UPDATE_EXTRACT_GOLDEN=1 npm test -- extract-output-golden
 ```
 
+Checkout builds invalidate local snapshots through `engineBuildId`, so local
+iteration does not require a version bump. The version decision applies to the
+change that will ship:
+
 | Change | Action |
 |---|---|
-| alters graph structure consumers rely on | bump `STAGE1_ANALYSIS_VERSION` (`src/stage1/index.ts`) first, then refresh the golden — caches invalidate on upgrade |
-| cache-compatible (no consumer-visible shape change) | refresh the golden without a bump |
+| makes snapshots from a released version unsafe to reuse | bump `STAGE1_ANALYSIS_VERSION` (`src/stage1/index.ts`), then refresh the golden |
+| cache-compatible | refresh the golden without a version bump |
 
-### Adding a delivery mechanic
+## Adding a delivery mechanic
 
 A **delivery mechanic** surfaces one edit-relevant graph or annotation signal.
 Its model, current registry, primitive coverage, and dormant behavior are defined
@@ -88,10 +78,12 @@ in [DESIGN.md](DESIGN.md#mechanics-registry). Add one as a single entry in
 `src/mechanics/registry.ts` —
 `{ id, reads, direction, channels, detect }` placed in `DELIVERY_MECHANICS` at
 its priority slot. `detect(ctx)` is total: it returns false when the mechanic's
-primitive is absent, so it self-gates and needs no core edit or language branch.
-A mechanic reading only primitives every plugin emits is universal; one reading a
-plugin-specific primitive (e.g. a new edge kind) also needs the producer and a
-schema-law update, as above.
+primitive is absent, so it self-gates and requires no changes to delivery
+channels or language-specific branching.
+Applicability follows the primitive: a mechanic is universal when that primitive
+exists across its target node class. If only some plugins emit it (for example, a
+language-specific edge kind), the change also needs the producer and a schema-law
+update, as above.
 
 The registry is the dispatch SSOT; delivery machinery (priority caps, hub
 demotion, the boundary push index) stays with each channel. The delivery freeze
@@ -104,7 +96,7 @@ change, not an addition. Contract and current mechanics:
 
 | Area | Path |
 |---|---|
-| Source producers (plugins) | `src/source-plugins/<name>/` |
+| Source producers (plugins) | `packages/plugins/source-<name>/src/` |
 | IaC producers (plugins) | `packages/plugins/iac-<name>/src/` |
 | Interpreters — Stage 2 projection (internal) | `src/interpreter/`, `src/interpreters/`, `src/stage2/` |
 | Detector packs (internal) | `src/analysis/architecture/`, `src/analysis/architecture-detectors/` |
@@ -120,14 +112,6 @@ change, not an addition. Contract and current mechanics:
 | Examples / fixtures | `examples/`, `test/` |
 
 System design: [DESIGN.md](DESIGN.md).
-
-## Security
-
-repovine stores structure, names, and relationships — **never** env values or
-secrets. Don't put tokens, `.env` values, or customer data in issues, fixtures,
-or annotations. Report suspected vulnerabilities through the private channel in
-our [security policy](.github/SECURITY.md); do not open a public issue with
-sensitive details.
 
 ## License
 

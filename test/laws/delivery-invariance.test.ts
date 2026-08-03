@@ -275,7 +275,7 @@ describe('core-laws delivery-invariance (L1)', () => {
   });
 
   it('delivers a consumer-scoped risk through a carrier pair (pull-carrier)', async () => {
-    // The declared pairing: `risk` is the one mechanic naming `pull-carrier`.
+    // The declared pairing: `risk` explicitly names `pull-carrier` in the registry.
     const carried = makeState({
       ...fixtureAnnotations(),
       [DTO]: stored(DTO, { summary: 'Order DTO.', risks: [consumerRisk] }),
@@ -290,10 +290,9 @@ describe('core-laws delivery-invariance (L1)', () => {
 
   it('delivers a carrier pair named in integrationPoints (pull-carrier)', async () => {
     const { result } = await inspect(HANDLER);
-    // The carrier channel carries whatever the named target's mechanics detect, so a boundary
-    // carrier — the shape three of the four corpus cases use — arrives tagged `boundary` even
-    // though `pull-carrier` is declared on `risk` alone. Totality is a separate law's question;
-    // what this one fixes is that the tag arrives.
+    // The carrier channel carries every mechanic that declares it, so a boundary carrier — the
+    // shape three of the four corpus cases use — arrives tagged `boundary`. Totality separately
+    // checks that the registry declaration and surface stay aligned.
     expect(result.investigatePointers).toEqual([
       { id: DTO, investigate: ['boundary'], via: 'integrationPoints' },
     ]);

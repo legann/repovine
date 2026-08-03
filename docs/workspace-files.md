@@ -34,7 +34,7 @@ repovine analyzes **one workspace root**. Everything it indexes lives under that
 
 The root is `REPOVINE_ROOT` when set, otherwise the nearest ancestor holding `.git`. A resolved root carrying no `repovine.config.json` re-roots to a configured ancestor inside the same repository, reported on stderr.
 
-Every path that reaches the graph is resolved through symlinks and re-tested against the root. Config-supplied paths follow the same rule: `build.scan` globs, `build.linking` script and Dockerfile paths, and paths reached through `tsconfig.json`.
+Every path that reaches the graph is resolved through symlinks and re-tested against the root. Config-supplied paths follow the same rule: `build.scan` globs, `build.linking` handler roots and bundle scripts, and paths reached through `tsconfig.json`.
 
 `workspace.annotationsFile` is checked lexically: absolute paths and `..` escapes are refused, symlinks stay unresolved. A directory symlink on that path places the annotations file outside the root.
 
@@ -71,8 +71,7 @@ Omit any block to keep engine defaults. When this file is missing,
     "scan": { "include": [], "exclude": [] },
     "linking": {
       "handlers": { "searchRoots": [] },
-      "bundles": { "scripts": [], "autoDetect": true },
-      "containers": { "dockerfileRoots": [] }
+      "bundles": { "scripts": [], "autoDetect": true }
     }
   },
   "mcp": {
@@ -101,8 +100,7 @@ Omit any block to keep engine defaults. When this file is missing,
     },
     "linking": {
       "handlers": { "searchRoots": ["services/api/src"] },
-      "bundles": { "scripts": ["services/api/scripts/bundle.mjs"], "autoDetect": true },
-      "containers": { "dockerfileRoots": ["deploy/k8s"] }
+      "bundles": { "scripts": ["services/api/scripts/bundle.mjs"], "autoDetect": true }
     }
   },
   "mcp": {
@@ -155,7 +153,7 @@ After moving an existing file, update `workspace.annotationsFile`, move the JSON
 Repovine **graph build** pipeline (not app `npm build` / Docker). Two sub-blocks:
 
 - **`build.scan`** — Stage 1: what files become modules and infra in the snapshot.
-- **`build.linking`** — Stage 2: infra → code graph edges (handlers, bundles, container images).
+- **`build.linking`** — Stage 2 hints for resolving code handlers through source paths and bundle maps.
 
 #### `build.scan`
 
@@ -216,14 +214,13 @@ directory, so a package manifest inside one of those trees mints no package node
 
 #### `build.linking`
 
-Optional hints for Stage 2 **infra → code graph edges** (handler resolution, bundle maps, container image → Dockerfile). Does **not** change what Stage 1 indexes as modules. Leave blocks empty when auto-heuristics suffice (workspace packages, `bundleAutoDetect`, and image-name heuristics cover most repos).
+Optional hints for Stage 2 handler resolution. These settings add source search roots and bundle-output maps; they do **not** change what Stage 1 indexes as modules or configure plugin projectors such as image → Dockerfile linking. Leave the blocks empty when workspace paths and conventional bundle-script discovery suffice.
 
 | Block | Field | Default | Meaning |
 |---|---|---|---|
-| `handlers` | `searchRoots` | `[]` | Extra roots to resolve Lambda/SAM/Terraform `Handler` paths to TS modules. |
+| `handlers` | `searchRoots` | `[]` | Extra roots used when resolving deployment handler paths to source modules. |
 | `bundles` | `scripts` | `[]` | esbuild/webpack entry scripts whose static handler→source map is parsed. |
 | `bundles` | `autoDetect` | `true` | Also scan conventional `scripts/bundle.{js,ts}` locations. |
-| `containers` | `dockerfileRoots` | `[]` | Path prefixes that bias K8s/Helm image → in-repo Dockerfile matching. |
 
 **Example — fallback linking in a large monorepo:**
 
@@ -231,8 +228,7 @@ Optional hints for Stage 2 **infra → code graph edges** (handler resolution, b
 "build": {
   "linking": {
     "handlers": { "searchRoots": ["services/api/src"] },
-    "bundles": { "scripts": ["services/api/scripts/bundle.mjs"], "autoDetect": true },
-    "containers": { "dockerfileRoots": ["deploy/k8s"] }
+    "bundles": { "scripts": ["services/api/scripts/bundle.mjs"], "autoDetect": true }
   }
 }
 ```
@@ -250,8 +246,7 @@ Optional hints for Stage 2 **infra → code graph edges** (handler resolution, b
   },
   "linking": {
     "handlers": { "searchRoots": [] },
-    "bundles": { "scripts": [], "autoDetect": true },
-    "containers": { "dockerfileRoots": ["infrastructure/k8s-services"] }
+    "bundles": { "scripts": [], "autoDetect": true }
   }
 }
 ```
@@ -321,9 +316,9 @@ With the flag left at `true` and the package absent, the build warns with the in
 command and search runs on the token index. `refresh_context` reports the same state in
 `semanticSearch.error`.
 
-The model (`Xenova/all-MiniLM-L6-v2`, quantized ~23 MB) is fixed — not
-configurable. It is downloaded to the transformers.js cache on first use and
-works offline afterwards. CPU is enough.
+The model (`Xenova/all-MiniLM-L6-v2`, full-precision `fp32`, about 91 MB in the
+model cache) is fixed — not configurable. It is downloaded to the transformers.js
+cache on first use and works offline afterwards. CPU is enough.
 
 Vectors persist in `.repovine/.cache/semantic-index.json`. Every state build —
 including `refresh_context` — re-syncs the semantic search index, re-embedding

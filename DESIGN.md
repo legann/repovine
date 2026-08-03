@@ -1,4 +1,4 @@
-# repovine Design
+# Design
 
 This document defines repovine's system boundaries, design rationale, core
 contracts, and known trade-offs. Operational configuration and integration
@@ -59,13 +59,13 @@ The same model-agnostic engine supports interactive and autonomous development.
 
 ### Surfaces
 
-One product, three interfaces:
+One product, three surfaces:
 
 | Surface | Role | Owned by repovine |
 |---|---|---|
 | **Engine** | Builds deterministic repo facts and checked memory. | Stage 1 syntax snapshot, Stage 2 graph, annotation store, freshness/orphans, consistency checks, context-session quality. |
 | **MCP** | Gives an agent repo context during a session. | `search_context`, `map_context`, `inspect_node`, impact/flow/config/architecture/annotation tools, `refresh_context`. |
-| **Delivery Protocol** | Defines how a completed run is scoped, reported, and validated. | Schemas, manifests, projections, CLI validators (`repovine agents validate-*`, `compliance`). |
+| **Delivery Protocol** | Defines how a completed run is scoped, reported, and validated. | Schemas, manifests, projections, CLI validators (`repovine delivery validate-*`, `compliance`). |
 
 The **harness** runs the model, chooses provider/runtime, owns retries,
 scheduling, isolation, permissions, budgets, CI/review gates, and final
@@ -74,23 +74,23 @@ developer and IDE play that orchestration role and repovine guidance is advisory
 
 ### Layer model
 
-The surfaces build on one bottom-up model:
+The operating model separates repository facts, authored memory, agent-facing
+context, agent execution, and run validation:
 
 ```text
-5  Run validation  explicit Delivery Protocol — assignments, run results, compliance
-4  Agent runtime  client/harness-owned reasoning, editing, and review
-3  MCP context    guided, navigable graph slices instead of raw files
-2  Memory         versioned annotations attached to graph nodes
-1  Engine facts   deterministic repository graph (`RepositoryGraph` in code)
+5  Run validation  explicit Delivery Protocol assignments, results, and compliance
+4  Agent runtime   client- or harness-owned reasoning, editing, and review
+3  MCP context     guided, navigable projections of repository state
+2  Memory          versioned annotations attached to graph nodes
+1  Engine facts    deterministic repository graph (`RepositoryGraph` in code)
 ```
 
-Each layer is checked against the one below it. Annotations (2) validate against
-engine facts (1); MCP results (3) project graph and annotation state; the
-protocol (5) validates observable claims against the graph, snapshot,
-annotations, and recorded context-session state. Durable authored repository
-knowledge enters at layer 2. Ephemeral reasoning and run results remain in the
-client or harness and never feed the deterministic graph. The run-validation layer
-is harness-facing; the protocol definition and compliance validators live in
+Layers 1–3 form repovine's context stack. Layer 4 belongs to the client or
+harness. In explicit protocol runs, Layer 5 validates observable claims against
+repository facts, annotations, and recorded context-session state; it does not
+validate the agent's reasoning or execution. Durable authored knowledge enters at
+Layer 2, while ephemeral reasoning and run results remain outside the
+deterministic graph. The protocol definition and compliance validators live in
 repovine core.
 
 ### Checkout-local state model
@@ -103,7 +103,7 @@ changes and worktree-specific branches.
 | State class | Artifacts | Ownership and lifecycle |
 |---|---|---|
 | Repository input | source, config, IaC, templates | The working tree is the authority for deterministic facts. |
-| Committed repovine state | `repovine.config.json`, `repovine.domains.json`, `repovine.annots.json` | Repository-owned configuration and authored knowledge shared through Git. |
+| Committed repovine state | `repovine.config.json`, `repovine.domains.json`, configured annotations file (default `repovine.annots.json`) | Repository-owned configuration and authored knowledge shared through Git. |
 | Local operational state | `.repovine/` caches, context sessions, review decisions, boundary index | Checkout-local and gitignored; derived caches are rebuildable, while session/review records are intentionally local. |
 | Runtime generation | snapshot, graph, token/semantic indexes, derived entrypoint views | In-memory state published as one generation and replaced by `refresh_context`. |
 
@@ -115,9 +115,8 @@ cleanup behavior are documented in [Workspace files](docs/workspace-files.md).
 
 ### Determinism boundary
 
-repovine separates deterministic repository facts from stochastic LLM output, and
-checks the parts of an agent's structured claims that can be compared with
-observable repository state.
+repovine deterministically derives structural facts from the working tree. Agent
+claims are validated only when they can be recomputed from that observable state.
 
 | Artifact | Source | Deterministic (repovine) | Harness / runtime scope |
 |---|---|---|---|
@@ -125,14 +124,14 @@ observable repository state.
 | `RepositoryFactsSnapshot` | Stage 1 | Packages, modules, imports, exports, hints, infra facts | Dynamic patterns the parser cannot infer |
 | `RepositoryGraph` | Stage 2 | Typed nodes/edges: package/module/export-symbol/template/domain/runtime-resource, imports, template composition, runtime/config links | Natural-language meaning (Layer 2 annotations) |
 | MCP tool results | Graph + snapshot + annotations + indexes | Scope resolution, pagination, confidence/gaps, empty diagnostics, token metadata; optional semantic rank/score on `search_context` | Agent interpretation of results |
-| Annotations | Agent/developer-authored memory | Schema, freshness, orphan/stale state, merge-review markers, field consistency vs graph, secret-shape rejection, write provenance | Insight and completeness beyond checkable fields |
+| Annotations | Agent/developer-authored memory | Schema, freshness, orphan/stale state, merge-review markers, field consistency vs graph, secret-shape rejection, grounding checks at write/run boundaries | Insight and completeness beyond checkable fields |
 | Architecture findings | Detectors over graph + annotations | Review candidates, confidence, affected nodes, security/config signals | Proof that a refactor is desirable or safe |
 | `AgentRunResult` | LLM/harness output | Schema and optional assignment linkage; graph/annotation claims; review read-only constraints; acceptance-criteria/result/policy registry integrity; repository-evidence grounding; optional revision-delta membership; advisory check/scope/context signals | Business correctness, real test execution, security/readiness, final acceptance |
 
 ### Trust and execution boundaries
 
-Deterministic output validation is not process isolation. repovine separates
-these trust decisions explicitly:
+Validation, execution, and isolation are separate trust boundaries. repovine
+makes their ownership explicit:
 
 | Boundary | repovine guarantees | Outside the guarantee |
 |---|---|---|
@@ -153,7 +152,9 @@ conformance details live in [Plugin authoring](docs/plugin-authoring.md#trust-mo
 
 ### Two consumption modes
 
-The same engine and MCP surface serve interactive clients and autonomous harnesses.
+The same engine and MCP surface serve interactive clients and external harnesses.
+In harness mode, Delivery Protocol adds the assignment, result, and compliance
+boundary.
 
 | | Client mode | Harness mode |
 |---|---|---|
@@ -171,17 +172,17 @@ remain outside repovine.
 
 Integration details live in [Delivery Protocol](docs/delivery-protocol.md) and [CLI and setup](docs/scripts.md).
 
-### repovine vs RAG
+### repovine and RAG
 
-repovine differs from semantic code search (RAG over embedded chunks) and agent
-memory layers on index, answer shape, memory, and trust:
+repovine and semantic code search operate at different layers, with different
+indexes, answer shapes, memory models, and trust guarantees:
 
 | | RAG code search | repovine |
 |---|---|---|
 | Index | text chunks → embeddings → vector DB | extracted graph: packages, modules, runtime resources, infra bindings |
 | Answer | top-k similar chunks with a score (probabilistic) | deterministic nodes and edges, plus checked annotations |
-| Query classes | "find similar code" | navigation **and** impact ("who breaks"), runtime flow, config surface, completeness ("all consumers, not 15 nearest") |
-| Memory | typically retrieval-only; write-back requires a separate memory system | durable annotations agents write back, with freshness, provenance, consistency checks |
+| Query classes | "find similar code" | navigation **and** impact ("who breaks"), runtime flow, config surface, graph-known consumers with explicit pagination, truncation, and extraction gaps |
+| Memory | typically retrieval-only; write-back requires a separate memory system | durable annotations agents write back, with freshness, grounding, and consistency checks |
 | Trust | similarity score | verifiable claims: stale detection, contradiction checks, protocol compliance |
 | Infra | embedding API + vector DB, often cloud | local process + file-backed index; optional embedding model downloaded once and cached |
 | Fuzzy entry | chunk similarity *is* the answer | embeddings rank **graph nodes**; structure, impact, freshness stay deterministic |
@@ -192,48 +193,107 @@ search](#semantic-search).
 
 ## Engine: build pipeline
 
-**Layer 1.** Two deterministic stages build the graph; a third builds the search
-indexes. No LLM is in the loop, so the graph is reproducible and identical
-between refreshes. Three concerns live inside this layer: build performance, IaC
-extensibility, and `build.linking` (infra → code graph edges).
+**Layer 1.** Two deterministic stages build the graph; a third assembles the
+runtime state and search indexes. No LLM is in the loop, so the graph is
+reproducible and identical between refreshes. Three concerns live inside this
+layer: build performance, IaC extensibility, and `build.linking` (infra → code
+graph edges).
 
 ### Stage 1: repository facts snapshot
 
 Input: workspace root. Output: a `RepositoryFactsSnapshot` of packages, modules,
 infra modules, template facts, timestamps, and analysis metadata.
 
-Code extraction is **source-plugin** based (see [Source parser
-architecture](#source-parser-architecture)). The orchestrator (`stage1/index.ts`)
-knows only the abstract `SourcePlugin` contract and never imports a language
-toolchain. Built-ins ship in-repo: **TypeScript/JS** (`source-plugins/typescript/`,
-ts-morph inside) and **Python** (`source-plugins/python/`, stdlib `ast` via
-subprocess).
+Source extraction is plugin-based (see [Source parser
+architecture](#source-parser-architecture)). Stage 1 loads a per-build plugin set
+and interacts with source producers only through the public `SourcePlugin`
+lifecycle; it never imports language-specific toolchains. The bundled default
+preset selects separate **TypeScript/JavaScript**
+(`packages/plugins/source-typescript/`) and **Python**
+(`packages/plugins/source-python/`) plugin packages, which follow the same
+manifest, loading, and fact-validation path as externally installed plugins. The
+TypeScript plugin lazy-loads `ts-morph` for extraction; the Python plugin runs a
+bundled stdlib-`ast` script in a Python subprocess.
 
-Built-ins differ in depth. TypeScript/JS is the first-class source path and emits
-package, module, and export contracts plus richer framework and runtime hints.
-Python emits a smaller AST-backed structural and route surface. Built-in IaC
-producers provide partial, expanding extraction of selected resources and
-relationships. Exact language and IaC coverage lives in [Supported
-stacks](README.md#supported-stacks); unsupported facts are absent rather than
-inferred.
+Built-in source plugins use the same contract but differ in extraction depth.
+TypeScript/JavaScript currently has the deepest source coverage, emitting package,
+module, and export facts plus broader framework, UI, security, and runtime hints.
+Python provides a narrower stdlib-AST-backed surface for structure, backend
+routes, environment access, and effect imports. Built-in IaC plugins extract
+selected resource types and relationships rather than complete format schemas.
+Current language and IaC coverage is summarized in [Supported
+stacks](README.md#supported-stacks); capability-gated facts a producer does not
+support remain absent.
 
 Privacy: only env var **names** and resource **references** are stored. Env files
 are never read; config values are never persisted in the graph.
 
+#### Extraction and performance
+
+Stage 1 bounds source extraction across the active source plugins. The engine owns
+discovery, canonical-path and module-identity deduplication, sharding, compatible-
+snapshot reuse, and worker scheduling; each plugin owns its language-specific
+parser. Parallel extraction uses a build-scoped `worker_threads` pool whose workers
+are reused across shard jobs. A representative parallel cold run records a local
+calibration that advises later worker counts within the available CPU and memory
+budget; explicit build limits take precedence.
+
+<details>
+<summary><b>Deep dive — extraction phases, parser confinement, workers, calibration, and reuse</b></summary>
+
+- **Extraction phases.** Each source plugin discovers candidate files; the engine
+  canonicalizes paths, resolves duplicate module identities, and assigns pending
+  modules to package shards. Results are merged in stable package and shard order.
+- **TypeScript confinement.** Each TypeScript shard creates a short-lived
+  `ts-morph` `Project` with `skipAddingFilesFromTsConfig` and
+  `skipLoadingLibFiles`. Engine-owned source text is added incrementally, and type
+  and signature text is read from syntax rather than checker-derived inference.
+  Export collection still invokes compiler resolution through
+  `getExportedDeclarations()`, so the plugin blocks `node_modules` resolutions and
+  avoids `getModuleSpecifierSourceFile()`, library loading, and a long-lived
+  repository-wide `Project`.
+- **Plugin isolation.** The bounded `Project` is specific to the TypeScript plugin;
+  Python extraction runs its bundled stdlib-`ast` parser in a subprocess. The
+  build-scoped pool schedules source-plugin shard jobs without importing either
+  language toolchain into the Stage 1 orchestrator. With one effective worker,
+  extraction runs inline and no worker pool is created.
+- **Calibration.** A representative parallel cold run writes the gitignored
+  `build-calibration.json`; runs that reuse modules do not replace it. The observed
+  incremental peak memory is divided across concurrently active shards, and later
+  runs use that estimate with the CPU and memory budget to advise pool size.
+- **Snapshot reuse.** Compatibility is gated by the analysis version, extraction
+  and plugin configuration, and the development engine identity where applicable.
+  Within a compatible `repository-facts-snapshot.json`, content hashes select
+  unchanged modules for reuse; changed modules are re-extracted rather than
+  invalidating the entire snapshot.
+
+</details>
+
 ### Stage 2: repository graph
 
-The snapshot becomes `RepositoryGraph`: a deterministic, typed graph of packages,
-modules, export symbols, runtime resources, domains, and relationships. It contains **no** NL
-semantics, summaries, or annotations — those live one layer up in
-`repovine.annots.json` as agent/developer-authored claims.
+The snapshot becomes `RepositoryGraph`: a deterministic, typed graph of the
+repository root, packages, modules, export symbols, templates, runtime resources,
+domains, and relationships. It contains **no** NL semantics, summaries, or
+annotations — those live one layer up in the configured annotations file (default
+`repovine.annots.json`) as agent/developer-authored claims.
 
 The graph schema is a core architecture contract, not an incidental TypeScript
 union. The canonical runtime shape lives in `src/graph/model.ts`, re-exported by the
 `src/types.ts` compatibility barrel: `NODE_TYPES` defines the seven graph node types
 and `EDGE_KINDS` defines the fourteen graph edge kinds.
 `NodeType` and `EdgeKind` are derived from those constants, and
-`src/graph/delta.ts` builds its `GraphDelta` validation allowlists from the same
-source of truth.
+`src/graph/delta.ts` builds the internal `GraphDelta` validation allowlists from
+the same source of truth.
+
+Stage 2 composes through two contribution paths. Internal interpreters project
+normalized snapshot facts into core structure. Plugin projectors receive an
+immutable fact view and return restricted public DTO batches for runtime
+resources, semantic links, entrypoints, and namespaced extensions; they never
+receive the mutable graph or construct graph identities. The host validates each
+batch, mints resource ids, resolves structured references against one global
+index, and maps accepted canonical relations into the core ontology. Projected
+entrypoints and extensions remain generation-scoped sidecars rather than graph
+nodes.
 
 | Node | Meaning |
 |---|---|
@@ -242,31 +302,31 @@ source of truth.
 | `module` | A source file or IaC file. |
 | `export-symbol` | An exported symbol from a module. |
 | `template` | A template/rendered-surface artifact addressable by render/composition facts. |
-| `domain` | A business, feature, layer, technical, or infra grouping. |
-| `runtime-resource` | A runtime/resource entity from IaC. |
+| `domain` | A logical grouping inferred or configured from code and infrastructure, tiered as business, feature, layer, or technical. |
+| `runtime-resource` | A runtime/deployment entity from IaC facts or an accepted plugin projection. |
 
 | Edge | Meaning |
 |---|---|
-| `contains` | Hierarchy: root → package → module → export-symbol; infra module → runtime-resource. |
+| `contains` | Physical hierarchy: root → package → module → export-symbol; root → IaC module → runtime-resource. Projected resources need not have a containing IaC module. |
 | `imports` | Source module imports another source module. |
 | `reexports` | Barrel module re-exports symbols from a leaf module (barrel → defining leaf). |
 | `tagged` | Node belongs to a domain or subdomain. |
 | `implements` | Exported class/symbol implements an exported interface contract. |
-| `infra` | Runtime resource handled by a source module (Lambda handler, Dockerfile module, …). |
-| `routes_to` | Kubernetes Ingress → backend Service (matched by manifest name). |
+| `infra` | Runtime resource → source or build module that implements or produces it (handler, Dockerfile, …). |
+| `routes_to` | Request-routing resource → backend resource; the built-in Kubernetes case is Ingress → Service. |
 | `renders` | Render unit/view/module → template rendered by that unit. |
 | `extends` | Template → parent/base template. |
 | `includes` | Template → included partial/template. |
-| `binds_to` | Source module bound to a resource through runtime config. |
+| `binds_to` | Module/resource → runtime resource it is deployed as or backed by. |
 | `uses_env` | Service/resource reference through environment/config. |
-| `consumes` | Queue/topic consumed by a runtime resource. |
-| `publishes` | Runtime action publishes/invokes another runtime resource. |
+| `consumes` | Event source such as a queue/topic → runtime resource that consumes it or is invoked by it. |
+| `publishes` | Runtime resource → target resource it publishes to or invokes. |
 
 #### The contract-boundary model (why these levels)
 
-The node tree is the nesting of **contract boundaries** every modular ecosystem
-has, however a language names them. It models where units bind to each other, not
-how a unit computes internally. The spine:
+The node tree captures recurring **contract boundaries** across modular
+ecosystems, however a language names them. It models where units bind to each
+other, not how a unit computes internally. The spine:
 
 ```text
 repository  ⊃  distribution  ⊃  compilation  ⊃  contract       ⊃  (internals)
@@ -275,18 +335,18 @@ repository  ⊃  distribution  ⊃  compilation  ⊃  contract       ⊃  (inter
 
 A boundary earns a node kind on **two criteria**:
 
-1. **near-universality** — the boundary exists across paradigms as a structural fact, not one language's feature;
+1. **near-universality** — the boundary recurs across paradigms as a structural fact, not one language's feature;
 2. **cross-unit contract** — something on the other side binds to it by name: imports, links, deploys.
 
-The two criteria fix the count at these levels. Each level is named by its **role
-at the boundary** (what the other side addresses), not by syntax, so one model
-spans languages: the mechanism differs, the boundary holds.
+Within the code spine, these criteria select four levels. Each level is named by
+its **role at the boundary** (what the other side addresses), not by syntax, so
+one model spans languages: the mechanism differs, the boundary holds.
 
 | Level | Boundary role | TypeScript | Python | Go | Java | C++ | If the ecosystem has none |
 |---|---|---|---|---|---|---|---|
 | `root` | analysis boundary | repo | repo | repo | repo | repo | always present |
-| `package` | distribution / dependency unit | npm workspace | `pyproject` / dist | go module | Maven artifact | CMake target | no manager → one package = root |
-| `module` | compilation / import-resolution unit | `.ts` | `.py` | `.go` | `.java` | `.cpp` / `.h` | always a file |
+| `package` | distribution / dependency unit | `tsconfig` project / workspace | `pyproject` / dist | go module | Maven artifact | CMake target | no producer-established unit → absent |
+| `module` | compilation / import-resolution unit | TS/JS/SFC file | `.py` | `.go` | `.java` | `.cpp` / `.h` | always a file |
 | `export-symbol` | cross-module contract (visible outside) | `export` | top-level / `__all__` | Capitalized name | `public` | header / `extern` | convention, not a keyword |
 | symbol-detail | sub-contract internals — **fields, not a node** | — | — | — | — | — | always "inside" |
 
@@ -300,29 +360,41 @@ The same criteria exclude candidate levels:
 - **namespace / sub-package** fails (1): a C++/C#/Java construct, not universal, so it is a path-and-name field on a node, never its own level;
 - **statement / expression / block** fails (2): module-internal, nothing binds to it across a module, so it is a field on `export-symbol`. The tree halts at `export-symbol` — below the smallest cross-unit contract the analysis is inside an implementation.
 
-**Two branches, one spine, plus an overlay.** The `contains` spine carries two
-branches from different producers: a **code** branch `root → package → module →
-export-symbol` from source plugins, and an **infra** branch `root → module(IaC) →
-runtime-resource` from IaC plugins. `export-symbol` and `runtime-resource` are
-siblings on parallel axes — the cross-module code contract and the runtime
-contract. A `domain` is a logical grouping no physical boundary catches, so it
-attaches through `tagged` as an overlay, outside the `contains` hierarchy.
+**Two containment branches, a template surface, and a domain overlay.** The
+`contains` spine carries a **code** branch `root → package → module →
+export-symbol` from source producers and a document-backed **infra** branch `root
+→ module(IaC) → runtime-resource` from IaC producers. A runtime resource added by
+a plugin projector may have no containing IaC document; canonical semantic links
+connect it to the rest of the graph. Templates form a separate composition
+surface connected through `renders`, `extends`, and `includes`, not through
+`contains`. A `domain` is a logical grouping no physical boundary catches, so it
+attaches through `tagged` outside the containment hierarchy.
 
 Boundary-crossing is the first-class query — what an agent cannot recover from a
 single file:
 
 | Boundary-crossing question | Edges that answer it | Tool |
 |---|---|---|
-| who breaks if I change this contract? | `imports`, `implements` | `analyze_dependencies` |
-| how does a request cross service boundaries? | `routes_to`, `binds_to`, `uses_env`, `publishes`, `consumes` | `trace_flow` |
-| where does a dependency cross a package/domain line? | any edge between nodes of different `package`/`domain` | `map_context`, architecture detectors |
+| who breaks if I change this contract? | `imports`, `reexports`, `implements` | `analyze_dependencies` |
+| how does a request cross service boundaries? | `infra`, `routes_to`, `binds_to`, `uses_env`, `publishes`, `consumes` | `trace_flow` |
+| where does an import cross a package line? | cross-package `imports` | `analyze_dependencies` (`package-boundaries`) |
+| what belongs to a domain? | `tagged` | `map_context` |
 
-**Honest folding.** Where an ecosystem collapses a boundary, repovine folds: no
-package manager → one package = root; convention exports → contract read from
-convention; a dynamically-typed module with no nominal interface → `implements`
-empty. A contract-poor repo gets a thinner, truthful map. The floor is a guarded
-invariant (`test/laws/` honest-empty): absence is no-by-construction, distinct
-from a fabricated edge.
+There is no generic cross-domain edge report. Architecture detectors surface the
+specific boundary patterns they support; `map_context` provides domain scope and
+navigation rather than claiming an exhaustive dependency cut.
+
+**Honest absence.** repovine materializes only boundaries that an active producer
+can establish. Without a supported source-package marker, the graph has no source
+package or code-module nodes, although independent IaC and template producers or
+compatible plugin projectors may still populate their surfaces. Convention-based
+exports are emitted only when a source plugin defines that convention;
+unsupported nominal relationships, such as Python `implements`, remain absent. A
+contract-poor repository therefore yields a thinner graph rather than synthetic
+structure. An absent fact means only that no producer established it — not
+whether the construct is truly absent or unsupported.
+`test/laws/honest-empty.test.ts` guards one concrete case: Python builds remain
+non-empty while frontend-only hints remain absent by construction.
 
 **The cut is goal-relative.** Other tools slice a repository differently:
 
@@ -336,8 +408,8 @@ from a fabricated edge.
 | concepts | domains, embeddings | semantic search |
 
 repovine stops below `export-symbol`: no AST slicing, no materialized call graph
-(`calls` would be strings, not edges). The cut is the fixed point of four
-constraints:
+(`calls` remain string fields on export-symbol nodes, not edges). The cut is the
+fixed point of four constraints:
 
 1. **agent altitude** — architectural-reasoning granularity, not machine-precise tracing;
 2. **cross-language survivability** — only contract boundaries survive a paradigm change;
@@ -360,20 +432,24 @@ graph shape is intentionally small and query-driven:
   through graph navigation and scope/domain lookup rather than ablation;
 - node `data` is typed per node kind (`NodeDataByType`); the graph-delta validator
   rejects `data` keys foreign to a node type on the untrusted path;
+- public plugin projections are validated as restricted contribution batches;
+  the host alone mints graph identities and maps their canonical relations to
+  internal edge kinds;
 - every source package and source module in `RepositoryFactsSnapshot` carries a
   source-plugin id stamped at the Stage 1 boundary, so ownership can be resolved
   by id or declared plugin capabilities rather than inferred from paths;
 - unsupported higher-tier hints are honestly absent, not guessed.
 
 This contract is guarded by `test/laws/` (`schema-shape`, producer and consumer
-edge witnesses, honest-empty, determinism, source-plugin stamping, and per-type
-node-data shape). Those tests are property and differential guards, not golden
-graph snapshots: adding a new node or edge kind requires updating the canonical
-constants, listing any new node-data keys in `NODE_DATA_KEYS` (a compile-time
-assertion keeps it exactly in sync with `NodeDataByType`), adding producers,
-proving a consumer where applicable, and keeping `GraphDelta` validation in sync.
-It does not require changing fixture `expected.json` files unless behavior outside
-this contract truly changed.
+edge witnesses, honest-empty, determinism, source-plugin stamping, per-type
+node-data shape, projection composition, and projected-entrypoint visibility).
+Those tests are property and differential guards, not golden graph snapshots:
+adding a new node or edge kind requires updating the canonical constants, listing
+any new node-data keys in `NODE_DATA_KEYS` (a compile-time assertion keeps it
+exactly in sync with `NodeDataByType`), adding producers, proving a consumer where
+applicable, and keeping internal and public projection validation in sync. It does
+not require changing fixture `expected.json` files unless behavior outside this
+contract truly changed.
 
 Domains are inferred from paths, package layout, import clusters, frontend/backend
 conventions, IaC kind, and optional `repovine.domains.json` rules. Large
@@ -395,7 +471,7 @@ Git history shows the law cutting both ways:
 | **Added** | `implements` | a string field answers "which symbols implement `I`?" wrong through barrel/namespace gaps |
 | **Pruned** | `handles` / `exposes` | no producer; a closed union with dead members is dishonest |
 | **Collapsed** | `uses_secret` → `uses_env` / `binds_to` | not a distinct relation, only a secret-typed target (`kind === "secret"`) |
-| **Added** | `template` + `renders` / `extends` / `includes` | new query class (template composition) across Django/Jinja/Blade/Razor/Phoenix/Go — one primitive, not N edges |
+| **Added** | `template` + `renders` / `extends` / `includes` | one cross-ecosystem query class for render/composition facts instead of framework-specific graph primitives |
 
 The guard is **differential, not a golden snapshot**. A producer (`addNode`/`addEdge`
 in `src/**`) is necessary but not sufficient: a kind counts only if removing its
@@ -414,13 +490,34 @@ Within that scope, every graph primitive has a deterministic producer and every 
 
 This is a design constraint, not a claim of universal program representation. A new query class may justify a new primitive only when it preserves deterministic extraction, cross-language meaning, and a tested consumer.
 
+#### Graph build linking
+
+Stage 2 materializes deterministic cross-artifact links through two paths. The
+internal `infra-runtime-links` interpreter resolves code-bearing deployment
+resources to source modules and connects resources when their declared references
+resolve unambiguously. Plugin projectors may contribute relationships such as a
+container image or explicit build path pointing to an in-repository Dockerfile;
+the host validates those contributions and maps their public relation vocabulary
+to core edge kinds.
+
+The optional `build.linking` configuration provides additional evidence for the
+internal handler resolver: extra source roots and explicit or conventionally
+discovered bundle scripts. It does not change Stage 1 discovery and does not
+configure image-to-Dockerfile projection. Ambiguous references produce no link
+rather than a registration-order or best-effort guess.
+
+Configuration is documented in [Workspace files](docs/workspace-files.md#buildlinking).
+
 #### Derived views outside the graph
 
 Not every deterministic result receives durable node identity. Entrypoint
-fragments are recorded and replayed for one graph generation; architecture
-findings, configuration surfaces, flow summaries, and MCP envelopes are computed
-for a query. These views may reference stable node ids, but they are not persisted
-as repository facts and do not extend the graph ontology.
+fragments, accepted namespaced extensions, contributor outcomes, and projection
+refusals are recorded alongside one graph generation. Extensions carry provenance
+and opaque payloads; generic surfaces may expose them, but graph traversal and
+architecture algorithms do not interpret them. Architecture findings,
+configuration surfaces, flow summaries, and MCP envelopes are computed for a
+query. These views may reference stable node ids, but they are not persisted as
+repository facts and do not extend the graph ontology.
 
 A result becomes a node only when it is an independently addressable,
 cross-unit contract that must survive across query classes. Question-specific
@@ -433,12 +530,33 @@ Domains are a logical overlay on the physical graph. Inference provides a determ
 
 Advisor output is additive and requires explicit approval before the committed configuration changes. The MCP server reports suggestions and previews but does not write the file. Schema, merge behavior, and advisor operations are documented in [Workspace files](docs/workspace-files.md#repovinedomainsjson).
 
-### Stage 3: search indexes
+### Stage 3: runtime state and search indexes
 
-Stage 3 builds exact and optional semantic entry indexes inside the same refresh
-barrier as the graph. Search therefore never describes an older graph snapshot,
-and there is no independent reindex lifecycle. The index contract is described in
-[Semantic search](#semantic-search).
+Input: the candidate snapshot and graph plus authored and checkout-local state.
+Output: a complete `RepovineState` ready for publication. Stage 3 loads or reloads
+the annotation store, reads runtime domain and advisory state, and derives domain
+suggestions for the candidate graph.
+
+It then builds an in-memory lexical token index over current graph node ids,
+labels, selected export-contract fields, and annotation prose. The optional
+semantic path projects eligible graph nodes into deterministic cards and
+synchronizes a local file-backed embedding index. The sync uses card hashes to
+reuse unchanged vectors, re-embed changed cards, and prune cards that left the
+corpus.
+
+If semantic synchronization fails, Stage 3 reports the degraded state and may
+retain compatible persisted vectors; the current lexical index remains available.
+Public semantic candidates are still resolved against the current graph, so a
+cached id that is no longer present cannot become a search result. Derived local
+onboarding and boundary indexes are projected from the same candidate state.
+
+The complete state is published with one runtime swap after the build finishes.
+Each search request pins that state for its duration, so a concurrent refresh
+cannot combine semantic ranking from one generation with the graph from another.
+There is no independently published search generation: every refresh rebuilds the
+lexical index and synchronizes the semantic index before publishing the candidate
+runtime state. Query and ranking behavior is described in [Semantic
+search](#semantic-search).
 
 ### Build publication and degradation
 
@@ -460,47 +578,21 @@ Degradation is explicit and local to the unavailable evidence:
 The publication barrier is the consistency boundary: every MCP result describes
 one complete generation, even when that generation has honest capability gaps.
 
-### Build model and performance
+#### Availability during builds
 
-Stage 1 is tuned for large TypeScript monorepos: ts-morph is used only where
-syntax facts are needed, extraction runs on a persistent `worker_threads` pool
-with short-lived per-shard `Project`s, and a per-machine calibration sizes the
-pool. This keeps cold-build concurrency and peak memory bounded on large
-monorepos. The MCP server
-connects its transport **before** building, so tools return an envelope carrying
-`result.status:"building"` while loading and `get_build_status` stays callable — with `waitSec` it long-polls,
-returning the moment the build settles instead of forcing a polling loop.
-`stageEtaSec` is deliberately only the current-stage estimate; `stage` and
-`remainingStages` expose how much of the pipeline still follows it. `repovine setup`
-builds the graph by default (`--no-build` defers to first MCP start), so the cold
-window normally exists only after an upgrade invalidates the cache.
+On startup, the MCP server connects its transport before starting the graph build,
+so the initialize handshake and `get_build_status` remain available on a cold
+cache. Other tools return a successful envelope carrying
+`result.status:"building"` until a generation is ready. With `waitSec`,
+`get_build_status` long-polls and returns when the build settles; `stageEtaSec`
+estimates only the current stage, while `stage` and `remainingStages` describe the
+remaining pipeline shape.
 
-<details>
-<summary><b>Deep dive — ts-morph confinement, three passes, worker pool, calibration, cache</b></summary>
-
-ts-morph is used only where syntax facts are needed — per-shard `Project`s
-(`skipAddingFilesFromTsConfig`/`skipLoadingLibFiles`), files added one at a time
-(one fs read shared between hash and parse), syntax-only export/signature
-traversal. It avoids the `TypeChecker`, `getModuleSpecifierSourceFile()` (which
-pulls cross-package files in), loading `lib.*`, and any long-lived repo-wide
-`Project`.
-
-- **Three passes.** *Discovery* lists candidate files; *deduplication* resolves
-  files sharing a module identity; *extraction* assigns stable shards to the
-  worker pool and reuses modules whose analysis version and content hash match.
-- **Worker pool.** Each shard builds a short-lived `Project` and drops it, so peak
-  RAM scales with `workers × per-shard footprint`, not total module count.
-- **Calibration.** A representative cold run writes `build-calibration.json`
-  (per-machine, gitignored); warm runs with reused modules do not replace it.
-  Worker RAM is the observed peak minus the main-process baseline, divided by
-  concurrently active shards. Later runs size the pool within that calibrated
-  CPU and memory envelope. Explicit build limits take precedence.
-- **Cache.** Warm cache is `repository-facts-snapshot.json`, invalidated by
-  analysis version, engine identity where applicable, content, and extraction
-  configuration. Build-status payloads are memoized so polling does not repeat
-  snapshot work.
-
-</details>
+`repovine setup` builds eagerly by default, moving the first full build out of the
+initial MCP session; `--no-build` deliberately defers it to MCP startup. Later
+starts may rebuild after cache incompatibility and incrementally re-extract changed
+modules. Operational commands and flags are documented in [CLI and
+setup](docs/scripts.md).
 
 ### Identity and compatibility
 
@@ -525,142 +617,211 @@ protect artifact and memory freshness. None substitutes for the others.
 
 ### Extension families and boundaries
 
-The word "plugin" is reserved for the two producer families that can become
-out-of-tree npm packages: source producers and IaC producers. They write layer-1
-facts through `@repovine/plugin-sdk` and never import graph ontology
-(`NodeType`, `EdgeKind`, `GraphDelta`, `RepositoryGraph`) or Stage 2 projection
-internals. Built-ins are first-party implementations of the same contract and
-ship as the default preset inside the `repovine` package.
+A plugin is an npm package with a validated manifest and runtime descriptor. One
+descriptor may expose any combination of four public capabilities: `source`,
+`iac`, `loaders`, and `projectors`. Source and IaC capabilities publish Stage 1
+facts; loaders decode documents for IaC parsers; projectors read an immutable fact
+view and return restricted Stage 2 contribution batches. Plugins never receive a
+mutable graph or import the internal graph ontology (`NodeType`, `EdgeKind`,
+`GraphDelta`, `RepositoryGraph`). The host validates outputs, stamps identity and
+provenance, mints graph ids, and applies accepted contributions.
 
-| Family | Public? | Contract package | Built-in location | Registry/bootstrap |
-|---|---:|---|---|---|
-| Source producers | Yes | `@repovine/plugin-sdk`, scoped as `@repovine/plugin-sdk/source-plugin` | `src/source-plugins/<name>/` | `src/stage1/source/` |
-| IaC producers | Yes | `@repovine/plugin-sdk`, scoped as `@repovine/plugin-sdk/iac-plugin` | `packages/plugins/iac-<name>/src/` | `src/stage1/iac/` |
-| Template discovery | No | core-only `TemplateFileInfo` contract | `src/stage1/templates.ts` | direct Stage 1 pass |
-| Interpreters | No | core-only TypeScript contract | `src/interpreters/<name>/` plus shared `src/interpreter/` types | `src/stage2/interpreter/` |
-| Detector packs | No | core-only detector contract | `src/analysis/architecture-detectors/<pack>/` | `src/analysis/architecture/` |
-| Mechanics | No | core-only `DeliveryMechanic` contract | `src/mechanics/` | `src/mechanics/registry.ts` |
+Built-ins are separate first-party packages compiled against the same public SDK
+and loaded through the same path as installed plugins. They are bundled with the
+`repovine` tarball and selected by `@repovine/plugin-default-preset`.
 
-Source and IaC producers are external-capable because their output is a validated
-fact delta that the engine can stamp with module identity and provenance, cache,
-and project. Interpreters and detector packs are internal because they consume
-the core graph, annotation state, MCP response shapes, and architecture-finding
-semantics. Moving them out would expose graph/projection internals as a public API
-before those contracts are stable.
+#### Public plugin capabilities
 
-Template discovery is a third fact-producing path, but not a public plugin
-family. Core currently owns dialect detection and the `TemplateFileInfo`
-contract; an internal Stage 2 interpreter projects template nodes and composition
-edges. Adding a template dialect is therefore a core change today. The path can
-become an external producer family if its discovery and fact contract stabilizes,
-without changing the graph ontology.
+| Capability | Contract surface | Built-in location | Host integration |
+|---|---|---|---|
+| Source extraction | `@repovine/plugin-sdk/source-plugin` | `packages/plugins/source-<name>/src/` | `src/plugin-host/load.ts`, `src/plugin-host/source-set.ts`, `src/stage1/extract-runner.ts` |
+| IaC parsing | `@repovine/plugin-sdk/iac-plugin` | `packages/plugins/iac-<name>/src/` | `src/plugin-host/load.ts`, `src/plugin-host/iac-set.ts`, `src/stage1/infra.ts` |
+| Document loading | `DocumentLoader` from `@repovine/plugin-sdk/plugin` | host defaults in `src/plugin-host/document-loaders.ts`; plugin-specific loaders live with their package | `src/plugin-host/load.ts`, `src/plugin-host/iac-set.ts` |
+| Projection contributors | `ProjectionContributor` from `@repovine/plugin-sdk/plugin` | `packages/plugins/*/src/projectors/` | `src/stage2/projection/` |
 
-### IaC parser architecture
+The public capabilities expose data and restricted contribution DTOs, not core
+state. Source and IaC deltas are validated before entering the snapshot; document
+loader ids have conflict rules; projection batches are schema-checked, budgeted,
+host-stamped, and applied atomically.
 
-IaC producers parse deployment formats into deterministic resource facts. The
-Stage 1 orchestrator dispatches through the shared IaC producer contract and
-metadata registry rather than branching on format names.
+#### Source parser architecture
 
-Built-ins are explicit first-party plugins. A producer owns file discovery and
-format parsing; Stage 2 owns graph projection and cross-format relationships.
-The graph ontology is shared — formats do not receive their own node or edge
-types — while internal Stage 2 linking may remain provider- or
-resource-specific where the relationship itself requires it. A new format
-extends the producer edge without a new graph primitive when its facts fit the
-existing ontology.
-
-Supported formats and current depth are listed in [Supported stacks](README.md#supported-stacks). Authoring and conformance are documented in [Plugin authoring](docs/plugin-authoring.md).
-
-### Source parser architecture
-
-Source producers follow the same boundary. A language plugin discovers packages and emits deterministic module and semantic-hint deltas; core stamps mechanical identity and projects those facts into the graph.
+Source plugins own package and candidate-file discovery plus language-specific
+extraction. The engine enforces repository containment and configured scan filters,
+resolves duplicate file claims, mints module ids, reads and hashes source text, and
+passes that text to the selected plugin. The plugin returns imports, exports,
+semantic hints, and optional schema-owned facts; the engine validates them and
+stamps paths, content hash, package identity, and `sourcePluginId` provenance.
 
 Language plugins may differ in extraction depth. Consumers interpret absent
 capability-gated facts as unavailable, never as guessed data. Language-specific
-inference stays inside producers. Core dispatches some internal interpreters by
-declared `sourceAdapterIds`, semantic hints, or plugin capabilities; baseline
-package/module structure is shared, while a language-specific projection
-requires a compatible interpreter contract.
+inference stays inside producers. Internal interpreters are activated by observable
+facts through `requiresSemanticHints` and `requiresSnapshotFacts`, never by
+producer id. Baseline code structure and infrastructure linking run over the
+shared snapshot; route, UI, and template interpreters run only when their required
+fact slots are present. `sourcePluginId` records provenance and does not select an
+interpreter. Cross-artifact semantics that do not fit an internal interpreter can
+be published as schema-owned facts and consumed by a public projector.
 
 The public contract lives in `@repovine/plugin-sdk/source-plugin`. Author workflow, trust model, and conformance are documented in [Plugin authoring](docs/plugin-authoring.md).
 
-### Graph build linking
+#### IaC parser architecture
 
-Stage 2 links deployment facts to source modules and container definitions. Handler paths, bundle metadata, image references, and service names may produce `infra` or `routes_to` edges when the target resolves deterministically.
+IaC plugins parse deployment formats into deterministic resource and published
+facts. The host owns repository traversal, scan filters, file reads, document
+loader selection, and the raw-file content hash. Each parser declares its file
+match and loader id, decides whether it supports a decoded document, and returns
+only IaC semantics. The host validates that delta and stamps module identity,
+paths, provenance, and content hash.
 
-The optional `build.linking` configuration supplies search roots and bundle/container hints for repositories whose IaC points at build artifacts or registry names. It changes target resolution only; `build.scan` remains the source-discovery boundary.
+A decoded document is offered to every matching parser that supports it. Shared
+claims may contribute together; overlapping exclusive claims and equally specific
+loader disagreements become explicit refusals rather than registration-order
+winners. Host-provided YAML, JSON, and text loaders share the same registry with
+loaders supplied by plugins.
 
-Configuration and service-id conventions are documented in [Workspace files](docs/workspace-files.md#buildlinking).
+Stage 2 internal interpreters project baseline infrastructure structure and links.
+A plugin may also publish schema-owned facts and provide projectors for
+cross-artifact relationships; those projectors return restricted contributions,
+while the host resolves references, mints ids, and applies the accepted graph
+changes. The ontology remains shared — formats do not receive private node or edge
+types. A new format needs no graph primitive when its facts and relationships fit
+the existing contracts.
+
+Supported formats and current depth are listed in [Supported stacks](README.md#supported-stacks). Authoring and conformance are documented in [Plugin authoring](docs/plugin-authoring.md).
+
+#### Core-owned extension points
+
+Unlike public plugin capabilities, these extension points compose core-owned
+behavior and are not available through the plugin SDK.
+
+| Extension point | Contract | Built-in location | Core composition |
+|---|---|---|---|
+| Interpreters | `Interpreter` | `src/interpreters/<name>/` plus shared `src/interpreter/` types | `src/stage2/interpreter/` |
+| Detector packs | `DetectorPack` | `src/analysis/architecture-detectors/<pack>/` | `src/analysis/architecture/detector-bootstrap.ts`, `detector-registry.ts` |
+| Delivery mechanics | `DeliveryMechanic` | `src/mechanics/` | `src/mechanics/registry.ts` |
+
+Interpreters compose graph deltas and entrypoint fragments against the internal
+ontology. Detector packs consume graph, snapshot, annotation, threshold, and
+architecture-finding contracts. Delivery mechanics bind annotation and topology
+primitives to MCP and hook delivery channels. Publishing these extension points
+would therefore make their core dependencies public contracts.
+
+#### Template pipeline
+
+Template discovery is a separate built-in Stage 1 path in
+`src/stage1/templates.ts`, with `TemplateFileInfo` defined by the internal graph
+model. The `server-templates` interpreter projects those facts into template nodes
+and composition edges during Stage 2. Adding a template dialect is therefore a
+core change today, not a plugin registration. This path can become a public
+capability if its discovery and fact contracts stabilize without requiring a
+template-specific graph ontology.
 
 ## Annotations
 
 **Layer 2.** Versioned annotations give the graph durable authored memory across
-sessions, keyed by graph node id and stored in `repovine.annots.json` (committed). The on-disk
-format is valid JSON but canonicalized as one entry per line — the top-level key is
-the node id; redundant fields (`nodeId`, `nodeType`, default `pass`/`schemaVersion`)
-are inferred on load. This keeps Git diffs and conflict markers scoped to changed
-records.
+sessions, keyed by graph node id and stored in the configured annotations file
+(default `repovine.annots.json`, committed). The on-disk format is valid JSON but
+canonicalized as one entry per line — the top-level key is the node id; redundant
+fields (`nodeId`, `nodeType`, default `pass`/`schemaVersion`) are inferred on load.
+This keeps Git diffs and conflict markers scoped to changed records.
 
 ### Annotation model
 
-Each stored annotation carries identity, freshness, and audit metadata plus an
-authored payload. Annotatable node types are `module`, `export-symbol`,
-`runtime-resource`, `template`, and `domain`; `infra:` ids are stored as module
-annotations. The payload requires `summary`. Its complete field and disk-format
-contract is defined in [Workspace files](docs/workspace-files.md#annotation-payload-fields).
+Each stored annotation carries identity and audit metadata, the content and import
+baselines used to recompute freshness, and an authored payload. Annotatable node
+types are `module`, `export-symbol`, `runtime-resource`, `template`, and `domain`;
+`infra:` ids are stored as module annotations. The payload requires `summary`.
+Its complete field and disk-format contract is defined in [Workspace
+files](docs/workspace-files.md#annotation-payload-fields).
 
 A `risks` entry is a plain string (**local** scope) or `{ text, scope }` with
 scope `local`, `consumer`, or `boundary`. Scope selects the delivery channel
 ([Annotation delivery](#annotation-delivery)), independent of the text. `local` is the default;
-`consumer` and `boundary` are the selective exceptions that drive the
-`inspect_node` edge flags and the pre-edit hook.
+`consumer` and `boundary` are the selective exceptions that drive MCP delivery;
+`boundary` additionally drives the pre-edit hook.
+
+#### sideEffects vocabulary
+
+`sideEffects` is a closed structured vocabulary shared by annotation validation,
+architecture analysis, and delivery mechanics. It distinguishes external I/O,
+local and global state, process lifecycle, concurrency, time, subscriptions,
+opaque external calls, resource lifetime, and explicit purity without
+keyword-matching prose.
+
+The canonical kinds and detector contract are documented in [Workspace
+files](docs/workspace-files.md#annotation-payload-fields). The runtime source of
+truth is `src/annotations/side-effect-vocab.ts`.
 
 ### Persistence
 
-Writes persist through a single-writer debounced save chain. Concurrent edits to
-different fields of one node merge at field granularity, external conflict fails
-the save closed, and shutdown drains pending writes. The save chain lives in
+Writes pass through a debounced in-process save chain and a cross-process file
+lock. When the file changes externally but remains valid, disk is the merge base:
+field-aware local writes overlay only their touched fields while unrelated
+external fields survive.
+Writes are atomic, and shutdown drains pending work. An unreadable or
+conflict-marked file blocks persistence rather than being overwritten; writing
+resumes only after repair and reload. The save path lives in
 `src/annotations/store.ts`.
+
+#### Semantic merge
+
+Version-control conflicts are resolved through `merge_annotations`, never by
+manually editing JSON conflict markers. Its three-way merge combines distinct
+records and non-overlapping fields, recursively merges nested records, and unions
+array values by canonical identity. When both sides change a scalar differently,
+the merge chooses a deterministic side and records explicit merge-review markers
+until an agent inspects the node and rewrites that field.
+
+The merge workflow and marker format are documented in [Workspace
+files](docs/workspace-files.md#git-merge-workflow).
 
 ### Annotation quality and trust
 
 Annotation trust has three independent axes:
 
-- **Freshness** compares stored hashes, schema versions, and import baselines with the current graph.
+- **Freshness** recomputes a verdict from stored hashes, schema versions, import baselines, and the current graph.
 - **Consistency** recomputes contradictions between filled fields and graph facts.
-- **Provenance** records whether a write was grounded by inspecting or editing the node in the same context session.
+- **Provenance** relates annotations written in a run to inspected graph anchors or reported file and node changes.
 
-The 0–10 annotation score measures field completeness only. It does not claim correctness or trust. Freshness drives maintenance state; consistency produces issues; provenance is validated at the write/run boundary because it cannot be reconstructed later.
+For code modules, a write associated with a context session warns when the node was
+not inspected in that session. Explicit Delivery Protocol validation rechecks the
+annotations reported by that run and can enforce grounding according to the run
+mode. This provenance verdict is not stored with the annotation and cannot be
+reconstructed retrospectively.
 
-Module kind selects recommended fields, but never changes the annotation schema or graph facts. Payload fields and queue behavior are documented in [Workspace files](docs/workspace-files.md#repovineannotsjson).
+The 0–10 annotation score measures field completeness only; it does not claim
+correctness or trust. Freshness drives maintenance state, consistency produces
+issues, and module kind selects recommended fields without changing the annotation
+schema or graph facts. Payload fields and queue behavior are documented in
+[Workspace files](docs/workspace-files.md#repovineannotsjson).
 
-### sideEffects vocabulary
+#### Freshness and incremental updates
 
-`sideEffects` is a closed structured vocabulary shared by annotations and architecture detectors. Structured kinds let consumers distinguish persistence, external I/O, global state, subscriptions, resources, and intentionally pure modules without keyword-matching prose.
+Freshness has four named stale reasons. `content` means the owning artifact's hash
+changed; `schema` means the stored annotation predates the current annotation
+schema; `propagation` means the node is unchanged but a tracked direct dependency
+changed; and `no-baseline` means the node is hashable now but the note was written
+without a comparable hash. A node with no hash source is `not-comparable`, while a
+note whose node disappeared is an orphan outside the freshness verdict. Runtime
+resources use deterministic IaC fingerprints where available.
 
-The canonical kinds and detector contract are documented in [Workspace files](docs/workspace-files.md#annotation-payload-fields). The runtime source of truth is `src/annotations/side-effect-vocab.ts`.
+Freshness is intentionally conservative: a current hash proves that the annotated
+artifact is unchanged, not that the prose is complete or correct.
 
-### Freshness and incremental updates
+#### Unified queue and coverage
 
-Memory follows graph change. A note becomes content-stale when its owning artifact or schema changes, propagation-stale when a tracked direct dependency changes, and orphaned when its node disappears. Runtime resources use deterministic IaC fingerprints where available.
+One walk over the live annotatable surface produces both the prioritized queue and
+its coverage totals. Unannotated nodes enter directly. Stale reasons `content`,
+`schema`, and `no-baseline` map to the content-review class; `propagation` maps to
+the upstream-review class. `not-comparable` nodes contribute to the
+`unconfirmable` coverage count but create no queue row.
 
-All stale classes enter one maintenance backlog. Freshness is intentionally conservative: a current hash proves that the annotated artifact is unchanged, not that the prose is complete.
-
-### Semantic merge
-
-Annotation files are merged through `merge_annotations`, never by resolving JSON conflict markers manually. Distinct records combine automatically. Conflicting scalar edits remain explicit merge-review drafts until an agent inspects the node and rewrites the field.
-
-The merge workflow and marker format are documented in [Workspace files](docs/workspace-files.md#git-merge-workflow).
-
-### Unified queue and coverage
-
-Unannotated, content/schema-stale, and propagation-stale live nodes are exposed
-through one prioritized queue. Coverage reports that backlog by node type and
-domain. Orphaned annotations and merge-review drafts are separate maintenance
-states surfaced by validation and dedicated actions rather than queue rows. The
-single queue keeps annotation onboarding and stale-note maintenance on one
-ordering. Risk-scope candidates and carrier-link gaps are advisory; they never
-enter it.
+Coverage reports the same backlog by node type and domain, so queue and coverage
+cannot disagree about what remains. Orphaned annotations and merge-review drafts
+are separate maintenance states surfaced by validation and dedicated actions.
+Risk-scope candidates and carrier-link gaps are advisory and never enter the
+queue.
 
 Operational queue fields and coverage views are documented in [Workspace files](docs/workspace-files.md#freshness).
 
@@ -668,35 +829,58 @@ Operational queue fields and coverage views are documented in [Workspace files](
 
 Semantic search is fuzzy entry into the deterministic graph, not a parallel source of truth.
 
-The token index is always available for exact symbol, path, domain, annotation, configuration, and entrypoint matches. An optional local embedding index ranks deterministic node cards for natural-language queries. Export symbols remain token-searchable through their parent modules rather than becoming a second high-cardinality embedding corpus.
+The lexical token index is always available for graph node ids, labels, selected
+export-contract fields, and annotation prose. Configuration and entrypoint matches
+are resolved by auxiliary collectors alongside graph search rather than stored in
+that index.
 
-Both indexes return stable graph node ids. Semantic scores orient the first hop; subsequent map, inspect, impact, flow, and configuration queries operate on graph facts. Card hashes make embedding updates incremental, and embedding failure degrades to persisted vectors plus token search.
+The optional embedding index ranks node cards deterministically projected from
+current graph facts and authored annotation state. Eligible card types are
+modules, runtime resources, templates, packages, and domains, but identifier-only
+cards are omitted: a node receives a vector only when its card adds export names
+or annotation prose beyond what lexical search already covers. Export-symbol
+nodes remain directly searchable through the lexical index, and their names feed
+parent module cards, but they are not embedded individually.
 
-Node cards are capped at 1000 characters before tokenization, matching the
-roughly 256-token MiniLM input window instead of relying on silent tokenizer
+The embedding index is local and file-backed; it scans the graph-node vector
+corpus directly rather than using a vector database. Each query pins one complete
+state generation, so semantic candidates are accepted only when their stable ids
+exist in that graph. Card hashes make sync incremental. If embedding fails, the
+failure is reported and search continues with the current lexical index plus
+whatever compatible vectors remain in the local index.
+
+Both indexes may retain stale annotation prose for recall. When query tokens match
+annotation text directly, the result exposes `annotationMatched` and, when
+established, `annotationStale`. A semantic-only hit cannot identify which card
+field drove the similarity, so it remains low-confidence advisory evidence and
+must be verified through graph inspection.
+
+Node cards are capped at 1000 characters before embedding tokenization, matching
+the roughly 256-token MiniLM input window instead of relying on silent tokenizer
 truncation. Within annotation prose the retained order is summary, invariants,
 risks, flow, integration points, then verbose per-export descriptions.
 
-`search_context` performs exact matching first, bounded relaxation when needed,
-then optional semantic rank fusion. Its response exposes the strategy, matched
-tokens, confidence, gaps, and suggested graph scopes so callers can distinguish
-strong matches from fuzzy recovery. A nearest semantic neighbour with no token
-match is explicitly low-confidence advisory evidence, not proof that the
-requested functionality exists. Dimension-incompatible persisted vectors are
-reported rather than disappearing as an unexplained empty ranking.
+`search_context` combines lexical conjunction and bounded relaxation with optional
+semantic rank fusion. Its response exposes the strategy, matched tokens,
+confidence, gaps, and suggested graph scopes so callers can distinguish strong
+matches from fuzzy recovery. Semantic scores orient the first hop; subsequent map,
+inspect, impact, flow, and configuration queries operate on graph facts.
+Dimension-incompatible vectors are reported rather than disappearing as an
+unexplained empty ranking.
 
 Configuration and cache behavior are documented in [Workspace files](docs/workspace-files.md#semantic_search_embeddings).
 
 ## MCP context
 
-**Layer 3.** MCP exposes bounded graph queries for orientation, inspection, impact, runtime flow, configuration, architecture review, annotations, build state, and context-session quality. Tool handlers share scope resolution and response shaping; protocol validation remains a CLI/harness surface.
+**Layer 3.** MCP exposes bounded graph queries for orientation, inspection, impact, runtime flow, configuration, architecture review, annotations, build state, and context-session quality. Graph-facing handlers share scope resolution, and all MCP tools share response shaping. Delivery Protocol validation remains a CLI/harness surface.
 
 The public tool list and usage examples are maintained in [README](README.md#mcp-tools).
 
 ### Guided envelope
 
-Read-only tools return a common envelope used as a decision framework. The default
-response mode is `concise`, so empty/default pieces are omitted:
+All MCP tools return a common envelope used as a decision framework. The default
+response mode is `concise`; the example below includes optional fields that appear
+only when they carry information:
 
 ```json
 {
@@ -704,36 +888,53 @@ response mode is `concise`, so empty/default pieces are omitted:
   "resolvedScope": { "kind": "domain", "id": "domain:auth" },
   "summary": "What this result tells you",
   "confidence": "high",
-  "attention": [{ "nodeId": "$3x9a1", "investigate": ["boundary"], "note": "off-limits boundary surface", "next": { "tool": "analyze_dependencies", "args": { "scope": "$3x9a1", "mode": "impact" } } }],
-  "result": { "...": "tool-specific payload", "emptyDiagnostic": "present only when totalResults is 0 (search_context also skips it when OR-relax or aux config/entrypoint matches produced hits)" },
-  "gaps": ["Important limitations or missing graph links"],
-  "refs": { "$3x9a1": "mod:pkg/src/session" },
-  "navigation": { "deeper": [{ "tool": "inspect_node", "args": { "nodeId": "$3x9a1" }, "reason": "Inspect match" }] }
+  "attention": [{
+    "nodeId": "mod:workspace/packages/auth/src/session-handler",
+    "investigate": ["boundary"],
+    "note": "off-limits boundary surface",
+    "next": {
+      "tool": "analyze_dependencies",
+      "args": { "scope": "mod:workspace/packages/auth/src/session-handler", "mode": "impact" },
+      "reason": "Check consumers before editing an off-limits surface."
+    }
+  }],
+  "result": { "...": "tool-specific payload" },
+  "gaps": ["Known limitations or withheld evidence"],
+  "refs": { "$1o9j2uk": "mod:workspace/packages/auth/src/session-handler" },
+  "navigation": {
+    "deeper": [{ "tool": "inspect_node", "args": { "nodeId": "$1o9j2uk" }, "reason": "Inspect this match" }],
+    "sideways": [{ "tool": "analyze_dependencies", "args": { "scope": "$1o9j2uk", "mode": "impact" }, "reason": "Check consumers before editing" }]
+  }
 }
 ```
 
-`summary` interprets the result; `confidence` says how directly scope/tool matched
-the task (`search_context` may return `confidence: "low"` with hits after OR-relax when
-the top hit has weak token coverage); `attention` hoists open obligations above
-`result` for primacy ([Annotation delivery](#annotation-delivery)), capped at 3; `gaps` lists limitations;
-`navigation` is a bounded next-step menu grouped by intent
-(`deeper`/`sideways`/`up`/`crossLayer`/`validate`). In concise mode,
-repeated long ID-like strings in `navigation.args` are replaced with per-session
-`refs` (`$3x9a1`) that a follow-up call may pass directly. `responseFormat:
-"concise" | "debug"` overrides per call.
+`summary` interprets the result. `confidence` records whether the scope resolved
+and the tool produced a direct result; it is not a trust or completeness score.
+Known limitations, recall ceilings, and withheld evidence belong in `gaps`.
+`inspect_node` may hoist edit-relevant signals into `attention` for primacy
+([Annotation delivery](#annotation-delivery)), capped at 3. `navigation` is a
+bounded next-step menu grouped by intent
+(`deeper`/`sideways`/`up`/`crossLayer`/`validate`).
+
+Concise shaping compacts `resolvedScope`, removes empty `gaps` and navigation
+sections, and shortens navigation reasons. Eligible repeated or very long graph
+ids inside `navigation.args` become short-lived, server-local `refs`; an immediate
+follow-up call may pass the ref directly. Attention items retain full ids.
+`responseFormat: "concise" | "debug"` overrides the configured mode per call.
 
 ### Annotation delivery
 
-Layer 2 notes reach the agent through Layer 3 tools and one pre-edit hook.
-Delivery splits into four **registers** — the same fact rides differently by
-register. Three registers pull on an MCP call; the fourth pushes at the
-edit site.
+In client use, Layer 2 notes reach the agent through Layer 3 tools and a generated
+pre-edit hook. At the design level, delivery splits into four **registers** — ways
+the same fact is presented to the reader. Three registers pull on an MCP call;
+the fourth pushes at the edit site. Registers are distinct from the implementation
+channels (`pull-self`, `pull-neighbor`, `pull-carrier`, `push`, and `advisory`).
 
-| Register | Carries | Channels |
+| Register | Carries | Surfaces |
 |---|---|---|
-| content | the annotation body verbatim | `inspect_node.result.annotation`; `map_context` domain scope; `analyze_architecture` detail excerpts |
+| content | a full annotation or a bounded excerpt | full note in `inspect_node.result.annotation` and `map_context` domain scope; excerpts in `analyze_architecture` detail |
 | pointer | presence only — "inspect this node" | `investigate` tags on refs; `investigatePointers`; `search_context` escalation gap; `trace_flow` `runtimeHandoff` `trigger:"annotation"` |
-| salience | obligations hoisted to primacy | envelope `attention` block |
+| salience | edit-relevant signals hoisted to primacy | envelope `attention` block |
 | push | boundary text at the edit site | pre-edit hook over `.repovine/boundary-index.json` |
 
 Health-and-coverage tools (`get_annotation_status`, `validate_annotations`) report
@@ -743,11 +944,17 @@ marks a node and routes the agent to `inspect_node` for the content.
 
 #### Mechanics registry
 
-A **delivery mechanic** pairs a detection trigger with the delivery surfaces its
-signal reaches. `src/mechanics/registry.ts` is the enumerable source: which
-mechanics exist, their tag priority (array order), and the detection dispatch
-(`tagsForTarget`, `selfBoundaryAttention`). Delivery machinery — priority caps,
-hub demotion, the boundary push index — stays with each register.
+A **delivery mechanic** pairs a detection trigger with the channels its signal
+reaches. In `src/mechanics/registry.ts`, ordered `DELIVERY_MECHANICS` is the source
+for mechanic ids, tag priority, detection, and channel membership;
+`CHANNEL_SURFACES` maps every channel to its concrete producers and response field.
+`mechanicsForChannel` makes channel membership load-bearing for generic delivery.
+The delivery-totality and delivery-invariance laws check the declarations against
+the surfaces that emit them.
+
+Surface-specific rendering remains in the MCP, boundary-index, and annotation
+advisory producers. Those producers own ordering, caps, pagination, and the
+boundary push artifact.
 
 | Delivery mechanic (`id`) | Reads | Direction | Delivers to |
 |---|---|---|---|
@@ -759,36 +966,35 @@ hub demotion, the boundary push index — stays with each register.
 | `hub` | import in-degree (topology) | self | pointer |
 | `unannotated` | annotation absent | self | reserved — declared, emitted by none |
 
-`direction` is `self` when the signal describes the node itself, `propagating`
-when it obligates consumers; it sets register affinity and push admission.
-`co-change` is semantically symmetric; the enum has no `symmetric` value, and
-`propagating` keeps it out of push. A mechanic self-gates: `detect` returns
-false when its primitive is absent, so a mechanic on an existing primitive is
-one registry entry with no core edit and no language branch. A mechanic on a
-new primitive also adds that primitive's ctx accessor (`edgeCount` for the
-topology-edge mechanics). Applicability follows the primitive — a universal
-mechanic reads primitives every plugin emits (node, annotation scope); a
-language-scoped one reads a primitive only some plugins emit. The mechanic's
-`channels` field names the pull surfaces and push; `pull-neighbor`/`pull-carrier`
-map to the pointer register, `pull-self` to salience. The `risk` mechanic emits
-the tag named `risk` (API-visible in `inspect_node`).
+`direction` is descriptive metadata: `self` means the signal describes the node
+itself, while `propagating` means it concerns related consumers. `co-change` is
+semantically symmetric, but the enum has no `symmetric` value, so it uses the
+closer `propagating` description. Routing and push admission are determined by
+`channels`. The generic `pull-neighbor` and `pull-carrier` paths dispatch through
+`mechanicsForChannel`; `pull-self`, `push`, and `advisory` have specialized
+renderers or projections. Adding a mechanic therefore also extends the public tag
+vocabulary and executable laws, and specialized channels require a matching
+producer. Applicability still follows the primitive rather than a language branch:
+`detect` returns false when its input is absent. The `risk` mechanic emits the tag
+named `risk` (API-visible in `inspect_node`).
 
-**Primitive coverage.** A mechanic reaches a language only where a plugin produces
-its primitive:
+**Current built-in primitive coverage.** A mechanic reaches a language only where
+a plugin produces its primitive:
 
 | Primitive | Produced by | Mechanic | Languages |
 |---|---|---|---|
-| `annotation.scope:*`, `annotation.sideEffects`, `annotation:absent` | annotation store (authored) | `risk`, `boundary`, `effect`, `unannotated` | any node |
-| `topology.inDegree` | import edges — every source plugin | `hub` | any |
-| `topology.runtimeEdges` (`infra`/`binds_to`) | IaC plugins + the shared handler-resolver | `wiring` | any handler language (TS, Python) |
-| `topology.implementsEdges` (`implements`) | TS plugin only (`implementsInterfaces`, `source-plugins/typescript/exports.ts`) | `co-change` | **TS only — Python emits none** |
+| `annotation.scope:*`, `annotation.sideEffects`, `annotation:absent` | annotation lookup; `annotation:absent` is reserved and never emits | `risk`, `boundary`, `effect`, `unannotated` | any annotatable node |
+| `topology.inDegree` | source plugins that emit import facts | `hub` | languages with import facts |
+| `topology.runtimeEdges` (`infra`/`binds_to`) | infra/runtime-link interpretation over plugin facts and handler resolution | `wiring` | any resolved handler module; bundled coverage includes TypeScript/JavaScript and Python |
+| `topology.implementsEdges` (`implements`) | code-structure interpretation over source-plugin `implementsInterfaces`; currently emitted by bundled TypeScript/JavaScript | `co-change` | bundled TypeScript/JavaScript; bundled Python emits none |
 
 A mechanic whose primitive no active plugin produces is **dormant**: `detect`
 self-gates to false, not an error — the delivery-side view of an absent
-capability-gated fact. To reach a new language, extend that language's plugin to
-emit the primitive; the mechanic then fires with no registry or core change. For
-`co-change` on Python that means populating `implementsInterfaces` from ABC /
-`Protocol` conformance in `source-plugins/python/`.
+capability-gated fact. Extending an existing mechanic to a new language therefore
+means teaching that language's plugin to emit the existing primitive, with no
+language conditional in delivery core. For `co-change` on Python that means
+populating `implementsInterfaces` from ABC / `Protocol` conformance in
+`packages/plugins/source-python/src/`.
 
 <details>
 <summary><b>Deep dive — investigate tags, attention, carriers, and pre-edit push</b></summary>
@@ -796,23 +1002,26 @@ emit the primitive; the mechanic then fires with no registry or core change. For
 #### Investigate tags
 
 The pointer register renders the mechanics above as `investigate` tags on a ref
-(`links`, `drillDown`, or an `investigatePointers` target), read from the
-target's stored annotation or its graph edges — structured fields only, never a
-prose scan.
+(`links`, `drillDown`, or an `investigatePointers` target). Once a target is
+selected, its tags come from structured risk/side-effect fields or graph topology,
+not fuzzy prose classification. The carrier path separately parses explicit graph
+node ids from `integrationPoints` to select deeper targets.
 
 Tags rank highest-first `risk > boundary > effect > wiring > co-change > hub`;
 `unannotated` sits reserved at rank 4 and never emits. Per-ref cap is 3 tags;
 per-response cap is 12 tagged refs, reported in `truncation.investigateRefs`.
-`hub`, `wiring`, and `co-change` are inline-only, capped at 2 refs each, and
-never hoisted to `attention`; `wiring`'s salience surface is a self attention
-item on the wired node. Implementation: `src/mcp/lib/investigate-refs.ts`.
+`hub`, `wiring`, and `co-change` are inline-only structural tags, capped at 2
+refs each. Generated agent guidance still treats every emitted `investigate` tag
+as a closure signal, but these three are not auto-promoted into `attention` or
+`navigation`; `wiring` has a separate salience surface as a self-attention item on
+the wired node. Implementation: `src/mcp/lib/investigate-refs.ts`.
 
 #### Attention block
 
-Tagged refs (except the advisory tags `hub`, `wiring`, `co-change`) are deduped
-by node, ranked by top tag priority, and hoisted to the envelope `attention`
-block above `result`, capped at 3. Each item pairs the reason with the cheapest
-next call.
+Refs carrying `risk`, `boundary`, or `effect` are deduped by node, ranked by top
+tag priority, and hoisted to the envelope `attention` block above `result`, capped
+at 3. Each item pairs the reason with the cheapest next call. Attention is data,
+not a gate, and may also contain the inspected node's structural wiring signal.
 
 Two signals on the **inspected** node itself yield self items that lead the
 block, in order: a `scope:"boundary"` risk points at `analyze_dependencies`
@@ -825,36 +1034,39 @@ reaching one through a ref. Implementation: `src/mcp/tools/inspect-node.ts`.
 A note's own `integrationPoints` names deeper dependencies by node id. Tokens are
 parsed, graph-membership filtered, and kept when the inspected node transitively
 depends on the target (depth-4 forward-import guard). A surviving target that
-carries a tag surfaces as an `investigatePointers` entry and a must-inspect
-`navigation.deeper` hint — the facade→SSOT carrier pair ([Annotation model](#annotation-model)).
-Structural refs are excluded.
+carries a tag surfaces as an `investigatePointers` entry — the facade→SSOT
+carrier pair ([Annotation model](#annotation-model)). `risk`, `boundary`, and
+`effect` pointers are also auto-promoted into `navigation.deeper` and are eligible
+for `attention`; inline-only structural pointers remain in the result. Targets
+already present as structural refs are excluded from `investigatePointers`.
 
 The authoring counterpart runs at annotation health. A gap is
 `missing-carrier-link` when a runtime 2-hop delegation omits the target from the
 importer's `integrationPoints`, and `named-but-undeliverable` when a named target
-sits outside the importer's dependency closure. Gaps are advisory and group by
-consumer-risk SSOT target. Reviewed decisions persist in
-`.repovine/carrier-review.json`, keyed by a hash of the target's consumer risks;
-a changed set re-surfaces the target. Implementation:
+sits outside the importer's dependency closure. Both are advisory.
+`missing-carrier-link` candidates group by consumer-risk SSOT target in the
+carrier-gaps view and may be marked reviewed-not-a-gap; `named-but-undeliverable`
+is reported separately and is not suppressed by that review state. Reviewed
+decisions persist in `.repovine/carrier-review.json`. Entries are keyed by target
+node id and store a hash of that target's consumer risks; a changed risk set
+re-surfaces the target. Implementation:
 `src/annotations/carrier-links.ts`, `src/annotations/carrier-review.ts`.
 
 #### Pre-edit push
 
 `scope:"boundary"` risks project into `.repovine/boundary-index.json` at graph
-build, keyed by the repo-relative file each annotated node owns. A `PreToolUse`
-hook reads the index standalone — no running server, O(1) per edited file — and
-surfaces the boundary text before an edit to that file lands. It is the
-deterministic backstop for the `node → boundary` lookup `inspect_node`'s
-`attention` serves on the pull path; both derive from the same `scope:"boundary"`
-source. Modules, exports, infra, and templates map to a file; domains and runtime
-resources have no single owning file and stay pull-only. Implementation:
-`src/mcp/boundary-index.ts`.
+build or refresh and after relevant annotation writes, keyed by the repo-relative
+file each annotated node owns. When generated client hooks are installed, the
+`boundary-notice` `PreToolUse` action reads the index standalone — no running
+server, one indexed lookup per edited file — and surfaces the boundary text before
+the edit lands. The notice is advisory and never blocks the client tool.
 
-In harness mode a fifth path carries the same fields. `renderHarnessImplementerBrief`
-directs the agent to read a note's `invariants`, `risks`, `sideEffects`, and
-`integrationPoints` as edit-time obligations — preserve, mitigate/test/accept, then
-close each as satisfied, tested, scoped-out, or a blocker. Harness projection
-details live in [Delivery Protocol](docs/delivery-protocol.md#projections).
+This is the deterministic backstop for the `node → boundary` lookup
+`inspect_node`'s `attention` serves on the pull path; both derive from the same
+`scope:"boundary"` source. Modules, exports, file-backed `infra:` nodes, and
+templates map to a file. Domains and projected `resource:` nodes have no single
+owning file and stay pull-only. Implementation: `src/mcp/boundary-index.ts` and
+`src/cli/dispatcher/repovine-client-dispatcher.mjs`.
 
 </details>
 
@@ -866,38 +1078,60 @@ Diagnostics include bounded retry/navigation suggestions. Semantic scope suggest
 
 ### Response budget
 
-Response size is an architectural constraint. Concise mode omits empty/default fields, shortens repeated ids through session refs, pages collections, bounds source bodies, and caps navigation and attention. Larger bodies, limits, or debug envelopes require explicit caller choice.
+Response size is an architectural constraint. Concise shaping compacts envelope
+metadata, shortens navigation reasons, and replaces eligible graph ids in
+navigation arguments with server-local refs. Tool payloads page collections and
+bound source bodies; the envelope caps navigation and attention. Larger bodies,
+limits, or debug envelopes require explicit caller choice.
 
-## Agent work and Delivery Protocol
+## Agent workflows and Delivery Protocol
 
-**Layers 4–5.** repovine supplies agents with **shared graph tools + committed
-annotations** and, for an explicit protocol run, validates the completed result.
-The client or harness coordinates the agents.
+**Layers 4–5.** repovine supplies shared graph tools and committed annotation
+memory. Clients and harnesses own agent execution and coordination; explicit
+Delivery Protocol runs additionally return a structured result that repovine can
+validate.
 
 ### Client projections and delegation boundary
 
-`setup` projects the same navigation, refresh, annotation, review, and handoff contracts into each supported client. Generated rules, skills, hooks, and utility-agent manifests are delivery artifacts; the repository graph and committed annotations remain the shared state.
+`setup` renders client-native rules, skills, hooks, and agent manifests from the
+same graph, annotation, refresh, and review contracts. These projections adapt
+the workflow to each supported client; the repository graph and committed
+annotations remain the shared state.
 
-The developer or external harness owns orchestration. repovine provides context, synchronization barriers, durable memory, and validation; it does not schedule models. Setup behavior and managed-file ownership are documented in [CLI and setup](docs/scripts.md).
+Clients and harnesses own model execution, permissions, delegation, retries, and
+review. repovine supplies context, synchronization barriers, durable memory, and
+validation. Autonomous harnesses can obtain generated worker guidance through
+`repovine delivery run-brief`. Setup behavior and managed-file ownership are
+documented in [CLI and setup](docs/scripts.md); protocol projections are described
+in [Delivery Protocol](docs/delivery-protocol.md#projections).
 
 ### Context Session Quality
 
-Context Session Quality derives a deterministic score from the MCP responses used
-before handoff. Client mode treats the score as advisory; a harness may require a
-session and enforce its threshold through assignment and compliance policy.
+Context Session Quality derives a deterministic report from the repovine MCP
+responses recorded before handoff. Assignment policy may require a session and
+configure its reporting thresholds, but the resulting verdict is currently
+advisory in both client and harness modes: thresholds shape warnings and required
+follow-ups, not compliance validity.
 
-Signals, lifecycle, thresholds, and recovery semantics are documented in
+Signals, lifecycle, validation evidence, and recovery semantics are documented in
 [Context Session Quality](docs/context-quality.md).
 
 ### Delivery Protocol boundary
 
-The harness-facing contract is `AgentAssignment → AgentRunResult → AgentComplianceReport`. The harness runs the model and owns permissions, retries, tests, review, and final acceptance. repovine owns schemas and validation against observable graph and annotation state.
+The harness-facing contract is
+`AgentAssignment → AgentRunResult → AgentComplianceReport`.
 
-Compliance hard-checks the observable claims it can recompute: declared-node resolution, annotation existence and selected freshness/consistency claims, read-only review/verification constraints, criteria/result/policy registry integrity, repository-evidence grounding, and an explicitly requested revision delta. It reports missing refresh and most requested-check signals, scope drift, and the currently advisory context-quality verdict without presenting them as stronger evidence. It cannot establish business correctness, real test execution, security readiness, rollout safety, or final acceptance.
+repovine validates schemas and the claims it can recompute from repository state:
+graph identities and scope, annotation state, repository-grounded evidence,
+declared protocol policy, and recorded context-session data. External evidence
+such as test, build, runtime, security, or review results remains under harness
+custody; repovine validates its declared shape and admissibility, not its
+execution or truth.
 
-Public protocol compliance runs through the CLI. The command builds current
-repository state with the same engine pipeline used by MCP and passes that state
-to the core validator; protocol validation itself is not an MCP tool.
+The harness owns model execution, permissions, retries, behavioral checks, review,
+and final acceptance. Delivery Protocol commands are exposed through the CLI and
+build repository state with the same engine used by MCP; MCP remains the worker
+context surface.
 
 Protocol objects, projections, commands, lifecycle, and integration examples are documented in [Delivery Protocol](docs/delivery-protocol.md).
 
@@ -910,9 +1144,9 @@ at their narrowest observable boundary:
 |---|---|---|
 | Graph ontology and invariants | `test/laws/` | Schema shape, producer/consumer witnesses, typed node data, honest absence, determinism, or source ownership no longer matches the design. |
 | Stage 1 extraction compatibility | `test/laws/extract-output-golden.test.ts` | Extracted facts changed; the change must be reviewed together with the analysis-version and cache-compatibility decision. |
-| Plugin boundary and conformance | plugin law tests and `test/unit/plugin-sdk/conformance.test.ts` | A producer crossed the semantics-only boundary or no longer satisfies the public SDK contract. |
-| Annotation delivery | focused MCP tests for investigate refs, self-attention, and boundary index | Pointer, salience, carrier, or pre-edit projection changed. |
-| Delivery Protocol | `test/integration/delivery-protocol-cli-blackbox.test.ts` | Assignment, result, compliance, JSON, or exit-code behavior changed at the harness boundary. |
+| Plugin boundary and conformance | `test/laws/plugin-*.test.ts`, `test/laws/producer-emits-semantics-only.test.ts`, and `test/unit/plugin-sdk/conformance.test.ts` | A producer crossed the semantics-only boundary or no longer satisfies the public SDK contract. |
+| Annotation delivery | `test/laws/delivery-totality.test.ts`, `test/laws/delivery-invariance.test.ts`, and focused MCP/hook tests | The mechanic vocabulary, channel-to-surface mapping, pointer/salience behavior, carrier closure, or pre-edit projection changed. |
+| Delivery Protocol | `test/laws/delivery-protocol-*.test.ts` and `test/integration/delivery-protocol-cli-blackbox.test.ts` | The descriptor, schemas, documented examples, command registry, assignment/result validation, compliance JSON, or exit-code behavior changed at the harness boundary. |
 
 These tests protect architectural boundaries rather than freeze every output.
 Golden extraction detects a fact-level change; graph laws determine whether the
@@ -933,25 +1167,26 @@ drift-prone. Fidelity softens with distance from an extracted fact.
 
 | # | Thin spot | Why it's a risk | Long-term failure | Grade |
 |---|---|---|---|---|
-| 1 | **No shared resolver layer** | `imports` (module-level), `implements` (ad-hoc pass), `calls` (unresolved strings), template resolver — each reference class is solved separately | many half-resolved links at different fidelity; barrel/namespace and string-name ambiguity recur for every new edge kind | **structural** |
-| 2 | **No coverage signal** (honest-empty = not-yet-extracted) | a consumer can't tell "this language truly has no X" from "the adapter can't extract X yet" | cross-language analyses silently under-deliver on weak adapters, with no low-confidence signal | **structural** |
+| 1 | **Fragmented reference resolution** | imports, implements, calls, template references, runtime handlers, and resource references use separate resolution paths; shared scoped helpers exist only within individual families | ambiguity, provenance, and fallback behavior diverge across edge kinds, and each new reference class repeats part of the problem | **structural** |
+| 2 | **No per-fact coverage signal** (honest-empty = not-yet-extracted) | plugin capabilities do not tell a consumer whether a specific fact is truly absent or merely unsupported by that extractor | cross-language analyses silently under-deliver on weaker plugins, with no low-confidence signal | **structural** |
 | 3 | **Domain overlay is a noisy heuristic** | path, cluster, and pattern inference can assign overlapping domains; `tagged` carries both membership and nesting | misleading groupings an agent trusts for scoping | mixed |
 | 4 | **`semanticHints` is one versioned bag** | the whole producer→interpreter coupling rides fixed slots; passthrough slots are inert without code | the set ossifies (new facts don't fit) or bloats into a kitchen sink | **structural** |
-| 5 | **Infra branch on brittle handler resolution** | the `infra` edge rides a string `resolveHandlerToModule` | as IaC diversifies (CDK, containers), islands of resources with no code linkage | **maturity** |
+| 5 | **Heuristic runtime-handler resolution** | source plugins interpret handler strings independently and the first result naming a known module wins; ambiguity and resolution provenance are not published | as source and IaC ecosystems diversify, plausible name collisions can produce a wrong link while unsupported handler forms leave resource islands | **maturity** |
 | 6 | **Annotation drift** (the one semantic layer) | decay can outpace repair; client maintenance is advisory and hard enforcement exists only when a harness or CI policy requires it | on an active repo the semantic layer drifts from reality | **structural** |
 
 **Why #2 and #6 are structural.** Maturing the Python plugin raises Python
 *coverage*, not *structure*: the frontier (N languages × M facts) always exists,
 "done" is unobservable (honest-empty is indistinguishable from not-yet), and the
-fix — a coverage signal in `gaps`/`confidence` — is orthogonal to any one
+fix — a per-fact coverage signal in `gaps`/`confidence` — is orthogonal to any one
 extractor. Annotation freshness is behavioral: decay can outpace authored repair,
 client queues remain advisory, and enforcement requires an explicit harness or CI
 policy. It is the only layer with no auto-extraction.
 
 **Subtler risks.** Name-based identity (`export:module/name`) makes a rename
-delete+add, so annotations orphan on refactor-heavy repos. The closed-union +
-first-party model makes any new relation a core change (a v1 trade-off). No
-temporal axis (churn/co-change) caps "what's risky to change" questions.
+delete+add, so annotations orphan on refactor-heavy repos. The closed relation
+ontology makes any new relation a core and SDK contract change (a v1 trade-off).
+No history-derived axis (churn or commit-level co-change) caps "what's risky to
+change" questions.
 
 These risks do not imply an automatic refactoring roadmap. Resolver, coverage,
 or freshness changes should be justified by concrete query failures and treated
@@ -964,16 +1199,17 @@ The table above grades the architecture. This one records measured shortfalls in
 what 0.1.0 actually emits, and the response each one already carries. They ship
 as listed.
 
-| # | Gap | Measured | Response in 0.1.0 |
+| # | Gap | Evidence | Response in 0.1.0 |
 |---|---|---|---|
-| 1 | `analyze_architecture` findings are often false | 31% of a 42-finding adjudicated sample were factually true about the named module; the sample is not retained | numeric `confidence` withdrawn from the MCP contract on input and output, report capped at 30, and `duplicate-like`, `god-module`, `authorization-policy-drift` excluded from the default category set |
-| 2 | Semantic fusion constants are fitted to one repository | cosine floor and RRF weights chosen in-sample over 25 queries from a single codebase; that corpus is not retained | the four constants live in `semantic/relevance.ts` and reach the ranker by import, so recalibrating the semantic half is a one-file edit; lexical token scores stay in `mcp/lib/search-graph.ts` |
+| 1 | Three architecture categories fail clean-code counterexamples | `duplicate-like`, `god-module`, and `authorization-policy-drift` emit on retained fixtures deliberately carrying no corresponding smell | the categories are excluded from `DEFAULT_REFACTORING_CATEGORIES` and covered by `default-categories.test.ts`; callers can still request them explicitly |
+| 2 | Semantic fusion constants are fitted to one repository | cosine floor and RRF weights were chosen in-sample on one codebase; the corpus is not retained, so the fit is not a reproducible cross-repository benchmark | the four constants live in `semantic/relevance.ts` and reach the ranker by import, so recalibrating the semantic half is a one-file edit; lexical token scores stay in `mcp/lib/search-graph.ts` |
 | 3 | Secret/public env classification is TypeScript-only | the Python producer fills `envVars` and framework hints; the `security` slot stays empty | a Python `os.getenv("DB_PASSWORD")` returns `kind: 'env'` and `get_config_surface({kind:'secret'})` omits it; `gaps` names only computed and aliased accesses, so the omission carries no signal |
-| 4 | Same logical id in two IaC templates collapses to one node | node identity is `provider:kind:logicalId`, plus namespace for k8s; the second declaration overwrites the node payload while `declaredIn` accumulates both paths | annotation freshness hashes the set of declarations, and reference resolution reads `declaredIn` to prefer a target the referencing document declares. The set stays internal: no MCP response emits it, the merge carries no `gap`, and a reference from either document sees one in-scope candidate and resolves. `ambiguous` is returned only for candidates that stayed separate nodes |
+| 4 | Two declarations with the same plugin-defined resource identity collapse to one node | graph identity is `resource:<namespace>:<localKey>`; some built-ins use a logical id or local name without a document or stack component, so sibling declarations can collide | the later payload occupies the node while `declaredIn` retains every declaration path; scoped reference resolution uses `declaredIn` / `refScope`, but the public graph still exposes one node and no collision gap |
 | 5 | The CLI build-progress ETA extrapolates per package | package jobs span one module to the ~1600-module sharding threshold and the CLI weights every job equally, so early estimates on large monorepos are wrong by a similar factor | the MCP contract reports `stageEtaSec` for the current stage only, and clients wait via one `get_build_status` long-poll rather than reading an ETA; the CLI progress line is display-only and stays wrong |
 
-Rows 1 and 2 need a labelled corpus spanning several repositories before either
-number can move. Rows 3 to 5 are engineering, unblocked.
+Rows 1 and 2 need broader retained labelled corpora spanning several repositories
+before reliability claims can extend beyond the current counterexamples and
+in-sample calibration. Rows 3 to 5 are engineering, unblocked.
 
 ## Related documentation
 

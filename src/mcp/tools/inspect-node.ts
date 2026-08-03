@@ -28,11 +28,11 @@ const TAG_NOTE: Record<InvestigateTag, string> = {
   unannotated: 'no annotation',
 };
 
-/** Advisory structural tags: inline-only on refs, excluded from the ref-attention hoist. */
-const ADVISORY_TAGS: ReadonlySet<string> = new Set(['hub', 'wiring', 'co-change']);
+/** Structural tags kept inline on refs instead of being duplicated into ref attention/navigation. */
+const INLINE_ONLY_STRUCTURAL_TAGS: ReadonlySet<string> = new Set(['hub', 'wiring', 'co-change']);
 
 /**
- * Hoist open obligations — investigate-tagged refs and must-inspect pointers — to a compact top-level
+ * Hoist selected edit-relevant signals from refs and must-inspect pointers to a compact top-level
  * block, deduped by node and ranked by tag priority. Data the agent can act on cheaply; never a gate.
  */
 function buildAttention(
@@ -43,10 +43,10 @@ function buildAttention(
   const byNode = new Map<string, string[]>();
   const add = (nodeId: string | undefined, tags: unknown): void => {
     if (!nodeId || !Array.isArray(tags)) return;
-    // Advisory tags ("impact-check if you edit") are not obligations ("inspect before unchanged").
-    // Keep them as inline ref tags only; never hoist to attention (they flood large monorepos).
+    // Generated guidance still treats every investigate tag as a closure signal. Keep structural
+    // tags inline instead of duplicating them into attention, where they flood large monorepos.
     // `wiring`'s salience surface is the deliberate self item, not ref hoisting.
-    const eligible = (tags as string[]).filter((tag) => !ADVISORY_TAGS.has(tag));
+    const eligible = (tags as string[]).filter((tag) => !INLINE_ONLY_STRUCTURAL_TAGS.has(tag));
     if (eligible.length === 0) return;
     const existing = byNode.get(nodeId);
     if (existing) {
@@ -198,16 +198,17 @@ export const handleInspectNode: ToolHandler = async (ctx, args) => {
       ));
     }
   }
-  // Must-inspect: integrationPoints dependencies carrying an obligation tag lead the deeper hints.
-  // Advisory-only pointers (wiring/co-change/hub) stay inline; they are not must-inspect.
+  // Auto-promote annotation obligations into deeper navigation. Structural closure signals
+  // (wiring/co-change/hub) stay inline to bound noise; generated guidance still tells agents to
+  // inspect every delivered investigate tag before claiming that node unchanged.
   const investigatePointers = Array.isArray(result.investigatePointers)
     ? result.investigatePointers as Array<{ id?: string; investigate?: string[] }>
     : [];
-  const obligationPointers = investigatePointers.filter(
-    (pointer) => pointer.investigate?.some((tag) => !ADVISORY_TAGS.has(tag)),
+  const autoPromotedPointers = investigatePointers.filter(
+    (pointer) => pointer.investigate?.some((tag) => !INLINE_ONLY_STRUCTURAL_TAGS.has(tag)),
   );
-  for (const pointer of obligationPointers.slice(0, 8)) {
-    if (pointer.id) navigation.deeper.push(nav('inspect_node', { nodeId: pointer.id }, `Inspect ${pointer.id} — integrationPoints dependency carrying a consumer-scoped risk (must-inspect).`));
+  for (const pointer of autoPromotedPointers.slice(0, 8)) {
+    if (pointer.id) navigation.deeper.push(nav('inspect_node', { nodeId: pointer.id }, `Inspect ${pointer.id} — integrationPoints dependency carrying an annotation obligation (must-inspect).`));
   }
   const drillDown = Array.isArray(result.drillDown) ? result.drillDown as Array<{ id?: string; label?: string; type?: string; investigate?: unknown }> : [];
   for (const child of drillDown.slice(0, 8)) {

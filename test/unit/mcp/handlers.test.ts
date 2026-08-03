@@ -620,7 +620,7 @@ describe('inspect_node salience ordering + attention', () => {
     const env = await toolHandlers['inspect_node'](ctx, { nodeId: 'mod:test/beta' });
     const links = (env.result as { links: Array<{ targetId: string; investigate?: string[] }> }).links;
     expect(links.find((l) => l.targetId === 'mod:test/alpha')?.investigate).toEqual(['wiring']);
-    // beta itself is unwired and alpha's wiring is advisory → no attention block at all.
+    // beta itself is unwired and alpha's wiring stays inline on the ref → no attention block.
     expect(env.attention).toBeUndefined();
   });
 
@@ -690,9 +690,10 @@ describe('inspect_node salience ordering + attention', () => {
     expect(attention[2].investigate).toEqual(['risk']);
   });
 
-  it('does not emit a must-inspect navigation line for an advisory-only integrationPoints pointer', async () => {
+  it('does not auto-promote an inline-only structural integrationPoints pointer into navigation', async () => {
     // gamma → beta → alpha; alpha is runtime-wired but carries no annotation risk. gamma names alpha
-    // in integrationPoints → the pointer materializes inline with ['wiring'] but is not must-inspect.
+    // in integrationPoints → the closure signal materializes inline with ['wiring'] but is not
+    // duplicated into navigation.
     const g = createEmptyGraph();
     addNode(g, { id: 'root', type: 'root', label: 'root', description: '' });
     addNode(g, { id: 'pkg:test', type: 'package', label: 'test', description: '' });
@@ -731,7 +732,7 @@ describe('inspect_node salience ordering + attention', () => {
     const navigation = env.navigation as Record<string, Array<{ reason?: string; args: Record<string, unknown> }>>;
     const mustInspect = navigation.deeper.filter((n) => (n.reason ?? '').includes('must-inspect'));
     expect(mustInspect).toEqual([]);
-    // advisory-only pointer also stays out of attention
+    // inline-only structural pointer also stays out of attention
     const attention = env.attention as Array<{ nodeId: string }> | undefined;
     expect(attention?.some((a) => a.nodeId === 'mod:test/alpha') ?? false).toBe(false);
   });
