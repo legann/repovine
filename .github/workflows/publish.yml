@@ -157,6 +157,7 @@ jobs:
         run: |
           set -o pipefail
           test -f dist/mcp/index.js
+          test -x dist/mcp/index.js
           head -1 dist/mcp/index.js | grep -qx '#!/usr/bin/env node'
 
       # --dry-run packs and validates the tarball locally without contacting the

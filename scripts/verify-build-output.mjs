@@ -82,6 +82,18 @@ export function assertBuildOutput(context, root = ROOT) {
   );
 }
 
+/** Every declared bin must be executable, so `npx` runs it without relying on npm's install-time chmod. */
+export function assertBinExecutable(root = ROOT) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  for (const [name, rel] of Object.entries(pkg.bin ?? {})) {
+    const abs = path.join(root, rel);
+    if ((fs.statSync(abs).mode & 0o111) === 0) {
+      throw new Error(`bin "${name}" (${rel}) is not executable; npx would fail with EACCES`);
+    }
+  }
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   assertBuildOutput('npm run build');
+  assertBinExecutable();
 }

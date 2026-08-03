@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.1] - 2026-08-03
+
+### Fixed
+
+- Bin `dist/mcp/index.js` ships executable (`0755`). 0.1.0 shipped it `0644`, breaking `npx repovine` with `EACCES` where npm's install-time chmod did not apply.
+
 ## [0.1.0] - 2026-07-25
 
 Initial public preview release.

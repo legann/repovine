@@ -1,6 +1,6 @@
 {
   "name": "repovine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "repovine turns your repository into a structured, queryable context framework for AI coding agents.",
   "mcpName": "io.github.legann/repovine",
   "type": "module",

@@ -19,3 +19,11 @@ for (const asset of assets) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.copyFileSync(src, dest);
 }
+
+// Published bins ship executable (0755) so `npx repovine` runs them directly. tsc emits
+// 0644, and npx does not reliably apply npm's install-time chmod — the gap surfaces as
+// EACCES ("Permission denied") when the bin is executed from the npx cache.
+const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+for (const rel of Object.values(pkg.bin ?? {})) {
+  fs.chmodSync(path.join(root, rel), 0o755);
+}
