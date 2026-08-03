@@ -1,0 +1,248 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip actual npm publish)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+# Serialize releases: a second tag-push or dispatch queues behind the first rather than
+# racing the staging steps. Never cancel an in-flight publish mid-upload.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: read      # read the Tier-1 check-runs on the tagged commit (the green-gate step below)
+      id-token: write   # mint the OIDC token npm exchanges for a publish credential
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # Full history so the on-main ancestry check below is reliable, not shallow-grafted.
+          fetch-depth: 0
+
+      # registry-url is intentionally omitted. When set, setup-node writes
+      # //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} into the .npmrc it
+      # manages; with no token that placeholder expands empty, npm treats auth as
+      # already configured, and the OIDC token exchange never runs (ENEEDAUTH/E404).
+      # npm defaults to registry.npmjs.org, so OIDC publishing works without it.
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      # Node 22 bundles npm 10.x. Staged publishing needs npm >= 11.15.0 (which
+      # also clears the >= 11.5.1 OIDC floor); Node 22.x satisfies the >= 22.14.0
+      # runtime floor. Stay on 11.x via the caret range.
+      - name: Upgrade npm for staged publishing
+        run: |
+          npm install -g 'npm@^11.15.0'
+          npm --version
+
+      - name: Read package versions
+        run: |
+          set -euo pipefail
+          root_version="$(node -p 'require("./package.json").version')"
+          sdk_version="$(node -p 'require("./packages/plugin-sdk/package.json").version')"
+          # Reject anything outside the semver charset before it reaches $GITHUB_ENV: a
+          # newline in the value would append an attacker-chosen env var for later steps.
+          for v in "$root_version" "$sdk_version"; do
+            case "$v" in
+              ''|*[!0-9A-Za-z.+-]*) echo "::error::Invalid version string: $v"; exit 1 ;;
+            esac
+          done
+          printf 'ROOT_VERSION=%s\n' "$root_version" >> "$GITHUB_ENV"
+          printf 'SDK_VERSION=%s\n' "$sdk_version" >> "$GITHUB_ENV"
+
+      # server.json (the MCP registry manifest) repeats the version. A release must
+      # not ship a registry manifest that disagrees with the npm package, so fail
+      # closed here rather than register a mismatched version later.
+      - name: Verify server.json version is in lockstep
+        run: node scripts/sync-version.mjs --check
+
+      - name: Verify tag matches package version
+        if: github.event_name == 'push'
+        run: |
+          if [ "v${ROOT_VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package version ${ROOT_VERSION}"
+            exit 1
+          fi
+
+      # Both staging paths must point at a commit already merged to main. The push path
+      # otherwise passes on only the tag==version string match, so a tag on an off-main
+      # commit could be staged; the dispatch path could stage any ref. Require the ancestry
+      # check for both. (checkout above fetches full history, so this is reliable.)
+      - name: Verify publish target is a commit on main
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::${GITHUB_SHA} is not an ancestor of origin/main; publish a tagged commit merged to main"
+            exit 1
+          fi
+
+      # A publish never outruns the platform contract: every Tier-1 merge gate
+      # must have completed green on the exact commit being published. Missing
+      # or failed check-runs fail the publish — absence of evidence is failure.
+      - name: Verify Tier-1 gates are green on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          required="core-linux core-windows core-macos-arm harness-linux"
+          sha="$(git rev-parse HEAD)"
+          runs="$(curl -sf -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs?per_page=100")"
+          fail=0
+          for name in $required; do
+            conclusion="$(printf '%s' "$runs" | node -e '
+              const chunks = [];
+              process.stdin.on("data", (c) => chunks.push(c));
+              process.stdin.on("end", () => {
+                const { check_runs = [] } = JSON.parse(Buffer.concat(chunks).toString());
+                const run = check_runs.find((r) => r.name === process.argv[1]);
+                console.log(run ? `${run.status}/${run.conclusion}` : "absent");
+              });
+            ' "$name")"
+            if [ "$conclusion" != "completed/success" ]; then
+              echo "::error::Tier-1 gate '$name' is not green on ${sha}: $conclusion"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      # id-token: write is job-scoped, so GitHub exposes the OIDC request creds to every
+      # step. Strip them from the steps that execute third-party code (dependency install
+      # scripts, tsc, jest) so a compromised dependency cannot mint the publish token; only
+      # the staging steps below keep them. Go-live is still gated by npm staged 2FA.
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
+
+      - name: Type check
+        run: npm run typecheck
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
+
+      - name: Build
+        run: npm run build
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
+
+      - name: Test
+        run: npm test
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
+
+      - name: Verify bin entry
+        run: |
+          set -o pipefail
+          test -f dist/mcp/index.js
+          head -1 dist/mcp/index.js | grep -qx '#!/usr/bin/env node'
+
+      # --dry-run packs and validates the tarball locally without contacting the
+      # registry, so it needs no auth and no OIDC. It exercises packaging only.
+      - name: Validate plugin SDK packaging (dry run)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        run: npm publish -w @repovine/plugin-sdk --dry-run
+
+      - name: Validate root package packaging (dry run)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        run: npm publish --dry-run
+
+      # Staged publishing: `npm stage publish` uploads the tarball to a stage
+      # queue and authenticates over OIDC (no token). It has full parity with
+      # `npm publish`, so --provenance and --access public are valid and preserved.
+      # The version is NOT live until a maintainer approves it with 2FA.
+      #
+      # Idempotency: skip only when the exact version is already live. `npm view`
+      # of a pinned version is a public, exact-match read — no auth, no substring
+      # ambiguity (0.1.1 never matches 0.1.10). A version that is merely STAGED
+      # (pending approval) is deliberately not re-guarded: re-staging it fails
+      # loudly on the unique-version index, which correctly signals "approve or
+      # reject the pending stage", not "silently re-stage". `npm stage list` is not
+      # used — under a stage-only trusted publisher it may be unauthorized in CI,
+      # and its text output format is unspecified.
+      - name: Stage plugin SDK
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+        run: |
+          if npm view "@repovine/plugin-sdk@${SDK_VERSION}" version >/dev/null 2>&1; then
+            echo "@repovine/plugin-sdk@${SDK_VERSION} is already published (live); skipping stage"
+          else
+            npm stage publish -w @repovine/plugin-sdk --provenance --access public
+          fi
+
+      - name: Stage root package
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+        run: |
+          if npm view "repovine@${ROOT_VERSION}" version >/dev/null 2>&1; then
+            echo "repovine@${ROOT_VERSION} is already published (live); skipping stage"
+          else
+            npm stage publish --provenance --access public
+          fi
+
+      # Staged versions are not on the read path (npm view / npm install 404) until
+      # approved, so live-package verification cannot run in CI. Print what was
+      # staged and the exact manual approval steps instead.
+      - name: Report staged versions for maintainer approval
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+        run: |
+          cat <<EOF
+          ============================================================
+          Packages are STAGED, not live. A maintainer must approve them.
+          ============================================================
+          Staged in this run:
+            @repovine/plugin-sdk@${SDK_VERSION}
+            repovine@${ROOT_VERSION}
+
+          Staged versions are not installable and do not appear in
+          'npm view' until a maintainer approves them.
+
+          APPROVE THE SDK FIRST, THEN THE ROOT — the order is required, not a
+          preference. repovine@${ROOT_VERSION} pins
+          @repovine/plugin-sdk@${SDK_VERSION} exactly, so approving the root
+          first puts a release on the registry whose 'npm install' and 'npx'
+          fail with ETARGET until the SDK follows.
+
+          Approve from a machine with interactive 2FA (an OIDC/CI token
+          cannot approve a stage):
+
+            # 1. SDK first
+            npm stage list @repovine/plugin-sdk   # show the pending <stage-id>
+            npm stage view <stage-id>             # inspect tarball + metadata
+            npm stage approve <stage-id>          # publishes live, prompts 2FA
+
+            # 2. Confirm the SDK is actually live BEFORE approving the root
+            npm view "@repovine/plugin-sdk@${SDK_VERSION}" version
+
+            # 3. Root only after that command prints the version
+            npm stage list repovine
+            npm stage view <stage-id>
+            npm stage approve <stage-id>
+
+          If the root was approved first, the fix is to approve the SDK
+          immediately; installs recover with no version bump.
+
+          Discard a stage instead: npm stage reject <stage-id>
+          After approval, confirm live: npm view "repovine@${ROOT_VERSION}" version
+          ============================================================
+          EOF

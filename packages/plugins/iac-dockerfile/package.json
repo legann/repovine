@@ -1,0 +1,35 @@
+{
+  "name": "@repovine/plugin-iac-dockerfile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "repovine": {
+    "kind": "plugin",
+    "id": "dockerfile",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "dockerfile"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@repovine/plugin-sdk": "0.1.0"
+  }
+}

@@ -1,0 +1,22 @@
+# CI/smoke overlay: give the default network a global IPv6 ULA so the egress
+# gateway's fail-closed IPv6 branch actually runs.
+#
+# The base compose.yaml declares no `networks:` section, so Docker attaches every
+# service to an IPv4-only default bridge. On that network the gateway sees no
+# global inet6 address, and docker/egress-gw/entrypoint.sh takes the best-effort
+# IPv6 path (`|| true`): the ip6tables DROP is never asserted. The strict branch —
+# which exits 1 if the IPv6 DROP cannot be installed — is unreachable.
+#
+# Stacking this overlay assigns a ULA prefix (fd42:7265:706f:7669::/64, "repovi"
+# in ASCII) to the default network. The gateway then holds a global inet6 address,
+# the strict branch runs, and the egress smoke can prove IPv6 egress is dropped
+# rather than merely unconfigured. Docker allocates the IPv4 subnet from its
+# default pools, so no v4 ipam entry is needed.
+#
+# Invocation: docker compose -f compose.yaml -f compose.ipv6.yaml --profile cli ...
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: "fd42:7265:706f:7669::/64"

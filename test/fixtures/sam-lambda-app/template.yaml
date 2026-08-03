@@ -1,0 +1,22 @@
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  GoogleSecretsArn:
+    Type: String
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src
+      Handler: handler.main
+      Runtime: nodejs22.x
+      Environment:
+        Variables:
+          DB_SECRET:
+            Ref: DbSecret
+          GOOGLE_SECRETS_ARN: !If [UseGoogleSecretsManager, !Ref GoogleSecretsArn, '']
+          GOOGLE_CLIENT_SECRET: !Sub '{{resolve:secretsmanager:${GoogleSecretsArn}:SecretString:GOOGLE_CLIENT_SECRET}}'
+          SSM_TOKEN: '{{resolve:ssm-secure:/demo/token:1}}'
+  DbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: db-credentials

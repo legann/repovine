@@ -1,0 +1,332 @@
+# Bench archestra-correctness-web-crawler-url-identity — Repovine run 9 — model: opus-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-5; effort: max. Agent cbf92643f59d4dee.
+# Gate: pass — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting myself in the codebase with repovine.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.map_context: [target mod:platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts]
+    [graph output redacted — scope mod:platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts, mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, pkg:migrate-to-archestra, pkg:@backend; functions WebCrawlerConnector; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope domain:chat/normalization, domain:normalization, mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@backend/src/routes/chat/normalization/normalize-chat-messages; source-derived fields removed]
+
+The connector module carries annotations — let me inspect it before reading source.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, pkg:@backend, domain:connectors; functions WebCrawlerConnector; architectural annotation delivered; source-derived fields removed]
+
+Annotation flags a consumer-scoped risk: `normalizeCrawlUrl`'s output is persisted as `kb_documents.source_id`, written once and never re-derived, with no prune in connector-sync. Let me read the source and trace the persistence path.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@backend/src/services/apps/app-connector-resource, export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsResponses, export:@frontend/src/lib/knowledge/kb-document.query/useConnectorDocuments; source-derived fields removed]
+
+Annotation's risk claim needs verification against actual persistence code. Let me trace it.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 17 line(s)]
+
+Let me read `ingestDocument`, the kb-document schema, and the migration precedent.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Read: platform/backend/src/database/migrations/0131_fix_agent_tool_trailing_underscores.sql
+    [source removed — 14 line(s)]
+
+Annotation's claims check out. Let me confirm the migration mechanism and whether duplicate merging is needed.
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+Confirmed the persistence contract. Now checking cascade behavior and connector type, since re-keying can collide on the unique index.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 64 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 8 line(s)]
+
+Cascade confirmed (`onDelete: "cascade"`), and `searchParams.delete()` re-encodes `[expr]`→`[expr]` — so raw-segment filtering is required. Let me check existing tests and other `source_id` consumers.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+Tests pin trailing-slash-preserving `sourceUrl` values. Let me read those assertions precisely.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 200 line(s)]
+
+Now let me verify the migration infrastructure: PG version, how tests apply migrations, and multi-statement conventions.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 68 line(s)]
+
+PGlite runs all migrations in every backend test file, so the SQL must be PGlite-safe. Let me check migration conventions.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 39 line(s)]
+
+Now let me implement the normalizer change.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the crawl-scope fix — trailing-slash stripping would otherwise widen a directory-scoped crawl to the whole origin.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the data migration. Let me generate the custom migration file.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+Worktree has no `node_modules`, so I'll hand-write the migration and journal entry. Let me check exactly what artifacts a custom data-only migration produces.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 18 line(s)]
+
+The precedent `0131` is exactly this shape: descriptive name, no snapshot. Let me read the two CI validators my migration must satisfy.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 74 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 73 line(s)]
+
+There's a migration linter with rules my SQL must pass. Let me read them.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 154 line(s)]
+
+Let me validate the JS normalizer and verify my SQL string-algebra matches it, using plain node (available even without `node_modules`).
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 134 line(s)]
+
+Parity verified across 33 cases, including the `[expr]` hazard. Now let me write the migration.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s)]
+
+  → Write: platform/backend/src/database/migrations/0313_renormalize_web_crawler_source_ids.sql
+    [edit applied]
+
+Now the journal entry (no snapshot, matching the `0131` data-only precedent).
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 25 line(s)]
+
+Git now sees `_journal.json` as binary — I need to check whether that predates my edit.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 12 line(s)]
+
+`.gitattributes` sets `diff: unset` (marked generated) — not caused by my edit. Let me confirm the content change is purely the append, and lint-check my SQL.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 18 line(s)]
+
+One nit: the original had no trailing newline. Let me match it exactly.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 18 line(s)]
+
+Clean append-only diff. Now let me run the migration linter's rules against my SQL by porting them.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 49 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 81 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 5 line(s)]
+
+Statement [1] got split by a `[expr]` inside a comment. Drizzle splits only on `[expr]`, so execution is unaffected, but let me remove comment semicolons for hygiene.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+  → Edit: platform/backend/src/database/migrations/0313_renormalize_web_crawler_source_ids.sql
+    [edit applied]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 8 line(s)]
+
+Let me verify the connector file's changed regions are coherent (no now-unused bindings).
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 50 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 42 line(s)]
+
+Let me check whether `noUncheckedIndexedAccess` is enabled — it would make `[expr]` a type error.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 36 line(s); non-zero exit]
+
+`noUncheckedIndexedAccess` isn't enabled, so `[expr]` types as `string`. Now let me simulate the migration's collision logic end-to-end against invariants.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 13 line(s)]
+
+All invariants hold, including idempotency. Now let me statically enumerate which existing test assertions pin the old canonical form, since I can't run the suite.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 30 line(s)]
+
+Let me check how the test site resolves paths — this determines whether the start URL now 404s.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+I found a functional regression in my first approach: `createTestSite` resolves paths exactly (`[expr]`, line 725), so requesting `/docs` when the site serves `/docs/` returns 404. That's not just a test artifact — `/a` and `/a/` are different HTTP resources, so stripping the slash from the *fetched* URL loses content on any server that doesn't redirect. Let me split identity from fetching.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now route the identity path through it, and revert the scope change (no longer needed once the fetch URL keeps its slash).
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me verify the diff is now confined to the normalizer and re-check parity plus test impact.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 90 line(s)]
+
+Diff is confined to the normalizer; the scope helper is back to original. Let me re-verify parity and the migration against the shipped split.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 9 line(s)]
+
+Migration sim re-check and precise test-impact confirmation:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 35 line(s)]
+
+Let me check for other consumers of this connector's identities, and refresh the graph after edits.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Graph refreshed cleanly (no orphaned annotations). Final review of the migration SQL:
+
+  → Read: platform/backend/src/database/migrations/0313_renormalize_web_crawler_source_ids.sql
+    [source removed — 40 line(s)]
+
+Two identifier hardening tweaks I can't test at runtime, so let me remove the doubt: rename `ordinality` (a PG keyword) and `target` (MERGE-adjacent).
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 7 line(s)]
+
+  → Read: platform/backend/src/database/migrations/0313_renormalize_web_crawler_source_ids.sql
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 9 line(s)]
+
+Implementation complete. Here's what I found and did.
+
+## Files changed
+
+**1. `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`** (+47/−4)
+
+- `normalizeCrawlUrl` now strips the seven tracking parameters, lowercases the host, and keeps the existing default-port stripping.
+- New `canonicalizeDocumentUrl` adds trailing-slash removal on non-root paths; `normalizeCanonicalUrl` (the document-identity path) routes through it.
+- `stripTrackingQueryParams` filters raw `[expr]` segments rather than mutating `url.searchParams`. This is not stylistic: `searchParams.delete()` re-serializes the whole query, so it rewrites `[expr]` to `[expr]` — I verified this, and it would have silently moved the identity of URLs carrying *no* tracking parameter.
+
+**2. `0313_renormalize_web_crawler_source_ids.sql` + `meta/_journal.json`** (new, 215 lines)
+
+This is what makes already-indexed documents keep working. `kb_documents.source_id` is the persisted form of this normalization: the connector stores `sha256(…)` (`web-crawler-connector.ts:449`), `connector-sync.ts` matches existing documents by `[expr]` via `findBySourceId`, `kb_documents` has a unique index on that pair (`kb-document.ts:44-47`), and `ingestDocument` has **no prune step**. Changing the normalizer without re-keying means the first sync inserts a second row per affected page and kb search returns both the fresh and the stale one — immediately, not at some later maintenance point.
+
+`source_url` stores the same canonical URL the `source_id` was hashed from, so the new identity is re-derivable in SQL. The migration replays only the delta (tracking params + one trailing slash); host-lowercasing and default-port stripping were already applied by the URL parser when the value was written. It merges rows that now collapse together (chunks follow via the FK cascade), rewrites `source_url` and `metadata.url`, and skips any row where `[expr]` rather than re-keying on an assumption that doesn't hold. Data-only migration with a descriptive name and no snapshot, matching `0131_fix_agent_tool_trailing_underscores` — the repo's own precedent for a SQL/TS normalization mismatch of this shape.
+
+## One design decision worth flagging
+
+My first pass put trailing-slash removal in `normalizeCrawlUrl` itself, as literally specified. That is a functional regression: `normalizeCrawlUrl`'s output is also the URL the crawler *fetches*, and `/a` and `/a/` are different HTTP resources. The repo's own test server resolves paths exactly (`[expr]`, test file line 725), so it 404s on the trimmed path — and real sites that only serve the directory form behave the same, silently losing content. Splitting identity from fetching delivers the requested canonicalization (`/page/` and `/page` become one document) with no change to which URLs are requested.
+
+## Deliberately left unchanged
+
+- **`buildAllowedPathPrefixes`** — with the fetch URL keeping its slash, `[expr]` still yields `/guide/` and the directory scope is preserved (`web-crawler-connector.ts:469-473`). Under the trailing-slash-in-fetch variant this would have widened a docs-subtree crawl to the whole origin via `pathMatchesPrefix`'s `[expr]` (line 555).
+- **`connector-sync.ts`** — connector-agnostic; it stores `sourceId: doc.id` verbatim (`ingestDocument`). Making the lookup tolerate legacy ids would push crawler-specific logic into shared infra and would not fix rows already duplicated.
+- **`content_hash`** — recomputing it would mean replicating `hashInput`'s content-plus-sorted-key-JSON in SQL. Left alone deliberately: the next sync sees a change and re-chunks the affected documents, which is correct, just extra work.
+- **Other `web_crawler` references** — `[expr]` only test whether credentials are required; `registry.ts:34` constructs the connector; frontend only lists the type. None derive document identity.
+
+## Verification and residual risk
+
+The worktree has no `node_modules`, so installs, type-checks, and tests are unavailable — I could not run the suite or execute the SQL. What I did verify, with plain `node`: JS↔SQL parity across 33 URL shapes (including the `[expr]` hazard, credentials, non-default ports, dot segments), and a simulation of the migration's collision logic confirming no duplicate `[expr]`, exactly one row per page, the non-derived row untouched, and idempotency on re-run. I also ported both CI migration validators and ran them: journal ordering is clean (only the known legacy exemption), and the SQL is lint-clean.
+
+Residual risk, in order:
+
+1. **The migration SQL has never been executed.** Its logic is verified by port, not its syntax. It needs one real run (PGlite via the backend suite, or a staging DB) before it ships.
+2. **Seven assertions across five existing tests now fail**, all pinning the pre-change canonical identity — `sourceUrl`/`metadata.url`/`doc.id` at test lines 163-166, 175, 179, 271, 317-318, 648, 667-668. These are the intended behavior change, but the "do not modify tests" constraint means I left them failing rather than updating them; that's a deliberate omission for you to decide on, not an oversight. The `[expr]` assertions and all crawl-behavior tests pass, because the fetch URL is unchanged.
+3. Exclude patterns are matched against the normalized URL, so a pattern written against `utm_` or a trailing slash now matches differently — inherent to canonicalizing, and I did not try to paper over it.
+4. Tracking-param matching is case-sensitive, matching the listed names exactly and keeping SQL parity; `UTM_SOURCE` would survive.

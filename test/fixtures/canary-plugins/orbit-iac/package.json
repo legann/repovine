@@ -1,0 +1,47 @@
+{
+  "name": "repovine-plugin-orbit-canary",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repovine/plugin-sdk": "0.1.0"
+  },
+  "repovine": {
+    "kind": "plugin",
+    "id": "orbit",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "orbit",
+      "dirs": [
+        {
+          "name": "orbitcache",
+          "role": "tool-output",
+          "because": "orbit CLI plan cache, regenerated on every deploy"
+        }
+      ],
+      "resourceKinds": [
+        {
+          "namespace": "orbit",
+          "provider": "orbit",
+          "kind": "service",
+          "service": "orbit-service",
+          "hasCodeHandler": true
+        }
+      ],
+      "triggerTypes": [
+        {
+          "type": "orbit-http",
+          "namespace": "orbit",
+          "provider": "orbit",
+          "entrypointKind": "api"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,182 @@
+# Bench archestra-correctness-web-crawler-url-identity — Repovine run 2 — model: opus-4.8 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-4-8; effort: max. Agent a67b2cd0f72c543d.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by loading the repovine MCP tools and exploring the web crawler connector's structure, as the project instructions require.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+Now let me explore the web crawler connector structure with repovine. Let me search for the relevant code and map the connector.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields, mod:@archestra/shared/tool-call-normalization; source-derived fields removed]
+
+  → repovine.map_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, export:@backend/src/types/knowledge-connector/WebCrawlerConfig, export:@backend/src/types/knowledge-connector/WebCrawlerCheckpoint; source-derived fields removed]
+
+The connector module carries an annotation. Let me inspect it in detail (annotations + source body) before editing, and check its dependents.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, pkg:@backend, domain:connectors; functions WebCrawlerConnector; architectural annotation delivered; source-derived fields removed]
+
+This annotation is critical. It tells me the normalizer is a persisted-identity contract: `normalizeCrawlUrl` output becomes `kb_documents.source_id`, written once and never re-derived, and connector-sync has **no prune**. So changing the normalizer alone makes already-indexed pages re-ingest as duplicate rows while stale rows remain — kb search would then return both. The annotation points to a prior in-repo fix of this exact shape: migration `0131_fix_agent_tool_trailing_underscores`.
+
+Let me read the full source and the referenced migration pattern, and trace the sync/source_id path.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 805 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+I now have the full picture of the connector. The working tree already has modifications (53 insertions). Before deciding what to do, I need to see exactly what's been changed versus HEAD, and verify the persistence-identity claims in the annotation (source_id path, no-prune). Let me get the diff and trace the sync path.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 92 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 80 line(s)]
+
+The working tree already contains a complete, coherent implementation. The diff shows the strengthened normalization was applied to a **new `canonicalizeCrawlKey`** used only as the Crawlee request `uniqueKey` (crawl-frontier dedup), while `normalizeCrawlUrl` — the stored-identity path — is left untouched. That is exactly the design the annotation says is required to keep already-indexed documents served correctly.
+
+I must not blindly trust this. Let me verify the load-bearing facts: (1) that the document identity really flows to `kb_documents.source_id` and is never re-derived, (2) that there is no prune, and (3) that every crawl-frontier entry point is covered. Let me trace the persistence path and enumerate frontier entry points.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@backend/src/services/apps/app-connector-resource, export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsResponses, export:@frontend/src/lib/knowledge/kb-document.query/useConnectorDocuments; source-derived fields removed]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+Frontier entry points confirmed: exactly three (`testConnection` start line 132, `sync` start line 178, `enqueueLinks` line 437) — all covered by `canonicalizeCrawlKey` per the diff. The parallel `cd` raced on the persisted shell cwd; let me re-run the persistence grep with an absolute path and inspect the sync module to confirm the source_id contract and no-prune.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
+
+Verified against source. The persistence contract holds exactly as the annotation describes:
+
+- `buildDocument` sets `[expr]` and `[expr]` (`web-crawler-connector.ts:473-478`), and `canonicalUrl` comes from `normalizeCanonicalUrl` → `normalizeCrawlUrl` (`:609-624`).
+- `connector-sync.ts` persists `sourceId: doc.id` (`:504`) and matches existing docs by `[expr]` via `findBySourceId` (`:419-421`).
+- No prune: the only delete is `KbChunkModel.deleteByDocument` on the content-changed **update** path (`:479`); stale rows are never removed.
+
+So changing `normalizeCrawlUrl` would re-key `source_id` for every already-indexed page → duplicate rows served by kb search. The working-tree patch correctly avoids that by strengthening only the crawl-frontier `uniqueKey` (`canonicalizeCrawlKey`) and leaving the stored-identity path untouched.
+
+Now let me confirm the working-tree code actually builds, lints, and its tests pass. Let me locate the test file and the check commands.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 18 line(s)]
+
+Test file exists at HEAD (not in the modified set, so I won't touch it — matching the "do not add or modify tests" constraint). Let me confirm what the existing tests already assert, and run biome + the targeted test suite to prove the working-tree code is green.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Biome is clean. The existing test file references none of the new symbols (`uniqueKey`, `canonicalize`, `utm_`, etc.), so the working-tree change doesn't collide with any test expectation. Let me run the connector's test suite and a type-check to prove the tree is green.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 27 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+The test failure is purely environmental — `ARCHESTRA_DATABASE_URL` isn't set in this sandbox, so `src/test/fixtures.ts` throws at import time before any test runs. That's not a code issue. Let me check how the suite normally provides its DB so I can run it properly.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 112 line(s)]
+
+The suite uses PGlite, but `src/database/index.ts` guards on a DB URL at import time. This `Database URL is not set` error occurs before any test runs and would hit every suite in the repo run this way — it's environmental, not related to my diff. Let me check how the env is normally provided (global-setup) and re-run with it satisfied so I can actually exercise the 28 tests.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 42 line(s)]
+
+Let me look at how `src/database/index.ts` consumes the URL (to see if a dummy value lets the PGlite test path take over) and confirm the env is simply absent in this fresh worktree.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 75 line(s)]
+
+`@/config` eagerly reads the DB URL at import (`config.ts:993`), and the PGlite test DB is injected later via an internal setter (`setup.ts:100`). So the suite only needs the URL present to pass the import guard; the real queries run on PGlite. The var is simply absent in this fresh worktree. Let me satisfy the guard with a dummy value and run the suite, and kick off a type-check in the background.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+The connector suite passes fully: **28/28 tests green** with the working-tree code. Biome is clean. Type-check is running in the background. Let me check on it.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Type-check completed with exit code 0. Let me confirm the output is clean.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 1 line(s)]
+
+All verification signals are green:
+
+- **Type-check** (`tsgo --noEmit`, whole backend): exit 0, no errors.
+- **Biome lint** on the connector: clean.
+- **Tests** (`web-crawler-connector.test.ts`): 28/28 pass.
+- **Frontier coverage**: exactly 3 entry points, all wired to `canonicalizeCrawlKey`.
+- **Persistence contract**: confirmed in source — identity path is untouched, so no re-keying.
+
+No further code change is warranted. Here is the report.
+
+---
+
+## 1. The patch
+
+The strengthened normalization lives in `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`, applied to the **crawl-frontier de-duplication key**, not to the stored-identity normalizer. Concretely:
+
+- `TRACKING_QUERY_PARAMS` set — the 7 params from the task (`utm_source/medium/campaign/term/content`, `gclid`, `fbclid`) — `web-crawler-connector.ts:52-60`.
+- `canonicalizeCrawlKey(…)` — `:645-656`. On top of `normalizeCrawlUrl`'s fragment + default-port stripping it: lowercases host, deletes tracking params, sorts remaining params (folds query order), and strips a trailing slash on non-root paths (`[expr]`).
+- Wired as the Crawlee request `uniqueKey` at all three frontier entry points: `testConnection` start (`:132-137`), `sync` start (`:178-183`), and discovered links via `transformRequestFunction` in `enqueueAllowedLinks` (`:437-447`).
+
+**Why this shape and not editing `normalizeCrawlUrl` directly** — the connector's normalized URL is a *persisted identity*, and the task's hard constraint ("every already-indexed document must continue to be served correctly") makes the naive edit incorrect:
+
+- `buildDocument` derives `[expr]` and `[expr]` (`:473-478`); `canonicalUrl` comes from `normalizeCanonicalUrl` → `normalizeCrawlUrl` (`:609-624`).
+- `connector-sync.ts` persists that as `kb_documents.source_id` (`sourceId: doc.id`, `connector-sync.ts:504`) and matches existing rows only by `[expr]` via `findBySourceId` (`connector-sync.ts:419-421`).
+- There is **no prune**: the only delete is `KbChunkModel.deleteByDocument` on the content-changed update path (`connector-sync.ts:479`); stale rows are never removed.
+
+So changing `normalizeCrawlUrl` would re-key `source_id` for every already-indexed page → on the next sync each page is inserted as a new row while the old row stays → kb search (`search_vector @@ tsquery` over all rows) returns the page twice. Strengthening only the `uniqueKey` collapses trivially-different links to one crawl target while leaving the stored identity byte-identical, so existing `source_id`s still match.
+
+## 2. Files changed / deliberately left unchanged
+
+**Changed:** `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts` (the additions above). I verified this in-tree patch end-to-end (trace of the persistence contract, frontier coverage, type-check, lint, 28/28 tests) rather than re-authoring it; the correct implementation was already staged in the working tree and needed no modification.
+
+**Left unchanged (out of scope), each on the stored-identity path that must not move:**
+
+| Code path | file:line | Why out of scope |
+|---|---|---|
+| `normalizeCrawlUrl` | `web-crawler-connector.ts:626-636` | Its output is the document identity; changing it re-keys `source_id`. Module-private (no external callers). |
+| `normalizeCanonicalUrl` | `:609-624` | Produces `canonicalUrl` from `normalizeCrawlUrl`; feeds identity. |
+| `buildDocument` | `:467-487` (id `:473-475`, sourceUrl `:478`) | `[expr]` becomes `source_id`. |
+| `normalizeDiscoveredUrl` | `:591-607` | Returns `normalizeCrawlUrl(…)` = the fetched `request.url`; left intact so the fetched URL (identity input) is preserved, dedup applied via `uniqueKey` instead. |
+| `isAllowedUrl` / `isPathInScope` | `:544-589` | Scope/SSRF enforcement on the real URL; independent of dedup. |
+| `connector-sync.ts` ingest | `:419-421`, `:504`, `:479` | Consumer that proves the constraint (no prune, lookup by `sourceId`); no change needed since identity is preserved. |
+| `repovine.annots.json` | workspace root | Pre-existing working-tree modification, unrelated to this task; annotations are never hand-edited. |
+
+## 3. Summary, behavior change, residual risk
+
+**Behavior:** Within a crawl, links to the same page differing only by tracking params, query-param order, a non-root trailing slash, or host case now collapse to a single fetch/target (previously each variant was fetched and could be stored as a separate document). Stored document identities (`kb_documents.source_id`) are unchanged, so every previously-indexed page is still found and served on the next sync — no duplicates, no migration.
+
+**Files touched (high level):** one connector module (`web-crawler-connector.ts`); no schema, no migration, no tests, no other modules.
+
+**Residual risk:**
+- The strengthened folding is **dedup-only**. Stored `source_id`s are deliberately not re-canonicalized, so a page can still acquire a second row if, *across* syncs, a different trivially-variant URL becomes the first-fetched one **and** the page has no `[expr]` (which `normalizeCanonicalUrl` would otherwise pin). Eliminating that fully would require re-keying existing `source_id`s via a data migration (the `0131_fix_agent_tool_trailing_underscores` pattern) — heavier, mutates stored data, and risks unique-key collisions; the constraint here steers away from it.
+- `canonicalizeCrawlKey` assumes the listed tracking params are non-content (standard); a site that served different content keyed on, e.g., `utm_content` would have variants deduped to one fetch. This is the intended trade-off of frontier dedup.
+- Test note: the suite needs `ARCHESTRA_DATABASE_URL` present at import time (`config.ts:993`); this fresh worktree has no `.env`, so I set a dummy value to let the PGlite-backed setup run — a local env detail, not a code change.

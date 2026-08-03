@@ -1,0 +1,283 @@
+# Bench archestra-restraint-tool-slug — Repovine run 1 — model: opus-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-5; effort: max. Agent 6c70db3f00dc423c.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting in the graph before touching files.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@backend/src/database/schemas/tool, mod:@frontend/src/app/mcp/tool-guardrails/_parts/assigned-tools-table.utils, mod:@backend/src/types/tool; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@backend/src/types/mcp-tool-call, export:@backend/src/clients/chat-mcp-elicitation/ChatMcpElicitationBridge, export:@backend/src/routes/mcp-gateway.utils/normalizeToolInputSchema; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, export:@backend/src/models/tool/parseArchestraBuiltInName, export:@backend/src/models/tool/toolUiResourceUriSql, export:@backend/src/models/tool/default; functions parseArchestraBuiltInName, toolUiResourceUriSql, default; architectural annotation delivered; source-derived fields removed]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 34 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 130 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 220 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 105 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 160 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 70 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 70 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 110 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 91 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 91 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 48 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 60 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 70 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@frontend/src/components/agent-tools-editor.utils, mod:@backend/src/models/tool, export:@archestra/shared/hey-api/clients/api/types.gen/GetV1A2aByAgentIdWellKnownAgentJsonData, export:@archestra/shared/hey-api/clients/api/types.gen/GetV2A2aByAgentIdWellKnownAgentCardJsonData; source-derived fields removed]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 93 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 97 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 63 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/routes/proxy/utils/tools.ts
+    [source removed — 50 line(s)]
+
+Now I have the full picture. Let me implement the batch-level disambiguation in the model.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Boundary respected — `slugifyName`/`unslugifyName` are untouched; the new function composes them. Now the write-path call sites.
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now type-check and run the existing tests that pin this behavior.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 39 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 160 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 110 line(s)]
+
+One interaction to verify before finalizing: the reinstall sync path matches existing rows by raw name extracted from the stored slug.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 62 line(s)]
+
+Two adjustments needed. First, the suffix separator — `-` keeps the disambiguated slug parseable by the `__`-based inverse (clone re-slugify, prefix stripping), which `_` would corrupt for the empty-name case:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Second: the reinstall sync matches existing rows by the raw name extracted from the stored slug, which a disambiguated slug does not reduce to. Without this, reinstall would try to rename one collider onto the other's row.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 70 line(s)]
+
+Let me validate the algorithm behaviorally with a faithful standalone copy.
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 31 line(s); non-zero exit]
+
+The code is right; my test fixture was wrong — `"fo o"` slugifies to `fo_o` (whitespace becomes `_`), so it never collided. Let me use a name that actually collides.
+
+  → Edit: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 28 line(s)]
+
+All checks pass. Now verifying the sync-path edit and doing a syntax sanity pass.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 50 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 45 line(s)]
+
+One more case to handle: on the first reinstall after deploy, an existing collapsed row would be claimed by the wrong collider. Let me make row-matching two-pass so no two incoming tools claim the same row.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now rewire the main loop to consume the resolved matches.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 105 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 92 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+All four files parse clean. Now let me simulate the sync-path matching across install → deploy → reinstall to confirm no row churn.
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 70 line(s)]
+
+All scenarios pass — scenario C shows precisely why the two-pass match was required. Refreshing the graph after edits, per the project workflow.
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 142 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 7 line(s)]
+
+Done. Four implementation files, no tests touched.
+
+## Where tool names become identifiers
+
+`ToolModel.slugifyName(…)` (`platform/backend/src/models/tool.ts:80`) builds the full slug stored in `tools.name` — lowercase, whitespace→`_`, then everything outside `[expr]` deleted. It is a **per-pair** transform, so any two raw names that differ only in stripped characters produce one slug: `get.user`/`getuser`, `GetUser`/`getuser`, and every name that strips away entirely (`検索`, `[expr]`) collapsing onto the bare `server__`. The losing row is dropped by `onConflictDoNothing`, so those tools were never individually addressable.
+
+It is called from six sites; five are per-server discovery batches, which is where the fix went.
+
+## What changed
+
+**`models/tool.ts`** — added `slugifyToolNames(…)`, a batch sibling that slugifies a whole server's tool list. First claimant of a slug keeps it byte-for-byte; later claimants take the smallest free `[expr]`, skipping every base slug in the batch so a suffix never steals the identifier of a tool whose own name yields it. Identical raw names still collapse. `slugifyName`/`unslugifyName` are untouched.
+
+The suffix uses `-`, not `_`, so it stays clear of the `__` server separator: `server__-2` still parses as server `server`, where `server___2` would misparse as `server_`. That is what keeps clone re-slugification (`slugifyName(…)`) reproducing exactly what clone discovery computes.
+
+**`routes/mcp-server.ts` (2), `archestra-mcp-server/mcp-servers.ts` (2), `services/mcp-reinstall.ts` (1)** — discovery batches now call the batch slugifier instead of mapping `slugifyName` per tool.
+
+**`models/tool.ts` — `syncToolsForCatalog` row matching.** This one is load-bearing, not cosmetic. The reinstall path matched existing rows by the raw name extracted from the *stored* slug; `server__getuser-2` reduces to `getuser-2`, which no upstream tool answers to, so the raw-name map would have handed that incoming tool the row belonging to the sibling it collided with — renaming a working tool. Matching now runs two passes: exact stored name claims rows first, then the raw-name map (which exists to re-find a tool after a catalog rename) fills the rest, skipping claimed rows.
+
+## Deliberately unchanged
+
+| Path | Why out of scope |
+|---|---|
+| `slugifyName` / `unslugifyName` | The stored-identity codec. `models/tool.ts` annotation: "slugifyName is a per-tool-pair transform… making identifiers distinct across a server's tools is therefore a property of the layer that holds them together, not of this transform." |
+| `mcp-client.resolveActualToolName` / `stripServerPrefix`, `mcp-server-gateway.utils.ts:60`, `mcp-server-proxy.ts:168` | Wire consumers, "frozen alongside the codec"; colliding tools are already unresolvable upstream, so a disambiguated slug that does not round-trip is not a defect this task repairs. |
+| `cloneToolsAndPoliciesFromCatalog` (`tool.ts:891`) | Derives names from stored slugs, not raw MCP names, and its own comment asserts "the source's tool names are unique within its catalog, and re-slugifying the un-prefixed name is idempotent". Verified the `-` suffix preserves that. |
+| `services/apps/app-mcp-backing.ts:73` | One synthesized launch tool, not a server batch; already app-id-suffixed against collisions per its comment at line 68. |
+| `seedArchestraTools` | Uses `archestraTool.name` verbatim from code-defined constants; no name→identifier transform. |
+| `bulkCreateProxyToolsIfNotExists` ← `routes/proxy/utils/tools.ts:96` | Stores `name: toolName` verbatim from LLM-proxy traffic; no transform. |
+
+## Verification
+
+The workspace has no `node_modules`, so type-check and Vitest are unavailable. I verified statically instead: all four edited files parse clean as TypeScript and as ES modules, and I exercised faithful standalone copies of both algorithms. The slug checks cover the identity case (no collision → byte-identical to today), the lone degenerate tool keeping bare `server__`, multi-way collisions, suffix-vs-real-sibling contention in both orders, the provider identifier pattern, determinism, clone round-trip, and prefix stripping. The sync simulation compares old vs new matching across steady state, catalog rename, migration from a collapsed row, repeat reinstall, and genuine upstream removal.
+
+## Residual risk
+
+- **Order dependence.** Which collider keeps the bare slug follows upstream `tools/list` order. That matches which row exists today, but a server that reorders its colliding tools between discoveries would swap the two identifiers. Non-colliding tools are unaffected.
+- **Not runtime-verified.** No test run was possible here; the model layer and both route paths are exercised only by the simulations above.
+- **Disambiguated tools still do not resolve upstream** — by design per the annotation. They become addressable *within* the platform (policies, assignments, guardrails UI); a `tools/call` against `server__getuser-2` reaches the wire's case-insensitive lookup and finds nothing, same as before the change.
+- **Migration is one reinstall behind.** Existing collapsed rows only split once discovery re-runs; until then the deployment keeps its single row.

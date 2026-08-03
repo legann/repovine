@@ -1,0 +1,41 @@
+{
+  "_description": "Vue SPA with SFC extractor: .vue files visible in graph. App.vue rejected (app reserved). PascalCase components → lightweight. composables/ structural; useX hooks rejected. stores/<name>.ts → lightweight basename domains. views/users/ → users domain.",
+  "heavyDomains": ["users", "vue-spa-fixture"],
+  "lightweightDomains": ["basebutton", "cart", "useauth", "user", "usercard", "userlistview", "usetheme"],
+  "rejectedAsDomain": ["App", "app", "main"],
+  "modulesInDomain": {
+    "users": [
+      "src/views/users/UserListView.vue",
+      "src/composables/useAuth.ts",
+      "src/stores/user.ts"
+    ]
+  },
+  "typescript": {
+    "codeEdges": [
+      {
+        "from": "mod:vue-spa-fixture/src/views/users/UserListView.vue",
+        "to": "mod:vue-spa-fixture/src/composables/useAuth",
+        "kind": "imports"
+      },
+      {
+        "from": "mod:vue-spa-fixture/src/composables/useAuth",
+        "to": "mod:vue-spa-fixture/src/stores/user",
+        "kind": "imports"
+      }
+    ],
+    "resolvedImports": [
+      {
+        "moduleId": "mod:vue-spa-fixture/src/views/users/UserListView.vue",
+        "specifier": "@/composables/useAuth",
+        "resolvedModuleId": "mod:vue-spa-fixture/src/composables/useAuth",
+        "isExternal": false
+      },
+      {
+        "moduleId": "mod:vue-spa-fixture/src/composables/useAuth",
+        "specifier": "@/stores/user",
+        "resolvedModuleId": "mod:vue-spa-fixture/src/stores/user",
+        "isExternal": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,420 @@
+# Bench archestra-restraint-tool-slug — Repovine run 5 — model: opus-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-5; effort: max. Agent fce7341f21f24ca8.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by getting oriented in the codebase graph.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@frontend/src/app/mcp/registry/_parts/mcp-tools-dialog, mod:@frontend/src/app/mcp/registry/_parts/mcp-inspector, mod:@backend/src/types/mcp-tool-call; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/utils/sanitize-svg, mod:@backend/src/utils/upload-filename, mod:@backend/src/models/tool, export:@backend/src/utils/upload-filename/sanitizeUploadFilename; source-derived fields removed]
+
+`mod:@backend/src/models/tool` matched all five tokens and carries annotations. Inspecting it.
+
+  → repovine.inspect_node: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, export:@backend/src/models/tool/parseArchestraBuiltInName, export:@backend/src/models/tool/toolUiResourceUriSql, export:@backend/src/models/tool/default; functions parseArchestraBuiltInName, toolUiResourceUriSql, default; architectural annotation delivered; source-derived fields removed]
+
+The annotation is directly on point. Key constraints it states: `slugifyName` is a per-tool-pair transform with no sibling visibility, so disambiguation belongs to the write layer that holds a server's tools as a set; the wire consumers are frozen; and a lone bare-prefix tool already has a working identifier.
+
+Let me read the actual codec and check consumers.
+
+  → repovine.inspect_node: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, export:@backend/src/models/tool/parseArchestraBuiltInName, export:@backend/src/models/tool/toolUiResourceUriSql, export:@backend/src/models/tool/default; functions parseArchestraBuiltInName, toolUiResourceUriSql, default; architectural annotation delivered; source-derived fields removed]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+Now let me read the codec and the discovery write layer.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → repovine.analyze_dependencies: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@archestra/shared/, mod:@backend/src/archestra-mcp-server, mod:@backend/src/archestra-mcp-server/branding; source-derived fields removed]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+Now let me find every call site of the codec across the repo, and read the discovery write layer.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+Codec understood: `slugifyName` lowercases, collapses whitespace to `_`, and strips everything outside `[expr]` — so it is not injective (`getUser` and `get.user` both → `getuser`; names of only-stripped characters → bare `server__`). Now the write sites.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 96 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 88 line(s)]
+
+Consistent shape everywhere: a server's whole discovered list is mapped at once. Let me read the remaining write sites and the bulk-create sink.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 89 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 90 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 121 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 115 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 118 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 63 line(s)]
+
+Now let me confirm the uniqueness constraint (does a collision produce two rows or one?) and check crypto usage conventions.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 39 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+Confirmed the defect mechanism: for MCP-catalog tools the composite unique is `[expr]` — NULLS-DISTINCT with the last two NULL, so it never fires. Colliding tools insert **two rows sharing one name**, and every name-keyed lookup reaches only one.
+
+Let me check where private statics live in the class.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 95 line(s)]
+
+Now I'll implement. First, the set-level helper next to the codec.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 30 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+The advisory matches my plan: `slugifyName`/`unslugifyName` bodies stay byte-identical and the wire consumers stay untouched. Adding the set-level method beside them:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the private suffix builder at the bottom of the class, plus its constants below the class.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the five discovery write sites. Reading exact context for each:
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 18 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 16 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now the two sites in `routes/mcp-server.ts` and one in `services/mcp-reinstall.ts`:
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+`mcp-reinstall.test.ts` mocks `ToolModel`. Let me check whether my new call survives that mock.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+The reinstall test mocks `@/models` wholesale, so a new `ToolModel` static would be `undefined` there. Let me see exactly what it asserts.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 81 line(s)]
+
+Decisive: the test pins `name: "Test Catalog__tool1"` from the *mocked* `slugifyName`, so no call-site change is possible in `mcp-reinstall.ts`. Reverting it — that path must be fixed in its sink, `syncToolsForCatalog`, which already reconciles the whole set by raw name.
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+Verifying that the four remaining call sites aren't behind a `ToolModel` mock, and who else calls the sinks:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+Complete coverage confirmed: `bulkCreateToolsIfNotExists` has exactly the 4 callers I edited, `syncToolsForCatalog` exactly one (`mcp-reinstall.ts`), and only the reinstall test mocks `ToolModel`. Now factoring one shared resolver for both entry points.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the shared private resolver, next to `disambiguateToolName`:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now wiring the resolver into `syncToolsForCatalog`:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 30 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 14 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now switch the two remaining reads of `tools` inside that function to `resolvedTools`:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Let me audit the whole function for any remaining `tools` reads that should be resolved:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 50 line(s)]
+
+The cleanup section works only on DB rows, so it's unaffected. Now type-check and run the affected tests.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+`noUncheckedIndexedAccess` is off, so indexed access stays `string`. Running type-check:
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Environment isn't bootstrapped, so I'll verify by static reading. Let me review every hunk.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 263 line(s)]
+
+The diff is correct. One consistency fix — the private helper's params should match the resolver's vocabulary:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+String:   private static disambiguateToolName(
+    baseSlug: string,
+    toolName: string,
+    attempt: num]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+The diff is intact (137 insertions); the grep wrapper is misbehaving. Reading the region directly:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 24 line(s)]
+
+The code is present as expected. Applying the rename:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+String:     baseSlug: string,
+    toolName: string,
+    attempt: number,
+  ): string {
+    const digest = c]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit failed — tool could not apply the requested change]
+String:       .update(attempt === 0 ? toolName : `${toolName} ${attempt}`)</tool_use_error>]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 12 line(s)]
+
+The signature/body are now inconsistent, which would not compile. Fixing the body — testing whether `[expr]` interpolation is breaking the match:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+`[expr]` in `old_string` breaks Edit matching. Using a line-scoped surgical replacement for the two remaining references:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+Important find: my earlier edit wrote a **NUL byte** instead of a space in that template literal — which is also why grep went silent (it treated the file as binary). Let me fix it and scan all edited files for stray control characters.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+Only that one byte. Fixing it:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+Fixed. Verifying the file is clean and grep works again:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 76 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+No `lineWidth` set → Biome default 80. Let me verify all my added lines fit:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 7 line(s)]
+
+Biome would reflow that 81-char code line. Restructuring it and rewrapping the overlong comments:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 9 line(s)]
+
+Now rewrapping the six overlong comment lines:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 32 line(s)]
+
+Lines 111–113 wrapped badly. Fixing:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 21 line(s)]
+
+Let me validate the algorithm by replicating it standalone (plain node, no deps):
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 14 line(s); non-zero exit]
+
+The check caught a real design flaw — with `[expr]` all three collide, and my rule renamed all three including `getuser`, whose stored name **does** resolve upstream today. Let me examine exactly how the wire resolves a stored name.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 56 line(s)]
+
+The wire resolves a stored name by stripping the prefix and matching upstream **case-insensitively** (`resolveActualToolName`). So `srv__getuser` really does address upstream `getuser` (or `getUser`) today — my rule was renaming a working tool. Adding ownership: a contested name stays with the raw name that already round-trips.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the ownership helper:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Updating the verification harness to the corrected semantics, with the case-variant cases added:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 18 line(s); non-zero exit]
+
+Case 5c was a bad test — `get.user` → `srv__getuser` and `[expr]` → `srv__get_user` don't actually collide. Using two raws that truly collide with no round-tripping owner:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 16 line(s)]
+
+All 14 checks pass. Final formatting and cleanliness pass:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 2 line(s)]
+
+Now the final review of the complete change, and a re-run to confirm the source still matches the verified algorithm:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+Both doc blocks predate the ownership rule and now misstate it. Correcting them:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+Now refreshing the graph as the project workflow requires:
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Graph rebuilt cleanly, no orphaned annotations. Final diff review:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 85 line(s)]
+
+Let me confirm my out-of-scope reasoning with exact citations. Reading the clone path and the app launch-tool write:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 22 line(s)]
+
+## Summary
+
+**Where tool names become identifiers.** `ToolModel.slugifyName(…)` (`platform/backend/src/models/tool.ts:81`) is the single conversion: it concatenates `server__tool`, lowercases, collapses whitespace to `_`, and drops every character outside `[expr]`. It is not injective — `getUser` and `get.user` both yield `srv__getuser`, and a name made only of dropped characters yields the bare `srv__`. Because `tools` rows and every lookup are keyed by name, and the `[expr]` unique constraint is NULLS-DISTINCT for MCP tools (`database/schemas/tool.ts:83-88`), colliding tools land as **separate rows sharing one name** and only one is ever reachable.
+
+Six call sites feed that conversion; the five discovery/sync writes reach it through two sinks — `bulkCreateToolsIfNotExists` (4 callers) and `syncToolsForCatalog` (1 caller).
+
+**Changed** (3 files, implementation only):
+- `models/tool.ts` — added `slugifyNamesForServer` plus three private helpers (`resolveDistinctToolNames`, `findToolNameOwner`, `disambiguateToolName`). A name no other raw name contests passes through byte-identically. Where several contest one name, the raw name that name **already serves upstream** keeps it, and the rest get `[expr]`. `slugifyName`/`unslugifyName` bodies are untouched.
+- `archestra-mcp-server/mcp-servers.ts`, `routes/mcp-server.ts` — the four discovery sites now resolve the server's whole raw list at once instead of one pair at a time.
+- `syncToolsForCatalog` resolves internally from the `rawToolName` it already receives, so `services/mcp-reinstall.ts` is unchanged.
+
+The disambiguator joins with `-`, so names keep the same `__` count and `parseFullToolName` still splits off the same server prefix. Suffixes derive from the raw name, so they don't move when a server reorders `tools/list`.
+
+**Deliberately unchanged, with the source that puts each out of scope:**
+- **Wire consumers** — `routes/mcp-server-gateway.utils.ts:60`, `routes/mcp-server-proxy.ts:168`, `clients/mcp-client.ts:2120`: the module annotation marks these frozen ("Editing the wire consumers … changes the external serving/matching contract; these consumers are frozen alongside the codec"). I read them only to derive the ownership rule — `resolveActualToolName` (`mcp-client.ts:2134-2156`) matches upstream **case-insensitively**, which is why a lone case-insensitive match keeps its name rather than being renamed.
+- **Clone reconciliation** (`models/tool.ts:870`) — its own comment states the precondition: "the source's tool names are unique within its catalog, and re-slugifying the un-prefixed name is idempotent." Distinct stored names therefore yield distinct clone names; this path re-derives from names already made distinct rather than converting an MCP-exposed name.
+- **App launch tool** (`services/apps/app-mcp-backing.ts:73`) — a single `ToolModel.create`, no sibling set, and the comment above it documents its own uniqueness mechanism: the name "is suffixed with the app id so two apps that legitimately share a name across scopes don't produce the same `[expr]`."
+
+**Verification.** The worktree is intentionally not bootstrapped (no `node_modules`), so `pnpm type-check`/tests are unavailable — I could not run the suite. I verified statically and by porting the algorithm verbatim into a standalone script: 14 checks pass, including non-colliding names byte-identical, a **lone** strip-to-empty tool keeping bare `server__`, two strip-to-empty tools becoming distinct, owner retention for exact and case-insensitive matches, order independence, the `[expr]` pattern, and prefix-strip compatibility. No test files were added or modified; I confirmed `mcp-reinstall.test.ts` is the only file mocking `ToolModel` and its pinned expectations (`"Test Catalog__tool1"`) still hold, which is why that path is fixed in its sink.
+
+**Residual risk.** A previously-colliding row does not carry its policies and agent assignments to the new disambiguated rows: `syncToolsForCatalog`'s orphan-transfer map is keyed by the raw part of the *stored* name (`models/tool.ts:2302`), so an old ambiguous row is treated as a rename-orphan and deleted. Two tools whose raw names differ only by case remain mutually unresolvable upstream — the disambiguated names are distinct and addressable in the platform, but `resolveActualToolName`'s lowercased map cannot route them individually, and per the annotation the wire was not extended to do so. During a single build, one edited `[expr]` template briefly wrote a NUL byte into the source; I found it, replaced it, and confirmed all four touched files are free of control characters.

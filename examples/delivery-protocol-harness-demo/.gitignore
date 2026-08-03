@@ -1,0 +1,21 @@
+# Runtime: generated target repo, harness artifacts, repovine graph cache.
+.workspace/
+.env
+# Attach launch pointer written by `attach -- prepare` (per-machine host state).
+.attach-launch.json
+# Real-agent dependency (Claude Agent SDK) is installed on demand.
+node_modules/
+# Commit THIS demo's lockfile (override the repo-wide package-lock.json ignore):
+# this is a reference harness pinned to fast-moving provider SDKs, so the build
+# must be reproducible. The negation re-includes only this file.
+!package-lock.json
+
+# repovine engine cache (ignore .repovine/)
+.repovine/
+# This demo is NOT its own repovine target — its code is covered by the repovine repo
+# root graph, and the harness builds the sandbox under .workspace/ (own config there).
+# A repovine run with cwd here would regenerate these; ignore them so they are never
+# committed to the demo root by accident. Leading slash scopes to the demo root only.
+/repovine.config.json
+/repovine.domains.json
+/repovine.annots.json

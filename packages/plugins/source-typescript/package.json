@@ -1,0 +1,119 @@
+{
+  "name": "@repovine/plugin-source-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "repovine": {
+    "kind": "plugin",
+    "id": "typescript",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "typescript",
+      "dirs": [
+        {
+          "name": "node_modules",
+          "role": "dependencies",
+          "because": "npm installs dependencies here"
+        },
+        {
+          "name": "bower_components",
+          "role": "dependencies",
+          "because": "the pre-npm dependency tree of the same ecosystem"
+        },
+        {
+          "name": ".yarn",
+          "role": "dependencies",
+          "because": "yarn keeps its release and cache state here"
+        },
+        {
+          "name": ".pnpm-store",
+          "role": "dependencies",
+          "because": "pnpm keeps its content-addressed store here"
+        },
+        {
+          "name": "dist",
+          "role": "build-output",
+          "because": "the conventional bundler and tsc output directory"
+        },
+        {
+          "name": "dist-bundled",
+          "role": "build-output",
+          "because": "output of a bundling step beside a plain one"
+        },
+        {
+          "name": ".next",
+          "role": "build-output",
+          "because": "Next.js writes its build here"
+        },
+        {
+          "name": ".nuxt",
+          "role": "build-output",
+          "because": "Nuxt writes its build here"
+        },
+        {
+          "name": ".svelte-kit",
+          "role": "build-output",
+          "because": "SvelteKit writes its build here"
+        },
+        {
+          "name": ".turbo",
+          "role": "tool-output",
+          "because": "Turborepo task cache"
+        },
+        {
+          "name": ".nx",
+          "role": "tool-output",
+          "because": "Nx task cache"
+        },
+        {
+          "name": "__tests__",
+          "role": "test-layout",
+          "because": "the Jest convention for tests beside the code"
+        },
+        {
+          "name": "__mocks__",
+          "role": "test-layout",
+          "because": "module mocks the test runner loads"
+        },
+        {
+          "name": "__snapshots__",
+          "role": "test-layout",
+          "because": "serialized snapshots the test runner writes"
+        },
+        {
+          "name": "cypress",
+          "role": "test-layout",
+          "because": "the Cypress project directory"
+        },
+        {
+          "name": "playwright",
+          "role": "test-layout",
+          "because": "the Playwright project directory"
+        }
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@repovine/plugin-sdk": "0.1.0",
+    "ts-morph": "28.0.0",
+    "typescript": "6.0.3"
+  }
+}

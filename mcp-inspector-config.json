@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "repovine": {
+      "command": "node",
+      "args": ["dist/mcp/index.js"],
+      "env": { "REPOVINE_ROOT": "." }
+    },
+    "repovine-debug": {
+      "command": "node",
+      "args": ["--inspect-brk=9229", "dist/mcp/index.js"],
+      "env": { "REPOVINE_ROOT": ".", "REPOVINE_VERBOSE": "1" }
+    }
+  }
+}

@@ -1,0 +1,311 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 1 — model: opus-4.8 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max. Agent 97e4d989dbab4937.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the web crawler connector and understanding how URLs are used across the indexing/serving path.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 755 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 607 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 328 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 29 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 122 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 90 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 67 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 100 line(s)]
+
+The test pins `doc.id`, `sourceUrl`, and `metadata.url` to the trailing-slash form. I need to read the whole test file — it's the real spec here.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 200 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 171 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 166 line(s)]
+
+Now I have the full picture of the test spec. Let me establish a baseline and check repo conventions (test runner, migrations) before touching anything.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 21 line(s)]
+
+Data-only backfill migrations are an established convention here. Let me check the `kb_documents` constraints and run the baseline test suite.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+Node confirms two crucial things: a no-op `delete` leaves `href` byte-identical (so URLs without tracking params keep their exact identity), while deleting a param re-serializes the rest of the query. Let me check the IPv6 hostname edge case before I write the patch.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+Everything checks out. Now I'll write the patch.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 16 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 12 line(s)]
+
+Now the patch. First, the tracking-param constant:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the normalization helpers at the bottom of the file:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the seed requests and link enqueueing to use the dedup key:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me verify the logic by extracting the actual functions from the patched file and exercising them in plain Node (no deps needed).
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 41 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 87 line(s)]
+
+All green, including the counter-check that stripping the slash from the URL itself would widen crawl scope to the whole origin. One unverified thing remains: the Crawlee `transformRequestFunction` option. Let me try to confirm it exists in 3.14.1.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+`transformRequestFunction` and settable `uniqueKey` both confirmed. Now the ordering question — does my spread preserve `userData` (which carries crawl depth)?
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 71 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 32 line(s)]
+
+Flow confirmed: `userData` is applied *before* transform, so my spread preserves it. Two last checks — `Request` honoring a supplied `uniqueKey`, and `crawler.run` accepting request objects.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+`Request` honors a supplied `uniqueKey` (`request.js`) and `userData` is set before transform (`shared.js`). Two type-level checks left: `RequestsLike` and the context's `enqueueLinks` signature.
+
+  → Bash: [command removed — checked or prepared the local tool environment]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+`EnqueueLinksOptions` is passed whole, so `transformRequestFunction` is valid there. Last check: `RequestsLike` for `crawler.run`, and the Cheerio context's `enqueueLinks`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 94 line(s)]
+
+One thing I should verify before finalizing: Crawlee's *default* `uniqueKey` already normalizes URLs. If its default is stronger than my key, overriding it could reduce dedup. Let me check `computeUniqueKey`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 25 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 12 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 8 line(s)]
+
+Confirmed regression. My `uniqueKey` override would *break* dedup that Crawlee already does. Reverting that half of the patch and keeping only the `normalizeCrawlUrl` strengthening.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now remove the two now-unused helpers (they'd also fail `knip`):
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me review the final diff and re-run the verification against the actual final source.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 55 line(s)]
+
+Clean and minimal. Let me re-verify behavior against the final source and collect exact line numbers for the report.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 46 line(s)]
+
+Now let me collect exact line numbers for the citations in my report.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+I implemented the change and verified it by executing the shipped function body directly. One finding reshaped the patch substantially: **most of the requested normalization already existed one layer down, in Crawlee**, and re-implementing it would have broken things.
+
+## What changed
+
+One file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`.
+
+- Added `TRACKING_QUERY_PARAMS` (the seven listed params) alongside the other module constants.
+- `normalizeCrawlUrl` now lowercases the host, strips those tracking params, and keeps the existing fragment- and default-port-stripping.
+
+I deliberately did **not** strip the trailing slash inside `normalizeCrawlUrl`. That is the load-bearing decision, and it has three independent justifications.
+
+## Why the trailing slash stays
+
+**It is already done, where it actually matters.** Crawlee derives each request's `uniqueKey` via `Request.computeUniqueKey` → `@apify/utilities`'s `normalizeUrl`, which strips the trailing slash, strips any `[expr]`-prefixed param, sorts query params, lowercases the host, and drops the fragment. So `/a` and `/a/` are *already* fetched once and yield one document. I first implemented a custom `uniqueKey` to do this myself, then measured it against the default and found it was a regression — my seven-param list misses the `[expr]` wildcard (`utm_id`, `utm_reader`) and doesn't sort params:
+
+| variant vs. canonical | Crawlee default | my custom `uniqueKey` |
+|---|---|---|
+| `[expr]` | deduped | **not deduped** |
+| `[expr]` vs `[expr]` | deduped | **not deduped** |
+| trailing slash | deduped | deduped |
+| `[expr]` | **not deduped** | deduped |
+
+I reverted that half of the patch. The only real gap was `gclid`/`fbclid`, which `normalizeUrl` doesn't touch (it only matches the `utm_` prefix) — and stripping them in `normalizeCrawlUrl` closes it, because the cleaned URL is what gets enqueued.
+
+**Applying it to the URL itself would corrupt two things.** `buildAllowedPathPrefixes` (`web-crawler-connector.ts:469-481`) reads the start URL's trailing slash to scope the crawl: `/docs/` yields `[expr]`, but `/docs` yields `[expr]` — the whole origin. Stripping the slash first would silently widen a subtree crawl to the entire site. And `buildDocument` (`web-crawler-connector.ts:453`) sets `[expr]` with `sourceUrl` from the same value (`:458`), which brings us to the constraint you flagged.
+
+## Why already-indexed documents keep working
+
+`connector-sync.ts:419-421` looks a document up by `[expr]`; on a miss it inserts a fresh row (`:502-504`). Nothing prunes documents absent from a crawl — `deleteByConnectorAndSourceId` exists at `models/kb-document.ts:332` but has no caller outside its own test, and `kb_documents_source_idx` (`database/schemas/kb-document.ts:44`) is only a uniqueness constraint. So any change to the canonical URL re-keys a page, orphaning the old row as a stale duplicate that still gets served.
+
+The patch preserves identity because a `searchParams.delete()` of a key that isn't present leaves `href` byte-identical — Node only re-serializes the query when it actually changes. I verified every URL the frozen test suite pins (`/docs/`, `/docs/install/`, `/docs/dest/`, `/`, …) passes through unchanged, including that `sha256(…)` still equals the hash asserted at `web-crawler-connector.test.ts:178`.
+
+## Left unchanged, with proof
+
+- **`beforeRedirect`'s scope check** (`web-crawler-connector.ts:250`) matches `excludePathPatterns` against the raw `target.search`. It's a fail-closed security check on the URL as the origin sent it; normalizing there would let a redirect slip past an exclude pattern. Out of scope.
+- **`buildAllowedPathPrefixes`** (`:469`) reads only `pathname`, which neither tracking-param stripping nor host-lowercasing can affect. No change needed.
+- **No data migration.** Only documents whose stored URL actually contained one of the seven params get re-keyed; everything else is bit-identical, as shown above.
+- The existing default-port block is now redundant — `[expr]` already yields `http://e.com/`. You asked me to keep it, so I did.
+
+## Residual risk
+
+The real one: a page previously indexed under a URL carrying one of the seven tracking params **will** be re-keyed on the next sync, and since nothing prunes, the old row lingers as a stale duplicate alongside the new clean-URL row. That re-key is intrinsic to the request — collapsing those URLs into one document is the point — but the leftover row needs a one-off cleanup that I did not write, since it would want a test and tests are out of scope here. Two smaller ones: when a tracking param *is* removed, the remaining query is re-encoded (`[expr]` becomes `[expr]`), affecting only URLs already being re-keyed; and an `excludePathPatterns` regex that deliberately matched `utm_` in a query string will no longer fire.
+
+I could not run `pnpm test` or `tsgo` — this worktree has no `node_modules` and the harness blocks bootstrapping. Instead I read the frozen test suite and proved every URL it pins is unchanged, executed the exact shipped function body in Node against 21 cases (all pass), and validated the Crawlee API claims against the real `@crawlee/core@3.14.1` sources in a sibling worktree rather than from memory.

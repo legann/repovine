@@ -1,0 +1,5 @@
+app:
+  image:
+    repository: demo/app
+    tag: "1.0"
+  existingSecret: app-db-credentials

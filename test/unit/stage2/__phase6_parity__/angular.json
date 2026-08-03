@@ -1,0 +1,1325 @@
+{
+  "stats": {
+    "totalNodes": 33,
+    "totalEdges": 54,
+    "nodesByType": {
+      "domain": 8,
+      "export-symbol": 11,
+      "module": 12,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 24,
+      "tagged": 30
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:auth",
+      "domain:angular-fixture",
+      "domain:highlight",
+      "domain:capitalize",
+      "domain:users",
+      "domain:user-list",
+      "domain:routing",
+      "domain:angular-fixture/users"
+    ],
+    "export-symbol": [
+      "export:angular-fixture/src/app/app.component/AppComponent",
+      "export:angular-fixture/src/app/app.module/AppModule",
+      "export:angular-fixture/src/app/auth/auth.guard/AuthGuard",
+      "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor",
+      "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective",
+      "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe",
+      "export:angular-fixture/src/app/users/user.model/User",
+      "export:angular-fixture/src/app/users/users.component/UsersComponent",
+      "export:angular-fixture/src/app/users/users.module/UsersModule",
+      "export:angular-fixture/src/app/users/users.service/UsersService",
+      "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent"
+    ],
+    "module": [
+      "mod:angular-fixture/src/main",
+      "mod:angular-fixture/src/app/app.component",
+      "mod:angular-fixture/src/app/app.module",
+      "mod:angular-fixture/src/app/auth/auth.guard",
+      "mod:angular-fixture/src/app/auth/auth.interceptor",
+      "mod:angular-fixture/src/app/shared/directives/highlight.directive",
+      "mod:angular-fixture/src/app/shared/pipes/capitalize.pipe",
+      "mod:angular-fixture/src/app/users/user.model",
+      "mod:angular-fixture/src/app/users/users.component",
+      "mod:angular-fixture/src/app/users/users.module",
+      "mod:angular-fixture/src/app/users/users.service",
+      "mod:angular-fixture/src/app/users/pages/user-list/user-list.component"
+    ],
+    "package": [
+      "pkg:angular-fixture"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:angular-fixture",
+      "type": "domain",
+      "label": "angular-fixture",
+      "description": "Domain: angular-fixture",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature",
+        "subdomains": [
+          "domain:angular-fixture/users"
+        ]
+      }
+    },
+    {
+      "id": "domain:angular-fixture/users",
+      "type": "domain",
+      "label": "angular-fixture/users",
+      "description": "Subdomain: angular-fixture/users (5 modules)",
+      "data": {
+        "tier": "feature",
+        "parent": "domain:angular-fixture"
+      }
+    },
+    {
+      "id": "domain:auth",
+      "type": "domain",
+      "label": "auth",
+      "description": "Domain: auth",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:capitalize",
+      "type": "domain",
+      "label": "capitalize",
+      "description": "Domain: capitalize",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:highlight",
+      "type": "domain",
+      "label": "highlight",
+      "description": "Domain: highlight",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:user-list",
+      "type": "domain",
+      "label": "user-list",
+      "description": "Domain: user-list",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:users",
+      "type": "domain",
+      "label": "users",
+      "description": "Domain: users",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/app.component/AppComponent",
+      "type": "export-symbol",
+      "label": "AppComponent",
+      "description": "class AppComponent: class AppComponent",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class AppComponent",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/app.module/AppModule",
+      "type": "export-symbol",
+      "label": "AppModule",
+      "description": "class AppModule: class AppModule",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class AppModule",
+        "calls": [
+          "NgModule",
+          "RouterModule.forRoot",
+          "then"
+        ],
+        "lineRange": {
+          "start": 4,
+          "end": 12
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/auth/auth.guard/AuthGuard",
+      "type": "export-symbol",
+      "label": "AuthGuard",
+      "description": "class AuthGuard: class AuthGuard",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class AuthGuard",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor",
+      "type": "export-symbol",
+      "label": "AuthInterceptor",
+      "description": "class AuthInterceptor: class AuthInterceptor",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class AuthInterceptor",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective",
+      "type": "export-symbol",
+      "label": "HighlightDirective",
+      "description": "class HighlightDirective: class HighlightDirective",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class HighlightDirective",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe",
+      "type": "export-symbol",
+      "label": "CapitalizePipe",
+      "description": "class CapitalizePipe: class CapitalizePipe",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class CapitalizePipe",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent",
+      "type": "export-symbol",
+      "label": "UserListComponent",
+      "description": "class UserListComponent: class UserListComponent",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class UserListComponent",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/user.model/User",
+      "type": "export-symbol",
+      "label": "User",
+      "description": "interface User: interface User",
+      "data": {
+        "symbolKind": "interface",
+        "signature": "interface User",
+        "typeValue": "{ id: string }",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "optional": false
+          }
+        ],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/users.component/UsersComponent",
+      "type": "export-symbol",
+      "label": "UsersComponent",
+      "description": "class UsersComponent: class UsersComponent",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class UsersComponent",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/users.module/UsersModule",
+      "type": "export-symbol",
+      "label": "UsersModule",
+      "description": "class UsersModule: class UsersModule",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class UsersModule",
+        "calls": [
+          "NgModule",
+          "RouterModule.forChild"
+        ],
+        "lineRange": {
+          "start": 14,
+          "end": 15
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/users.service/UsersService",
+      "type": "export-symbol",
+      "label": "UsersService",
+      "description": "class UsersService: class UsersService",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class UsersService",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/app.component",
+      "type": "module",
+      "label": "…/app/app.component",
+      "description": "Module src/app/app.component.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/app.component.ts",
+        "pkgRelPath": "src/app/app.component.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/app.module",
+      "type": "module",
+      "label": "…/app/app.module",
+      "description": "Module src/app/app.module.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/app.module.ts",
+        "pkgRelPath": "src/app/app.module.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/auth/auth.guard",
+      "type": "module",
+      "label": "…/auth/auth.guard",
+      "description": "Module src/app/auth/auth.guard.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/auth/auth.guard.ts",
+        "pkgRelPath": "src/app/auth/auth.guard.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/auth/auth.interceptor",
+      "type": "module",
+      "label": "…/auth/auth.interceptor",
+      "description": "Module src/app/auth/auth.interceptor.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/auth/auth.interceptor.ts",
+        "pkgRelPath": "src/app/auth/auth.interceptor.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/shared/directives/highlight.directive",
+      "type": "module",
+      "label": "…/directives/highlight.directive",
+      "description": "Module src/app/shared/directives/highlight.directive.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/shared/directives/highlight.directive.ts",
+        "pkgRelPath": "src/app/shared/directives/highlight.directive.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/shared/pipes/capitalize.pipe",
+      "type": "module",
+      "label": "…/pipes/capitalize.pipe",
+      "description": "Module src/app/shared/pipes/capitalize.pipe.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/shared/pipes/capitalize.pipe.ts",
+        "pkgRelPath": "src/app/shared/pipes/capitalize.pipe.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/pages/user-list/user-list.component",
+      "type": "module",
+      "label": "…/user-list/user-list.component",
+      "description": "Module src/app/users/pages/user-list/user-list.component.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/users/pages/user-list/user-list.component.ts",
+        "pkgRelPath": "src/app/users/pages/user-list/user-list.component.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/user.model",
+      "type": "module",
+      "label": "…/users/user.model",
+      "description": "Module src/app/users/user.model.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/users/user.model.ts",
+        "pkgRelPath": "src/app/users/user.model.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/users.component",
+      "type": "module",
+      "label": "…/users/users.component",
+      "description": "Module src/app/users/users.component.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/users/users.component.ts",
+        "pkgRelPath": "src/app/users/users.component.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/users.module",
+      "type": "module",
+      "label": "…/users/users.module",
+      "description": "Module src/app/users/users.module.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/users/users.module.ts",
+        "pkgRelPath": "src/app/users/users.module.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/users.service",
+      "type": "module",
+      "label": "…/users/users.service",
+      "description": "Module src/app/users/users.service.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/app/users/users.service.ts",
+        "pkgRelPath": "src/app/users/users.service.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/main",
+      "type": "module",
+      "label": "src/main",
+      "description": "Module src/main.ts in angular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/main.ts",
+        "pkgRelPath": "src/main.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:angular-fixture",
+      "type": "package",
+      "label": "angular-fixture",
+      "description": "Package angular-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:angular-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:angular-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:angular-fixture/users",
+      "links": [
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "domain:angular-fixture/users",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "domain:auth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:auth",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:capitalize",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:capitalize",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:highlight",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:highlight",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:user-list",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:user-list",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/app.component/AppComponent",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/app.component/AppComponent",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/app.module/AppModule",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/app.module/AppModule",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/auth/auth.guard/AuthGuard",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/auth/auth.guard/AuthGuard",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/user.model/User",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/users/user.model/User",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/users.component/UsersComponent",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/users/users.component/UsersComponent",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/users.module/UsersModule",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/users/users.module/UsersModule",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:angular-fixture/src/app/users/users.service/UsersService",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:angular-fixture/src/app/users/users.service/UsersService",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/app.component",
+      "links": [
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/app.component/AppComponent"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/app.component",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/app.component/AppComponent",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/app.module",
+      "links": [
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/app.module/AppModule"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/app.module",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/app.module/AppModule",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/auth/auth.guard",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/auth/auth.guard/AuthGuard"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/auth/auth.guard",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/auth/auth.guard/AuthGuard",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/auth/auth.interceptor",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/auth/auth.interceptor",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/auth/auth.interceptor/AuthInterceptor",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/shared/directives/highlight.directive",
+      "links": [
+        {
+          "to": "domain:highlight",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/shared/directives/highlight.directive",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/shared/directives/highlight.directive/HighlightDirective",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:highlight",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/shared/pipes/capitalize.pipe",
+      "links": [
+        {
+          "to": "domain:capitalize",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/shared/pipes/capitalize.pipe",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/shared/pipes/capitalize.pipe/CapitalizePipe",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:capitalize",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/pages/user-list/user-list.component",
+      "links": [
+        {
+          "to": "domain:user-list",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:angular-fixture/users",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/users/pages/user-list/user-list.component",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/users/pages/user-list/user-list.component/UserListComponent",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:user-list",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture/users",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/user.model",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:angular-fixture/users",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/users/user.model/User"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/users/user.model",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/users/user.model/User",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture/users",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/users.component",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:angular-fixture/users",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/users/users.component/UsersComponent"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/users/users.component",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/users/users.component/UsersComponent",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture/users",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/users.module",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:angular-fixture/users",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/users/users.module/UsersModule"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/users/users.module",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/users/users.module/UsersModule",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture/users",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/app/users/users.service",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:angular-fixture/users",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:angular-fixture/src/app/users/users.service/UsersService"
+      ],
+      "view": {
+        "id": "mod:angular-fixture/src/app/users/users.service",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:angular-fixture/src/app/users/users.service/UsersService",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:angular-fixture/users",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:angular-fixture/src/main",
+      "links": [
+        {
+          "to": "domain:angular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:angular-fixture/src/main",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:angular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:angular-fixture",
+      "links": [],
+      "children": [
+        "mod:angular-fixture/src/main",
+        "mod:angular-fixture/src/app/app.component",
+        "mod:angular-fixture/src/app/app.module",
+        "mod:angular-fixture/src/app/auth/auth.guard",
+        "mod:angular-fixture/src/app/auth/auth.interceptor",
+        "mod:angular-fixture/src/app/shared/directives/highlight.directive",
+        "mod:angular-fixture/src/app/shared/pipes/capitalize.pipe",
+        "mod:angular-fixture/src/app/users/user.model",
+        "mod:angular-fixture/src/app/users/users.component",
+        "mod:angular-fixture/src/app/users/users.module",
+        "mod:angular-fixture/src/app/users/users.service",
+        "mod:angular-fixture/src/app/users/pages/user-list/user-list.component"
+      ],
+      "view": {
+        "id": "pkg:angular-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:angular-fixture/src/main",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/app.component",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/app.module",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/auth/auth.guard",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/auth/auth.interceptor",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/shared/directives/highlight.directive",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/shared/pipes/capitalize.pipe",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/users/user.model",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/users/users.component",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/users/users.module",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/users/users.service",
+            "type": "module"
+          },
+          {
+            "id": "mod:angular-fixture/src/app/users/pages/user-list/user-list.component",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:angular-fixture"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:angular-fixture",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": [
+    {
+      "id": "entrypoint:route:mod:angular-fixture/src/app/app.module:/users",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/users",
+      "component": "(lazy)",
+      "moduleId": "mod:angular-fixture/src/app/app.module",
+      "source": "angular",
+      "webFramework": "angular"
+    },
+    {
+      "id": "entrypoint:route:mod:angular-fixture/src/app/users/users.module:/",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/",
+      "component": "UsersComponent",
+      "moduleId": "mod:angular-fixture/src/app/users/users.module",
+      "source": "angular",
+      "webFramework": "angular"
+    },
+    {
+      "id": "entrypoint:route:mod:angular-fixture/src/app/users/users.module:/list",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/list",
+      "component": "UserListComponent",
+      "moduleId": "mod:angular-fixture/src/app/users/users.module",
+      "source": "angular",
+      "webFramework": "angular"
+    }
+  ]
+}

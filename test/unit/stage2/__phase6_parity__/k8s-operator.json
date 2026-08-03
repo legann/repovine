@@ -1,0 +1,647 @@
+{
+  "stats": {
+    "totalNodes": 16,
+    "totalEdges": 26,
+    "nodesByType": {
+      "domain": 4,
+      "export-symbol": 1,
+      "module": 4,
+      "package": 1,
+      "root": 1,
+      "runtime-resource": 5
+    },
+    "edgesByKind": {
+      "contains": 11,
+      "infra": 1,
+      "tagged": 11,
+      "uses_env": 3
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:infra-dockerfile",
+      "domain:infra-k8s",
+      "domain:handler",
+      "domain:k8s-operator-fixture"
+    ],
+    "export-symbol": [
+      "export:k8s-operator-fixture/src/handler/handler"
+    ],
+    "module": [
+      "mod:k8s-operator-fixture/src/handler",
+      "infra:dockerfile:Dockerfile",
+      "infra:kubernetes:manifests/deployment.yaml",
+      "infra:kubernetes:manifests/secrets.yaml"
+    ],
+    "package": [
+      "pkg:k8s-operator-fixture"
+    ],
+    "root": [
+      "root"
+    ],
+    "runtime-resource": [
+      "resource:generic:Dockerfile",
+      "resource:k8s:demo-system/Deployment/demo-operator",
+      "resource:k8s:demo-system/Secret/operator-secrets",
+      "resource:k8s:demo-system/Secret/operator-env",
+      "resource:k8s:demo-system/Secret/operator-certs"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:handler",
+      "type": "domain",
+      "label": "handler",
+      "description": "Domain: handler",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "type": "domain",
+      "label": "infra-dockerfile",
+      "description": "Domain: infra-dockerfile (Dockerfiles)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:infra-k8s",
+      "type": "domain",
+      "label": "infra-k8s",
+      "description": "Domain: infra-k8s (Kubernetes / k3d manifests)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:k8s-operator-fixture",
+      "type": "domain",
+      "label": "k8s-operator-fixture",
+      "description": "Domain: k8s-operator-fixture",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:k8s-operator-fixture/src/handler/handler",
+      "type": "export-symbol",
+      "label": "handler",
+      "description": "function handler: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "infra:dockerfile:Dockerfile",
+      "type": "module",
+      "label": "Dockerfile",
+      "description": "IaC dockerfile module Dockerfile",
+      "data": {
+        "absPath": "<FIXTURE>/Dockerfile",
+        "repoRelPath": "Dockerfile"
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/deployment.yaml",
+      "type": "module",
+      "label": "manifests/deployment.yaml",
+      "description": "IaC kubernetes module manifests/deployment.yaml",
+      "data": {
+        "absPath": "<FIXTURE>/manifests/deployment.yaml",
+        "repoRelPath": "manifests/deployment.yaml"
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/secrets.yaml",
+      "type": "module",
+      "label": "manifests/secrets.yaml",
+      "description": "IaC kubernetes module manifests/secrets.yaml",
+      "data": {
+        "absPath": "<FIXTURE>/manifests/secrets.yaml",
+        "repoRelPath": "manifests/secrets.yaml"
+      }
+    },
+    {
+      "id": "mod:k8s-operator-fixture/src/handler",
+      "type": "module",
+      "label": "src/handler",
+      "description": "Module src/handler.ts in k8s-operator-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/handler.ts",
+        "pkgRelPath": "src/handler.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:k8s-operator-fixture",
+      "type": "package",
+      "label": "k8s-operator-fixture",
+      "description": "Package k8s-operator-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "1.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "resource:generic:Dockerfile",
+      "type": "runtime-resource",
+      "label": "Dockerfile",
+      "description": "other declared in Dockerfile",
+      "data": {
+        "contentHash": "be48edae7f514cd2",
+        "kind": "other",
+        "provider": "generic",
+        "declaredIn": [
+          "Dockerfile"
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Deployment/demo-operator",
+      "type": "runtime-resource",
+      "label": "demo-operator",
+      "description": "k8s-deployment declared in manifests/deployment.yaml",
+      "data": {
+        "envRefs": [
+          {
+            "varName": "API_TOKEN",
+            "refType": "literal",
+            "targetLogicalId": "operator-secrets"
+          },
+          {
+            "varName": "envFrom:operator-env",
+            "refType": "literal",
+            "targetLogicalId": "operator-env"
+          },
+          {
+            "varName": "volume:certs",
+            "refType": "literal",
+            "targetLogicalId": "operator-certs"
+          }
+        ],
+        "contentHash": "453ead2364c8167c",
+        "kind": "k8s-deployment",
+        "refScope": "k8s/demo-system",
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/deployment.yaml"
+        ],
+        "namespace": "demo-system"
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Secret/operator-certs",
+      "type": "runtime-resource",
+      "label": "operator-certs",
+      "description": "secret declared in manifests/secrets.yaml",
+      "data": {
+        "contentHash": "75bcfe440b06eac8",
+        "kind": "secret",
+        "refScope": "k8s/demo-system",
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/secrets.yaml"
+        ],
+        "namespace": "demo-system"
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Secret/operator-env",
+      "type": "runtime-resource",
+      "label": "operator-env",
+      "description": "secret declared in manifests/secrets.yaml",
+      "data": {
+        "contentHash": "0cfe1d7a00101286",
+        "kind": "secret",
+        "refScope": "k8s/demo-system",
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/secrets.yaml"
+        ],
+        "namespace": "demo-system"
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Secret/operator-secrets",
+      "type": "runtime-resource",
+      "label": "operator-secrets",
+      "description": "secret declared in manifests/secrets.yaml",
+      "data": {
+        "contentHash": "191d3168720b3956",
+        "kind": "secret",
+        "refScope": "k8s/demo-system",
+        "provider": "k8s",
+        "declaredIn": [
+          "manifests/secrets.yaml"
+        ],
+        "namespace": "demo-system"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:handler",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-dockerfile",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-k8s",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-k8s",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:k8s-operator-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:k8s-operator-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:k8s-operator-fixture/src/handler/handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:k8s-operator-fixture/src/handler/handler",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "infra:dockerfile:Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:Dockerfile"
+      ],
+      "view": {
+        "id": "infra:dockerfile:Dockerfile",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:generic:Dockerfile",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/deployment.yaml",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:k8s:demo-system/Deployment/demo-operator"
+      ],
+      "view": {
+        "id": "infra:kubernetes:manifests/deployment.yaml",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:k8s:demo-system/Deployment/demo-operator",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:kubernetes:manifests/secrets.yaml",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:k8s:demo-system/Secret/operator-secrets",
+        "resource:k8s:demo-system/Secret/operator-env",
+        "resource:k8s:demo-system/Secret/operator-certs"
+      ],
+      "view": {
+        "id": "infra:kubernetes:manifests/secrets.yaml",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:k8s:demo-system/Secret/operator-secrets",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:k8s:demo-system/Secret/operator-env",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:k8s:demo-system/Secret/operator-certs",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod:k8s-operator-fixture/src/handler",
+      "links": [
+        {
+          "to": "domain:handler",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:k8s-operator-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:k8s-operator-fixture/src/handler/handler"
+      ],
+      "view": {
+        "id": "mod:k8s-operator-fixture/src/handler",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:k8s-operator-fixture/src/handler/handler",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:handler",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:k8s-operator-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:k8s-operator-fixture",
+      "links": [],
+      "children": [
+        "mod:k8s-operator-fixture/src/handler"
+      ],
+      "view": {
+        "id": "pkg:k8s-operator-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:k8s-operator-fixture/src/handler",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "resource:generic:Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:Dockerfile",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Deployment/demo-operator",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        },
+        {
+          "to": "resource:k8s:demo-system/Secret/operator-secrets",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:k8s:demo-system/Secret/operator-env",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:k8s:demo-system/Secret/operator-certs",
+          "kind": "uses_env"
+        },
+        {
+          "to": "infra:dockerfile:Dockerfile",
+          "kind": "infra"
+        },
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:demo-system/Deployment/demo-operator",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          },
+          {
+            "to": "resource:k8s:demo-system/Secret/operator-secrets",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:k8s:demo-system/Secret/operator-env",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:k8s:demo-system/Secret/operator-certs",
+            "kind": "uses_env"
+          },
+          {
+            "to": "infra:dockerfile:Dockerfile",
+            "kind": "infra"
+          },
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Secret/operator-certs",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:demo-system/Secret/operator-certs",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Secret/operator-env",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:demo-system/Secret/operator-env",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:k8s:demo-system/Secret/operator-secrets",
+      "links": [
+        {
+          "to": "domain:infra-k8s",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:k8s:demo-system/Secret/operator-secrets",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-k8s",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:k8s-operator-fixture",
+        "infra:dockerfile:Dockerfile",
+        "infra:kubernetes:manifests/deployment.yaml",
+        "infra:kubernetes:manifests/secrets.yaml"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:k8s-operator-fixture",
+            "type": "package"
+          },
+          {
+            "id": "infra:dockerfile:Dockerfile",
+            "type": "module"
+          },
+          {
+            "id": "infra:kubernetes:manifests/deployment.yaml",
+            "type": "module"
+          },
+          {
+            "id": "infra:kubernetes:manifests/secrets.yaml",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

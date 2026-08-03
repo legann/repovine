@@ -1,0 +1,35 @@
+import type { ResolvedScope } from '../../scope/resolved.js';
+import { domainLabelFromId } from '../../graph/node-ids.js';
+import { emptyNavigation, nav, type Navigation } from '../response/envelope.js';
+import {
+  DEFAULT_LIST_LIMIT,
+  DEFAULT_MAP_LIMIT,
+  DEFAULT_SEARCH_LIMIT,
+} from '../response/pagination.js';
+
+export function scopeNavigation(scope: ResolvedScope): Navigation {
+  const n = emptyNavigation();
+  if (scope.kind !== 'all') {
+    n.up.push(nav('map_context', { scope: 'all', view: 'summary' }, 'Return to the repository-level map.'));
+  }
+  if (scope.kind === 'package') {
+    n.sideways.push(nav('get_entrypoints', { scope: scope.resolvedScope, limit: DEFAULT_LIST_LIMIT }, 'Find execution starts in this area.'));
+    n.sideways.push(nav('analyze_dependencies', { scope: scope.resolvedScope }, 'Check import/export coupling and package boundaries.'));
+    n.crossLayer.push(nav('trace_flow', { scope: scope.resolvedScope }, 'Follow runtime/data flow for this area.'));
+    n.validate.push(nav('get_annotation_status', { scope: scope.resolvedScope, view: 'coverage' }, 'Check whether annotations are fresh enough to trust.'));
+  }
+  if (scope.kind === 'domain') {
+    const label = domainLabelFromId(scope.domainId ?? scope.raw);
+    n.deeper.push(nav('map_context', { scope: scope.resolvedScope, view: 'modules', limit: DEFAULT_MAP_LIMIT }, 'List modules tagged with this semantic/path domain.'));
+    n.sideways.push(nav('search_context', { query: `${label} handler route lambda`, limit: DEFAULT_SEARCH_LIMIT }, 'Look for runtime anchors related to this domain instead of tracing the domain tag directly.'));
+    // No dependency call belongs here: `import-map`/`package-boundaries` filter by package scope and
+    // return the same repository-wide edge list for every domain, and `impact` refuses a domain
+    // scope. Narrow to a module from the `map_context` call above first.
+    n.validate.push(nav('get_annotation_status', { scope: scope.resolvedScope, view: 'coverage' }, 'Check whether annotations are fresh enough to trust.'));
+  }
+  if (scope.nodeId && (scope.kind === 'module' || scope.kind === 'export-symbol')) {
+    n.sideways.push(nav('analyze_dependencies', { scope: scope.nodeId, mode: 'impact', depth: 3 }, 'Check consumers before changing this node.'));
+    n.sideways.push(nav('get_config_surface', { scope: scope.nodeId }, 'Check hidden config/resource bindings for this node.'));
+  }
+  return n;
+}

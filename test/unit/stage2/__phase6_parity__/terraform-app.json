@@ -1,0 +1,866 @@
+{
+  "stats": {
+    "totalNodes": 20,
+    "totalEdges": 40,
+    "nodesByType": {
+      "domain": 3,
+      "export-symbol": 1,
+      "module": 3,
+      "package": 1,
+      "root": 1,
+      "runtime-resource": 11
+    },
+    "edgesByKind": {
+      "binds_to": 3,
+      "contains": 16,
+      "infra": 1,
+      "tagged": 17,
+      "uses_env": 3
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:infra-terraform",
+      "domain:users",
+      "domain:terraform-app-fixture"
+    ],
+    "export-symbol": [
+      "export:terraform-app-fixture/src/users/handler"
+    ],
+    "module": [
+      "mod:terraform-app-fixture/src/users",
+      "infra:terraform:infrastructure/main.tf",
+      "infra:terraform:infrastructure/storage.tf"
+    ],
+    "package": [
+      "pkg:terraform-app-fixture"
+    ],
+    "root": [
+      "root"
+    ],
+    "runtime-resource": [
+      "resource:terraform:users_api",
+      "resource:terraform:lambda_role",
+      "resource:terraform:users",
+      "resource:terraform:events",
+      "resource:terraform:uploads",
+      "resource:terraform:db_password",
+      "resource:terraform:api_key",
+      "resource:terraform:log_level",
+      "resource:terraform:gcp_key",
+      "resource:terraform:current",
+      "resource:terraform:vpc"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:infra-terraform",
+      "type": "domain",
+      "label": "infra-terraform",
+      "description": "Domain: infra-terraform (HCL modules and resources)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:terraform-app-fixture",
+      "type": "domain",
+      "label": "terraform-app-fixture",
+      "description": "Domain: terraform-app-fixture",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:users",
+      "type": "domain",
+      "label": "users",
+      "description": "Domain: users",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:terraform-app-fixture/src/users/handler",
+      "type": "export-symbol",
+      "label": "handler",
+      "description": "function handler: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "infra:terraform:infrastructure/main.tf",
+      "type": "module",
+      "label": "infrastructure/main.tf",
+      "description": "IaC terraform module infrastructure/main.tf",
+      "data": {
+        "absPath": "<FIXTURE>/infrastructure/main.tf",
+        "repoRelPath": "infrastructure/main.tf"
+      }
+    },
+    {
+      "id": "infra:terraform:infrastructure/storage.tf",
+      "type": "module",
+      "label": "infrastructure/storage.tf",
+      "description": "IaC terraform module infrastructure/storage.tf",
+      "data": {
+        "absPath": "<FIXTURE>/infrastructure/storage.tf",
+        "repoRelPath": "infrastructure/storage.tf"
+      }
+    },
+    {
+      "id": "mod:terraform-app-fixture/src/users",
+      "type": "module",
+      "label": "src/users",
+      "description": "Module src/users.ts in terraform-app-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/users.ts",
+        "pkgRelPath": "src/users.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:terraform-app-fixture",
+      "type": "package",
+      "label": "terraform-app-fixture",
+      "description": "Package terraform-app-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "resource:terraform:api_key",
+      "type": "runtime-resource",
+      "label": "api_key",
+      "description": "secret declared in infrastructure/storage.tf",
+      "data": {
+        "contentHash": "5063616953d3b1b7",
+        "kind": "secret",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:current",
+      "type": "runtime-resource",
+      "label": "current",
+      "description": "other declared in infrastructure/storage.tf",
+      "data": {
+        "contentHash": "bcb2e9b225522522",
+        "kind": "other",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:db_password",
+      "type": "runtime-resource",
+      "label": "db_password",
+      "description": "secret declared in infrastructure/storage.tf",
+      "data": {
+        "contentHash": "f97dbc1d7a2ca34f",
+        "kind": "secret",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:events",
+      "type": "runtime-resource",
+      "label": "events",
+      "description": "queue declared in infrastructure/main.tf",
+      "data": {
+        "contentHash": "1497776fc5387883",
+        "kind": "queue",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:gcp_key",
+      "type": "runtime-resource",
+      "label": "gcp_key",
+      "description": "secret declared in infrastructure/storage.tf",
+      "data": {
+        "contentHash": "936522b5d109e41f",
+        "kind": "secret",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:lambda_role",
+      "type": "runtime-resource",
+      "label": "lambda_role",
+      "description": "role declared in infrastructure/main.tf",
+      "data": {
+        "contentHash": "87369b22b53b1392",
+        "kind": "role",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:log_level",
+      "type": "runtime-resource",
+      "label": "log_level",
+      "description": "other declared in infrastructure/storage.tf",
+      "data": {
+        "contentHash": "374abaaf38c2ddaf",
+        "kind": "other",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:uploads",
+      "type": "runtime-resource",
+      "label": "uploads",
+      "description": "bucket declared in infrastructure/storage.tf",
+      "data": {
+        "contentHash": "bf8043c56c950c73",
+        "kind": "bucket",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:users",
+      "type": "runtime-resource",
+      "label": "users",
+      "description": "table declared in infrastructure/main.tf",
+      "data": {
+        "contentHash": "dcdfe0e0a1bc1d62",
+        "kind": "table",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:users_api",
+      "type": "runtime-resource",
+      "label": "users_api",
+      "description": "lambda declared in infrastructure/main.tf",
+      "data": {
+        "handler": "users.handler",
+        "envVars": [
+          "USERS_TABLE",
+          "DB_SECRET_ARN",
+          "API_KEY_PARAM"
+        ],
+        "envRefs": [
+          {
+            "varName": "USERS_TABLE",
+            "refType": "getatt",
+            "targetLogicalId": "users"
+          },
+          {
+            "varName": "DB_SECRET_ARN",
+            "refType": "getatt",
+            "targetLogicalId": "db_password"
+          },
+          {
+            "varName": "API_KEY_PARAM",
+            "refType": "getatt",
+            "targetLogicalId": "api_key"
+          }
+        ],
+        "contentHash": "ecafdad9c8f51e59",
+        "kind": "lambda",
+        "provider": "terraform",
+        "service": "lambda",
+        "hasCodeHandler": true,
+        "declaredIn": [
+          "infrastructure/main.tf"
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:vpc",
+      "type": "runtime-resource",
+      "label": "vpc",
+      "description": "other declared in infrastructure/storage.tf",
+      "data": {
+        "contentHash": "56af88ba7a21e269",
+        "kind": "other",
+        "provider": "terraform",
+        "declaredIn": [
+          "infrastructure/storage.tf"
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:infra-terraform",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-terraform",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:terraform-app-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:terraform-app-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:terraform-app-fixture/src/users/handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:terraform-app-fixture/src/users/handler",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "infra:terraform:infrastructure/main.tf",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:terraform:users_api",
+        "resource:terraform:lambda_role",
+        "resource:terraform:users",
+        "resource:terraform:events"
+      ],
+      "view": {
+        "id": "infra:terraform:infrastructure/main.tf",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:terraform:users_api",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:lambda_role",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:users",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:events",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:terraform:infrastructure/storage.tf",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:terraform:uploads",
+        "resource:terraform:db_password",
+        "resource:terraform:api_key",
+        "resource:terraform:log_level",
+        "resource:terraform:gcp_key",
+        "resource:terraform:current",
+        "resource:terraform:vpc"
+      ],
+      "view": {
+        "id": "infra:terraform:infrastructure/storage.tf",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:terraform:uploads",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:db_password",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:api_key",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:log_level",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:gcp_key",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:current",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:terraform:vpc",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod:terraform-app-fixture/src/users",
+      "links": [
+        {
+          "to": "resource:terraform:users",
+          "kind": "binds_to"
+        },
+        {
+          "to": "resource:terraform:db_password",
+          "kind": "binds_to"
+        },
+        {
+          "to": "resource:terraform:api_key",
+          "kind": "binds_to"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:terraform-app-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:terraform-app-fixture/src/users/handler"
+      ],
+      "view": {
+        "id": "mod:terraform-app-fixture/src/users",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:terraform-app-fixture/src/users/handler",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "resource:terraform:users",
+            "kind": "binds_to"
+          },
+          {
+            "to": "resource:terraform:db_password",
+            "kind": "binds_to"
+          },
+          {
+            "to": "resource:terraform:api_key",
+            "kind": "binds_to"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:terraform-app-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:terraform-app-fixture",
+      "links": [],
+      "children": [
+        "mod:terraform-app-fixture/src/users"
+      ],
+      "view": {
+        "id": "pkg:terraform-app-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:terraform-app-fixture/src/users",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "resource:terraform:api_key",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:api_key",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:current",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:current",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:db_password",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:db_password",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:events",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:events",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:gcp_key",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:gcp_key",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:lambda_role",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:lambda_role",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:log_level",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:log_level",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:uploads",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:uploads",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:users",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:users",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:users_api",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        },
+        {
+          "to": "mod:terraform-app-fixture/src/users",
+          "kind": "infra"
+        },
+        {
+          "to": "resource:terraform:users",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:terraform:db_password",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:terraform:api_key",
+          "kind": "uses_env"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:terraform-app-fixture",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:users_api",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          },
+          {
+            "to": "mod:terraform-app-fixture/src/users",
+            "kind": "infra"
+          },
+          {
+            "to": "resource:terraform:users",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:terraform:db_password",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:terraform:api_key",
+            "kind": "uses_env"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:terraform-app-fixture",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:terraform:vpc",
+      "links": [
+        {
+          "to": "domain:infra-terraform",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:terraform:vpc",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-terraform",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:terraform-app-fixture",
+        "infra:terraform:infrastructure/main.tf",
+        "infra:terraform:infrastructure/storage.tf"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:terraform-app-fixture",
+            "type": "package"
+          },
+          {
+            "id": "infra:terraform:infrastructure/main.tf",
+            "type": "module"
+          },
+          {
+            "id": "infra:terraform:infrastructure/storage.tf",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

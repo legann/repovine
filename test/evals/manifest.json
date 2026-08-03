@@ -1,0 +1,156 @@
+{
+  "$comment": "Index of repovine MCP eval cards. Each card is an agent-driven, repo-agnostic regression/audit prompt scored against its frontmatter `checks`. Not run by `npm test`. See README.md. v2 adds machine-readable `axes` and `profiles`: every card carries `axis` (what it tests) and `profiles` (which target graph states it is meaningful in), so a runner can select e.g. the cold-graph build-signal set deterministically instead of from prose.",
+  "version": 2,
+  "preamble": "_PREAMBLE.md",
+  "axes": {
+    "build-signal": "Structural extraction / indexing / projection / navigation. The verdict rests on extracted structure (the preamble evidence gate forbids a PASS from annotations alone). Annotation text is part of the search index, so search hits and ranking still differ between 0% and 99% coverage.",
+    "annotation-quality": "Annotation memory itself — mechanics (coverage/queue/merge/validate) and content (secrets, sideEffects vocabulary, provenance/freshness, grounding).",
+    "meta": "Audit methodology and MCP plumbing rather than one extraction surface — stack inventory / N-A discipline and context-session threading + quality scoring."
+  },
+  "profiles": {
+    "cold-graph": {
+      "target_state": "freshly built graph before annotation onboarding (every coverage bucket reports annotated 0)",
+      "purpose": "Truest build-signal regression — modules indexed/parsed, entrypoints/edges/config extracted — with no annotations able to mask a broken extractor. Turns the preamble's 'do not lean on annotations' instruction into an enforced invariant (there are none to lean on).",
+      "select": "cards whose profiles[] includes \"cold-graph\"",
+      "note": "annotation-quality is intentionally excluded (whole-card N/A with no annotations). annotation-health and the annotation-driven checks in architecture-detectors stay in: they verify the annotation surfaces behave correctly against an empty store (figures/queue empty, annotation checks N/A) without crashing."
+    },
+    "annotated": {
+      "target_state": "graph after annotation onboarding (a coverage bucket reports annotated above 0)",
+      "purpose": "Annotation coverage/queue/merge and content quality, plus the annotation-driven analyze_architecture paths (annotationReasoning enrichment + annotation-content gating of the finding set). Build-signal cards pass on the same extracted structure; annotation text adds search hits and shifts ranking.",
+      "select": "cards whose profiles[] includes \"annotated\""
+    }
+  },
+  "cards": [
+    {
+      "id": "naming-regression",
+      "file": "naming-regression.eval.md",
+      "title": "Naming / rename contract regression (parameterized)",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["inspect_node", "search_context", "map_context", "analyze_dependencies", "get_entrypoints"]
+    },
+    {
+      "id": "build-and-sync-health",
+      "file": "build-and-sync-health.eval.md",
+      "title": "Build, refresh, and domains-suggestion sync contract",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["get_build_status", "refresh_context", "suggest_domains_config"]
+    },
+    {
+      "id": "search-map-inspect",
+      "file": "search-map-inspect.eval.md",
+      "title": "Orient / map / inspect core navigation",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["search_context", "map_context", "inspect_node"]
+    },
+    {
+      "id": "entrypoint-coverage",
+      "file": "entrypoint-coverage.eval.md",
+      "title": "Entrypoint extraction and layer projection coverage",
+      "mode": "read-only",
+      "applies_when": "has_entrypoints",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["get_entrypoints", "inspect_node"]
+    },
+    {
+      "id": "trace-flow-topology",
+      "file": "trace-flow-topology.eval.md",
+      "title": "Runtime flow tracing and topology projection",
+      "mode": "read-only",
+      "applies_when": "has_runtime_graph",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["trace_flow", "get_entrypoints", "inspect_node"]
+    },
+    {
+      "id": "dependencies-boundaries",
+      "file": "dependencies-boundaries.eval.md",
+      "title": "Dependency impact and package-boundary analysis",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["analyze_dependencies", "search_context", "map_context"]
+    },
+    {
+      "id": "config-surface",
+      "file": "config-surface.eval.md",
+      "title": "Config surface exposure and secret-value safety",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["get_config_surface"]
+    },
+    {
+      "id": "architecture-detectors",
+      "file": "architecture-detectors.eval.md",
+      "title": "Architecture detector smoke and security categories",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "consumes_annotations": true,
+      "tools": ["analyze_architecture", "get_annotation_status", "inspect_node"]
+    },
+    {
+      "id": "annotation-health",
+      "file": "annotation-health.eval.md",
+      "title": "Annotation coverage, queue, merge, and validate health",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "annotation-quality",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["get_annotation_status", "get_annotation_merge_status", "validate_annotations"]
+    },
+    {
+      "id": "annotation-quality",
+      "file": "annotation-quality.eval.md",
+      "title": "Annotation content quality — secrets, vocabulary, provenance, grounding",
+      "mode": "read-only",
+      "applies_when": "has_annotations",
+      "axis": "annotation-quality",
+      "profiles": ["annotated"],
+      "tools": ["get_annotation_status", "inspect_node", "validate_annotations", "map_context"]
+    },
+    {
+      "id": "context-session-quality",
+      "file": "context-session-quality.eval.md",
+      "title": "Context-session threading and quality scoring",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "meta",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["get_context_session_quality", "refresh_context", "search_context"]
+    },
+    {
+      "id": "stack-applicability",
+      "file": "stack-applicability.eval.md",
+      "title": "Stack inventory and N/A discipline (meta)",
+      "mode": "read-only",
+      "applies_when": "always",
+      "axis": "meta",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["inspect_node", "search_context", "map_context"]
+    },
+    {
+      "id": "polyglot-ts-python-iac",
+      "file": "polyglot-ts-python-iac.eval.md",
+      "title": "Polyglot coherence — TS frontend + Python backend + IaC (one graph)",
+      "mode": "read-only",
+      "applies_when": "has_polyglot_ts_python",
+      "axis": "build-signal",
+      "profiles": ["cold-graph", "annotated"],
+      "tools": ["map_context", "search_context", "get_entrypoints", "analyze_dependencies", "get_config_surface", "inspect_node"]
+    }
+  ]
+}

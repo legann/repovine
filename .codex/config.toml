@@ -1,0 +1,62 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+project_doc_max_bytes = 65536
+
+# repovine MCP (added by: npx repovine setup codex)
+[mcp_servers.repovine]
+command = "/home/olegk/.nvm/versions/node/v22.22.2/bin/node"
+args = ["/home/olegk/workspace/repovine/dist/mcp/index.js"]
+
+[mcp_servers.repovine.env]
+REPOVINE_ROOT = "."
+
+[mcp_servers.repovine.tools.search_context]
+approval_mode = "approve"
+
+[mcp_servers.repovine.tools.refresh_context]
+approval_mode = "approve"
+
+[mcp_servers.repovine.tools.map_context]
+approval_mode = "approve"
+
+[mcp_servers.repovine.tools.get_context_session_quality]
+approval_mode = "approve"
+
+[mcp_servers.repovine.tools.get_config_surface]
+approval_mode = "approve"
+
+[mcp_servers.repovine.tools.get_entrypoints]
+approval_mode = "approve"
+
+# repovine hooks (managed by: npx repovine setup codex)
+# BEGIN repovine hooks
+[[hooks.PreToolUse]]
+matcher = "Edit|Write|NotebookEdit|apply_patch"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/repovine-client-dispatcher.mjs" boundary-notice codex'
+command_windows = 'node ".codex/hooks/repovine-client-dispatcher.mjs" boundary-notice codex'
+timeout = 5
+statusMessage = "Checking repovine boundary surface"
+
+[[hooks.PostToolUse]]
+matcher = "Edit|Write|NotebookEdit|apply_patch|Bash"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/repovine-client-dispatcher.mjs" stale-graph-notice codex'
+command_windows = 'node ".codex/hooks/repovine-client-dispatcher.mjs" stale-graph-notice codex'
+timeout = 5
+statusMessage = "Checking repovine graph freshness"
+
+[[hooks.SessionStart]]
+matcher = "startup|resume|clear"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/repovine-client-dispatcher.mjs" session-mcp-hint codex'
+command_windows = 'node ".codex/hooks/repovine-client-dispatcher.mjs" session-mcp-hint codex'
+timeout = 5
+statusMessage = "Loading repovine MCP reminder"
+# END repovine hooks

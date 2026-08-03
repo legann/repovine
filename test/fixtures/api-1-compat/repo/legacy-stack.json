@@ -1,0 +1,6 @@
+{
+  "workers": [
+    { "name": "reaper", "handler": "src/reaper.handler" },
+    { "name": "sweeper", "handler": "src/sweeper.handler" }
+  ]
+}

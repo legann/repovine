@@ -1,0 +1,51 @@
+{
+  "name": "@repovine/plugin-iac-terraform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "repovine": {
+    "kind": "plugin",
+    "id": "terraform",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "terraform",
+      "resourceKinds": [
+        {
+          "namespace": "terraform",
+          "provider": "terraform",
+          "kind": "lambda",
+          "service": "lambda",
+          "hasCodeHandler": true
+        }
+      ],
+      "dirs": [
+        {
+          "name": ".terraform",
+          "role": "tool-output",
+          "because": "terraform init writes provider plugins and module sources here"
+        }
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@repovine/plugin-sdk": "0.1.0"
+  }
+}

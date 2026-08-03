@@ -1,0 +1,179 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 5 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent ad79358e85fd4aee.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the connector and understanding how normalized URLs are used and persisted.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 5 line(s)]
+
+Now let me understand how document IDs are persisted and reconciled, since `[expr]`.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 39 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+Key detail: `[expr]` is persisted as `kb_documents.sourceId` and is the lookup key (`connector-sync.ts:419`). Changing normalization changes that key for already-indexed pages. Let me check how stale documents are handled.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 76 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 93 line(s)]
+
+No pruning of stale documents exists — `deleteByConnector` is only called on connector deletion (`routes/knowledge-base.ts:1074`). So an id change orphans existing rows. Let me check the test file and the migration infrastructure.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 44 line(s)]
+
+Let me check for precedent on id-scheme changes, the unique constraint, and whether SQL hashing is even available in the test DB.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Critical check — the test file has a canonical href with a trailing slash and asserts a specific document id. Let me read it.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 200 line(s)]
+
+Let me read the rest of the test file — especially the test-site helper — to confirm what the fetched URL must look like.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 240 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 327 line(s)]
+
+Decisive: `createTestSite` 404s unknown paths (line 727) and every route is keyed **with** a trailing slash, while tests pin `sourceUrl`, `metadata.url`, `skipped.itemId`, and the sha256 `id` to trailing-slash URLs (lines 163-180, 522, 548). So the strengthened form must be a **crawl dedup key**, not a rewrite of the URL that gets fetched and stored. Let me verify the crawlee API for per-request unique keys.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Dependencies aren't installed in this worktree, so I'll validate the normalization logic standalone. First, the patch:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the normalization functions:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the key into the three places requests enter the queue:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+Deps aren't installed, so I can't run vitest/tsc. Let me at least verify the crawlee typings from the pnpm store if it's populated.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 96 line(s)]
+
+Two refinements for Biome's 80-col formatting and the file's type-alias convention:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 60 line(s)]
+
+Let me pin exact line numbers for the out-of-scope citations.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+## What I changed
+
+One file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`.
+
+The strengthened normalization is applied as the crawl's **request dedup key**, not as a rewrite of the URL that gets fetched and stored:
+
+| Addition | Line | Role |
+|---|---|---|
+| `TRACKING_QUERY_PARAMS` | `:35` | utm_source/medium/campaign/term/content, gclid, fbclid |
+| `buildCrawlUrlKey()` | `:638` | strips tracking params, drops a trailing slash on non-root paths, lowercases host, keeps default-port + fragment stripping (via `normalizeCrawlUrl`) |
+| `buildCrawlRequest()` | `:658` | `[expr]` for `crawler.run()` (`:126`, `:167`) |
+| `transformRequestFunction` on `enqueueLinks` | `:429` | assigns the canonical key to every discovered link |
+
+Crawlee's request queue deduplicates on `uniqueKey`, so `/docs/page`, `/docs/page/`, `[expr]`, `//EXAMPLE.com/docs/page/`, and `:443` variants now collapse to a single fetch — and therefore a single document — whether they appear on one page or across the crawl.
+
+**Why a key and not a URL rewrite.** `[expr]` (`:463`) is persisted as `kb_documents.source_id` and is the *only* lookup key at ingest (`connector-sync.ts:419-422`). Nothing reconciles a document whose id changes: `deleteByConnector` runs only when the connector itself is deleted (`routes/knowledge-base.ts:1074`), and `[expr]` is a unique index (`database/schemas/kb-document.ts:44`). Rehashing every already-indexed page would leave the old row serving stale content forever beside a fresh duplicate. Keeping the fetched URL as-is also avoids requesting a resource the server may not have — `/docs` and `/docs/` are distinct HTTP resources.
+
+## Deliberately unchanged, with proof
+
+- **Document canonicalization** — `normalizeCanonicalUrl` (`:599`) and `buildDocument` (`:463`) still use `normalizeCrawlUrl`. Proof it must stay: `:463` feeds the persisted `source_id` via `connector-sync.ts:419-422`, with no cleanup path (`routes/knowledge-base.ts:1074`) and a unique index (`database/schemas/kb-document.ts:44`).
+- **Crawl scope** — `isPathInScope` tests user-authored regexes against ``[expr]`${pathname}${search}`[expr]``[expr]`:569`[expr]`buildAllowedPathPrefixes`[expr]`:479`[expr]`path.endsWith("/")`[expr]`/docs/`start URL falls to`path.lastIndexOf("/")`[expr]`["/"]`[expr]`:490`) and widens the crawl to the whole host. Scope stays on the fetched URL.
+- **Redirects** — `beforeRedirect` (`:241`) runs inside `got`, which follows redirects without touching the request queue, so a `uniqueKey` cannot apply there.
+- **Other connectors** build their own source URLs independently (e.g. `jira-connector.ts:618`, `github-connector.ts:782`); the task scopes to the web crawler.
+
+## Verification
+
+`node_modules` is not installed in this worktree and `pnpm` is absent, so I could not run `vitest`, `tsc`, or Biome. I validated `buildCrawlUrlKey` in a standalone Node harness: all four rules collapse the equivalent-URL groups above to one key, while `/docs/install` vs `/docs/installation`, `[expr]` vs `[expr]`, `http` vs `https`, and `:8443` stay distinct; `normalizeCrawlUrl` output is byte-identical to before. I read the existing test file against the change — every fixture route is keyed *with* a trailing slash and 404s otherwise (`web-crawler-connector.test.ts:727`), and the suite pins trailing-slash `sourceUrl`, `metadata.url`, `skipped.itemId`, and the sha256 `id` (`:163-180`, `:522`, `:548`); all of those hold because the fetched and stored URLs are untouched. No tests added or modified.
+
+## Residual risk
+
+- `transformRequestFunction` / `RequestOptions.uniqueKey` are stable crawlee 3.x APIs (locked at 3.14.1), but I could not type-check them here — worth one `pnpm type-check` + the connector's test file before merge.
+- Where a site genuinely links two variants and *both* were indexed by an earlier sync, the crawl now visits one; the other row stays in `kb_documents` as an unrefreshed duplicate. That collapse is the intent of the change, and the surviving document keeps its original id.
+- The stored URL is the variant the crawl discovers first, so a document whose only inbound link carries `[expr]` keeps that URL in its `sourceUrl` — unchanged from today's behavior, and the condition for existing ids remaining valid.
+- Two pages declaring `[expr]` that differ only by a trailing slash still produce two documents; document identity is out of scope for the reason above.

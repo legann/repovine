@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.legann/repovine",
+  "description": "Checkout-local repository context graph over MCP; `npx repovine setup` wires skills, agents, hooks.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/legann/repovine",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "repovine",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

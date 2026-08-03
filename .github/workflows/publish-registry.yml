@@ -1,0 +1,73 @@
+name: Publish to MCP Registry
+
+# Registers repovine in the official MCP Registry as io.github.legann/repovine.
+#
+# Ordering: the registry proves ownership against the LIVE npm package (its
+# `mcpName` field), and repovine publishes through a staged flow where a version
+# goes live only after manual 2FA approval. `release: published` fires from the
+# `gh release create` step of the release runbook, which runs after that approval,
+# so the npm version is live by the time this job registers it. The live-check
+# guards manual (workflow_dispatch) re-runs.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-registry-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # OIDC grants the io.github.<owner>/* namespace; no domain or token needed
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      - name: Read server.json version
+        run: |
+          set -euo pipefail
+          version="$(node -p 'require("./server.json").version')"
+          # Reject non-semver charset (incl. newline) before it reaches $GITHUB_ENV.
+          case "$version" in
+            ''|*[!0-9A-Za-z.+-]*) echo "::error::Invalid version string: $version"; exit 1 ;;
+          esac
+          printf 'VERSION=%s\n' "$version" >> "$GITHUB_ENV"
+
+      # The registry reads `mcpName` from the live npm package. A staged-but-
+      # unapproved version 404s on the read path; refuse to register it rather
+      # than fail deeper inside mcp-publisher.
+      - name: Verify repovine is live on npm
+        run: |
+          if ! npm view "repovine@${VERSION}" version >/dev/null 2>&1; then
+            echo "::error::repovine@${VERSION} is not live on npm; approve the staged publish before registering"
+            exit 1
+          fi
+
+      # Pinned release + sha256 (job runs on ubuntu-latest -> linux/amd64). Bump the
+      # version and checksum together; the checksum is the v1.8.0 linux_amd64 tarball.
+      # Fail closed: curl -f rejects an HTTP error body, sha256sum -c rejects a swapped asset.
+      - name: Install mcp-publisher
+        run: |
+          set -euo pipefail
+          version='v1.8.0'
+          sha256='1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf'
+          url="https://github.com/modelcontextprotocol/registry/releases/download/${version}/mcp-publisher_linux_amd64.tar.gz"
+          curl -fLsS -o mcp-publisher.tar.gz "$url"
+          echo "${sha256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Login via GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish

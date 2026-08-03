@@ -1,0 +1,601 @@
+{
+  "stats": {
+    "totalNodes": 17,
+    "totalEdges": 21,
+    "nodesByType": {
+      "domain": 6,
+      "export-symbol": 3,
+      "module": 6,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 10,
+      "tagged": 11
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:svelte-spa-fixture",
+      "domain:stores",
+      "domain:button",
+      "domain:usercard",
+      "domain:userlist",
+      "domain:users"
+    ],
+    "export-symbol": [
+      "export:svelte-spa-fixture/src/lib/stores/userStore",
+      "export:svelte-spa-fixture/src/lib/components/Button.svelte/label",
+      "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name"
+    ],
+    "module": [
+      "mod:svelte-spa-fixture/src/main",
+      "mod:svelte-spa-fixture/src/lib/stores",
+      "mod:svelte-spa-fixture/src/App.svelte",
+      "mod:svelte-spa-fixture/src/lib/components/Button.svelte",
+      "mod:svelte-spa-fixture/src/lib/components/UserCard.svelte",
+      "mod:svelte-spa-fixture/src/routes/users/UserList.svelte"
+    ],
+    "package": [
+      "pkg:svelte-spa-fixture"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:button",
+      "type": "domain",
+      "label": "button",
+      "description": "Domain: button",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:stores",
+      "type": "domain",
+      "label": "stores",
+      "description": "Domain: stores",
+      "data": {
+        "weight": "lightweight",
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:svelte-spa-fixture",
+      "type": "domain",
+      "label": "svelte-spa-fixture",
+      "description": "Domain: svelte-spa-fixture",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:usercard",
+      "type": "domain",
+      "label": "usercard",
+      "description": "Domain: usercard",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:userlist",
+      "type": "domain",
+      "label": "userlist",
+      "description": "Domain: userlist",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:users",
+      "type": "domain",
+      "label": "users",
+      "description": "Domain: users",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:svelte-spa-fixture/src/lib/components/Button.svelte/label",
+      "type": "export-symbol",
+      "label": "label",
+      "description": "const label",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 2,
+          "end": 2
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name",
+      "type": "export-symbol",
+      "label": "name",
+      "description": "const name",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 2,
+          "end": 2
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:svelte-spa-fixture/src/lib/stores/userStore",
+      "type": "export-symbol",
+      "label": "userStore",
+      "description": "const userStore",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/App.svelte",
+      "type": "module",
+      "label": "src/App.svelte",
+      "description": "Module src/App.svelte in svelte-spa-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/App.svelte",
+        "pkgRelPath": "src/App.svelte",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/lib/components/Button.svelte",
+      "type": "module",
+      "label": "…/components/Button.svelte",
+      "description": "Module src/lib/components/Button.svelte in svelte-spa-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/lib/components/Button.svelte",
+        "pkgRelPath": "src/lib/components/Button.svelte",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/lib/components/UserCard.svelte",
+      "type": "module",
+      "label": "…/components/UserCard.svelte",
+      "description": "Module src/lib/components/UserCard.svelte in svelte-spa-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/lib/components/UserCard.svelte",
+        "pkgRelPath": "src/lib/components/UserCard.svelte",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/lib/stores",
+      "type": "module",
+      "label": "…/lib/stores",
+      "description": "Module src/lib/stores.ts in svelte-spa-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/lib/stores.ts",
+        "pkgRelPath": "src/lib/stores.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/main",
+      "type": "module",
+      "label": "src/main",
+      "description": "Module src/main.ts in svelte-spa-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/main.ts",
+        "pkgRelPath": "src/main.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/routes/users/UserList.svelte",
+      "type": "module",
+      "label": "…/users/UserList.svelte",
+      "description": "Module src/routes/users/UserList.svelte in svelte-spa-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/users/UserList.svelte",
+        "pkgRelPath": "src/routes/users/UserList.svelte",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:svelte-spa-fixture",
+      "type": "package",
+      "label": "svelte-spa-fixture",
+      "description": "Package svelte-spa-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:button",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:button",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:stores",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:stores",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:svelte-spa-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:svelte-spa-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:usercard",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:usercard",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:userlist",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:userlist",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:svelte-spa-fixture/src/lib/components/Button.svelte/label",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:svelte-spa-fixture/src/lib/components/Button.svelte/label",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:svelte-spa-fixture/src/lib/stores/userStore",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:svelte-spa-fixture/src/lib/stores/userStore",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/App.svelte",
+      "links": [
+        {
+          "to": "domain:svelte-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:svelte-spa-fixture/src/App.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:svelte-spa-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/lib/components/Button.svelte",
+      "links": [
+        {
+          "to": "domain:svelte-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:button",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:svelte-spa-fixture/src/lib/components/Button.svelte/label"
+      ],
+      "view": {
+        "id": "mod:svelte-spa-fixture/src/lib/components/Button.svelte",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:svelte-spa-fixture/src/lib/components/Button.svelte/label",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:svelte-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:button",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/lib/components/UserCard.svelte",
+      "links": [
+        {
+          "to": "domain:svelte-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:usercard",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name"
+      ],
+      "view": {
+        "id": "mod:svelte-spa-fixture/src/lib/components/UserCard.svelte",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:svelte-spa-fixture/src/lib/components/UserCard.svelte/name",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:svelte-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:usercard",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/lib/stores",
+      "links": [
+        {
+          "to": "domain:svelte-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:stores",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:svelte-spa-fixture/src/lib/stores/userStore"
+      ],
+      "view": {
+        "id": "mod:svelte-spa-fixture/src/lib/stores",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:svelte-spa-fixture/src/lib/stores/userStore",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:svelte-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:stores",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/main",
+      "links": [
+        {
+          "to": "domain:svelte-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:svelte-spa-fixture/src/main",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:svelte-spa-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:svelte-spa-fixture/src/routes/users/UserList.svelte",
+      "links": [
+        {
+          "to": "domain:svelte-spa-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:userlist",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:svelte-spa-fixture/src/routes/users/UserList.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:svelte-spa-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:userlist",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:svelte-spa-fixture",
+      "links": [],
+      "children": [
+        "mod:svelte-spa-fixture/src/main",
+        "mod:svelte-spa-fixture/src/lib/stores",
+        "mod:svelte-spa-fixture/src/App.svelte",
+        "mod:svelte-spa-fixture/src/lib/components/Button.svelte",
+        "mod:svelte-spa-fixture/src/lib/components/UserCard.svelte",
+        "mod:svelte-spa-fixture/src/routes/users/UserList.svelte"
+      ],
+      "view": {
+        "id": "pkg:svelte-spa-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:svelte-spa-fixture/src/main",
+            "type": "module"
+          },
+          {
+            "id": "mod:svelte-spa-fixture/src/lib/stores",
+            "type": "module"
+          },
+          {
+            "id": "mod:svelte-spa-fixture/src/App.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:svelte-spa-fixture/src/lib/components/Button.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:svelte-spa-fixture/src/lib/components/UserCard.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:svelte-spa-fixture/src/routes/users/UserList.svelte",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:svelte-spa-fixture"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:svelte-spa-fixture",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "env": {
+    "DATABASE_URL": "@database-url"
+  },
+  "functions": {
+    "app/api/users/route.ts": {
+      "maxDuration": 10,
+      "regions": ["iad1"]
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/users",
+      "schedule": "0 5 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/legacy-users",
+      "destination": "/api/users"
+    }
+  ]
+}

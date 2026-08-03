@@ -1,0 +1,623 @@
+{
+  "stats": {
+    "totalNodes": 15,
+    "totalEdges": 26,
+    "nodesByType": {
+      "domain": 3,
+      "export-symbol": 1,
+      "module": 3,
+      "package": 1,
+      "root": 1,
+      "runtime-resource": 6
+    },
+    "edgesByKind": {
+      "contains": 11,
+      "infra": 1,
+      "tagged": 10,
+      "uses_env": 4
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:infra-docker-compose",
+      "domain:infra-dockerfile",
+      "domain:docker-compose-app-fixture"
+    ],
+    "export-symbol": [
+      "export:docker-compose-app-fixture/src/ok"
+    ],
+    "module": [
+      "mod:docker-compose-app-fixture/src",
+      "infra:docker-compose:docker-compose.yml",
+      "infra:dockerfile:services/api/Dockerfile"
+    ],
+    "package": [
+      "pkg:docker-compose-app-fixture"
+    ],
+    "root": [
+      "root"
+    ],
+    "runtime-resource": [
+      "resource:generic:postgres",
+      "resource:generic:api",
+      "resource:generic:db_password",
+      "resource:generic:api_token",
+      "resource:generic:secret:.env.production",
+      "resource:generic:services/api/Dockerfile"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:docker-compose-app-fixture",
+      "type": "domain",
+      "label": "docker-compose-app-fixture",
+      "description": "Domain: docker-compose-app-fixture",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:infra-docker-compose",
+      "type": "domain",
+      "label": "infra-docker-compose",
+      "description": "Domain: infra-docker-compose (docker-compose / Compose files)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "type": "domain",
+      "label": "infra-dockerfile",
+      "description": "Domain: infra-dockerfile (Dockerfiles)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "export:docker-compose-app-fixture/src/ok",
+      "type": "export-symbol",
+      "label": "ok",
+      "description": "const ok",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "infra:docker-compose:docker-compose.yml",
+      "type": "module",
+      "label": "docker-compose.yml",
+      "description": "IaC docker-compose module docker-compose.yml",
+      "data": {
+        "absPath": "<FIXTURE>/docker-compose.yml",
+        "repoRelPath": "docker-compose.yml"
+      }
+    },
+    {
+      "id": "infra:dockerfile:services/api/Dockerfile",
+      "type": "module",
+      "label": "…/api/Dockerfile",
+      "description": "IaC dockerfile module services/api/Dockerfile",
+      "data": {
+        "absPath": "<FIXTURE>/services/api/Dockerfile",
+        "repoRelPath": "services/api/Dockerfile"
+      }
+    },
+    {
+      "id": "mod:docker-compose-app-fixture/src",
+      "type": "module",
+      "label": "src/index",
+      "description": "Module src/index.ts in docker-compose-app-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/index.ts",
+        "pkgRelPath": "src/index.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:docker-compose-app-fixture",
+      "type": "package",
+      "label": "docker-compose-app-fixture",
+      "description": "Package docker-compose-app-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "1.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "resource:generic:api",
+      "type": "runtime-resource",
+      "label": "api",
+      "description": "other declared in docker-compose.yml",
+      "data": {
+        "envRefs": [
+          {
+            "varName": "secret:api_token",
+            "refType": "literal",
+            "targetLogicalId": "api_token"
+          },
+          {
+            "varName": "DB_PASSWORD_FILE",
+            "refType": "literal",
+            "targetLogicalId": "db_password"
+          },
+          {
+            "varName": "env_file:.env.production",
+            "refType": "literal",
+            "targetLogicalId": "secret:.env.production"
+          }
+        ],
+        "contentHash": "50021d300afb4f25",
+        "kind": "other",
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:api_token",
+      "type": "runtime-resource",
+      "label": "api_token",
+      "description": "secret declared in docker-compose.yml",
+      "data": {
+        "contentHash": "d8d1a32bcb949b8b",
+        "kind": "secret",
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:db_password",
+      "type": "runtime-resource",
+      "label": "db_password",
+      "description": "secret declared in docker-compose.yml",
+      "data": {
+        "contentHash": "89dee0f8f103bb56",
+        "kind": "secret",
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:postgres",
+      "type": "runtime-resource",
+      "label": "postgres",
+      "description": "other declared in docker-compose.yml",
+      "data": {
+        "envRefs": [
+          {
+            "varName": "secret:db_password",
+            "refType": "literal",
+            "targetLogicalId": "db_password"
+          }
+        ],
+        "contentHash": "f5e3ca00212c12a3",
+        "kind": "other",
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:secret:.env.production",
+      "type": "runtime-resource",
+      "label": "secret:.env.production",
+      "description": "secret declared in docker-compose.yml",
+      "data": {
+        "contentHash": "6e858eaabc33e941",
+        "kind": "secret",
+        "provider": "generic",
+        "declaredIn": [
+          "docker-compose.yml"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:services/api/Dockerfile",
+      "type": "runtime-resource",
+      "label": "services/api/Dockerfile",
+      "description": "other declared in services/api/Dockerfile",
+      "data": {
+        "contentHash": "ccdaa49e23f21945",
+        "kind": "other",
+        "provider": "generic",
+        "declaredIn": [
+          "services/api/Dockerfile"
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:docker-compose-app-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:docker-compose-app-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-docker-compose",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-docker-compose",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-dockerfile",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:docker-compose-app-fixture/src/ok",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:docker-compose-app-fixture/src/ok",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "infra:docker-compose:docker-compose.yml",
+      "links": [
+        {
+          "to": "domain:infra-docker-compose",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:postgres",
+        "resource:generic:api",
+        "resource:generic:db_password",
+        "resource:generic:api_token",
+        "resource:generic:secret:.env.production"
+      ],
+      "view": {
+        "id": "infra:docker-compose:docker-compose.yml",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:generic:postgres",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:generic:api",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:generic:db_password",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:generic:api_token",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:generic:secret:.env.production",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-docker-compose",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:dockerfile:services/api/Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:services/api/Dockerfile"
+      ],
+      "view": {
+        "id": "infra:dockerfile:services/api/Dockerfile",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:generic:services/api/Dockerfile",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod:docker-compose-app-fixture/src",
+      "links": [
+        {
+          "to": "domain:docker-compose-app-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:docker-compose-app-fixture/src/ok"
+      ],
+      "view": {
+        "id": "mod:docker-compose-app-fixture/src",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:docker-compose-app-fixture/src/ok",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:docker-compose-app-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:docker-compose-app-fixture",
+      "links": [],
+      "children": [
+        "mod:docker-compose-app-fixture/src"
+      ],
+      "view": {
+        "id": "pkg:docker-compose-app-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:docker-compose-app-fixture/src",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "resource:generic:api",
+      "links": [
+        {
+          "to": "domain:infra-docker-compose",
+          "kind": "tagged"
+        },
+        {
+          "to": "resource:generic:api_token",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:generic:db_password",
+          "kind": "uses_env"
+        },
+        {
+          "to": "resource:generic:secret:.env.production",
+          "kind": "uses_env"
+        },
+        {
+          "to": "infra:dockerfile:services/api/Dockerfile",
+          "kind": "infra"
+        },
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:api",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-docker-compose",
+            "kind": "tagged"
+          },
+          {
+            "to": "resource:generic:api_token",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:generic:db_password",
+            "kind": "uses_env"
+          },
+          {
+            "to": "resource:generic:secret:.env.production",
+            "kind": "uses_env"
+          },
+          {
+            "to": "infra:dockerfile:services/api/Dockerfile",
+            "kind": "infra"
+          },
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:api_token",
+      "links": [
+        {
+          "to": "domain:infra-docker-compose",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:api_token",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-docker-compose",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:db_password",
+      "links": [
+        {
+          "to": "domain:infra-docker-compose",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:db_password",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-docker-compose",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:postgres",
+      "links": [
+        {
+          "to": "domain:infra-docker-compose",
+          "kind": "tagged"
+        },
+        {
+          "to": "resource:generic:db_password",
+          "kind": "uses_env"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:postgres",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-docker-compose",
+            "kind": "tagged"
+          },
+          {
+            "to": "resource:generic:db_password",
+            "kind": "uses_env"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:secret:.env.production",
+      "links": [
+        {
+          "to": "domain:infra-docker-compose",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:secret:.env.production",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-docker-compose",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:services/api/Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:services/api/Dockerfile",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:docker-compose-app-fixture",
+        "infra:docker-compose:docker-compose.yml",
+        "infra:dockerfile:services/api/Dockerfile"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:docker-compose-app-fixture",
+            "type": "package"
+          },
+          {
+            "id": "infra:docker-compose:docker-compose.yml",
+            "type": "module"
+          },
+          {
+            "id": "infra:dockerfile:services/api/Dockerfile",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

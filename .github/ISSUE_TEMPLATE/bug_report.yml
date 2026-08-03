@@ -1,0 +1,60 @@
+name: Bug report
+description: A reproducible defect in repovine (CLI, MCP server, client projections, embedder, or the harness demo)
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Support is a per-surface contract — see `docs/platform-support.md` in the repository.
+        Strip secrets before pasting: no API keys, tokens, or private URLs. `repovine doctor --json` prints env var NAMES only, never values.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or tool call, what you expected, and what happened instead. Paste exact error output.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: repovine doctor --json
+      description: Run `npx repovine doctor --json` in the affected repository and paste the output. It carries the version, platform, filesystem, and embedder report.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and architecture
+      placeholder: "Windows 11 x64 / macOS 15 arm64 / Ubuntu 24.04 x64 / WSL2 Ubuntu"
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      placeholder: "node --version"
+    validations:
+      required: true
+  - type: input
+    id: filesystem
+    attributes:
+      label: Filesystem of the repository checkout
+      placeholder: "NTFS / APFS (case-insensitive) / ext4 / ext4 in WSL2"
+  - type: input
+    id: shell-client
+    attributes:
+      label: Shell and client
+      description: The shell the command ran in, and the MCP client when the defect involves one.
+      placeholder: "PowerShell 7 + Cursor / bash + Claude Code / zsh + Codex"
+  - type: input
+    id: docker
+    attributes:
+      label: Docker backend (harness demo only)
+      description: For delivery-protocol-harness-demo defects, the output of `docker compose version` and the backend.
+      placeholder: "Docker Desktop 4.43 (virtiofs) / Docker Engine 27 on Linux / WSL2 backend"
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest repo shape or steps that trigger the defect. Non-ASCII or spaced paths matter — name them exactly.

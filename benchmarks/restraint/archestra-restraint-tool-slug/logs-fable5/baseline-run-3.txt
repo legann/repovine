@@ -1,0 +1,331 @@
+# Bench archestra-restraint-tool-slug — Baseline run 3 — model: fable-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max. Agent 9e54464ac7994594.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to find where MCP tool names are converted into platform identifiers.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+Found `slugifyName` in `platform/backend/src/models/tool.ts`. Let me read the relevant sections.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 140 line(s)]
+
+I've found the core slugification function. Now let me understand the full picture: where `slugifyName` is called, how tools are synced/stored, and how tool calls are routed back to raw names.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 82 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+Now let me examine the sync paths where tools get created with slugified names.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 300 line(s)]
+
+Now let me see how tool calls are routed back from slug to raw name — this determines whether a suffix-based fix can work.
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 91 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 160 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 130 line(s)]
+
+Let me look at the tools table schema and the rest of tool.ts, including the sync/reconcile logic and the `rawToolName` mention.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 106 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 280 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 75 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 200 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 160 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 140 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 90 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 25 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 32 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 85 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.test.ts
+    [source removed — 150 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: platform/backend/src/utils/upload-filename.ts
+    [source removed — 70 line(s)]
+
+Now I'll write the new disambiguation util module.
+
+  → Write: platform/backend/src/utils/tool-name-disambiguation.ts
+    [edit applied]
+
+Now wire it into the two mint sites in `routes/mcp-server.ts`. First, check its imports.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now `mcp-reinstall.ts`:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Let me check TypeScript strictness settings that could affect indexed access, then run type-check:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 34 line(s)]
+
+No `noUncheckedIndexedAccess`, so indexed access types are fine. Now type-check the backend:
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+No collisions. Now let me review each changed hunk in its final form to verify correctness statically:
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 201 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 37 line(s); non-zero exit]
+
+  → Edit: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 34 line(s); non-zero exit]
+
+  → Edit: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 22 line(s)]
+
+All 9 property checks pass. One comment in the util is now inaccurate (identical raws don't always share a name — only the suffixed twins in 3+ duplicates do). Fixing it:
+
+  → Edit: platform/backend/src/utils/tool-name-disambiguation.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Read: platform/backend/src/utils/tool-name-disambiguation.ts
+    [source removed — 128 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 65 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 12 line(s)]
+
+Done. Tools whose names used to slugify to the same identifier now each get their own deterministic identifier, and calls on those identifiers route to the exact upstream tool; every identifier that works today is byte-for-byte unchanged and still resolves to the same upstream tool.
+
+## The problem, located
+
+`ToolModel.slugifyName` (`platform/backend/src/models/tool.ts:82`) builds the platform identifier as `[expr]` lowercased, whitespace→`_`, all other disallowed characters *deleted*. That is lossy: `search.issues` vs `searchissues`, `Get User` vs `get_user`, `getUser` vs `GetUser` all collapse to one string. The `tools` table has no raw-name column and the composite unique constraint is NULLS-DISTINCT for MCP tools (`database/schemas/tool.ts`, see its own comment), so colliding discoveries produced same-named rows that couldn't be addressed individually.
+
+## Where names become identifiers, and what changed
+
+Identifiers are minted in five batch discovery paths, all now passed through a new collision-aware step:
+
+| Site | Path |
+|---|---|
+| `routes/mcp-server.ts:762` | local install, async tool discovery |
+| `routes/mcp-server.ts:933` | remote install |
+| `services/mcp-reinstall.ts:406` | reinstall / re-sync |
+| `archestra-mcp-server/mcp-servers.ts:1451` | `deploy_mcp_server` tool, local |
+| `archestra-mcp-server/mcp-servers.ts:1512` | `deploy_mcp_server` tool, remote |
+
+New module **`backend/src/utils/tool-name-disambiguation.ts`**:
+- `disambiguateSlugifiedToolNames`: names unique within the batch pass through untouched. In a colliding group, the tool the shared slug *already resolves to at call time* keeps the bare slug (mirrors `resolveActualToolName`'s last-write-wins, case-insensitive match), and every other tool gets `[expr]` — deterministic, stable across re-syncs and list reorderings, still matching the LLM-provider pattern `[expr]`. Residual collisions (e.g. a raw name that itself looks like a suffixed slug) lengthen the hash 8→16→32→64.
+- `disambiguatedToolNameAliases`: the call-time inverse.
+
+Routing and persistence, made suffix-aware:
+- `clients/mcp-client.ts` `resolveActualToolName` registers each upstream tool's suffixed aliases before the raw lowercase names, so a genuine raw name always wins a contested key — existing lookups resolve exactly as before, and suffixed slugs now resolve to the exact raw upstream name.
+- `models/tool.ts` `syncToolsForCatalog` gained a fallback row-match on the new name's own raw part, which only fires where the current lookup is a guaranteed miss (mangled/suffixed names); it stops those rows churning (delete+recreate, policy reset) on every reinstall.
+
+It couldn't live on `ToolModel` because `mcp-reinstall.test.ts` mocks `ToolModel` down to `[expr]`; a standalone util keeps that test intact.
+
+## Deliberately unchanged, with sources
+
+- **`ToolModel.slugifyName` itself** — exact per-name outputs are pinned by `[expr]`; changing them would rename tools that already work.
+- **App launch tool naming** (`services/apps/app-mcp-backing.ts:73`) — one tool per backing catalog, already app-id-suffixed per its comment ("so two apps that legitimately share a name … don't produce the same `[expr]`"); no batch, no collision.
+- **Clone path** (`models/tool.ts:842`) — derives names from source rows that are unique per catalog (comment at `[expr]`); hash suffixes survive re-slugification verbatim and reconciliation (`[expr]`) still matches because the hash depends only on the raw name — verified in my harness.
+- **Delegation tools** (`[expr]`) — identifiers derive from *agent* names, not MCP-server tool names; outside "when an MCP server exposes a tool".
+- **Built-in Archestra tools** — code-defined constant names with their own unique index (`database/schemas/tool.ts`, `ARCHESTRA_TOOL_NAME_UNIQUE_INDEX`); no user-controlled input.
+- **Apps run path** (`[expr]`, `[expr]`, `mcp-client.ts:2999` `callToolForServer`) — its contract is raw-name passthrough and it is already lossy for *any* mangled name, collision or not; colliding tools now at least list as distinct entries there, and I didn't extend upstream-call resolution into that pre-existing limitation.
+- **`unslugifyName`/`parseFullToolName`** (`[expr]`) — suffixed fragments flow through as opaque strings; behavior pinned by `[expr]`.
+
+## Verification and residual risk
+
+This bench worktree blocks installs/type-check/tests, so verification was static reading plus an executable harness (system node, scratchpad only — no test files added) containing a byte-identical transliteration of the new module plus the frozen `slugifyName` and the patched resolution logic. Nine property checks passed: pass-through for unique names, all collision flavors minted distinct + correctly routed, today's winner keeps the bare slug (including case-only last-wins), order-independence, adversarial hash-collision lengthening, loop termination on byte-identical duplicates, fragment/joined-slug compositionality, and charset safety.
+
+Residual risks: `pnpm lint`/`type-check`/tests couldn't be executed here (I'd run backend checks once bootstrapped); a suffix adds ~9 chars, so a raw name already near the 128-char provider limit could exceed it (slugification never truncated before either); byte-identical duplicate listings from a non-compliant server still share one suffixed name — indistinguishable upstream too; and pre-existing shared rows for tools that never worked (no exact-match owner) are replaced, not renamed, on the next re-sync, so any policies configured on those dead rows are recreated as defaults.

@@ -1,0 +1,96 @@
+{
+  "scope": "all",
+  "totalFindings": 3,
+  "returnedFindings": 3,
+  "summary": {
+    "duplicate-like": 0,
+    "boundary": 0,
+    "god-module": 0,
+    "god-domain": 0,
+    "low-cohesion": 1,
+    "client-business-logic": 0,
+    "flow-convergence": 0,
+    "state-fragmentation": 0,
+    "effect-spaghetti": 0,
+    "prop-drilling-orchestration": 0,
+    "service-wrapper-explosion": 0,
+    "ui-domain-coupling": 0,
+    "route-convergence": 0,
+    "duplicated-client-policy": 0,
+    "design-system-leakage": 0,
+    "event-driven-boundary": 0,
+    "secret-config-boundary": 0,
+    "authorization-policy-drift": 0,
+    "trust-boundary-validation": 2,
+    "privileged-client-side-effect": 0,
+    "sensitive-browser-storage": 0,
+    "server-client-boundary": 0,
+    "source-disclosure-surface": 0,
+    "annotation-secret-hygiene": 0,
+    "annotation-risk": 0,
+    "unclear-architecture": 0
+  },
+  "findings": [
+    {
+      "id": "trust-boundary-validation:mod:nextjs-app-router-fixture/app/api/posts/route",
+      "category": "trust-boundary-validation",
+      "confidence": 0.66,
+      "severity": "medium",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:nextjs-app-router-fixture/app/api/posts/route"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: app/api/posts/route.ts",
+        "1 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "trust-boundary-validation:mod:nextjs-app-router-fixture/app/api/users/route",
+      "category": "trust-boundary-validation",
+      "confidence": 0.66,
+      "severity": "medium",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:nextjs-app-router-fixture/app/api/users/route"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: app/api/users/route.ts",
+        "1 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "low-cohesion:domain:routing",
+      "category": "low-cohesion",
+      "confidence": 0.61,
+      "severity": "low",
+      "impact": "medium",
+      "title": "Domain has weak internal coupling compared with external dependencies",
+      "nodes": [
+        "domain:routing",
+        "mod:nextjs-app-router-fixture/app/api/posts/route",
+        "mod:nextjs-app-router-fixture/app/api/users/route",
+        "mod:nextjs-app-router-fixture/app/page",
+        "mod:nextjs-app-router-fixture/app/(marketing)/about/page",
+        "mod:nextjs-app-router-fixture/app/blog/[slug]/page",
+        "mod:nextjs-app-router-fixture/app/dashboard/page",
+        "mod:nextjs-app-router-fixture/app/docs/[...slug]/page",
+        "mod:nextjs-app-router-fixture/app/shop/[[...slug]]/page"
+      ],
+      "evidence": [
+        "8 module(s) in domain",
+        "0 internal import(s), 1 external import(s)",
+        "A low internal-to-external ratio can mean the domain label is too broad or mostly technical."
+      ],
+      "suggestion": "Review annotations for common invariants; if they are thin or unrelated, split the domain or retag modules more narrowly."
+    }
+  ]
+}

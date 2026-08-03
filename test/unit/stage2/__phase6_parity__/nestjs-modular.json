@@ -1,0 +1,855 @@
+{
+  "stats": {
+    "totalNodes": 21,
+    "totalEdges": 31,
+    "nodesByType": {
+      "domain": 5,
+      "export-symbol": 7,
+      "module": 7,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 15,
+      "tagged": 16
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:auth",
+      "domain:nestjs-modular-fixture",
+      "domain:billing",
+      "domain:users",
+      "domain:routing"
+    ],
+    "export-symbol": [
+      "export:nestjs-modular-fixture/src/main/bootstrap",
+      "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController",
+      "export:nestjs-modular-fixture/src/auth/auth.service/AuthService",
+      "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController",
+      "export:nestjs-modular-fixture/src/users/users.controller/UsersController",
+      "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository",
+      "export:nestjs-modular-fixture/src/users/users.service/UsersService"
+    ],
+    "module": [
+      "mod:nestjs-modular-fixture/src/main",
+      "mod:nestjs-modular-fixture/src/auth/auth.controller",
+      "mod:nestjs-modular-fixture/src/auth/auth.service",
+      "mod:nestjs-modular-fixture/src/billing/billing.controller",
+      "mod:nestjs-modular-fixture/src/users/users.controller",
+      "mod:nestjs-modular-fixture/src/users/users.repository",
+      "mod:nestjs-modular-fixture/src/users/users.service"
+    ],
+    "package": [
+      "pkg:nestjs-modular-fixture"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:auth",
+      "type": "domain",
+      "label": "auth",
+      "description": "Domain: auth",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:billing",
+      "type": "domain",
+      "label": "billing",
+      "description": "Domain: billing",
+      "data": {
+        "weight": "heavy",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:nestjs-modular-fixture",
+      "type": "domain",
+      "label": "nestjs-modular-fixture",
+      "description": "Domain: nestjs-modular-fixture",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:users",
+      "type": "domain",
+      "label": "users",
+      "description": "Domain: users",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController",
+      "type": "export-symbol",
+      "label": "AuthController",
+      "description": "class AuthController: class AuthController",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class AuthController",
+        "calls": [
+          "Controller",
+          "Post"
+        ],
+        "lineRange": {
+          "start": 3,
+          "end": 7
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/auth/auth.service/AuthService",
+      "type": "export-symbol",
+      "label": "AuthService",
+      "description": "class AuthService: class AuthService",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class AuthService",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController",
+      "type": "export-symbol",
+      "label": "BillingController",
+      "description": "class BillingController: class BillingController",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class BillingController",
+        "calls": [
+          "Controller",
+          "Get"
+        ],
+        "lineRange": {
+          "start": 3,
+          "end": 7
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/main/bootstrap",
+      "type": "export-symbol",
+      "label": "bootstrap",
+      "description": "function bootstrap: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/users/users.controller/UsersController",
+      "type": "export-symbol",
+      "label": "UsersController",
+      "description": "class UsersController: class UsersController",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class UsersController",
+        "calls": [
+          "Controller",
+          "Get",
+          "Post"
+        ],
+        "lineRange": {
+          "start": 3,
+          "end": 10
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository",
+      "type": "export-symbol",
+      "label": "UsersRepository",
+      "description": "class UsersRepository: class UsersRepository",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class UsersRepository",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/users/users.service/UsersService",
+      "type": "export-symbol",
+      "label": "UsersService",
+      "description": "class UsersService: class UsersService",
+      "data": {
+        "symbolKind": "class",
+        "signature": "class UsersService",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/auth/auth.controller",
+      "type": "module",
+      "label": "…/auth/auth.controller",
+      "description": "Module src/auth/auth.controller.ts in nestjs-modular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/auth/auth.controller.ts",
+        "pkgRelPath": "src/auth/auth.controller.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/auth/auth.service",
+      "type": "module",
+      "label": "…/auth/auth.service",
+      "description": "Module src/auth/auth.service.ts in nestjs-modular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/auth/auth.service.ts",
+        "pkgRelPath": "src/auth/auth.service.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/billing/billing.controller",
+      "type": "module",
+      "label": "…/billing/billing.controller",
+      "description": "Module src/billing/billing.controller.ts in nestjs-modular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/billing/billing.controller.ts",
+        "pkgRelPath": "src/billing/billing.controller.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/main",
+      "type": "module",
+      "label": "src/main",
+      "description": "Module src/main.ts in nestjs-modular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/main.ts",
+        "pkgRelPath": "src/main.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/users/users.controller",
+      "type": "module",
+      "label": "…/users/users.controller",
+      "description": "Module src/users/users.controller.ts in nestjs-modular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/users/users.controller.ts",
+        "pkgRelPath": "src/users/users.controller.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/users/users.repository",
+      "type": "module",
+      "label": "…/users/users.repository",
+      "description": "Module src/users/users.repository.ts in nestjs-modular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/users/users.repository.ts",
+        "pkgRelPath": "src/users/users.repository.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/users/users.service",
+      "type": "module",
+      "label": "…/users/users.service",
+      "description": "Module src/users/users.service.ts in nestjs-modular-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/users/users.service.ts",
+        "pkgRelPath": "src/users/users.service.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:nestjs-modular-fixture",
+      "type": "package",
+      "label": "nestjs-modular-fixture",
+      "description": "Package nestjs-modular-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:auth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:auth",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:billing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:billing",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:nestjs-modular-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:nestjs-modular-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/auth/auth.service/AuthService",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nestjs-modular-fixture/src/auth/auth.service/AuthService",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/main/bootstrap",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nestjs-modular-fixture/src/main/bootstrap",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/users/users.controller/UsersController",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nestjs-modular-fixture/src/users/users.controller/UsersController",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:nestjs-modular-fixture/src/users/users.service/UsersService",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:nestjs-modular-fixture/src/users/users.service/UsersService",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/auth/auth.controller",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nestjs-modular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController"
+      ],
+      "view": {
+        "id": "mod:nestjs-modular-fixture/src/auth/auth.controller",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:nestjs-modular-fixture/src/auth/auth.controller/AuthController",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nestjs-modular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/auth/auth.service",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nestjs-modular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:nestjs-modular-fixture/src/auth/auth.service/AuthService"
+      ],
+      "view": {
+        "id": "mod:nestjs-modular-fixture/src/auth/auth.service",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:nestjs-modular-fixture/src/auth/auth.service/AuthService",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nestjs-modular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/billing/billing.controller",
+      "links": [
+        {
+          "to": "domain:billing",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nestjs-modular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController"
+      ],
+      "view": {
+        "id": "mod:nestjs-modular-fixture/src/billing/billing.controller",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:nestjs-modular-fixture/src/billing/billing.controller/BillingController",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:billing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nestjs-modular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/main",
+      "links": [
+        {
+          "to": "domain:nestjs-modular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:nestjs-modular-fixture/src/main/bootstrap"
+      ],
+      "view": {
+        "id": "mod:nestjs-modular-fixture/src/main",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:nestjs-modular-fixture/src/main/bootstrap",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:nestjs-modular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/users/users.controller",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nestjs-modular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:nestjs-modular-fixture/src/users/users.controller/UsersController"
+      ],
+      "view": {
+        "id": "mod:nestjs-modular-fixture/src/users/users.controller",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:nestjs-modular-fixture/src/users/users.controller/UsersController",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nestjs-modular-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/users/users.repository",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nestjs-modular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository"
+      ],
+      "view": {
+        "id": "mod:nestjs-modular-fixture/src/users/users.repository",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:nestjs-modular-fixture/src/users/users.repository/UsersRepository",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nestjs-modular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:nestjs-modular-fixture/src/users/users.service",
+      "links": [
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:nestjs-modular-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:nestjs-modular-fixture/src/users/users.service/UsersService"
+      ],
+      "view": {
+        "id": "mod:nestjs-modular-fixture/src/users/users.service",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:nestjs-modular-fixture/src/users/users.service/UsersService",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:nestjs-modular-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:nestjs-modular-fixture",
+      "links": [],
+      "children": [
+        "mod:nestjs-modular-fixture/src/main",
+        "mod:nestjs-modular-fixture/src/auth/auth.controller",
+        "mod:nestjs-modular-fixture/src/auth/auth.service",
+        "mod:nestjs-modular-fixture/src/billing/billing.controller",
+        "mod:nestjs-modular-fixture/src/users/users.controller",
+        "mod:nestjs-modular-fixture/src/users/users.repository",
+        "mod:nestjs-modular-fixture/src/users/users.service"
+      ],
+      "view": {
+        "id": "pkg:nestjs-modular-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:nestjs-modular-fixture/src/main",
+            "type": "module"
+          },
+          {
+            "id": "mod:nestjs-modular-fixture/src/auth/auth.controller",
+            "type": "module"
+          },
+          {
+            "id": "mod:nestjs-modular-fixture/src/auth/auth.service",
+            "type": "module"
+          },
+          {
+            "id": "mod:nestjs-modular-fixture/src/billing/billing.controller",
+            "type": "module"
+          },
+          {
+            "id": "mod:nestjs-modular-fixture/src/users/users.controller",
+            "type": "module"
+          },
+          {
+            "id": "mod:nestjs-modular-fixture/src/users/users.repository",
+            "type": "module"
+          },
+          {
+            "id": "mod:nestjs-modular-fixture/src/users/users.service",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:nestjs-modular-fixture"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:nestjs-modular-fixture",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": [
+    {
+      "id": "entrypoint:api:mod:nestjs-modular-fixture/src/auth/auth.controller:/auth/login:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/auth/login",
+      "component": "AuthController.login",
+      "method": "POST",
+      "moduleId": "mod:nestjs-modular-fixture/src/auth/auth.controller",
+      "source": "nestjs-decorator",
+      "webFramework": "nestjs"
+    },
+    {
+      "id": "entrypoint:api:mod:nestjs-modular-fixture/src/billing/billing.controller:/billing/invoices:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/billing/invoices",
+      "component": "BillingController.invoices",
+      "method": "GET",
+      "moduleId": "mod:nestjs-modular-fixture/src/billing/billing.controller",
+      "source": "nestjs-decorator",
+      "webFramework": "nestjs"
+    },
+    {
+      "id": "entrypoint:api:mod:nestjs-modular-fixture/src/users/users.controller:/users:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/users",
+      "component": "UsersController.findAll",
+      "method": "GET",
+      "moduleId": "mod:nestjs-modular-fixture/src/users/users.controller",
+      "source": "nestjs-decorator",
+      "webFramework": "nestjs"
+    },
+    {
+      "id": "entrypoint:api:mod:nestjs-modular-fixture/src/users/users.controller:/users:POST",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/users",
+      "component": "UsersController.create",
+      "method": "POST",
+      "moduleId": "mod:nestjs-modular-fixture/src/users/users.controller",
+      "source": "nestjs-decorator",
+      "webFramework": "nestjs"
+    }
+  ]
+}

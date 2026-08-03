@@ -1,0 +1,34 @@
+{
+  "name": "@repovine/plugin-default-preset",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "repovine": {
+    "kind": "preset",
+    "id": "default",
+    "apiVersion": 1,
+    "plugins": [
+      "@repovine/plugin-source-typescript",
+      "@repovine/plugin-source-python",
+      "@repovine/plugin-iac-sam",
+      "@repovine/plugin-iac-kubernetes",
+      "@repovine/plugin-iac-helm",
+      "@repovine/plugin-iac-terraform",
+      "@repovine/plugin-iac-vercel",
+      "@repovine/plugin-iac-dockerfile",
+      "@repovine/plugin-iac-docker-compose"
+    ]
+  },
+  "files": [],
+  "dependencies": {
+    "@repovine/plugin-iac-docker-compose": "0.1.0",
+    "@repovine/plugin-iac-dockerfile": "0.1.0",
+    "@repovine/plugin-iac-helm": "0.1.0",
+    "@repovine/plugin-iac-kubernetes": "0.1.0",
+    "@repovine/plugin-iac-sam": "0.1.0",
+    "@repovine/plugin-iac-terraform": "0.1.0",
+    "@repovine/plugin-iac-vercel": "0.1.0",
+    "@repovine/plugin-source-python": "0.1.0",
+    "@repovine/plugin-source-typescript": "0.1.0"
+  }
+}

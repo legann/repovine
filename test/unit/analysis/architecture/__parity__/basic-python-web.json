@@ -1,0 +1,212 @@
+{
+  "scope": "all",
+  "totalFindings": 10,
+  "returnedFindings": 10,
+  "summary": {
+    "duplicate-like": 0,
+    "boundary": 0,
+    "god-module": 1,
+    "god-domain": 0,
+    "low-cohesion": 0,
+    "client-business-logic": 0,
+    "flow-convergence": 0,
+    "state-fragmentation": 0,
+    "effect-spaghetti": 0,
+    "prop-drilling-orchestration": 0,
+    "service-wrapper-explosion": 0,
+    "ui-domain-coupling": 0,
+    "route-convergence": 0,
+    "duplicated-client-policy": 0,
+    "design-system-leakage": 0,
+    "event-driven-boundary": 0,
+    "secret-config-boundary": 0,
+    "authorization-policy-drift": 0,
+    "trust-boundary-validation": 8,
+    "privileged-client-side-effect": 0,
+    "sensitive-browser-storage": 0,
+    "server-client-boundary": 0,
+    "source-disclosure-surface": 0,
+    "annotation-secret-hygiene": 0,
+    "annotation-risk": 1,
+    "unclear-architecture": 0
+  },
+  "findings": [
+    {
+      "id": "trust-boundary-validation:mod:django-app/drf_advanced",
+      "category": "trust-boundary-validation",
+      "confidence": 0.88,
+      "severity": "high",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:django-app/drf_advanced"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: drf_advanced.py",
+        "18 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "trust-boundary-validation:mod:django-app/drf_urls",
+      "category": "trust-boundary-validation",
+      "confidence": 0.88,
+      "severity": "high",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:django-app/drf_urls"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: drf_urls.py",
+        "6 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "trust-boundary-validation:mod:fastapi-app/firstpass",
+      "category": "trust-boundary-validation",
+      "confidence": 0.88,
+      "severity": "high",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:fastapi-app/firstpass"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: firstpass.py",
+        "4 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "trust-boundary-validation:mod:fastapi-app/main",
+      "category": "trust-boundary-validation",
+      "confidence": 0.88,
+      "severity": "high",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:fastapi-app/main"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: main.py",
+        "5 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "annotation-risk:mod:fastapi-app/main",
+      "category": "annotation-risk",
+      "confidence": 0.82,
+      "severity": "high",
+      "impact": "medium",
+      "title": "Important module has no annotation",
+      "nodes": [
+        "mod:fastapi-app/main"
+      ],
+      "evidence": [
+        "Dependency/export importance score: 12",
+        "No annotation found"
+      ],
+      "suggestion": "Annotate this node before refactoring; future architectural reports become much more useful when high-impact modules explain invariants, side effects, and risks."
+    },
+    {
+      "id": "trust-boundary-validation:mod:django-app/firstpass_urls",
+      "category": "trust-boundary-validation",
+      "confidence": 0.82,
+      "severity": "high",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:django-app/firstpass_urls"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: firstpass_urls.py",
+        "3 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "god-module:mod:fastapi-app/main",
+      "category": "god-module",
+      "confidence": 0.78,
+      "severity": "medium",
+      "impact": "medium",
+      "title": "Module has a broad responsibility surface",
+      "nodes": [
+        "mod:fastapi-app/main"
+      ],
+      "evidence": [
+        "12 export(s), fan-in 0, fan-out 0",
+        "Largest exported line range ends at 41",
+        "No env var references detected"
+      ],
+      "suggestion": "Split only along real responsibility boundaries: stable pure logic, side-effect adapters, orchestration, or framework entrypoints."
+    },
+    {
+      "id": "trust-boundary-validation:mod:django-app/drf_fbv",
+      "category": "trust-boundary-validation",
+      "confidence": 0.74,
+      "severity": "medium",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:django-app/drf_fbv"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: drf_fbv.py",
+        "2 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "trust-boundary-validation:mod:django-app/urls",
+      "category": "trust-boundary-validation",
+      "confidence": 0.74,
+      "severity": "medium",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:django-app/urls"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: urls.py",
+        "2 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    },
+    {
+      "id": "trust-boundary-validation:mod:django-app/nested_urls",
+      "category": "trust-boundary-validation",
+      "confidence": 0.66,
+      "severity": "medium",
+      "impact": "high",
+      "title": "Entrypoint/trust-boundary module lacks nearby validation signals",
+      "nodes": [
+        "mod:django-app/nested_urls"
+      ],
+      "evidence": [
+        "Trust-boundary path or export: nested_urls.py",
+        "1 API route marker(s)",
+        "No direct schema/validator/guard import or validation call was detected",
+        "No mutation/runtime side-effect hint detected"
+      ],
+      "suggestion": "Place runtime validation at the HTTP/webhook/queue/user-input boundary, or import a clearly named schema/guard module before orchestration begins."
+    }
+  ]
+}

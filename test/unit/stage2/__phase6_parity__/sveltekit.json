@@ -1,0 +1,1568 @@
+{
+  "stats": {
+    "totalNodes": 39,
+    "totalEdges": 64,
+    "nodesByType": {
+      "domain": 15,
+      "export-symbol": 8,
+      "module": 14,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 23,
+      "tagged": 41
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:sveltekit-fixture",
+      "domain:auth",
+      "domain:db",
+      "domain:users",
+      "domain:blog",
+      "domain:slug",
+      "domain:dashboard",
+      "domain:about",
+      "domain:marketing",
+      "domain:home",
+      "domain:lang",
+      "domain:docs",
+      "domain:path",
+      "domain:routing",
+      "domain:sveltekit-fixture/dashboard"
+    ],
+    "export-symbol": [
+      "export:sveltekit-fixture/src/lib/server/auth/checkAuth",
+      "export:sveltekit-fixture/src/lib/server/db/connect",
+      "export:sveltekit-fixture/src/routes/+layout/load",
+      "export:sveltekit-fixture/src/routes/+page/load",
+      "export:sveltekit-fixture/src/routes/api/users/+server/GET",
+      "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load",
+      "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions",
+      "export:sveltekit-fixture/src/routes/dashboard/+page/load"
+    ],
+    "module": [
+      "mod:sveltekit-fixture/src/lib/server/auth",
+      "mod:sveltekit-fixture/src/lib/server/db",
+      "mod:sveltekit-fixture/src/routes/+layout",
+      "mod:sveltekit-fixture/src/routes/+page",
+      "mod:sveltekit-fixture/src/routes/api/users/+server",
+      "mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
+      "mod:sveltekit-fixture/src/routes/dashboard/+page.server",
+      "mod:sveltekit-fixture/src/routes/dashboard/+page",
+      "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
+      "mod:sveltekit-fixture/src/routes/+page.svelte",
+      "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
+      "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
+      "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
+      "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte"
+    ],
+    "package": [
+      "pkg:sveltekit-fixture"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:about",
+      "type": "domain",
+      "label": "about",
+      "description": "Domain: about",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:auth",
+      "type": "domain",
+      "label": "auth",
+      "description": "Domain: auth",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:blog",
+      "type": "domain",
+      "label": "blog",
+      "description": "Domain: blog",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:dashboard",
+      "type": "domain",
+      "label": "dashboard",
+      "description": "Domain: dashboard",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:db",
+      "type": "domain",
+      "label": "db",
+      "description": "Domain: db",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:docs",
+      "type": "domain",
+      "label": "docs",
+      "description": "Domain: docs",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:home",
+      "type": "domain",
+      "label": "home",
+      "description": "Domain: home",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:lang",
+      "type": "domain",
+      "label": "lang",
+      "description": "Domain: lang",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:marketing",
+      "type": "domain",
+      "label": "marketing",
+      "description": "Domain: marketing",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:path",
+      "type": "domain",
+      "label": "path",
+      "description": "Domain: path",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:slug",
+      "type": "domain",
+      "label": "slug",
+      "description": "Domain: slug",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:sveltekit-fixture",
+      "type": "domain",
+      "label": "sveltekit-fixture",
+      "description": "Domain: sveltekit-fixture",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature",
+        "subdomains": [
+          "domain:sveltekit-fixture/dashboard"
+        ]
+      }
+    },
+    {
+      "id": "domain:sveltekit-fixture/dashboard",
+      "type": "domain",
+      "label": "sveltekit-fixture/dashboard",
+      "description": "Subdomain: sveltekit-fixture/dashboard (3 modules)",
+      "data": {
+        "tier": "feature",
+        "parent": "domain:sveltekit-fixture"
+      }
+    },
+    {
+      "id": "domain:users",
+      "type": "domain",
+      "label": "users",
+      "description": "Domain: users",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/lib/server/auth/checkAuth",
+      "type": "export-symbol",
+      "label": "checkAuth",
+      "description": "function checkAuth: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/lib/server/db/connect",
+      "type": "export-symbol",
+      "label": "connect",
+      "description": "function connect: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/+layout/load",
+      "type": "export-symbol",
+      "label": "load",
+      "description": "function load: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/+page/load",
+      "type": "export-symbol",
+      "label": "load",
+      "description": "function load: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/api/users/+server/GET",
+      "type": "export-symbol",
+      "label": "GET",
+      "description": "function GET: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load",
+      "type": "export-symbol",
+      "label": "load",
+      "description": "function load: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions",
+      "type": "export-symbol",
+      "label": "actions",
+      "description": "const actions",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/dashboard/+page/load",
+      "type": "export-symbol",
+      "label": "load",
+      "description": "function load: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/lib/server/auth",
+      "type": "module",
+      "label": "…/server/auth",
+      "description": "Module src/lib/server/auth.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/lib/server/auth.ts",
+        "pkgRelPath": "src/lib/server/auth.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/lib/server/db",
+      "type": "module",
+      "label": "…/server/db",
+      "description": "Module src/lib/server/db.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/lib/server/db.ts",
+        "pkgRelPath": "src/lib/server/db.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
+      "type": "module",
+      "label": "…/about/+page.svelte",
+      "description": "Module src/routes/(marketing)/about/+page.svelte in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/(marketing)/about/+page.svelte",
+        "pkgRelPath": "src/routes/(marketing)/about/+page.svelte",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
+      "type": "module",
+      "label": "…/home/+page.svelte",
+      "description": "Module src/routes/[[lang]]/home/+page.svelte in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/[[lang]]/home/+page.svelte",
+        "pkgRelPath": "src/routes/[[lang]]/home/+page.svelte",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/+layout",
+      "type": "module",
+      "label": "…/routes/+layout",
+      "description": "Module src/routes/+layout.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/+layout.ts",
+        "pkgRelPath": "src/routes/+layout.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/+page",
+      "type": "module",
+      "label": "…/routes/+page",
+      "description": "Module src/routes/+page.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/+page.ts",
+        "pkgRelPath": "src/routes/+page.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/+page.svelte",
+      "type": "module",
+      "label": "…/routes/+page.svelte",
+      "description": "Module src/routes/+page.svelte in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/+page.svelte",
+        "pkgRelPath": "src/routes/+page.svelte",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/api/users/+server",
+      "type": "module",
+      "label": "…/users/+server",
+      "description": "Module src/routes/api/users/+server.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/api/users/+server.ts",
+        "pkgRelPath": "src/routes/api/users/+server.ts",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
+      "type": "module",
+      "label": "…/[slug]/+page",
+      "description": "Module src/routes/blog/[slug]/+page.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/blog/[slug]/+page.ts",
+        "pkgRelPath": "src/routes/blog/[slug]/+page.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
+      "type": "module",
+      "label": "…/[slug]/+page.svelte",
+      "description": "Module src/routes/blog/[slug]/+page.svelte in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/blog/[slug]/+page.svelte",
+        "pkgRelPath": "src/routes/blog/[slug]/+page.svelte",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/dashboard/+page",
+      "type": "module",
+      "label": "…/dashboard/+page",
+      "description": "Module src/routes/dashboard/+page.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/dashboard/+page.ts",
+        "pkgRelPath": "src/routes/dashboard/+page.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.server",
+      "type": "module",
+      "label": "…/dashboard/+page.server",
+      "description": "Module src/routes/dashboard/+page.server.ts in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/dashboard/+page.server.ts",
+        "pkgRelPath": "src/routes/dashboard/+page.server.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
+      "type": "module",
+      "label": "…/dashboard/+page.svelte",
+      "description": "Module src/routes/dashboard/+page.svelte in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/dashboard/+page.svelte",
+        "pkgRelPath": "src/routes/dashboard/+page.svelte",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte",
+      "type": "module",
+      "label": "…/[...path]/+page.svelte",
+      "description": "Module src/routes/docs/[...path]/+page.svelte in sveltekit-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/routes/docs/[...path]/+page.svelte",
+        "pkgRelPath": "src/routes/docs/[...path]/+page.svelte",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:sveltekit-fixture",
+      "type": "package",
+      "label": "sveltekit-fixture",
+      "description": "Package sveltekit-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:about",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:about",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:auth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:auth",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:blog",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:blog",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:dashboard",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:dashboard",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:db",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:db",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:docs",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:docs",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:home",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:home",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:lang",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:lang",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:marketing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:marketing",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:path",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:path",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:slug",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:slug",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:sveltekit-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:sveltekit-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:sveltekit-fixture/dashboard",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "domain:sveltekit-fixture/dashboard",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "domain:users",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/lib/server/auth/checkAuth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/lib/server/auth/checkAuth",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/lib/server/db/connect",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/lib/server/db/connect",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/+layout/load",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/routes/+layout/load",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/+page/load",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/routes/+page/load",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/api/users/+server/GET",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/routes/api/users/+server/GET",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sveltekit-fixture/src/routes/dashboard/+page/load",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sveltekit-fixture/src/routes/dashboard/+page/load",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/lib/server/auth",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/lib/server/auth/checkAuth"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/lib/server/auth",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/lib/server/auth/checkAuth",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/lib/server/db",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:db",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/lib/server/db/connect"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/lib/server/db",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/lib/server/db/connect",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:db",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:about",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:marketing",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:about",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:marketing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:home",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lang",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:home",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lang",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/+layout",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/routes/+layout/load"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/+layout",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/routes/+layout/load",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/+page",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/routes/+page/load"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/+page",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/routes/+page/load",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/+page.svelte",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/+page.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/api/users/+server",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:users",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/routes/api/users/+server/GET"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/api/users/+server",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/routes/api/users/+server/GET",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:users",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:blog",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:slug",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/routes/blog/[slug]/+page/load",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:blog",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:slug",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:blog",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:slug",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:blog",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:slug",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/dashboard/+page",
+      "links": [
+        {
+          "to": "domain:dashboard",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:sveltekit-fixture/dashboard",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/routes/dashboard/+page/load"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/dashboard/+page",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/routes/dashboard/+page/load",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:dashboard",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sveltekit-fixture/dashboard",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.server",
+      "links": [
+        {
+          "to": "domain:dashboard",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:sveltekit-fixture/dashboard",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions"
+      ],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.server",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sveltekit-fixture/src/routes/dashboard/+page.server/actions",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:dashboard",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sveltekit-fixture/dashboard",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
+      "links": [
+        {
+          "to": "domain:dashboard",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        },
+        {
+          "to": "domain:sveltekit-fixture/dashboard",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:dashboard",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sveltekit-fixture/dashboard",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte",
+      "links": [
+        {
+          "to": "domain:sveltekit-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:docs",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:path",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:sveltekit-fixture",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:docs",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:path",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:sveltekit-fixture",
+      "links": [],
+      "children": [
+        "mod:sveltekit-fixture/src/lib/server/auth",
+        "mod:sveltekit-fixture/src/lib/server/db",
+        "mod:sveltekit-fixture/src/routes/+layout",
+        "mod:sveltekit-fixture/src/routes/+page",
+        "mod:sveltekit-fixture/src/routes/api/users/+server",
+        "mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
+        "mod:sveltekit-fixture/src/routes/dashboard/+page.server",
+        "mod:sveltekit-fixture/src/routes/dashboard/+page",
+        "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
+        "mod:sveltekit-fixture/src/routes/+page.svelte",
+        "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
+        "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
+        "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
+        "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte"
+      ],
+      "view": {
+        "id": "pkg:sveltekit-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:sveltekit-fixture/src/lib/server/auth",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/lib/server/db",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/+layout",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/+page",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/api/users/+server",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.server",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/dashboard/+page",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/+page.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
+            "type": "module"
+          },
+          {
+            "id": "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:sveltekit-fixture"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:sveltekit-fixture",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": [
+    {
+      "id": "entrypoint:file:mod:sveltekit-fixture/src/routes/api/users/+server:/api/users:server:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/users",
+      "method": "GET",
+      "moduleId": "mod:sveltekit-fixture/src/routes/api/users/+server",
+      "source": "sveltekit",
+      "fileType": "server"
+    },
+    {
+      "id": "entrypoint:file:mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte:/about:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/about",
+      "moduleId": "mod:sveltekit-fixture/src/routes/(marketing)/about/+page.svelte",
+      "source": "sveltekit",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:sveltekit-fixture/src/routes/+page.svelte:/:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/",
+      "moduleId": "mod:sveltekit-fixture/src/routes/+page.svelte",
+      "source": "sveltekit",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte:/[[lang]]/home:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/[[lang]]/home",
+      "moduleId": "mod:sveltekit-fixture/src/routes/[[lang]]/home/+page.svelte",
+      "source": "sveltekit",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte:/blog/[slug]:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/blog/[slug]",
+      "moduleId": "mod:sveltekit-fixture/src/routes/blog/[slug]/+page.svelte",
+      "source": "sveltekit",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:sveltekit-fixture/src/routes/dashboard/+page.svelte:/dashboard:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/dashboard",
+      "moduleId": "mod:sveltekit-fixture/src/routes/dashboard/+page.svelte",
+      "source": "sveltekit",
+      "fileType": "page"
+    },
+    {
+      "id": "entrypoint:file:mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte:/docs/[...path]:page",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/docs/[...path]",
+      "moduleId": "mod:sveltekit-fixture/src/routes/docs/[...path]/+page.svelte",
+      "source": "sveltekit",
+      "fileType": "page"
+    }
+  ]
+}

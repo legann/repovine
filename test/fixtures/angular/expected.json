@@ -1,0 +1,28 @@
+{
+  "_description": "Angular: suffix-based promotion for .component .service .module .guard .interceptor .pipe .directive. user.model.ts → drop (non-domain). app.component.ts → rejected (app is reserved). RouterModule.forRoot (lazy loadChildren) + forChild typed-const routes feed the routing domain and frontend entrypoints.",
+  "heavyDomains": ["angular-fixture", "angular-fixture/users", "auth", "capitalize", "highlight", "routing", "user-list", "users"],
+  "lightweightDomains": [],
+  "rejectedAsDomain": ["app", "main", "user", "users.component", "users.service", "user.model"],
+  "modulesInDomain": {
+    "users": [
+      "src/app/users/pages/user-list/user-list.component.ts",
+      "src/app/users/user.model.ts",
+      "src/app/users/users.component.ts",
+      "src/app/users/users.service.ts",
+      "src/app/users/users.module.ts"
+    ],
+    "auth": [
+      "src/app/auth/auth.guard.ts",
+      "src/app/auth/auth.interceptor.ts"
+    ],
+    "routing": [
+      "src/app/app.module.ts",
+      "src/app/users/users.module.ts"
+    ]
+  },
+  "entrypoints": [
+    { "path": "/users", "kind": "route", "layer": "frontend" },
+    { "path": "/", "kind": "route", "layer": "frontend" },
+    { "path": "/list", "kind": "route", "layer": "frontend" }
+  ]
+}

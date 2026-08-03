@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test"],
+  "references": [
+    { "path": "packages/plugin-sdk" },
+    { "path": "packages/plugins/source-typescript" },
+    { "path": "packages/plugins/source-python" },
+    { "path": "packages/plugins/iac-sam" },
+    { "path": "packages/plugins/iac-kubernetes" },
+    { "path": "packages/plugins/iac-helm" },
+    { "path": "packages/plugins/iac-terraform" },
+    { "path": "packages/plugins/iac-vercel" },
+    { "path": "packages/plugins/iac-dockerfile" },
+    { "path": "packages/plugins/iac-docker-compose" }
+  ]
+}

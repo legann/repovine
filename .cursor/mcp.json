@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "repovine": {
+      "command": "/home/olegk/.nvm/versions/node/v22.22.2/bin/node",
+      "args": [
+        "/home/olegk/workspace/repovine/dist/mcp/index.js"
+      ],
+      "env": {
+        "REPOVINE_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}

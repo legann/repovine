@@ -1,0 +1,353 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 10 — model: sonnet-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max. Agent 4c1dfce664894e4c.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the current implementation of the web crawler connector to understand the existing URL normalization logic.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+Let me explore how these documents flow through the rest of the knowledge-base system — specifically how `id`, `canonicalUrl`, and `sourceUrl` are used downstream, since the task has a strict constraint about already-indexed documents continuing to be served correctly.
+
+  → Agent [Explore]: [arguments redacted — tool action recorded]
+    [agent launched — async, awaiting completion]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 25 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 27 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [subagent] Reading platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Read: platform/backend/src/types/knowledge-connector.ts
+    [subagent] Reading platform/backend/src/types/knowledge-connector.ts
+    [source removed — 672 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [subagent] Reading platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [subagent] Reading platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Read: platform/backend/src/types/kb-document.ts
+    [subagent] Reading platform/backend/src/types/kb-document.ts
+    [source removed — 78 line(s)]
+
+While that research runs, let me check the config types and see if there's any existing tracking-parameter or URL utility convention in the repo.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 25 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Read: platform/backend/src/utils/base-url.ts
+    [source removed — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 61 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Read: platform/backend/src/task-queue/handlers/connector-sync-handler.ts
+    [subagent] Reading platform/backend/src/task-queue/handlers/connector-sync-handler.ts
+    [source removed — 71 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/query.ts
+    [subagent] Reading platform/backend/src/knowledge-base/query.ts
+    [source removed — 50 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/query.ts
+    [subagent] Reading platform/backend/src/knowledge-base/query.ts
+    [source removed — 46 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 137 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 141 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Read: platform/frontend/src/app/knowledge/connectors/_parts/connector-documents-table.tsx
+    [subagent] Reading platform/frontend/src/app/knowledge/connectors/_parts/connector-documents-table.tsx
+    [source removed — 40 line(s)]
+
+  → Read: platform/frontend/src/components/chat/knowledge-graph-citations.tsx
+    [subagent] Reading platform/frontend/src/components/chat/knowledge-graph-citations.tsx
+    [source removed — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/metadata-suffix.ts
+    [subagent] Reading platform/backend/src/knowledge-base/metadata-suffix.ts
+    [source removed — 40 line(s)]
+
+  → Read: platform/frontend/src/app/knowledge/connectors/_parts/connector-documents-table.tsx
+    [subagent] Reading platform/frontend/src/app/knowledge/connectors/_parts/connector-documents-table.tsx
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 33 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  ← agent completed [Trace knowledge-base document identity and serving]:
+    ## Summary of Findings
+
+    ### 1. How `ConnectorDocument.id` is used downstream (upsert/dedupe key)
+
+    `ConnectorSyncService.ingestDocument` (`platform/backend/src/knowledge-base/connector-sync.ts`) is the sole consumer of yielded `ConnectorSyncBatch.documents`, called from the batch loop at `connector-sync.ts`.
+
+    Class-level doc comment, `connector-sync.ts`:
+    [source removed — 7 line(s)]
+
+    `ingestDocument` doc comment, `connector-sync.ts`:
+    [source removed — 5 line(s)]
+
+    The lookup, `connector-sync.ts`:
+    [source removed — 4 line(s)]
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+    [source removed — 4 line(s)]
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    ### 2. Stale-document cleanup logic tied to `id`
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    [source removed — 3 line(s)]
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    ### 3. `sourceUrl` usage elsewhere
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    Downstream reads:
+    - [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    ### 4. `metadata.url` usage downstream
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+    ### 5. Other connectors' ID/URL patterns
+
+    [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Let me check on the research agent and, in parallel, empirically verify my hypothesis about test impact by prototyping the straightforward implementation and running the existing test suite.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+Let me check whether `node_modules` exists already (even though installs are blocked) so I can verify the exact Crawlee API surface before relying on it.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Now I have a well-grounded design. Let me summarize my reasoning before implementing, since this required resolving a real tension:
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Tracking-param stripping and host-lowercasing don't have this problem — both are spec-guaranteed to never change which resource a server returns, so they're safe everywhere. Trailing-slash removal is not, so I'll scope it to a place that can't corrupt fetch behavior or document identity: link-discovery-time dedup.
+
+Let me implement this now.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now let's update `enqueueAllowedLinks` to fold in trailing-slash-aware dedup, and add the two small helpers it needs.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me review the complete updated file to verify correctness and consistency.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 799 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me check the Biome config for line-width conventions, since I don't want long comment lines to violate lint rules.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 4 line(s)]
+
+  → Read: platform/biome.json
+    [source removed — 105 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 60 line(s)]
+
+This looks correct and clean. Let me also verify the `normalizeCrawlUrl` section one more time.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 25 line(s)]
+
+Let me get the full diff to do a final self-review before writing up the report.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 103 line(s)]
+
+Let me do a mechanical bracket-balance sanity check across the whole file, since I can't run the TypeScript compiler in this environment.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+## Implementation complete
+
+**File changed:** `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts` (only file touched, no tests modified).
+
+### What changed and why
+
+The old `normalizeCrawlUrl` is shared by two different consumers: the literal URL Crawlee fetches (seed URL, discovered links) and the canonical URL used for `id`/`sourceUrl`/`metadata.url`. I split the four rules across two mechanisms based on which consumers they're safe for:
+
+| Rule | Where applied | Why there |
+|---|---|---|
+| Strip `utm_source/medium/campaign/term/content`, `gclid`, `fbclid` | `normalizeCrawlUrl` (:628-642) — every caller | Query params outside routing are conventionally ignored by servers; can't change what's served |
+| Lowercase host | `normalizeCrawlUrl` (:628-642) — every caller | Hostnames are case-insensitive per RFC 3986/7230; can't change what's served |
+| Strip default port | `normalizeCrawlUrl` (:628-642) — every caller | Unchanged, pre-existing behavior |
+| Strip trailing slash on non-root paths | New `dedupeTrailingSlashVariants`/`trailingSlashDedupeKey` (:432-449), used only inside `enqueueAllowedLinks` (:409) | Trailing-slash equivalence is server-dependent, not spec-guaranteed |
+
+### Code paths deliberately left unchanged (and the proof)
+
+1. **The literal fetch/request URL** — the crawl seed (`:129`, `:170`, `:191`) and discovered-link enqueue targets (`normalizeDiscoveredUrl`, `:592-608`) do *not* get trailing-slash stripping.
+   Proof it's load-bearing: the `beforeRedirect` hook (`:237-265`) already re-validates scope/SSRF on every redirect hop specifically so the crawler never silently substitutes a different resource than the one it was asked to fetch. Stripping a trailing slash pre-fetch risks requesting a path the origin server doesn't treat as equivalent (404, different content) — unlike tracking params/host case, this isn't guaranteed safe by any spec.
+
+2. **`id`/`sourceUrl`/`metadata.url`** — `normalizeCanonicalUrl` (`:610-627`) and `buildDocument` (`:468-486`) get tracking-param/host-case stripping (safe, via the shared function) but *not* trailing-slash stripping.
+   Proof it's load-bearing: `buildDocument`'s `id` (`:474-476`) is `sha256(…)`. I traced how that flows downstream — it's stored as `sourceId` and matched against existing rows via a `[expr]` unique index in `kb-document.ts`, deciding update-vs-insert on every sync in `connector-sync.ts`. There is **no stale-document cleanup** anywhere in the sync pipeline — the only bulk-deletion path is the manual, whole-connector `force-resync` endpoint. If trailing-slash stripping touched `id`, every already-indexed directory-style page (the majority of section/index pages a crawler indexes — e.g. anything ending in `/`) would get a new `id` on its next sync, creating a duplicate row and permanently orphaning the old one — reintroducing the exact bug this task fixes, at the database layer. `[expr]` (`:483`) is pre-existing evidence the codebase already treats "the literal fetched URL" and "the canonical identity URL" as distinct concepts; I extended that separation rather than inventing it.
+
+3. **`excludePathPatterns` matching** (`isPathInScope`, `:565-582`) — matches against the already tracking-stripped URL, since stripping happens inside the shared `normalizeCrawlUrl` upstream of scope checks. Untouched; no existing config depends on tracking params surviving into exclusion regexes.
+
+### Summary and residual risk
+
+Trailing-slash, tracking-param, and host-case variants of the same page now enqueue as one fetch going forward (trailing slash: per-page, at discovery time; the other two: everywhere, including identity). All four rules were checked by hand against every URL in the existing test fixtures — none use tracking params, mixed-case hosts, or same-page trailing-slash-variant links, so no pinned assertion should be affected, though I could not run the suite here (this benchmark worktree has no `node_modules`; builds/tests/type-checks are intentionally blocked, confirmed via the `tsc`/`vitest` shims instructing static-only verification). I did do a full mechanical bracket-balance check and a manual trace of every edited expression.
+
+Residual risk: tracking-param/host-case stripping **does** touch `id`, so an already-indexed page whose *current* stored canonical URL happens to carry one of the seven tracking params or a mixed-case host will get a new `id` on its next sync, orphaning the old row (rare in practice — those usually decorate inbound links, not a site's own canonical tags — but possible). Recommend running "force resync" per connector after deploying to fully rebuild and clear any such transients in one pass rather than letting them trickle in. Separately, the trailing-slash dedup is intentionally narrow (per-page, discovery-time only) — it reduces duplicate fetches but doesn't retroactively merge documents already duplicated under the old normalization.

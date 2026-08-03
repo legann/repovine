@@ -1,0 +1,195 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 7 — model: opus-4.8 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max. Agent 3abe2eed490e4f58.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by finding and reading the connector file.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 755 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 607 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 328 line(s)]
+
+Now let me find every place a web-crawler document's `sourceId` is derived or consumed, and check whether stale documents get pruned.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 29 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 29 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 100 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 3 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 9 line(s)]
+
+Found a likely hard regression beyond dedup. Let me verify how `normalizeCrawlUrl` feeds crawl-scope derivation, and check the `kb_documents` uniqueness constraint.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 47 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+Two hazards confirmed so far. Let me verify the crawl-scope blowout concretely and check what `KbDocumentModel.update` permits.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 131 line(s)]
+
+Let me check the `kb_chunks` FK cascade and the `UpdateKbDocument` type before I commit to a design.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+Let me read the existing web-crawler tests — I can't modify them, so the implementation must satisfy them.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 53 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 101 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 198 line(s)]
+
+The existing tests pin the exact behavior. Let me read the top of the test file and establish a green baseline before changing anything.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+Let me establish a green baseline before touching anything.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+No test execution available — the tests are my specification, so I'll verify statically. Let me read the test harness routing and the remaining tests.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 66 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+I have what I need. No test execution here, so the existing tests are the specification — and they're decisive. Let me lay out what they pin:
+
+- [source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 30 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 15 line(s)]
+
+Now I'll implement. First, the tracking-parameter list:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the two normalization functions:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the per-crawl dedup set into `createCrawler` and the link enqueuer:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me verify the pure logic against the pinned test expectations by extracting the functions standalone (no deps needed).
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 68 line(s)]
+
+All green. Let me review the complete diff.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 104 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+I implemented the change in one file. The key finding reshaped the design.
+
+## What I changed
+
+**`platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`** (only file):
+
+1. `TRACKING_QUERY_PARAMS` — the seven listed identifiers.
+2. `normalizeCrawlUrl` now strips tracking parameters, and documents that the URL parser already guarantees the lowercase host. Default-port and fragment stripping unchanged.
+3. New `canonicalPageKey` — folds a trailing slash on non-root paths.
+4. `createCrawler` holds a per-crawl `Set` of page keys (seeded with the start URL); `enqueueAllowedLinks` filters discovered links against it.
+
+## The split, and why
+
+The task asks for four rules in one normalizer, but two of them cannot live in the same function. `buildDocument` hashes the normalized URL into the document id (`web-crawler-connector.ts:467`), and `connector-sync.ts:419` looks documents up by exactly that id. **The normalized URL *is* the primary key of every indexed document.** Stripping a trailing slash inside `normalizeCrawlUrl` would re-key every directory-style URL (`/docs/` → `/docs`), so on the next sync `findBySourceId` misses, a fresh row is inserted, and the original row is orphaned — it is never re-synced and never pruned, because the only delete path is connector deletion (`routes/knowledge-base.ts:1074`). That directly violates the "must continue to be served correctly" constraint. It would also change what gets *fetched*: `/a/` and `/a` are distinct request targets, and the test server routes on exact pathname (`web-crawler-connector.test.ts:725`), so a rewritten seed 404s.
+
+So tracking parameters — which servers ignore, making the stripped URL equally fetchable — are removed from the URL the crawler fetches and stores. The trailing slash is folded only in `canonicalPageKey`, which decides whether a discovered link is a page already queued. Both rules deliver the stated goal (the variants are crawled and indexed once) while every already-indexed document keeps its byte-identical `sourceUrl` and id.
+
+Three existing assertions pin this and now still hold: `[expr]` (`:178`), the `sourceUrl` list including `/docs/install/` (`:163`), and the redirect destination `/docs/dest/` (`:271`).
+
+## Deliberately left unchanged
+
+- **`buildAllowedPathPrefixes` (`:483`)** — derives crawl scope from the start URL's path, branching on `path.endsWith(…)` at `:492`. Had I stripped the trailing slash in `normalizeCrawlUrl`, a seed of `/docs/` would fall through to `path.slice(…)` and yield `[expr]` — silently widening a docs-scoped crawl to the entire origin. Preserving the slash keeps this function correct with no edit.
+- **`pathMatchesPrefix` (`:577`)** — already normalizes a prefix's trailing slash, so configured prefixes were never affected.
+- **`normalizeCanonicalUrl` (`:607`)** and **`buildDocument` (`:467`)** — untouched, which is what holds document identity stable.
+- **`connector-sync.ts` / `KbDocumentModel`** — no id-migration or backfill needed, precisely because identity is preserved. `kb_documents` has a unique index on `[expr]`, so an id-churning change would have needed one.
+
+## Verification
+
+I could not run tests — the worktree has no `node_modules` and installs are blocked. I verified the pure functions by extracting them standalone and asserting against the expectations the test file pins, plus the new requirements: the seed/canonical/redirect URLs round-trip unchanged, the doc-id hash matches, the derived scope prefixes are unchanged, all seven tracking params strip, and five trivially-different variants of `/docs/` collapse to one page key. All passed. The crawler-integration behavior (Crawlee wiring) is reasoned from source, not executed.
+
+## Residual risk
+
+- **Sites where `/a` and `/a/` are genuinely different pages** now get only the first-linked one indexed. This is inherent to the requested deduplication.
+- **Which variant wins is link-order dependent.** Stable for a given site, but a site that reorders links could flip the stored URL of such a page, producing a new id and leaving the old row as a stale duplicate.
+- **A page previously indexed under a tracking-param URL** gets a new id (the clean URL) and its old row lingers as an unpruned duplicate. This affects only URLs that carried tracking params into their stored canonical URL — exactly the duplicates being collapsed — and the page itself continues to be served.
+- **`searchParams.delete` re-serializes the query** when a tracking param is actually removed, so `[expr]` stores as `[expr]`. Only touches URLs already changing.
+- Redirect destinations are not registered in the dedup set, so a link to a page reachable only via redirect can still be fetched twice. Pre-existing; `connector-sync` collapses those at the document level via `sourceId`.

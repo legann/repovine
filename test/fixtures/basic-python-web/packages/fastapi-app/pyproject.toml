@@ -1,0 +1,4 @@
+[project]
+name = "fastapi-app"
+version = "0.1.0"
+description = "FastAPI fixture for repovine Python web framework hints"

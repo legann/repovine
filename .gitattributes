@@ -1,0 +1,14 @@
+# Text files keep LF on every checkout: fixture bytes feed content hashes
+# (extract-output golden), and generated-asset comparisons are byte-exact.
+# A CRLF checkout on Windows would shift both.
+* text=auto eol=lf
+
+# Files executed in POSIX shells or Linux containers keep LF on every checkout.
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+# Onboarding SSOT: template literals in these files become the byte content of
+# generated client assets, compared byte-exact by `repovine clear` and the
+# renderer diff check. A CRLF checkout would alter projection bytes.
+src/cli/templates.ts text eol=lf
+src/cli/onboarding-assets.ts text eol=lf

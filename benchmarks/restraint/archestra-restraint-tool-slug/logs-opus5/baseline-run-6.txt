@@ -1,0 +1,194 @@
+# Bench archestra-restraint-tool-slug — Baseline run 6 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent 270f7b867c9e4e9f.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to find where MCP tool names are turned into identifiers.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 150 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 183 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 163 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 180 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 128 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 155 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 44 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 28 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+Now I have the full picture. Let me implement the fix in the funnel — `ToolModel.slugifyName`:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the helpers at the bottom of the file, and the `node:crypto` import:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 28 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 37 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 27 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 70 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 116 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 75 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 61 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 31 line(s)]
+
+I've completed the implementation. Here's the full report.
+
+## 1. Where tool names become identifiers
+
+`ToolModel.slugifyName(…)` — `platform/backend/src/models/tool.ts:87` — is the single funnel. Every MCP-discovered tool row gets its `tools.name` from it:
+
+| Call site | Path |
+|---|---|
+| `[expr]` | install-time discovery (local, remote) |
+| `services/mcp-reinstall.ts:406` | reinstall/sync |
+| `[expr]` | deploy-time discovery (local, remote) |
+| `services/apps/app-mcp-backing.ts:73` | app launch tool |
+| `models/tool.ts:846` | clone-catalog copy (re-slugifies `unslugifyName(…)`) |
+
+The old body concatenated `[expr]`, lowercased, collapsed whitespace to `_`, then **deleted** every character outside `[expr]`. A tool name written entirely in deleted characters (CJK, Cyrillic, emoji, punctuation-only) left nothing behind, so every such tool of a server landed on the identical name `[expr]`. The tools table's composite unique constraint is NULLS-DISTINCT for MCP tools (`database/schemas/tool.ts:83-88`), so those rows co-exist as indistinguishable duplicates and every by-name lookup collapses them.
+
+## 2. Change
+
+**`platform/backend/src/models/tool.ts`** (only file touched):
+
+- `slugifyName` now slugifies the server half and the tool half separately, then joins with `__`. This is byte-identical to the old whole-string form — lowercasing and character removal are per-character, and `__` contains no whitespace, so no whitespace run can span the boundary.
+- New bottom-of-file helpers: `slugifySegment` (the old normalization, verbatim) and `slugifyToolSegment`, which falls back to `[expr]` **only** when the tool half slugifies to empty for a non-empty raw name. The digest keys off the tool name alone, so it is stable across re-discovery and across catalog renames.
+- An empty `toolName` still returns `[expr]` unchanged — `McpClient.stripServerPrefix` (`clients/mcp-client.ts:2120`) calls `slugifyName(…)` to build the bare prefix, and `tool.test.ts:105` pins it.
+
+## 3. Related paths left unchanged
+
+| Path | Source proving it's out of scope |
+|---|---|
+| `slugify()` in `shared/utils.ts`, used for delegation tools (`[expr]`) | Its input is an **agent** name, not a name an MCP server exposes; it's also shared with skill/marketplace and URL slugs |
+| `makeSyntheticResourceToolName` (`mcp-client.ts:3756`) | Input is a resource URI, and its `[expr]` fallback always yields a non-empty ASCII name that then flows *into* `slugifyName` as a raw name |
+| Proxy-sniffed tools (`routes/proxy/utils/tools.ts:96` → `tool.ts:2351`) | Stores `name: tool.name` verbatim from the LLM-proxy request; no server prefix, no slugification — not a name→identifier conversion |
+| `unslugifyName` / `parseFullToolName` | Split on the last `__`; digest tokens are ASCII and non-empty, so the split is unaffected |
+| `resolveActualToolName` (`mcp-client.ts:2136`) | Its own doc scopes it to *casing* differences against the upstream list; it resolves an already-formed identifier rather than creating one |
+| Raw-name matching in `syncToolsForCatalog` (`tool.ts:2063-2110`) | Keys existing rows by the stored suffix and incoming ones by `rawToolName`; for these names it already failed to match (`""` vs `搜索`) before the change |
+| Server-prefix half, and the 128-char cap | The task scopes the defect to the tool's name; truncating long names would change identifiers that work today, which the constraint forbids |
+
+## 4. Verification
+
+Tests could not be executed here — the worktree is intentionally not bootstrapped (no `node_modules`), and the sandbox blocks installs/type-checks/test runs. I did not add or modify tests. Instead I ran a standalone Node replica of the old and new functions: over 200,000 randomized `[expr]` pairs drawn from ASCII, punctuation, CJK, Cyrillic, accented and emoji characters, **every** output that differs from today is a vanished-tool-name case, and all fall inside `[expr]`. All ten pinned cases from `tool.test.ts:43-126` reproduce exactly, and nine previously-colliding non-ASCII names now yield nine distinct identifiers.
+
+## Summary
+
+`ToolModel.slugifyName` gives a tool whose name consists entirely of characters LLM providers forbid a deterministic `[expr]` identifier instead of collapsing it onto the shared `[expr]`. Every tool name that already slugified to something keeps its exact identifier, including the empty-tool-name prefix form. One file changed: `platform/backend/src/models/tool.ts`.
+
+Residual risk:
+
+- **Legacy rows aren't migrated.** A `[expr]` row written before this change survives until the next reinstall, where `syncToolsForCatalog` orphans and deletes it; its assignment transfer matches by raw name and won't match the new digest names, so policies and assignments on that one shared row are lost. Those tools were unaddressable to begin with; a data migration is a separate call.
+- **Digests aren't reversible.** A digest-named tool still can't be invoked upstream (`resolveActualToolName` can't map `[expr]` back to `搜索`), and MCP Apps calling by raw name (`mcp-server-proxy.ts:167`) won't match it — unchanged from today, where the name resolved to `""`. It is now individually listable, assignable, and policy-able.
+- **Partial-strip collisions remain**: `検索_search` and `日本語_search` both still slugify to `_search`. Separating them would change identifiers that are usable today, which the constraint rules out.
+- Digest collision probability is 48-bit — negligible at per-server tool counts.

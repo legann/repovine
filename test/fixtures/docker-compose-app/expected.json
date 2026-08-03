@@ -1,0 +1,54 @@
+{
+  "_description": "Docker Compose: build.context services link to in-repo Dockerfiles; image-only services stay unlinked. Top-level secrets: become kind='secret' nodes (file-based + external); services consume them via secrets: (short/long), *_FILE env (/run/secrets/<name>), and env_file (synthesized external secret) -> uses_env edges.",
+  "heavyDomains": ["infra-docker-compose", "infra-dockerfile"],
+  "lightweightDomains": ["docker-compose-app-fixture"],
+  "rejectedAsDomain": [],
+  "runtimeResourceNodes": [
+    { "label": "api", "kind": "other", "provider": "generic" },
+    { "label": "postgres", "kind": "other", "provider": "generic" },
+    { "label": "services/api/Dockerfile", "kind": "other", "provider": "generic" },
+    { "label": "db_password", "kind": "secret", "provider": "generic" },
+    { "label": "api_token", "kind": "secret", "provider": "generic" },
+    { "label": "secret:.env.production", "kind": "secret", "provider": "generic" }
+  ],
+  "runtimeLinks": [
+    {
+      "fromServiceLabel": "api",
+      "toDockerfileSuffix": "services/api/Dockerfile"
+    }
+  ],
+  "serviceLinks": [
+    {
+      "fromServiceLabel": "postgres",
+      "fromServiceProvider": "generic",
+      "toServiceLabel": "db_password",
+      "toServiceKind": "secret",
+      "toServiceProvider": "generic",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "api",
+      "fromServiceProvider": "generic",
+      "toServiceLabel": "api_token",
+      "toServiceKind": "secret",
+      "toServiceProvider": "generic",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "api",
+      "fromServiceProvider": "generic",
+      "toServiceLabel": "db_password",
+      "toServiceKind": "secret",
+      "toServiceProvider": "generic",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "api",
+      "fromServiceProvider": "generic",
+      "toServiceLabel": "secret:.env.production",
+      "toServiceKind": "secret",
+      "toServiceProvider": "generic",
+      "edge": "uses_env"
+    }
+  ]
+}

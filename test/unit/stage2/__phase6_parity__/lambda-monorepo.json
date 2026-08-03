@@ -1,0 +1,987 @@
+{
+  "stats": {
+    "totalNodes": 27,
+    "totalEdges": 37,
+    "nodesByType": {
+      "domain": 6,
+      "export-symbol": 8,
+      "module": 9,
+      "package": 3,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 20,
+      "tagged": 17
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:lambda-functions",
+      "domain:oauth-callback",
+      "domain:tenant-manager",
+      "domain:auth",
+      "domain:lambda-shared",
+      "domain:monday"
+    ],
+    "export-symbol": [
+      "export:@acme/lambda-functions/src/oauth-callback/handler",
+      "export:@acme/lambda-functions/src/tenant-manager/handler",
+      "export:@acme/lambda-shared/src/auth/jwt-manager/decodeJwt",
+      "export:@acme/lambda-shared/src/auth/middleware/authMiddleware",
+      "export:@acme/lambda-shared/src/auth/session-manager/validateSession",
+      "export:@acme/lambda-shared/src/monday/audit-log/writeAuditLog",
+      "export:@acme/lambda-shared/src/monday/monday-session-rate-limit-http/rateLimitGate",
+      "export:@acme/lambda-shared/src/monday/monday-session-rate-limit/checkRateLimit"
+    ],
+    "module": [
+      "mod:@acme/lambda-functions/src",
+      "mod:@acme/lambda-functions/src/oauth-callback",
+      "mod:@acme/lambda-functions/src/tenant-manager",
+      "mod:@acme/lambda-shared/src/auth/jwt-manager",
+      "mod:@acme/lambda-shared/src/auth/middleware",
+      "mod:@acme/lambda-shared/src/auth/session-manager",
+      "mod:@acme/lambda-shared/src/monday/audit-log",
+      "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit-http",
+      "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit"
+    ],
+    "package": [
+      "pkg:lambda-monorepo-fixture",
+      "pkg:@acme/lambda-functions",
+      "pkg:@acme/lambda-shared"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:auth",
+      "type": "domain",
+      "label": "auth",
+      "description": "Domain: auth",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:lambda-functions",
+      "type": "domain",
+      "label": "lambda-functions",
+      "description": "Domain: lambda-functions",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:lambda-shared",
+      "type": "domain",
+      "label": "lambda-shared",
+      "description": "Domain: lambda-shared",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:monday",
+      "type": "domain",
+      "label": "monday",
+      "description": "Domain: monday",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:oauth-callback",
+      "type": "domain",
+      "label": "oauth-callback",
+      "description": "Domain: oauth-callback",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:tenant-manager",
+      "type": "domain",
+      "label": "tenant-manager",
+      "description": "Domain: tenant-manager",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:@acme/lambda-functions/src/oauth-callback/handler",
+      "type": "export-symbol",
+      "label": "handler",
+      "description": "function handler: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@acme/lambda-functions/src/tenant-manager/handler",
+      "type": "export-symbol",
+      "label": "handler",
+      "description": "function handler: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/auth/jwt-manager/decodeJwt",
+      "type": "export-symbol",
+      "label": "decodeJwt",
+      "description": "function decodeJwt: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/auth/middleware/authMiddleware",
+      "type": "export-symbol",
+      "label": "authMiddleware",
+      "description": "function authMiddleware: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/auth/session-manager/validateSession",
+      "type": "export-symbol",
+      "label": "validateSession",
+      "description": "function validateSession: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/monday/audit-log/writeAuditLog",
+      "type": "export-symbol",
+      "label": "writeAuditLog",
+      "description": "function writeAuditLog: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit-http/rateLimitGate",
+      "type": "export-symbol",
+      "label": "rateLimitGate",
+      "description": "function rateLimitGate: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit/checkRateLimit",
+      "type": "export-symbol",
+      "label": "checkRateLimit",
+      "description": "function checkRateLimit: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-functions/src",
+      "type": "module",
+      "label": "src/index",
+      "description": "Module src/index.ts in @acme/lambda-functions",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/index.ts",
+        "pkgRelPath": "src/index.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-functions/src/oauth-callback",
+      "type": "module",
+      "label": "src/oauth-callback",
+      "description": "Module src/oauth-callback.ts in @acme/lambda-functions",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/oauth-callback.ts",
+        "pkgRelPath": "src/oauth-callback.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-functions/src/tenant-manager",
+      "type": "module",
+      "label": "src/tenant-manager",
+      "description": "Module src/tenant-manager.ts in @acme/lambda-functions",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/tenant-manager.ts",
+        "pkgRelPath": "src/tenant-manager.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/auth/jwt-manager",
+      "type": "module",
+      "label": "…/auth/jwt-manager",
+      "description": "Module src/auth/jwt-manager.ts in @acme/lambda-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/auth/jwt-manager.ts",
+        "pkgRelPath": "src/auth/jwt-manager.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/auth/middleware",
+      "type": "module",
+      "label": "…/auth/middleware",
+      "description": "Module src/auth/middleware.ts in @acme/lambda-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/auth/middleware.ts",
+        "pkgRelPath": "src/auth/middleware.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/auth/session-manager",
+      "type": "module",
+      "label": "…/auth/session-manager",
+      "description": "Module src/auth/session-manager.ts in @acme/lambda-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/auth/session-manager.ts",
+        "pkgRelPath": "src/auth/session-manager.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/monday/audit-log",
+      "type": "module",
+      "label": "…/monday/audit-log",
+      "description": "Module src/monday/audit-log.ts in @acme/lambda-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/monday/audit-log.ts",
+        "pkgRelPath": "src/monday/audit-log.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit",
+      "type": "module",
+      "label": "…/monday/monday-session-rate-limit",
+      "description": "Module src/monday/monday-session-rate-limit.ts in @acme/lambda-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/monday/monday-session-rate-limit.ts",
+        "pkgRelPath": "src/monday/monday-session-rate-limit.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit-http",
+      "type": "module",
+      "label": "…/monday/monday-session-rate-limit-http",
+      "description": "Module src/monday/monday-session-rate-limit-http.ts in @acme/lambda-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-shared/src/monday/monday-session-rate-limit-http.ts",
+        "pkgRelPath": "src/monday/monday-session-rate-limit-http.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:@acme/lambda-functions",
+      "type": "package",
+      "label": "@acme/lambda-functions",
+      "description": "Package @acme/lambda-functions (packages/lambda-functions)",
+      "data": {
+        "path": "packages/lambda-functions",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:@acme/lambda-shared",
+      "type": "package",
+      "label": "@acme/lambda-shared",
+      "description": "Package @acme/lambda-shared (packages/lambda-shared)",
+      "data": {
+        "path": "packages/lambda-shared",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:lambda-monorepo-fixture",
+      "type": "package",
+      "label": "lambda-monorepo-fixture",
+      "description": "Package lambda-monorepo-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 3 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:auth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:auth",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:lambda-functions",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:lambda-functions",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:lambda-shared",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:lambda-shared",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:monday",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:monday",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:oauth-callback",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:oauth-callback",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:tenant-manager",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:tenant-manager",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-functions/src/oauth-callback/handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-functions/src/oauth-callback/handler",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-functions/src/tenant-manager/handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-functions/src/tenant-manager/handler",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/auth/jwt-manager/decodeJwt",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-shared/src/auth/jwt-manager/decodeJwt",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/auth/middleware/authMiddleware",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-shared/src/auth/middleware/authMiddleware",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/auth/session-manager/validateSession",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-shared/src/auth/session-manager/validateSession",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/monday/audit-log/writeAuditLog",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-shared/src/monday/audit-log/writeAuditLog",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit-http/rateLimitGate",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit-http/rateLimitGate",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit/checkRateLimit",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit/checkRateLimit",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-functions/src",
+      "links": [
+        {
+          "to": "domain:lambda-functions",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:@acme/lambda-functions/src",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:lambda-functions",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-functions/src/oauth-callback",
+      "links": [
+        {
+          "to": "domain:lambda-functions",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:oauth-callback",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-functions/src/oauth-callback/handler"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-functions/src/oauth-callback",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-functions/src/oauth-callback/handler",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:lambda-functions",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:oauth-callback",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-functions/src/tenant-manager",
+      "links": [
+        {
+          "to": "domain:lambda-functions",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:tenant-manager",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-functions/src/tenant-manager/handler"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-functions/src/tenant-manager",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-functions/src/tenant-manager/handler",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:lambda-functions",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:tenant-manager",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/auth/jwt-manager",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-shared/src/auth/jwt-manager/decodeJwt"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-shared/src/auth/jwt-manager",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-shared/src/auth/jwt-manager/decodeJwt",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/auth/middleware",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-shared/src/auth/middleware/authMiddleware"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-shared/src/auth/middleware",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-shared/src/auth/middleware/authMiddleware",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/auth/session-manager",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-shared/src/auth/session-manager/validateSession"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-shared/src/auth/session-manager",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-shared/src/auth/session-manager/validateSession",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/monday/audit-log",
+      "links": [
+        {
+          "to": "domain:monday",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-shared/src/monday/audit-log/writeAuditLog"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-shared/src/monday/audit-log",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-shared/src/monday/audit-log/writeAuditLog",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:monday",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit",
+      "links": [
+        {
+          "to": "domain:monday",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-shared/src/monday/monday-session-rate-limit/checkRateLimit"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit/checkRateLimit",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:monday",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit-http",
+      "links": [
+        {
+          "to": "domain:monday",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@acme/lambda-shared/src/monday/monday-session-rate-limit-http/rateLimitGate"
+      ],
+      "view": {
+        "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit-http",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@acme/lambda-shared/src/monday/monday-session-rate-limit-http/rateLimitGate",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:monday",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:@acme/lambda-functions",
+      "links": [],
+      "children": [
+        "mod:@acme/lambda-functions/src",
+        "mod:@acme/lambda-functions/src/oauth-callback",
+        "mod:@acme/lambda-functions/src/tenant-manager"
+      ],
+      "view": {
+        "id": "pkg:@acme/lambda-functions",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:@acme/lambda-functions/src",
+            "type": "module"
+          },
+          {
+            "id": "mod:@acme/lambda-functions/src/oauth-callback",
+            "type": "module"
+          },
+          {
+            "id": "mod:@acme/lambda-functions/src/tenant-manager",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:@acme/lambda-shared",
+      "links": [],
+      "children": [
+        "mod:@acme/lambda-shared/src/auth/jwt-manager",
+        "mod:@acme/lambda-shared/src/auth/middleware",
+        "mod:@acme/lambda-shared/src/auth/session-manager",
+        "mod:@acme/lambda-shared/src/monday/audit-log",
+        "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit-http",
+        "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit"
+      ],
+      "view": {
+        "id": "pkg:@acme/lambda-shared",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:@acme/lambda-shared/src/auth/jwt-manager",
+            "type": "module"
+          },
+          {
+            "id": "mod:@acme/lambda-shared/src/auth/middleware",
+            "type": "module"
+          },
+          {
+            "id": "mod:@acme/lambda-shared/src/auth/session-manager",
+            "type": "module"
+          },
+          {
+            "id": "mod:@acme/lambda-shared/src/monday/audit-log",
+            "type": "module"
+          },
+          {
+            "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit-http",
+            "type": "module"
+          },
+          {
+            "id": "mod:@acme/lambda-shared/src/monday/monday-session-rate-limit",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:lambda-monorepo-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "pkg:lambda-monorepo-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:lambda-monorepo-fixture",
+        "pkg:@acme/lambda-functions",
+        "pkg:@acme/lambda-shared"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:lambda-monorepo-fixture",
+            "type": "package"
+          },
+          {
+            "id": "pkg:@acme/lambda-functions",
+            "type": "package"
+          },
+          {
+            "id": "pkg:@acme/lambda-shared",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

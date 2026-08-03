@@ -1,0 +1,283 @@
+# Bench kibana-correctness-mapped-params-migration — Repovine run 7 — model: opus-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-5; effort: max. Agent 862482dfd4f3433c.
+# Gate: DQ — projection-consistency gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by getting oriented in the codebase using repovine.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 15 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — search_context result recorded; source-derived fields removed]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 11 line(s)]
+
+Graph is still building (stage1, 0/1296 pkgs). Let me long-poll once while reading the relevant files directly.
+
+  → repovine.get_build_status: [repository query]
+    [graph output redacted — get_build_status result recorded; source-derived fields removed]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 189 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/index.ts
+    [source removed — 15 line(s)]
+
+Graph is ready. Let me map the area and check how rule params are stored.
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+  → repovine.map_context: [target mod:x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts]
+    [graph output redacted — scope mod:x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts, mod:x-pack-platform-plugins-shared-alerting/server/saved_objects, pkg:kibana, pkg:kibana-buildkite; functions setupSavedObjects; source-derived fields removed]
+
+The ESO angle matters here. Let me check whether rule `params` is in AAD, and where `severity` lives.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 130 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+`params` is in AAD (line 67) — so this migration must go through `createModelVersion`. Let me confirm the mechanics and check the derived `mapped_params.severity` path.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/rules_client/common/mapped_params_utils.ts
+    [source removed — 186 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/server/create_model_version.ts
+    [source removed — 141 line(s)]
+
+Mechanics confirmed: `createModelVersion` decrypts with the pre-transform AAD and re-encrypts with the post-transform AAD. Now let me look at the schemas and at how other plugins wire `createModelVersion`.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 77 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 23 line(s)]
+
+Excellent — there's an in-repo precedent in the actions plugin. Let me read it plus the v12 schema.
+
+  → Read: x-pack/platform/plugins/shared/actions/server/saved_objects/model_versions/connector_token_model_versions.ts
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 202 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 16 line(s)]
+
+Now the crux: what happens to rules whose `apiKey` can't be decrypted. Let me check the ESO crypto behavior and how alerting's legacy migrations handled it.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 56 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 2 line(s)]
+
+Two key confirmations. Let me verify the backfill merge semantics and the ESO registration type.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/migrations/utils.ts
+    [source removed — 63 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: src/core/packages/saved-objects/base-server-internal/src/model_version/build_transform_fn.ts
+    [source removed — 112 line(s)]
+
+Let me check the backfill typing, the ESO service instantiation, and — importantly — whether any test imports `ruleModelVersions` as a const.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 87 line(s)]
+
+Important: the docs explicitly warn against `data_backfill` for mutating existing data. Let me check the `unsafe_transform` shape and inspect `alerting_v2`'s separate rule SO.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 47 line(s)]
+
+`alerting_v2` is a separate concern. Let me verify that and check for the registered-types hash test.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 55 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 7 line(s)]
+
+Found a CI check that will be affected. Let me read it precisely.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+Let me check the ESO registration type to settle how to wire the input/output types without creating an import cycle.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+I have everything I need. Let me implement.
+
+  → Write: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v14.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/index.ts
+    [edit applied]
+
+Now the model version itself:
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+The boundary annotation confirms the `mapped_params` projection concern I'd identified. Let me finish the version entry, then reason about that explicitly.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 34 line(s)]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+Now wire it up in the saved objects registration:
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+Now let me typecheck and lint the change.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Type-check is unavailable in this worktree. Let me verify the changes by careful static review.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 72 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 36 line(s)]
+
+Let me verify the exact transform types and check two lint-sensitive details.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 46 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 8 line(s)]
+
+Let me tighten the narrowing so it's unambiguous without a typechecker:
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+Let me verify my `mapped_params` claim is airtight and do a final diff review.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 62 line(s)]
+
+There's an existing precedent — an 8.2 migration that recomputes `mapped_params`. Let me read it.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/migrations/8.2/index.ts
+    [source removed — 42 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Confirmed lowercase is the canonical form consumers validate against (`[expr]`). Let me refresh the graph and do a final review.
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 110 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+Implementation complete. I could not run typecheck/lint/tests — this worktree is intentionally not bootstrapped (no `node_modules`), so the change is statically reviewed only.
+
+## What changed
+
+Added **model version 14** to the alerting `alert` saved object, normalizing `params.severity` to lowercase. Rules with an already-lowercase severity, a non-string severity, or no severity are returned untouched (identity), so nothing else is rewritten.
+
+The load-bearing detail: **`params` is part of the rule's decryption AAD** (`saved_objects/index.ts:58-77`). A plain model version rewriting it would leave every migrated rule's `apiKey` permanently undecryptable. So version 14 is wrapped in `encryptedSavedObjects.createModelVersion`, which decrypts each doc with the AAD built from its pre-transform attributes and re-encrypts with the post-transform attributes (`encrypted_saved_objects/server/create_model_version.ts:106-138`). Input and output registrations are identical — only an AAD *value* changes, not the attribute set — which also keeps Serverless ZDT constraints satisfied.
+
+`shouldTransformIfDecryptionFails: true` mirrors the policy alerting already applies to its own ESO migrations (`saved_objects/migrations/utils.ts:31`).
+
+## Files touched
+
+| File | Change |
+|---|---|
+| `[expr]` | Added MV14 + `normalizeSeverityCase` transform; export became a factory taking the ESO setup and the rule's type registration |
+| `[expr]` | New; re-exports v13's schema (no shape change), following the v13 convention |
+| `[expr]` | Export `rawRuleSchemaV14` |
+| `[expr]` | Hoisted the rule ESO registration to one const, reused it for both `registerType` and `ruleModelVersions(…)` |
+
+Storage shape is unchanged: no mapping change, no new field, `params.severity` stays a string.
+
+## Deliberately left unchanged
+
+- **`mapped_params.severity`** — the denormalized projection that find/sort/filter actually read. `getModifiedValue` maps any non-canonical casing to `''` (`mapped_params_utils.ts:104-109`, `SEVERITY_MAP` at 19-24), so every rule this migration touches already stores `''` there (written by the 8.2 backfill, `migrations/8.2/index.ts:21-31`). Query values are rewritten through that *same* function (`modifyFilterKueryNode:171`, `getModifiedSearch:125`, sort field via `getModifiedField:62-74`), so leaving the stored value alone makes find/sort/filter results byte-identical before and after. Recomputing it would change which queries match those rules — beyond "case normalization".
+- **`alerting_v2`'s `ruleModelVersions`** — different SO type, at MV1 with no `severity` attribute; its severity is a runtime alert-event field from ES|QL results (`build_alert_events.ts:23-33`) landing in the `alert_events` data stream (`resources/datastreams/alert_events.ts:43`), and its rule SO isn't ESO-registered at all (only the action policy is — `alerting_v2/server/saved_objects/index.ts:85-90`).
+- **Legacy pre-8.x migrations** — `7.11/index.ts:77-101` is a ServiceNow *connector action* param named `severity`; `7.13/index.ts:44` is `severityMapping`, a different field.
+- **`getMappedParams` write paths** (`update_rule.ts:365`, `update_rule_in_memory.ts:289`, `transform_rule_domain_to_rule_attributes.ts:30`) — already correct given a lowercase severity, and they self-heal a migrated rule's projection on its next update.
+
+## Residual risk
+
+1. **A CI tripwire will fail and I could not fix it** (no test edits allowed): `encrypted_saved_objects/integration_tests/ci_checks/check_registered_types.test.ts` pins `[expr]` (line 70) and enumerates `[expr]` (lines 124-136). MV14 changes both. The file's own header says to regenerate via `jest_integration -u`; it exists specifically to force a Kibana Security team review of ESO changes. Regenerate + get that review before merge.
+2. **Every `alert` doc is decrypted and re-encrypted on upgrade**, not just mixed-case ones — `createModelVersion` has no `isMigrationNeededPredicate` equivalent. Correct, but it costs migration CPU and rewrites all rule docs. Same tradeoff the actions plugin accepted (`connector_token_model_versions.ts:56-73`).
+3. **`shouldTransformIfDecryptionFails: true` is destructive for already-unreadable ciphertext**: such a rule's encrypted attributes are stripped with a logged warning instead of aborting the upgrade. The alternative fails the whole upgrade loudly, which an admin could recover from via `keyRotation.decryptionOnlyKeys`. I chose consistency with alerting's existing policy and with "every existing rule must continue to load", but it is a real judgment call worth confirming.
+4. `params.severity` and `mapped_params.severity` remain semantically inconsistent for migrated rules (`high` vs `''`). Pre-existing and not worsened, but if you want those rules to become filterable/sortable by their normalized severity, that's a follow-up — say the word and I'll add the projection recompute to the same transform.
+5. Nothing was executed. Worth running `node scripts/type_check --project x-pack/platform/plugins/shared/alerting/tsconfig.json` and the alerting Jest suite in a bootstrapped checkout.

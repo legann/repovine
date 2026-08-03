@@ -1,0 +1,30 @@
+{
+  "name": "repovine-plugin-go-canary",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repovine/plugin-sdk": "0.1.0"
+  },
+  "repovine": {
+    "kind": "plugin",
+    "id": "go",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "go",
+      "dirs": [
+        {
+          "name": "gocache",
+          "role": "tool-output",
+          "because": "go build cache written by the toolchain, never source"
+        }
+      ]
+    }
+  }
+}

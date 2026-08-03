@@ -1,0 +1,249 @@
+import { afterEach, describe, expect, it } from '@jest/globals';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import {
+  displayPath,
+  isUnsafeRegexPattern,
+  MAX_GREP_LINE_CHARS,
+  readNodeBody,
+  redactSecretLikeText,
+  scanLinesWithRegex,
+} from '../../../src/mcp/lib/node-body.js';
+import type { ModuleInfo, RepositoryGraph } from '../../../src/types.js';
+
+describe('grepBody regex safety', () => {
+  it.each([
+    '(a+)+$',
+    '(a|a)+$',
+    '(a|aa)*$',
+    '(?:a{1,3})+$',
+  ])('rejects repeated ambiguous or nested pattern %s', pattern => {
+    expect(isUnsafeRegexPattern(pattern)).toBe(true);
+  });
+
+  it.each([
+    '.*.*',
+    '.+.+',
+    'foo.*.*bar',
+    '.*.*.*',
+  ])('rejects the scan-abuse wildcard chain %s', pattern => {
+    // Exercises the second clause of isUnsafeRegexPattern (the (\.\*){2,}|(\.\+){2,}
+    // detector). These patterns carry no risky repeated group, so removing that clause
+    // flips them to false.
+    expect(isUnsafeRegexPattern(pattern)).toBe(true);
+  });
+
+  it('does not reject ordinary bounded search patterns', () => {
+    expect(isUnsafeRegexPattern('schema|validate|safeParse')).toBe(false);
+    expect(isUnsafeRegexPattern('foo\\(bar\\)')).toBe(false);
+    // A single wildcard is allowed; the scan-abuse clause requires two or more in a row.
+    expect(isUnsafeRegexPattern('.*')).toBe(false);
+    expect(isUnsafeRegexPattern('.+')).toBe(false);
+  });
+
+  it('hard-stops a regex stuck inside a single line', async () => {
+    const result = await scanLinesWithRegex(
+      [`${'a'.repeat(MAX_GREP_LINE_CHARS)}!`],
+      '(a+)+$',
+      { timeoutMs: 100, maxLineChars: MAX_GREP_LINE_CHARS + 1 },
+    );
+    // Catastrophic backtracking traps the worker inside a single RegExp.test, so the
+    // worker's own per-line deadline never re-fires. Resolution can only come from the
+    // parent timer hard-stop, whose payload is scannedLines:0 with no matches. Asserting
+    // that exact shape (instead of a real wall-clock bound) proves the hard-stop fired
+    // rather than the scan completing; dropping the parent timer hangs the promise and
+    // the test times out red.
+    expect(result).toMatchObject({
+      timedOut: true,
+      scannedLines: 0,
+      matchIndices: [],
+      totalMatches: 0,
+    });
+  });
+
+  it('tests only the bounded prefix of oversized lines', async () => {
+    const result = await scanLinesWithRegex(
+      [`${'x'.repeat(MAX_GREP_LINE_CHARS)}NEEDLE`],
+      'NEEDLE$',
+      { timeoutMs: 1_000 },
+    );
+    expect(result).toMatchObject({
+      matchIndices: [],
+      totalMatches: 0,
+      timedOut: false,
+      truncatedLineCount: 1,
+    });
+  });
+
+  it('returns promptly without scanning when the request is already cancelled', async () => {
+    const ac = new AbortController();
+    ac.abort();
+    // A 30s timeout we must not wait: an aborted signal terminates the worker immediately.
+    const result = await scanLinesWithRegex(['needle here'], 'needle', { timeoutMs: 30_000, signal: ac.signal });
+    expect(result).toMatchObject({ timedOut: true, matchIndices: [], totalMatches: 0 });
+  });
+
+  it('terminates the scan when the signal aborts mid-flight', async () => {
+    const ac = new AbortController();
+    const scan = scanLinesWithRegex(
+      [`${'a'.repeat(MAX_GREP_LINE_CHARS)}!`],
+      '(a+)+$', // catastrophic backtracking — only an external stop resolves it
+      { timeoutMs: 30_000, maxLineChars: MAX_GREP_LINE_CHARS + 1, signal: ac.signal },
+    );
+    ac.abort();
+    const result = await scan;
+    expect(result).toMatchObject({ timedOut: true, matchIndices: [], totalMatches: 0 });
+  });
+
+  it('runs many concurrent scans correctly under the worker-concurrency cap', async () => {
+    // More concurrent scans than the worker cap: the limiter queues the overflow; every scan must
+    // still return the correct result (admission control must not corrupt or drop work).
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        scanLinesWithRegex(['find the needle', 'no match here'], 'needle', { timeoutMs: 1_000 })),
+    );
+    for (const result of results) {
+      expect(result.totalMatches).toBe(1);
+      expect(result.matchIndices).toEqual([0]);
+    }
+  });
+});
+
+describe('redactSecretLikeText', () => {
+  it('keeps a variable assigned a call expression whose name matches a secret keyword', () => {
+    // Regression: the generic `keyword = value` rule swallowed `missingToken.toLowerCase` because the
+    // value char class includes `.` and the quote was optional, printing `token = [REDACTED_SECRET]()`.
+    const line = '  const token = missingToken.toLowerCase();';
+    expect(redactSecretLikeText(line)).toBe(line);
+  });
+
+  it.each([
+    'const token = missingToken.toLowerCase();',
+    'const secret = config.getSecret();',
+    'password = req.body.userPassword.trim();',
+    'const password = getPasswordFromVault();',
+  ])('does not redact the call expression %s', line => {
+    // A literal secret ends at a quote, separator, or line break before any `(`; a call expression
+    // runs identifier-dot-identifier straight into `(`. The lookahead keeps the latter intact.
+    expect(redactSecretLikeText(line)).toBe(line);
+    expect(redactSecretLikeText(line)).not.toContain('[REDACTED_SECRET]');
+  });
+
+  it.each([
+    ['quoted generic',    'password: "hunter2hunter2hunter2"', 'hunter2hunter2hunter2'],
+    ['single-quoted',     "secret = 'abcdefghijklmnop'",       'abcdefghijklmnop'],
+    ['unquoted env',      'TOKEN=abcdef1234567890',            'abcdef1234567890'],
+    ['unquoted yaml',     'client_secret: abcdef1234567890xyz','abcdef1234567890xyz'],
+    ['jwt-shaped',        'token: "eyJhbGciOi.eyJzdWIiOi.SflKxwRJ"', 'eyJhbGciOi.eyJzdWIiOi.SflKxwRJ'],
+  ])('still redacts the %s secret literal', (_label, line, value) => {
+    const out = redactSecretLikeText(line);
+    expect(out).toContain('[REDACTED_SECRET]');
+    expect(out).not.toContain(value);
+  });
+
+  it('still redacts prefixed provider tokens and private keys', () => {
+    expect(redactSecretLikeText('const k = "sk_live_abcdefgh1234";')).toContain('[REDACTED_SECRET]');
+    expect(redactSecretLikeText('AKIAIOSFODNN7EXAMPLE')).toContain('[REDACTED_SECRET]');
+    expect(
+      redactSecretLikeText('-----BEGIN PRIVATE KEY-----\nMIIBVgIBADANBg\n-----END PRIVATE KEY-----'),
+    ).toContain('[REDACTED_SECRET]');
+  });
+});
+
+const tempRoots: string[] = [];
+
+// realpathSync the fixture root: on macOS os.tmpdir() is itself a symlink (/var -> /private/var),
+// which would make the containment assertions measure the tmpdir link instead of the fixture.
+function tempDir(label: string): string {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `repovine-${label}-`)));
+  tempRoots.push(dir);
+  return dir;
+}
+
+function moduleGraph(nodeId: string, absPath: string): {
+  graph: RepositoryGraph;
+  modulesById: Map<string, ModuleInfo>;
+} {
+  return {
+    graph: { nodes: new Map(), inEdges: new Map() } as unknown as RepositoryGraph,
+    modulesById: new Map([[nodeId, { id: nodeId, absPath } as unknown as ModuleInfo]]),
+  };
+}
+
+// fs.symlinkSync needs SeCreateSymbolicLinkPrivilege on Windows, where a committed symlink is also
+// only materialised as a link under git core.symlinks=true. Gate the fixture, keep the rest running.
+const itSymlink = process.platform === 'win32' ? it.skip : it;
+
+describe('source body containment', () => {
+  afterEach(() => {
+    while (tempRoots.length > 0) {
+      fs.rmSync(tempRoots.pop()!, { recursive: true, force: true });
+    }
+  });
+
+  itSymlink('refuses a module whose path is a symlink resolving outside the repo', async () => {
+    const root = tempDir('node-body');
+    const outside = tempDir('node-body-outside');
+    const secret = path.join(outside, 'id_rsa');
+    fs.writeFileSync(secret, '-----BEGIN PRIVATE KEY-----\nsecret\n');
+    const link = path.join(root, 'src', 'leak.ts');
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.symlinkSync(secret, link);
+
+    const { graph, modulesById } = moduleGraph('mod:repo/src/leak', link);
+    const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/leak', 'module');
+
+    // The refusal names the in-repo link, not its target: the operator learns which file to remove
+    // and the out-of-repo path never reaches the client.
+    expect(result).toEqual({
+      ok: false,
+      refusal: {
+        reason: 'rejected-by-policy',
+        kind: 'body-outside-workspace',
+        // The sentence keeps the host's separators; the machine-readable slot is POSIX on every
+        // platform, like every other repo-relative value the engine publishes.
+        message: `Refusing to read source outside repo root: ${path.join('src', 'leak.ts')}`,
+        details: { path: 'src/leak.ts' },
+      },
+    });
+  });
+
+  itSymlink('reads a module reached through a symlink that stays inside the repo', async () => {
+    const root = tempDir('node-body');
+    const real = path.join(root, 'src', 'real.ts');
+    fs.mkdirSync(path.dirname(real), { recursive: true });
+    fs.writeFileSync(real, 'export const a = 1;\n');
+    const link = path.join(root, 'src', 'alias.ts');
+    fs.symlinkSync(real, link);
+
+    const { graph, modulesById } = moduleGraph('mod:repo/src/alias', link);
+    const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/alias', 'module');
+
+    expect(result).toMatchObject({ ok: true, value: { lines: ['export const a = 1;', ''], lineStart: 0 } });
+  });
+
+  it('reports a missing in-repo module as unreadable rather than as an escape', async () => {
+    const root = tempDir('node-body');
+    const missing = path.join(root, 'src', 'gone.ts');
+    const { graph, modulesById } = moduleGraph('mod:repo/src/gone', missing);
+    const result = await readNodeBody(graph, modulesById, root, 'mod:repo/src/gone', 'module');
+
+    expect(result).toEqual({
+      ok: false,
+      refusal: {
+        reason: 'unreadable',
+        kind: 'body-unreadable',
+        message: `Could not read file: ${path.join('src', 'gone.ts')} — ENOENT`,
+        details: { path: 'src/gone.ts' },
+      },
+    });
+  });
+
+  it('labels an out-of-repo path without echoing it', () => {
+    const root = tempDir('node-body');
+    expect(displayPath(root, path.join(root, 'src', 'index.ts'))).toBe(path.join('src', 'index.ts'));
+    expect(displayPath(root, root)).toBe('.');
+    expect(displayPath(root, path.join(root, '..', 'secret.txt'))).toBe('[outside-repo]');
+  });
+});

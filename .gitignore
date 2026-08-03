@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# repovine engine cache (commit repovine.annots.json at repo root, ignore .repovine/)
+.repovine/
+.repovine-build-profile.log

@@ -1,0 +1,1363 @@
+/**
+ * Delivery Protocol validators.
+ *
+ * Two layers:
+ *
+ *   1. Schema validation  — is the structured artifact shaped correctly?
+ *                           (required fields, enum values, supported protocolVersion).
+ *   2. Compliance validation — do the claims hold against observable repovine
+ *                              state? (declared graph nodes exist, declared
+ *                              annotations exist and are fresh, orphans absent
+ *                              or reported, registry/evidence claims grounded;
+ *                              advisory signals such as most requested checks,
+ *                              scope drift, and missing refresh are reported).
+ *
+ * repovine never reads conversational transcripts; it validates structured
+ * claims plus observable repository state.
+ */
+import type { RepositoryGraph, RepositoryFactsSnapshot } from '../types.js';
+import type { AnnotationStore } from '../annotations/store.js';
+import { computeAnnotationQuality, isHardConsistencyIssue } from '../annotations/quality.js';
+import { isPropagationStaleItem, isContentStaleItem } from '../annotations/backlog.js';
+import { detectSideEffectKindsFromHints } from '../annotations/side-effect-vocab.js';
+import { inferModuleKind } from '../annotations/module-kind.js';
+import { nodeInScopeHints } from '../annotations/scope-hints.js';
+import { owningModuleId } from '../graph/node-ids.js';
+import { renderNextCall } from '../response/next-call.js';
+import { validateAnnotationHealth, buildAnnotationHealthScan } from '../annotations/maintenance.js';
+import type { AnnotationHealthScan } from '../annotations/store.js';
+import {
+  PROTOCOL_VERSION,
+  AgentAssignmentSchema,
+  AgentRunResultSchema,
+  SubagentHandoffSchema,
+  ReviewInputSchema,
+  RequestedCheckSchema,
+  type AgentAssignment,
+  type AgentRunResult,
+  type AgentComplianceReport,
+  type AcceptanceCriterion,
+  type DeliveryVerificationResult,
+  type VerificationPolicy,
+  type RequestedCheck,
+  type SubagentHandoff,
+  type ReviewInput,
+} from './protocol.js';
+import type { ContextQualityReport, ContextSessionPolicy, ContextQualityConfig } from '../context-quality/types.js';
+import { stripIndexBasename, stripModuleIdSuffix } from '../plugin-host/source-set.js';
+import { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
+export { resolveNodeIdByShape as resolveGraphNodeId } from '../graph/module-files.js';
+import { moduleNodeId } from '../graph/node-ids.js';
+import { computeChangedPaths } from './change-set.js';
+import { resolveRelPath, toPosixPath } from '../platform/paths.js';
+import { shortenList, omittedNote } from '../platform/text.js';
+
+// The weighted context-quality score was measured against outcome-labelled sessions and did not
+// beat a trivial baseline, so it may not reject a handoff. The report is still emitted in full;
+// only its authority is withheld. See docs/context-quality.md for the bar a hard gate must clear.
+const CONTEXT_QUALITY_HARD_GATE_VALIDATED = false;
+
+// ── Shared shapes ──
+
+/** Observable repository state the compliance layer reads. */
+export interface ComplianceState {
+  repoRoot: string;
+  graph: RepositoryGraph;
+  snapshot: RepositoryFactsSnapshot;
+  annotations: AnnotationStore;
+  getContextQualityReport?: (
+    sessionId: string,
+    policy?: ContextSessionPolicy,
+  ) => ContextQualityReport | undefined;
+  consumeContextQualitySession?: (
+    sessionId: string,
+    options?: { retain?: boolean },
+  ) => boolean;
+  contextQualityConfig?: ContextQualityConfig;
+}
+
+/** Result of a schema-only validation pass over an untrusted artifact. */
+export interface SchemaValidation<T> {
+  valid: boolean;
+  /** Parsed + typed value when valid. */
+  value?: T;
+  errors: string[];
+  warnings: string[];
+  /** Set when protocolVersion was present but unsupported. */
+  unsupportedVersion?: string;
+}
+
+// ── Helpers ──
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Detect a present-but-unsupported protocolVersion before strict parsing. */
+function unsupportedVersionOf(input: unknown): string | undefined {
+  if (!isRecord(input)) return undefined;
+  const v = input.protocolVersion;
+  if (typeof v === 'string' && v !== PROTOCOL_VERSION) return v;
+  if (typeof v === 'number' && String(v) !== PROTOCOL_VERSION) return String(v);
+  return undefined;
+}
+
+function formatIssues(error: { issues: Array<{ path: PropertyKey[]; message: string }> }): string[] {
+  return error.issues.map(i => `${i.path.join('.') || '(root)'}: ${i.message}`);
+}
+
+
+/**
+ * Map a changed file path (repo- or package-relative, any extension) to the graph module id(s)
+ * it backs. Used by the annotation provenance check: editing a file grounds annotations on its
+ * module. Matches the canonical `mod:<path>` id directly and, as a fallback, by path suffix
+ * against the snapshot's module records.
+ */
+function modulesForFile(graph: RepositoryGraph, snapshot: RepositoryFactsSnapshot, file: string): string[] {
+  const norm = resolveRelPath;
+  const stripExt = (p: string): string => stripIndexBasename(stripModuleIdSuffix(p));
+  const target = stripExt(norm(file));
+  if (!target) return [];
+  const out = new Set<string>();
+  const targetId = moduleNodeId(target);
+  if (graph.nodes.has(targetId)) out.add(targetId);
+  for (const mod of snapshot.modules ?? []) {
+    const rel = stripExt(norm(mod.pkgRelPath ?? ''));
+    const abs = stripExt(norm(mod.absPath ?? ''));
+    if (rel && (target === rel || target.endsWith(`/${rel}`) || rel.endsWith(`/${target}`))) out.add(mod.id);
+    else if (abs && (abs === target || abs.endsWith(`/${target}`))) out.add(mod.id);
+  }
+  return [...out];
+}
+
+function scopeEntryCovered(entry: string, allowed: string[]): boolean {
+  return allowed.some(a => entry === a || entry.startsWith(`${a}/`) || a.startsWith(`${entry}/`));
+}
+
+function collectScopeCollisions(entries: string[], allowed: string[]): string[] {
+  if (allowed.length === 0) return [];
+  return entries.filter(entry => !scopeEntryCovered(entry, allowed));
+}
+
+function hasResolvedAnchors(value: unknown): value is AgentRunResult['contextPack'] {
+  return isRecord(value) && Array.isArray(value.resolvedAnchors) && Array.isArray(value.scope);
+}
+
+// ── Schema validators ──
+
+/** Validate an AgentAssignment shape. */
+export function validateAssignment(input: unknown): SchemaValidation<AgentAssignment> {
+  const unsupportedVersion = unsupportedVersionOf(input);
+  const parsed = AgentAssignmentSchema.safeParse(input);
+  if (parsed.success) {
+    return { valid: true, value: parsed.data, errors: [], warnings: [] };
+  }
+  const errors = formatIssues(parsed.error);
+  if (unsupportedVersion) {
+    errors.unshift(
+      `Unsupported protocolVersion "${unsupportedVersion}"; this repovine supports "${PROTOCOL_VERSION}".`,
+    );
+  }
+  return { valid: false, errors, warnings: [], ...(unsupportedVersion ? { unsupportedVersion } : {}) };
+}
+
+/** Validate an AgentRunResult shape. */
+export function validateRunResult(input: unknown): SchemaValidation<AgentRunResult> {
+  const unsupportedVersion = unsupportedVersionOf(input);
+  const parsed = AgentRunResultSchema.safeParse(input);
+  if (parsed.success) {
+    return { valid: true, value: parsed.data, errors: [], warnings: [] };
+  }
+  const errors = formatIssues(parsed.error);
+  if (unsupportedVersion) {
+    errors.unshift(
+      `Unsupported protocolVersion "${unsupportedVersion}"; this repovine supports "${PROTOCOL_VERSION}".`,
+    );
+  }
+  return { valid: false, errors, warnings: [], ...(unsupportedVersion ? { unsupportedVersion } : {}) };
+}
+
+/** Validate an internal SubagentHandoff shape (used by main-agent orchestration). */
+export function validateSubagentHandoff(input: unknown): SchemaValidation<SubagentHandoff> {
+  const unsupportedVersion = unsupportedVersionOf(input);
+  const parsed = SubagentHandoffSchema.safeParse(input);
+  if (parsed.success) {
+    return { valid: true, value: parsed.data, errors: [], warnings: [] };
+  }
+  const errors = formatIssues(parsed.error);
+  if (unsupportedVersion) {
+    errors.unshift(
+      `Unsupported protocolVersion "${unsupportedVersion}"; this repovine supports "${PROTOCOL_VERSION}".`,
+    );
+  }
+  return { valid: false, errors, warnings: [], ...(unsupportedVersion ? { unsupportedVersion } : {}) };
+}
+
+// ── ReviewInput validation ──
+
+/**
+ * Normalize a repository-relative path for set comparison: convert `\\`→`/`,
+ * collapse duplicate separators, drop `.` segments and trailing separators.
+ * Reject empty, absolute, or parent-traversal (`..`) entries — a ReviewInput
+ * file set is repository-relative POSIX. Returns the normalized path or a
+ * rejection reason.
+ */
+function normalizeReviewPath(raw: string): { path?: string; error?: string } {
+  const collapsed = toPosixPath(raw.trim()).replace(/\/{2,}/g, '/');
+  if (collapsed.startsWith('/') || /^[A-Za-z]:\//.test(collapsed)) {
+    return { error: `absolute path not allowed: "${raw}"` };
+  }
+  const segments = collapsed.split('/').filter(seg => seg !== '' && seg !== '.');
+  if (segments.length === 0) return { error: `empty path entry "${raw}"` };
+  if (segments.includes('..')) return { error: `parent-traversal not allowed: "${raw}"` };
+  return { path: segments.join('/') };
+}
+
+/** Normalize a path list into a stable-sorted unique set, collecting rejects. */
+function normalizePathSet(paths: string[]): { set: string[]; errors: string[] } {
+  const set = new Set<string>();
+  const errors: string[] = [];
+  for (const raw of paths) {
+    const { path: p, error } = normalizeReviewPath(raw);
+    if (error) errors.push(error);
+    else if (p) set.add(p);
+  }
+  return { set: [...set].sort(), errors };
+}
+
+/** Trim, dedupe, and stable-sort graph node ids (no path normalization). */
+function normalizeNodeIdSet(ids: string[]): string[] {
+  return [...new Set(ids.map(id => id.trim()).filter(id => id.length > 0))].sort();
+}
+
+function setsEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+/**
+ * Validate a standalone ReviewInput: schema shape plus cross-object linkage.
+ *
+ * `ReviewInput.assignment` is normatively the ORIGINAL parent implementation
+ * assignment (the separate review assignment is the reviewer's own dispatch
+ * envelope), so its runId must equal `implementationResult.runId`. The top-level
+ * `changedFiles` / `graphNodesTouched` are the reviewer-facing delta and MUST be
+ * set-equal to the implementation result's own claims. Reports errors; never
+ * rewrites the submitted object.
+ */
+export function validateReviewInput(input: unknown): SchemaValidation<ReviewInput> {
+  const parsed = ReviewInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { valid: false, errors: formatIssues(parsed.error), warnings: [] };
+  }
+  const value = parsed.data;
+  const errors: string[] = [];
+
+  // runId linkage: the assignment is the implementation assignment.
+  if (value.assignment.runId !== value.implementationResult.runId) {
+    errors.push(
+      `ReviewInput linkage: assignment.runId "${value.assignment.runId}" != implementationResult.runId "${value.implementationResult.runId}".`,
+    );
+  }
+
+  // changedFiles set-equality with implementationResult.filesChanged.
+  const changed = normalizePathSet(value.changedFiles);
+  const resultFiles = normalizePathSet(value.implementationResult.filesChanged);
+  for (const e of changed.errors) errors.push(`ReviewInput.changedFiles: ${e}`);
+  for (const e of resultFiles.errors) errors.push(`ReviewInput.implementationResult.filesChanged: ${e}`);
+  if (changed.errors.length === 0 && resultFiles.errors.length === 0 && !setsEqual(changed.set, resultFiles.set)) {
+    errors.push(
+      `ReviewInput.changedFiles must set-equal implementationResult.filesChanged `
+      + `(changedFiles=[${changed.set.join(', ')}], filesChanged=[${resultFiles.set.join(', ')}]).`,
+    );
+  }
+
+  // graphNodesTouched set-equality with implementationResult.graphNodesTouched.
+  const changedNodes = normalizeNodeIdSet(value.graphNodesTouched);
+  const resultNodes = normalizeNodeIdSet(value.implementationResult.graphNodesTouched);
+  if (!setsEqual(changedNodes, resultNodes)) {
+    errors.push(
+      `ReviewInput.graphNodesTouched must set-equal implementationResult.graphNodesTouched `
+      + `(graphNodesTouched=[${changedNodes.join(', ')}], result=[${resultNodes.join(', ')}]).`,
+    );
+  }
+
+  return { valid: errors.length === 0, value, errors, warnings: [] };
+}
+
+// ── Compliance validation ──
+
+const CHECK_TO_FLAG: Record<Exclude<RequestedCheck, 'code-review'>, keyof AgentRunResult['compliance'] | 'testsRun'> = {
+  dependencies: 'dependencyImpactChecked',
+  config: 'configSurfaceChecked',
+  'runtime-flow': 'flowChecked',
+  architecture: 'architectureChecked',
+  annotations: 'annotationsClean',
+  tests: 'testsRun',
+};
+
+const CHECK_FOLLOWUP: Record<RequestedCheck, string> = {
+  dependencies: 'Run analyze_dependencies({ "scope": "mod:<path/to/module>", "mode": "impact" }) for the touched scope; impact needs a module or export-symbol scope.',
+  config: 'Run get_config_surface for the touched scope.',
+  'runtime-flow': 'Run trace_flow for the touched runtime scope.',
+  architecture: 'Run analyze_architecture for the touched scope.',
+  'code-review': 'Provide AgentRunResult.review with a read-only CodeReviewResult verdict.',
+  annotations: 'Run get_annotation_status / validate_annotations and clear the queue.',
+  tests: 'Record the tests run in result.testsRun.',
+};
+
+/** A run result field is "empty" when absent, an empty string, or an empty array. */
+function isFieldEmpty(result: AgentRunResult, field: string): boolean {
+  const value = (result as unknown as Record<string, unknown>)[field];
+  if (value == null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+export interface CheckComplianceInput {
+  result: AgentRunResult;
+  assignment?: AgentAssignment;
+  state: ComplianceState;
+  /**
+   * Required run-result fields for the run's role, resolved by the caller (role → manifest). The
+   * validator does not know about roles or manifests; it enforces the field list it is handed.
+   * Absent means the baseline `['summary']`.
+   */
+  requiredRunResultFields?: string[];
+  /**
+   * Set when the run's manifest is read-only (canEditFiles=false); carries its name for the error
+   * message. When set, a non-empty filesChanged is a violation. Resolved by the caller from the role.
+   */
+  readOnlyManifestName?: string;
+  /**
+   * The run began greenfield: no prior annotated context existed when it started.
+   * Set by a multi-sub-agent harness so the greenfield context exemption holds for
+   * EVERY sub-agent in the run, not just the first. Without it, the exemption is
+   * per-sub-agent: the moment one sibling writes an annotation, later siblings see it
+   * as "prior context" and get their weak first-pass sessions hard-failed. Prior
+   * context is a run-start property, so the harness that knows run-start state owns it.
+   */
+  greenfieldRun?: boolean;
+}
+
+/**
+ * Validate a run result's claims against observable repovine state and produce
+ * an AgentComplianceReport. The result is assumed already schema-valid; callers
+ * that accept untrusted input should run {@link validateRunResult} first.
+ */
+export function checkCompliance(input: CheckComplianceInput): AgentComplianceReport {
+  const { result, assignment, state } = input;
+  const { graph } = state;
+
+  // Enforcement mode (harness | client) gates how hard annotation/context issues
+  // bite. Computed once up front so the annotation section and the context-session
+  // section share it. Source of truth: assignment.contextSession.mode, else the
+  // repo's contextQuality.enforcement.mode, else client. Client mode preserves the
+  // pre-existing warning-only behavior. Harness mode still hard-fails the
+  // evidence-backed annotation checks; the unvalidated context score is
+  // explicitly advisory below.
+  const contextPolicy = assignment?.contextSession;
+  const contextRequired = contextPolicy?.required === true;
+  const enforcementMode = contextPolicy?.mode ?? state.contextQualityConfig?.enforcement.mode ?? 'client';
+  const harnessStrict = enforcementMode === 'harness';
+
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const missingFields: string[] = [];
+  const staleAnnotations: string[] = [];
+  const missingAnnotations: string[] = [];
+  const unresolvedGraphNodes: string[] = [];
+  const scopeCollisions: string[] = [];
+  const requiredFollowups: string[] = [];
+  // Structured annotation-grounding facts (surfaced regardless of mode; consumers apply their own
+  // policy). Hard only — env mismatches stay advisory in warnings and never enter these.
+  const ungroundedAnnotations: string[] = [];
+  const inconsistentAnnotations: Array<{ nodeId: string; issues: string[] }> = [];
+  let contextQuality: ContextQualityReport | undefined;
+
+  // Machine-readable error codes. fail() records an error and its stable code together, so every
+  // errors entry has a matching diagnostics entry at the same index. Push to `errors` only through
+  // fail() to keep the two lists aligned; warnings carry no code.
+  const diagnostics: Array<{ code: string; message: string }> = [];
+  const fail = (code: string, message: string): void => {
+    errors.push(message);
+    diagnostics.push({ code, message });
+  };
+
+  // runId linkage between assignment and result.
+  if (assignment && assignment.runId !== result.runId) {
+    fail(
+      'RUNID_MISMATCH',
+      `runId mismatch: assignment "${assignment.runId}" != result "${result.runId}".`,
+    );
+  }
+
+  // Required-by-role result fields (resolved by the caller from the run's role; baseline is summary).
+  const requiredFields = input.requiredRunResultFields ?? ['summary'];
+  for (const field of requiredFields) {
+    if (isFieldEmpty(result, field)) missingFields.push(field);
+  }
+  if (missingFields.length > 0) {
+    requiredFollowups.push(
+      `Populate required result field(s): ${missingFields.join(', ')}.`,
+    );
+  }
+
+  // Declared read-only capability: a canEditFiles=false manifest, or an
+  // annotate-phase assignment, must not report source edits. Annotation-writer
+  // effects are represented by annotationsWritten, never sub-agent filesChanged.
+  if (result.filesChanged.length > 0) {
+    if (input.readOnlyManifestName) {
+      fail(
+        'READONLY_MANIFEST_EDITED',
+        `Manifest "${input.readOnlyManifestName}" is read-only (canEditFiles=false) but result.filesChanged is non-empty: ${result.filesChanged.join(', ')}.`,
+      );
+      requiredFollowups.push('Run edits under an edit-capable manifest, or report annotation effects via annotationsWritten instead of filesChanged.');
+    }
+    if (contextPolicy?.phase === 'annotate') {
+      fail('ANNOTATE_PHASE_EDITED', 'assignment.contextSession.phase="annotate" but result.filesChanged is non-empty; the annotate phase is source-read-only.');
+      requiredFollowups.push('Move code edits to an implementation phase; the annotate phase only writes annotations.');
+    }
+  }
+
+  // Declared graph nodes must exist in the current graph.
+  for (const nodeId of result.graphNodesTouched) {
+    if (!resolveGraphNodeId(graph, nodeId)) unresolvedGraphNodes.push(nodeId);
+  }
+  if (unresolvedGraphNodes.length > 0) {
+    fail('GRAPH_NODE_UNRESOLVED', `Declared graphNodesTouched not found in graph: ${unresolvedGraphNodes.join(', ')}.`);
+    requiredFollowups.push('Run refresh_context and correct graphNodesTouched to canonical node ids.');
+  }
+
+  const annotationsRequested = assignment?.requestedChecks.includes('annotations') === true;
+  const annotationPhase = contextPolicy?.phase === 'annotate' || annotationsRequested;
+
+  // Annotation state (orphans, stale, parse/merge) from a single shared scan,
+  // reused by the health report and every scoped check below.
+  const annotationScan = buildAnnotationHealthScan({
+    repoRoot: state.repoRoot,
+    graph,
+    snapshot: state.snapshot,
+    annotations: state.annotations,
+  });
+  const health = validateAnnotationHealth({
+    repoRoot: state.repoRoot,
+    graph,
+    snapshot: state.snapshot,
+    annotations: state.annotations,
+    scan: annotationScan,
+  });
+  const orphanedAnnotations = health.mergeStatus.file.exists
+    ? state.annotations.detectOrphaned(graph).orphaned.map(o => o.nodeId)
+    : [];
+
+  // Declared-written annotations must actually exist; flag claimed-but-absent.
+  const queue = annotationScan.rows;
+  const staleSet = new Set(
+    queue.filter(q => q.status === 'stale' && !isPropagationStaleItem(q)).map(q => q.nodeId),
+  );
+  const propagationStaleSet = new Set(
+    queue.filter(q => isPropagationStaleItem(q)).map(q => q.nodeId),
+  );
+  for (const rawId of result.annotationsWritten) {
+    const nodeId = resolveGraphNodeId(graph, rawId) ?? rawId;
+    if (!state.annotations.get(nodeId)) {
+      missingAnnotations.push(rawId);
+    } else if (staleSet.has(nodeId)) {
+      staleAnnotations.push(nodeId);
+    } else if (propagationStaleSet.has(nodeId)) {
+      fail('ANNOTATION_PROPAGATION_STALE', `Declared annotation is propagation-stale and should be reviewed against upstream changes: ${nodeId}.`);
+    }
+  }
+  if (missingAnnotations.length > 0) {
+    fail('ANNOTATION_MISSING', `Declared annotationsWritten with no stored annotation: ${missingAnnotations.join(', ')}.`);
+    requiredFollowups.push('Re-run write_annotation for the claimed nodes, or remove them from annotationsWritten.');
+  }
+  if (staleAnnotations.length > 0) {
+    warnings.push(`Declared annotations are content-stale: ${staleAnnotations.join(', ')}.`);
+    requiredFollowups.push('Refresh annotations for stale declared nodes via write_annotation.');
+  }
+
+  const implementPhase = contextPolicy?.phase === 'implement';
+  const assignmentScope = assignment?.scope ?? result.scope ?? [];
+  // Annotate-phase sync sub-agents are scoped writers: N of them drain disjoint
+  // scopes of ONE shared queue sequentially, so the first cannot honestly claim
+  // repo-wide clean while sibling scopes are still stale. Judge each against its
+  // OWN scope's staleness — same treatment implement leaves already get. A
+  // whole-repo scope ('.') stays repo-wide.
+  const scopedAnnotationsCleanGate =
+    (implementPhase || annotationPhase)
+    && assignmentScope.length > 0
+    && !assignmentScope.includes('.');
+
+  // annotationsClean claim cross-check against observable state.
+  if (result.compliance.annotationsClean) {
+    if (scopedAnnotationsCleanGate) {
+      const scopedHealth = validateAnnotationHealth({
+        repoRoot: state.repoRoot,
+        graph,
+        snapshot: state.snapshot,
+        annotations: state.annotations,
+        scope: assignmentScope,
+        scan: annotationScan,
+      });
+      if (!scopedHealth.scopedClean) {
+        fail(
+          'ANNOTATIONS_UNCLEAN_IN_SCOPE',
+          'compliance.annotationsClean=true but annotation checks are not clean within assignment scope '
+          + `[${assignmentScope.join(', ')}] `
+          + `(needsWorkInScope=${scopedHealth.needsWorkInScope ?? scopedHealth.needsWork}).`,
+        );
+      } else if (health.status !== 'clean') {
+        warnings.push(
+          'compliance.annotationsClean=true within assignment scope; repo-wide annotation queue still has '
+          + `${health.counts.stale} stale, ${health.counts.unannotated} unannotated item(s) — defer outside-scope debt to annotation-sync.`,
+        );
+      }
+      const scopedPropagation = queue.filter(
+        (q) => isPropagationStaleItem(q) && nodeInScopeHints(q.nodeId, assignmentScope),
+      );
+      if (scopedPropagation.length > 0) {
+        fail(
+          'ANNOTATION_PROPAGATION_STALE_IN_SCOPE',
+          `compliance.annotationsClean=true while ${scopedPropagation.length} propagation-stale annotation(s) remain in assignment scope; `
+          + 'clear via write_annotation({ refreshImportBaseline: true }) or rewrite when upstream contract changed.',
+        );
+      } else if (health.counts.stalePropagation > 0) {
+        warnings.push(
+          `compliance.annotationsClean=true within scope; ${health.counts.stalePropagation} propagation-stale item(s) outside assignment scope.`,
+        );
+      }
+    } else {
+      if (health.status !== 'clean') {
+        fail(
+          'ANNOTATIONS_UNCLEAN',
+          'compliance.annotationsClean=true but annotation hard checks are not clean '
+          + `(orphaned=${health.counts.orphaned}, stale=${health.counts.stale}, conflictMarkers=${health.mergeStatus.file.hasConflictMarkers}).`,
+        );
+      }
+      if (health.counts.stalePropagation > 0) {
+        fail(
+          'ANNOTATION_PROPAGATION_STALE_GLOBAL',
+          `compliance.annotationsClean=true while ${health.counts.stalePropagation} propagation-stale annotation(s) remain; clear via write_annotation({ refreshImportBaseline: true }) or rewrite when upstream contract changed.`,
+        );
+      }
+    }
+  }
+  if (orphanedAnnotations.length > 0) {
+    const orphanMsg = `Orphaned annotations present (${orphanedAnnotations.length}); report or clean before handoff.`;
+    if (harnessStrict && annotationPhase) fail('ANNOTATIONS_ORPHANED', orphanMsg);
+    else warnings.push(orphanMsg);
+    requiredFollowups.push('Run refresh_context({ "cleanupOrphans": true }) or get_annotation_status({ "view": "orphans" }).');
+  }
+
+  if (harnessStrict && implementPhase && assignmentScope.length && !assignmentScope.includes('.')) {
+    const inScope = (nodeId: string) => nodeInScopeHints(nodeId, assignmentScope);
+    const outOfScopeNeedsWork = queue.filter((q) => {
+      if (inScope(q.nodeId)) return false;
+      if (q.status === 'unannotated') return true;
+      return isContentStaleItem(q) || isPropagationStaleItem(q);
+    });
+    if (outOfScopeNeedsWork.length > 0) {
+      const outOfScopeShown = shortenList(outOfScopeNeedsWork, 3);
+      const sample = outOfScopeShown.shown.map((q) => q.nodeId).join(', ');
+      warnings.push(
+        `Annotation queue has ${outOfScopeNeedsWork.length} item(s) outside assignment scope (${sample}${omittedNote(outOfScopeShown.omitted)}); defer to the infra/annotation-sync sub-agent.`,
+      );
+    }
+  }
+
+  // Harness coverage gate (harness mode ONLY — zero behavior change for clients):
+  // annotation completeness is enforced during an explicit annotation phase or
+  // when the assignment requested the annotations check. Code/review phases may
+  // defer annotation sync to a later reviewed pass, but false annotationsClean=true
+  // claims are still rejected above.
+  if (harnessStrict && annotationPhase) {
+    const scopeHints = assignment?.scope ?? result.scope ?? [];
+    const inScope = (nodeId: string): boolean => nodeInScopeHints(nodeId, scopeHints);
+    // Hard-fail on own-content drift (stale) and on unannotated CODE MODULES.
+    // Derived-stale is an advisory upstream-review signal, so it should not force
+    // bulk re-annotation unless a stricter assignment explicitly asks for it.
+    // Synthetic domain/service/infra roll-ups that are merely unannotated stay
+    // advisory — they are auto-derived aggregates, not the agent's edits, so
+    // forcing a note on every micro-task would be noise.
+    const isAggregate = (q: { phase?: string }) =>
+      q.phase === 'domain'
+      || q.phase === 'runtime-resource'
+      || q.phase === 'infra';
+    const uncovered = queue.filter(q => {
+      if (!inScope(q.nodeId)) return false;
+      if (q.status === 'unannotated' && isAggregate(q)) return false;
+      return q.status === 'unannotated' || isContentStaleItem(q) || isPropagationStaleItem(q);
+    });
+    if (uncovered.length > 0) {
+      const { shown, omitted } = shortenList(uncovered, 8);
+      const sample = shown.map(q => `${q.nodeId} (${q.staleKind ?? q.status})`).join(', ');
+      const more = omittedNote(omitted);
+      fail('ANNOTATION_COVERAGE_INCOMPLETE', `Annotation coverage incomplete in scope (${uncovered.length} node(s) unannotated/stale): ${sample}${more}.`);
+      requiredFollowups.push('write_annotation each unannotated/content-stale/propagation-stale node in scope, then refresh_context + validate_annotations until needsWork is 0.');
+    }
+
+  }
+
+  // Touched-set annotation quality for touched CODE modules. Two orthogonal axes:
+  //  • completeness (thin): a fresh, annotated module must have no missing recommended fields.
+  //    `missingFields` is ground-truth-aware (keyExports only when the module has exports, risks
+  //    only above the size trigger, …), so the gate is always satisfiable by honest annotation.
+  //    The absolute tier score is NOT gated: a small module (entry point, zero exports) caps
+  //    below `detailed` with every recommended field filled — gating on tier forces padding.
+  //    Harness-annotate-only error (zero behavior change for clients).
+  //  • consistency: filled fields that contradict graph facts (keyExports/env/declared-pure).
+  //    Hard error under harnessStrict && annotationPhase; a warning otherwise, so drift surfaces
+  //    in every mode without forcing repo-wide re-annotation.
+  // Evaluated for the nodes the run claims to have touched/written (not the whole repo).
+  const touched = new Set(
+    [...result.graphNodesTouched, ...result.annotationsWritten].map(id => resolveGraphNodeId(graph, id) ?? id),
+  );
+  const thin: string[] = [];
+  const inconsistentHard: string[] = [];
+  const inconsistentEnv: string[] = [];
+  for (const nodeId of touched) {
+    const stored = state.annotations.get(nodeId);
+    if (!stored) continue; // unannotated → coverage gate already owns this
+    const mod = state.snapshot.modules?.find(m => m.id === nodeId);
+    if (!mod) continue; // not a code module (domain/service roll-up) → skip
+    const maxLine = mod.exports.reduce((m, e) => Math.max(m, e.lineRange.end), 0);
+    const quality = computeAnnotationQuality(stored.annotation, {
+      exportCount: mod.exports.length,
+      lineCount: maxLine,
+      envVars: mod.semanticHints?.envVars,
+      moduleKind: inferModuleKind({ mod, node: graph.nodes.get(mod.id) }),
+      exportNames: mod.exports.map(e => e.name),
+      detectedSideEffectKinds: detectSideEffectKindsFromHints(mod.semanticHints),
+    });
+    if (quality.missingFields.length > 0) {
+      thin.push(`${nodeId} (tier=${quality.tier}, missing: ${quality.missingFields.join('/')})`);
+    }
+    if (!quality.consistency.ok) {
+      // Split hard (keyExports/sideEffects) from advisory env: the env-var detector resolves a name
+      // written at the access site, so a computed key, an aliased container, or a name arriving as an
+      // argument leaves a declared-but-undetected env dep — a likely detection gap, not annotation
+      // drift, and never a hard gate error. Rationale in full: isHardConsistencyIssue.
+      const hard = quality.consistency.issues.filter(isHardConsistencyIssue);
+      const env = quality.consistency.issues.filter(i => !isHardConsistencyIssue(i));
+      if (hard.length > 0) {
+        const issueStrings = hard.map(i => `${i.field}:${i.detail}`);
+        inconsistentHard.push(`${nodeId} (${issueStrings.join(', ')})`);
+        inconsistentAnnotations.push({ nodeId, issues: issueStrings });
+      }
+      if (env.length > 0) inconsistentEnv.push(`${nodeId} (${env.map(i => `${i.field}:${i.detail}`).join(', ')})`);
+    }
+  }
+  if (harnessStrict && annotationPhase && thin.length > 0) {
+    const thinShown = shortenList(thin, 8);
+    const sample = thinShown.shown.join('; ');
+    const more = omittedNote(thinShown.omitted);
+    fail('ANNOTATION_THIN', `Annotation is missing recommended fields for touched node(s): ${sample}${more}.`);
+    requiredFollowups.push('Fill the listed missing recommended fields and re-run write_annotation until no missing fields remain.');
+  }
+  if (inconsistentHard.length > 0) {
+    const hardShown = shortenList(inconsistentHard, 8);
+    const sample = hardShown.shown.join('; ');
+    const more = omittedNote(hardShown.omitted);
+    const message = `Annotation contradicts graph facts for touched node(s): ${sample}${more}.`;
+    if (harnessStrict && annotationPhase) fail('ANNOTATION_INCONSISTENT', message);
+    else warnings.push(message);
+    requiredFollowups.push('Fix the contradicting keyExports/sideEffects to match the current graph, then re-run write_annotation.');
+  }
+  if (inconsistentEnv.length > 0) {
+    const envShown = shortenList(inconsistentEnv, 8);
+    const sample = envShown.shown.join('; ');
+    const more = omittedNote(envShown.omitted);
+    warnings.push(`Annotation declares env dependencies not detected in graph hints (advisory; env detection may be incomplete) for touched node(s): ${sample}${more}.`);
+  }
+
+  // refresh_context must have run when graph-relevant files changed.
+  if (result.filesChanged.length > 0 && !result.compliance.refreshContextRun) {
+    warnings.push('filesChanged is non-empty but compliance.refreshContextRun=false.');
+    requiredFollowups.push('Run refresh_context after code changes so the graph reflects edits.');
+  }
+
+  // Requested checks must be reflected in the result.
+  for (const check of assignment?.requestedChecks ?? []) {
+    if (!RequestedCheckSchema.safeParse(check).success) continue;
+    if (check === 'code-review') {
+      if (!result.review) {
+        fail('REVIEW_MISSING', 'Requested check "code-review" is missing AgentRunResult.review.');
+        requiredFollowups.push(CHECK_FOLLOWUP[check]);
+      } else if (result.review.reviewedFiles.length === 0) {
+        fail('REVIEW_EMPTY_FILES', 'Requested check "code-review" has an empty review.reviewedFiles list.');
+        requiredFollowups.push('Record the files reviewed in AgentRunResult.review.reviewedFiles.');
+      }
+      continue;
+    }
+    const flag = CHECK_TO_FLAG[check];
+    const reflected = flag === 'testsRun'
+      ? result.testsRun.length > 0
+      : Boolean(result.compliance[flag]);
+    if (!reflected) {
+      warnings.push(`Requested check "${check}" is not reflected in the result.`);
+      requiredFollowups.push(CHECK_FOLLOWUP[check]);
+    }
+  }
+
+  // Scope: result scope entries outside the assignment scope.
+  if (assignment && assignment.scope.length > 0 && result.scope.length > 0) {
+    scopeCollisions.push(...collectScopeCollisions(result.scope, assignment.scope));
+    if (scopeCollisions.length > 0) {
+      warnings.push(`Result scope entries outside the assignment scope: ${scopeCollisions.join(', ')}.`);
+      requiredFollowups.push('Confirm out-of-scope changes were intended, or split into a separate assignment.');
+    }
+  }
+
+  // ContextPack anchors are observable graph claims; scope drift is advisory.
+  const validateContextPack = (label: string, pack: NonNullable<AgentRunResult['contextPack']>) => {
+    const unresolvedAnchors = pack.resolvedAnchors
+      .map(a => a.nodeId)
+      .filter(nodeId => !resolveGraphNodeId(graph, nodeId));
+    if (unresolvedAnchors.length > 0) {
+      unresolvedGraphNodes.push(...unresolvedAnchors);
+      fail('CONTEXT_PACK_ANCHOR_UNRESOLVED', `${label}.resolvedAnchors nodeId(s) not found in graph: ${unresolvedAnchors.join(', ')}.`);
+      requiredFollowups.push('Refresh context and correct ContextPack.resolvedAnchors to canonical node ids.');
+    }
+    if (assignment && assignment.scope.length > 0) {
+      const contextScopeCollisions = collectScopeCollisions(pack.scope, assignment.scope);
+      if (contextScopeCollisions.length > 0) {
+        warnings.push(`${label}.scope entries outside the assignment scope: ${contextScopeCollisions.join(', ')}.`);
+        requiredFollowups.push('Confirm context scope expansion was intended, or split exploration into a separate assignment.');
+      }
+    }
+  };
+
+  if (result.contextPack) validateContextPack('result.contextPack', result.contextPack);
+  if (assignment?.priorContext && hasResolvedAnchors(assignment.priorContext)) {
+    validateContextPack('assignment.priorContext', assignment.priorContext);
+  }
+
+  const priorScope = assignment?.priorContext && isRecord(assignment.priorContext) && Array.isArray(assignment.priorContext.scope)
+    ? assignment.priorContext.scope.filter((s): s is string => typeof s === 'string')
+    : [];
+  if (priorScope.length > 0 && result.scope.length > 0) {
+    const drift = collectScopeCollisions(result.scope, priorScope);
+    if (drift.length > 0) {
+      warnings.push(`Result scope drifted outside priorContext.scope: ${drift.join(', ')}.`);
+      requiredFollowups.push('Confirm prior context still covers the run, or collect a new ContextPack for the expanded scope.');
+    }
+  }
+
+  if (result.architectureAudit) {
+    if (!result.compliance.architectureChecked) {
+      warnings.push('AgentRunResult.architectureAudit is present but compliance.architectureChecked=false.');
+      requiredFollowups.push('Set compliance.architectureChecked=true only after architecture audit tools were used.');
+    }
+    if (assignment && assignment.scope.length > 0) {
+      const auditScopeCollisions = collectScopeCollisions(result.architectureAudit.auditScope, assignment.scope);
+      if (auditScopeCollisions.length > 0) {
+        warnings.push(`architectureAudit.auditScope entries outside the assignment scope: ${auditScopeCollisions.join(', ')}.`);
+      }
+    }
+    const seenFindingIds = new Set<string>();
+    for (const finding of result.architectureAudit.findings) {
+      if (seenFindingIds.has(finding.findingId)) {
+        warnings.push(`architectureAudit contains duplicate findingId "${finding.findingId}".`);
+      }
+      seenFindingIds.add(finding.findingId);
+      const unresolvedNodes = finding.nodes.filter(nodeId => !resolveGraphNodeId(graph, nodeId));
+      if (unresolvedNodes.length > 0) {
+        unresolvedGraphNodes.push(...unresolvedNodes);
+        fail('ARCH_FINDING_NODE_UNRESOLVED', `architectureAudit finding "${finding.findingId}" references graph node(s) not found: ${unresolvedNodes.join(', ')}.`);
+      }
+      const proposed = finding.proposedAssignment;
+      if (proposed && proposed.scopeExpansion !== true) {
+        const outsideAuditScope = collectScopeCollisions(proposed.scope, result.architectureAudit.auditScope);
+        if (outsideAuditScope.length > 0) {
+          warnings.push(`architectureAudit finding "${finding.findingId}" proposes assignment scope outside auditScope: ${outsideAuditScope.join(', ')}.`);
+          requiredFollowups.push('Mark proposedAssignment.scopeExpansion=true or keep proposed work inside the audited scope.');
+        }
+      }
+    }
+  }
+
+  if (result.review) {
+    if (result.filesChanged.length > 0) {
+      fail('REVIEW_NOT_READONLY', 'AgentRunResult.review is present but filesChanged is non-empty; code review runs must be read-only.');
+      requiredFollowups.push('Run code review as a separate read-only assignment, or remove review from an implementation result.');
+    }
+    if (assignment && assignment.scope.length > 0) {
+      const reviewedOutOfScope = collectScopeCollisions(result.review.reviewedFiles, assignment.scope);
+      if (reviewedOutOfScope.length > 0) {
+        warnings.push(`review.reviewedFiles outside the assignment scope: ${reviewedOutOfScope.join(', ')}.`);
+      }
+    }
+    const seriousFindings = result.review.findings.filter(f => f.severity === 'blocker' || f.severity === 'major');
+    if (result.review.verdict === 'approve' && seriousFindings.length > 0) {
+      fail('APPROVE_WITH_SERIOUS_FINDINGS', 'review.verdict="approve" but blocker/major review findings are present.');
+      requiredFollowups.push('Use changes-requested/needs-developer, or downgrade/remove serious findings with evidence.');
+    }
+    if (result.review.testReview && result.review.verdict === 'approve' && result.review.testReview.coverageAssessment !== 'adequate') {
+      fail('APPROVE_COVERAGE_INADEQUATE', `review.verdict="approve" but testReview.coverageAssessment="${result.review.testReview.coverageAssessment}".`);
+      requiredFollowups.push('Use needs-developer/changes-requested or record adequate test coverage evidence.');
+    }
+    const seriousMissingTests = (result.review.testReview?.missingTests ?? []).filter(
+      t => t.severity === 'blocker' || t.severity === 'major',
+    );
+    if (result.review.verdict === 'approve' && seriousMissingTests.length > 0) {
+      fail('APPROVE_MISSING_TESTS', `review.verdict="approve" but testReview.missingTests contains ${seriousMissingTests.length} blocker/major entr${seriousMissingTests.length === 1 ? 'y' : 'ies'}.`);
+      requiredFollowups.push('Use changes-requested/needs-developer, or resolve the blocker/major missing tests before approving.');
+    }
+    const unresolvedReviewNodes = result.review.findings
+      .map(f => f.graphNodeId)
+      .filter((nodeId): nodeId is string => typeof nodeId === 'string' && !resolveGraphNodeId(graph, nodeId));
+    if (unresolvedReviewNodes.length > 0) {
+      unresolvedGraphNodes.push(...unresolvedReviewNodes);
+      fail('REVIEW_FINDING_NODE_UNRESOLVED', `review.findings graphNodeId(s) not found in graph: ${unresolvedReviewNodes.join(', ')}.`);
+    }
+    const coverage = result.review.testReview?.coverageAssessment;
+    const hasCoverageExplanation = (result.review.testReview?.missingTests.length ?? 0) > 0
+      || result.review.findings.length > 0
+      || result.review.residualRisks.length > 0;
+    if ((coverage === 'insufficient' || coverage === 'not-run') && !hasCoverageExplanation) {
+      warnings.push(`review.testReview.coverageAssessment="${coverage}" without missingTests, findings, or residualRisks.`);
+      requiredFollowups.push('Explain weak review coverage through missingTests, findings, or residualRisks.');
+    }
+  }
+
+  // Assignment/policy version linkage: reject a policy counter that is out of step with the
+  // assignment. The counter is a consistency marker, not a content digest or custody proof.
+  if (assignment?.verificationPolicy && assignment.version !== assignment.verificationPolicy.version) {
+    fail(
+      'POLICY_VERSION_MISMATCH',
+      `assignment.version (${assignment.version}) does not match verificationPolicy.version (${assignment.verificationPolicy.version}).`,
+    );
+    requiredFollowups.push('Align assignment.version with verificationPolicy.version, or issue both under a new version.');
+  }
+
+  // Delivery verification: re-check the self-reported criteria registry and split verdict against the
+  // assignment's acceptance criteria, then the cited evidence against the supplied policy allowlist.
+  if (result.deliveryVerification) {
+    // Revision-linked evidence: when the assignment names a base (and optional head) revision,
+    // resolve the run's change-set so a covered criterion must cite a node the run actually changed,
+    // not merely an existing one. Absent refs leave changedPaths null and the check is skipped. Base
+    // and head are the harness's run-start and verify snapshots; this never reads runtime-check state.
+    const changedPaths = computeChangedPaths(state.repoRoot, assignment?.delivery?.baseRef, assignment?.delivery?.headRef);
+    const criterionKinds = new Map((assignment?.acceptanceCriteria ?? []).map((c) => [c.id, c.kind ?? 'delivery']));
+    // Fail-closed on requested-but-unavailable revision linkage. A set baseRef means the harness asked
+    // for a change-set; a null result then means git could not compute it (unresolvable ref / not a git
+    // repo / git failure), not that linkage was unrequested. A covered delivery grounded in repository
+    // evidence cannot be re-checked against that missing change-set, so it is unverified, not passed.
+    // Scoped to an actually-affected covered delivery; an absent baseRef, or an all-invariant /
+    // no-repository result, stays silent.
+    if (assignment?.delivery?.baseRef && changedPaths === null) {
+      const hasCoveredDeliveryRepoEvidence = result.deliveryVerification.criteriaResults.some(
+        cr => cr.status === 'covered'
+          && (criterionKinds.get(cr.criterionId) ?? 'delivery') !== 'invariant'
+          && cr.evidence.some(e => e.kind === 'repository'),
+      );
+      if (hasCoveredDeliveryRepoEvidence) {
+        fail(
+          'DELIVERY_CHANGESET_UNAVAILABLE',
+          'assignment.delivery.baseRef is set but the change-set could not be computed (git unavailable or unresolvable ref); covered delivery criteria cannot be revision-checked.',
+        );
+        requiredFollowups.push('Provide a resolvable delivery.baseRef (and headRef) in a git repository so covered delivery criteria can be revision-checked.');
+      }
+    }
+    // Resolve the changed files to the modules they back — the same file→module resolver the
+    // annotation-grounding check uses — so a covered criterion must cite a node the run's change-set
+    // actually touched. Absent change-set (null) leaves nodeChangedInRun null and the check is skipped.
+    const changedModuleIds = changedPaths
+      ? new Set([...changedPaths].flatMap((f) => modulesForFile(graph, state.snapshot, f)))
+      : null;
+    const nodeChangedInRun = changedModuleIds
+      ? (nodeId: string): boolean => {
+        const id = resolveGraphNodeId(graph, nodeId);
+        if (!id) return false;
+        if (changedModuleIds.has(id)) return true;
+        if (!id.startsWith('export:')) return false;
+        const owner = owningModuleId(id);
+        return owner != null && changedModuleIds.has(owner);
+      }
+      : null;
+    const deliveryDiagnostics = [
+      ...verifyDeliveryRegistry({
+        acceptanceCriteria: assignment?.acceptanceCriteria ?? [],
+        deliveryVerification: result.deliveryVerification,
+        filesChanged: result.filesChanged,
+        verificationPolicy: assignment?.verificationPolicy,
+      }),
+      ...verifyDeliveryEvidence({
+        deliveryVerification: result.deliveryVerification,
+        verificationPolicy: assignment?.verificationPolicy,
+        resolveAnchor: (nodeId) => Boolean(resolveGraphNodeId(graph, nodeId)),
+        nodeChangedInRun,
+        criterionKinds,
+        resolveFileToModule: (file) => modulesForFile(graph, state.snapshot, file)[0],
+      }),
+    ];
+    for (const d of deliveryDiagnostics) {
+      fail(d.code, d.message);
+      if (d.followup) requiredFollowups.push(d.followup);
+    }
+  }
+
+  if (assignment?.contextSession?.sessionId && result.contextSessionId && assignment.contextSession.sessionId !== result.contextSessionId) {
+    fail(
+      'CONTEXT_SESSION_ID_MISMATCH',
+      `contextSession.sessionId mismatch: assignment "${assignment.contextSession.sessionId}" != result "${result.contextSessionId}".`,
+    );
+  }
+
+  // Greenfield exemption (harness-level, NOT harness-specific). Context Session
+  // Quality measures how well the agent used EXISTING context. On the first pass
+  // of a fresh repo there is no prior annotated context to use, so a required
+  // session could not fairly be enforced once a validated score is restored.
+  // "Prior context" = annotated nodes this
+  // run did not itself write; when there are none, context enforcement downgrades
+  // to advisory regardless of which harness set required=true. This lets every
+  // harness unconditionally request a context session and rely on repovine to not
+  // punish a genuine greenfield first iteration.
+  // "Prior context" is annotated nodes the RUN did not itself write. `writtenThisRun` only
+  // captures the current sub-agent's writes; in a multi-sub-agent run a sibling's writes land in
+  // the shared annots store and would read as prior context here. `greenfieldRun` closes that gap:
+  // when the run started with no annotations, none on disk are prior — sibling writes included.
+  const writtenThisRun = new Set(result.annotationsWritten.map(id => resolveGraphNodeId(graph, id) ?? id));
+  const priorAnnotatedCount = Object.keys(state.annotations.getAll()).filter(id => !writtenThisRun.has(id)).length;
+  const priorContextAvailable = !input.greenfieldRun && priorAnnotatedCount > 0;
+  const contextEnforceable = contextRequired && priorContextAvailable;
+  if (contextRequired && !priorContextAvailable && (harnessStrict || result.contextSessionId)) {
+    warnings.push(
+      input.greenfieldRun
+        ? 'Context session enforcement skipped: greenfield run (no annotated context existed at run start).'
+        : 'Context session enforcement skipped: no prior annotated context to use (greenfield first pass).',
+    );
+  }
+
+  // Context Session Quality is opt-in for Delivery Protocol v1. When an assignment marks
+  // it required, repovine recomputes the report from the session store instead
+  // of trusting the agent's optional self-report. Both modes currently emit
+  // warnings + requiredFollowups: the weighted score never beat a trivial baseline on
+  // outcome-labelled sessions, so the hard gate stays disabled until that bar is met.
+  if (contextRequired || result.contextSessionId) {
+    if (!result.contextSessionId) {
+      const message = 'assignment.contextSession.required=true but result.contextSessionId is missing.';
+      if (CONTEXT_QUALITY_HARD_GATE_VALIDATED && harnessStrict && contextEnforceable) fail('CONTEXT_SESSION_ID_MISSING', message);
+      else if (contextRequired) warnings.push(message);
+      requiredFollowups.push('Call the repovine MCP context tools with a shared contextSessionId and include it in AgentRunResult.');
+    } else if (!state.getContextQualityReport) {
+      // Environmental, not a quality failure: we cannot read the session store
+      // (e.g. compliance ran in a different process than the agent's MCP server).
+      // Advisory in all modes — never hard-fail an agent for harness plumbing.
+      warnings.push(`Context session quality store is unavailable for contextSessionId "${result.contextSessionId}".`);
+      requiredFollowups.push('Run compliance in the repovine MCP/CLI process that can read .repovine/.cache/sessions.');
+    } else {
+      contextQuality = state.getContextQualityReport(result.contextSessionId, {
+        ...(contextPolicy ?? {}),
+        mode: enforcementMode,
+        assignmentScope: assignment?.scope ?? [],
+      });
+      const reportMode = contextQuality?.policy.mode ?? enforcementMode;
+      const strict = reportMode === 'harness';
+
+      if (!contextQuality) {
+        // Session id was declared but no session was recorded under it. This is
+        // ambiguous (agent may not have threaded the id, or the provider's MCP
+        // server did not persist events where compliance can read them), so it is
+        // advisory. A genuinely context-skipping agent is still made observable
+        // through NO_RECORDED_EVENTS once an empty recorded session exists.
+        warnings.push(`Context session not found: ${result.contextSessionId}.`);
+        requiredFollowups.push('Pass the same contextSessionId on repovine MCP calls before handoff validation.');
+      } else {
+        for (const warning of contextQuality.warnings) {
+          warnings.push(warning);
+        }
+        if (
+          CONTEXT_QUALITY_HARD_GATE_VALIDATED
+          && strict
+          && contextEnforceable
+          && !contextQuality.acceptHandoff
+        ) {
+          fail(
+            'CONTEXT_QUALITY_REJECTED',
+            `Context session quality rejected handoff: overall=${contextQuality.overall}, `
+            + `reasons=${contextQuality.rejectReasons.join(', ') || 'none'}.`,
+          );
+        } else if (!contextQuality.acceptHandoff) {
+          warnings.push(
+            `Context session quality did not accept handoff: overall=${contextQuality.overall}, `
+            + `reasons=${contextQuality.rejectReasons.join(', ') || 'none'}.`,
+          );
+        } else if (contextQuality.belowWarningThreshold) {
+          warnings.push(
+            `Context session score (${contextQuality.overall}) is below warningThreshold `
+            + `(${contextQuality.policy.warningThreshold}); verify code quality because repovine context was weak.`,
+          );
+        }
+        for (const action of contextQuality.requiredFollowups) {
+          requiredFollowups.push(action);
+        }
+        appendAnnotationFollowupsForWeakContext({
+          contextQuality,
+          result,
+          assignment,
+          health,
+          scan: annotationScan,
+          graph,
+          requiredFollowups,
+        });
+        const selfOverall = result.contextQuality?.overall;
+        if (typeof selfOverall === 'number' && Math.abs(selfOverall - contextQuality.overall) > 0.02) {
+          warnings.push(
+            `Self-reported contextQuality.overall (${selfOverall}) differs from repovine recomputed overall (${contextQuality.overall}).`,
+          );
+        }
+      }
+    }
+  }
+
+  // Provenance gate (annotation grounding): every CODE-MODULE annotation this run claims to have
+  // written must be backed by inspection or an edit in the SAME run/session — otherwise an agent
+  // can fabricate plausible fields without reading the code (score measures completeness, not
+  // correctness). Grounded when the module was edited (filesChanged), explicitly declared
+  // (graphNodesTouched), or inspected/mapped in the session (stableAnchors; an `export:` anchor grounds
+  // its owning module, but coarse pkg:/domain: anchors deliberately do NOT — that would re-open the
+  // cheat of "inspect a package, ground every module in it"). Hard error only under harnessStrict &&
+  // annotationPhase, scoped to this run's annotationsWritten; client mode stays advisory. Pre-existing
+  // annotations are never re-judged: they never appear in a future run's annotationsWritten.
+  if (result.annotationsWritten.length > 0) {
+    const anchors = new Set(contextQuality?.aggregates.stableAnchors ?? []);
+    const editedModules = new Set(result.filesChanged.flatMap(f => modulesForFile(graph, state.snapshot, f)));
+    const declaredTouched = new Set(result.graphNodesTouched.map(id => resolveGraphNodeId(graph, id) ?? id));
+    const isGrounded = (nodeId: string): boolean => {
+      if (editedModules.has(nodeId) || declaredTouched.has(nodeId) || anchors.has(nodeId)) return true;
+      for (const a of anchors) {
+        if (a.startsWith('export:') && owningModuleId(a) === nodeId) return true;
+      }
+      return false;
+    };
+    for (const rawId of result.annotationsWritten) {
+      const nodeId = resolveGraphNodeId(graph, rawId) ?? rawId;
+      // Provenance applies to code modules only; domain/service/infra roll-ups are auto-derived.
+      if (!state.snapshot.modules?.some(m => m.id === nodeId)) continue;
+      if (!isGrounded(nodeId)) ungroundedAnnotations.push(nodeId);
+    }
+    if (ungroundedAnnotations.length > 0) {
+      const ungroundedShown = shortenList(ungroundedAnnotations, 8);
+      const sample = ungroundedShown.shown.join(', ');
+      const more = omittedNote(ungroundedShown.omitted);
+      const message = `Annotation provenance: ${ungroundedAnnotations.length} written code-module annotation(s) were not inspected or edited in this run/session: ${sample}${more}.`;
+      if (harnessStrict && annotationPhase) fail('ANNOTATION_UNGROUNDED', message);
+      else warnings.push(message);
+      requiredFollowups.push('inspect_node each annotated node, or edit its file, in the same contextSessionId before write_annotation.');
+    }
+  }
+
+  // Carry the health check's own next calls forward, rendered for the report's prose list.
+  for (const call of health.nextActions) {
+    const action = renderNextCall(call);
+    if (!requiredFollowups.includes(action)) requiredFollowups.push(action);
+  }
+
+  // A rejected report remains available for review even though the score is
+  // advisory. Accepted reports are consumed only after every evidence-backed
+  // compliance gate has run.
+  if (
+    errors.length === 0
+    && contextQuality?.acceptHandoff !== false
+    && result.contextSessionId
+    && state.consumeContextQualitySession
+  ) {
+    state.consumeContextQualitySession(result.contextSessionId, {
+      retain: contextPolicy?.retain === true,
+    });
+  }
+
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    runId: result.runId,
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    diagnostics,
+    missingFields,
+    staleAnnotations,
+    orphanedAnnotations,
+    missingAnnotations,
+    ungroundedAnnotations,
+    inconsistentAnnotations,
+    unresolvedGraphNodes,
+    scopeCollisions,
+    requiredFollowups: [...new Set(requiredFollowups)],
+    ...(contextQuality ? { contextQuality } : {}),
+  };
+}
+
+/** A machine-coded delivery-verification finding, folded into the report's errors/diagnostics. */
+interface DeliveryDiagnostic {
+  code: string;
+  message: string;
+  followup?: string;
+}
+
+/** Values appearing more than once, each reported once in first-seen order. */
+function findDuplicateIds(values: string[]): string[] {
+  const seen = new Set<string>();
+  const dup = new Set<string>();
+  for (const v of values) {
+    if (seen.has(v)) dup.add(v);
+    else seen.add(v);
+  }
+  return [...dup];
+}
+
+/**
+ * Re-check a self-reported DeliveryVerificationResult against the assignment's acceptance criteria:
+ * unique criterion ids, one result per criterion, no result for an undeclared criterion, a result for
+ * every required criterion, and a split verdict that does not contradict the registry. A verification
+ * run is read-only — it checks a coverage claim, it does not produce a delivery. intentVerified=true
+ * is rejected when a required criterion is open; a conservative false is not rejected, and with no
+ * required criteria a true claim has no open-criterion contradiction. Evidence-to-policy checks are
+ * applied separately. Role-agnostic and graph-free by construction.
+ */
+function verifyDeliveryRegistry(input: {
+  acceptanceCriteria: AcceptanceCriterion[];
+  deliveryVerification: DeliveryVerificationResult;
+  filesChanged: string[];
+  verificationPolicy?: VerificationPolicy;
+}): DeliveryDiagnostic[] {
+  const { acceptanceCriteria, deliveryVerification, filesChanged, verificationPolicy } = input;
+  const { criteriaResults, verdict } = deliveryVerification;
+  const out: DeliveryDiagnostic[] = [];
+
+  const dupCriterionIds = findDuplicateIds(acceptanceCriteria.map(c => c.id));
+  if (dupCriterionIds.length > 0) {
+    out.push({
+      code: 'CRITERION_ID_DUPLICATE',
+      message: `Assignment acceptanceCriteria contains duplicate id(s): ${dupCriterionIds.join(', ')}.`,
+      followup: 'Give each acceptance criterion a unique id before verification.',
+    });
+  }
+
+  const criterionIds = new Set(acceptanceCriteria.map(c => c.id));
+  const unknownResultIds = [...new Set(
+    criteriaResults.map(r => r.criterionId).filter(id => !criterionIds.has(id)),
+  )];
+  if (unknownResultIds.length > 0) {
+    out.push({
+      code: 'CRITERION_RESULT_UNKNOWN',
+      message: `deliveryVerification.criteriaResults reference criterion id(s) not in the assignment: ${unknownResultIds.join(', ')}.`,
+      followup: 'Remove results for criteria the assignment does not declare, or add the criteria to the assignment.',
+    });
+  }
+
+  const dupResultIds = findDuplicateIds(criteriaResults.map(r => r.criterionId));
+  if (dupResultIds.length > 0) {
+    out.push({
+      code: 'CRITERION_RESULT_DUPLICATE',
+      message: `deliveryVerification.criteriaResults reports more than one result for criterion id(s): ${dupResultIds.join(', ')}.`,
+      followup: 'Report exactly one current result per criterion.',
+    });
+  }
+
+  const resultIds = new Set(criteriaResults.map(r => r.criterionId));
+  const requiredUnresulted = acceptanceCriteria.filter(c => c.required && !resultIds.has(c.id)).map(c => c.id);
+  if (requiredUnresulted.length > 0) {
+    out.push({
+      code: 'CRITERION_REQUIRED_UNRESULTED',
+      message: `Required acceptance criterion(s) have no result in deliveryVerification: ${requiredUnresulted.join(', ')}.`,
+      followup: 'Report a result for every required criterion before claiming verification.',
+    });
+  }
+
+  // Policy registry integrity — mirror of the criteria↔results checks above. The supplied policy's
+  // requirements must be a clean registry: no duplicate criterionId (a duplicate silently last-write-
+  // wins when the evidence check builds its allowlist map), and no requirement for a criterion the
+  // assignment does not declare (a dangling requirement).
+  const reqIds = (verificationPolicy?.requirements ?? []).map(r => r.criterionId);
+  const dupReqIds = findDuplicateIds(reqIds);
+  if (dupReqIds.length > 0) {
+    out.push({
+      code: 'POLICY_REQUIREMENT_DUPLICATE',
+      message: `verificationPolicy.requirements has more than one entry for criterion id(s): ${dupReqIds.join(', ')}.`,
+      followup: 'Give each policy requirement a unique criterionId.',
+    });
+  }
+  const unknownReqIds = [...new Set(reqIds.filter(id => !criterionIds.has(id)))];
+  if (unknownReqIds.length > 0) {
+    out.push({
+      code: 'POLICY_REQUIREMENT_UNKNOWN_CRITERION',
+      message: `verificationPolicy.requirements reference criterion id(s) not in the assignment: ${unknownReqIds.join(', ')}.`,
+      followup: 'Remove requirements for criteria the assignment does not declare, or add the criteria.',
+    });
+  }
+
+  // A required criterion is "open" when its result is missing or its status is not covered.
+  const statusById = new Map(criteriaResults.map(r => [r.criterionId, r.status]));
+  const requiredOpen = acceptanceCriteria
+    .filter(c => c.required && statusById.get(c.id) !== 'covered')
+    .map(c => c.id);
+  if (verdict.intentVerified === true && requiredOpen.length > 0) {
+    out.push({
+      code: 'INTENT_VERIFIED_WITH_OPEN_CRITERION',
+      message: `deliveryVerification.verdict.intentVerified=true but required criterion(s) are unresolved (gap/needs-developer or no result): ${requiredOpen.join(', ')}.`,
+      followup: 'Set intentVerified=false while a required criterion is unresolved, or resolve it with evidence.',
+    });
+  }
+  if (verdict.deliveryAccepted === true && (verdict.intentVerified !== true || requiredOpen.length > 0)) {
+    out.push({
+      code: 'VERDICT_INCONSISTENT_WITH_REGISTRY',
+      message: `deliveryVerification.verdict.deliveryAccepted=true but the criteria registry is not fully verified (intentVerified=${verdict.intentVerified}, unresolved required=[${requiredOpen.join(', ')}]).`,
+      followup: 'Do not accept delivery while required criteria are unresolved.',
+    });
+  }
+
+  if (filesChanged.length > 0) {
+    out.push({
+      code: 'DELIVERY_NOT_READONLY',
+      message: 'AgentRunResult.deliveryVerification is present but filesChanged is non-empty; delivery verification runs must be read-only.',
+      followup: 'Run delivery verification as a separate read-only assignment, or remove deliveryVerification from an implementation result.',
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Re-check the evidence each criterion result cites. A covered criterion must cite at least one
+ * repository-grounded evidence — the baseline the protocol recomputes; non-covered statuses carry no
+ * such duty. Cited kinds must stay within the assignment policy's allowed set for that criterion when a
+ * policy entry is supplied. custom evidence must name a producer via artifactRef. repository evidence must
+ * carry a locator — a graphNodeId that resolves, or a file that maps to a module; an explanation-only
+ * anchor is ungrounded. For a delivery criterion, when a change-set is available, its covered
+ * repository node must lie within it — an untouched node is not proof of a change. Invariant criteria
+ * are advisory regression guards, exempt from the change-set check. Role-agnostic; the graph and
+ * change-set are reached only through the injected predicates.
+ */
+function verifyDeliveryEvidence(input: {
+  deliveryVerification: DeliveryVerificationResult;
+  verificationPolicy?: VerificationPolicy;
+  resolveAnchor: (nodeId: string) => boolean;
+  nodeChangedInRun?: ((nodeId: string) => boolean) | null;
+  criterionKinds?: Map<string, string>;
+  resolveFileToModule?: (file: string) => string | undefined;
+}): DeliveryDiagnostic[] {
+  const { deliveryVerification, verificationPolicy, resolveAnchor, nodeChangedInRun, criterionKinds, resolveFileToModule } = input;
+  const out: DeliveryDiagnostic[] = [];
+  const allowedKindsByCriterion = new Map(
+    (verificationPolicy?.requirements ?? []).map(r => [r.criterionId, r.evidenceKinds]),
+  );
+
+  for (const result of deliveryVerification.criteriaResults) {
+    const { criterionId, status, evidence } = result;
+
+    if (status === 'covered' && !evidence.some(e => e.kind === 'repository')) {
+      out.push({
+        code: 'CRITERION_COVERED_NO_REPOSITORY_EVIDENCE',
+        message: `Criterion "${criterionId}" is covered but cites no repository evidence.`,
+        followup: 'Cite a repository anchor for a covered criterion, or lower its status to gap/needs-developer.',
+      });
+    }
+
+    const allowedKinds = allowedKindsByCriterion.get(criterionId);
+    for (const e of evidence) {
+      if (allowedKinds && !allowedKinds.includes(e.kind)) {
+        out.push({
+          code: 'EVIDENCE_KIND_NOT_IN_POLICY',
+          message: `Criterion "${criterionId}" cites evidence kind "${e.kind}" the assignment policy does not allow (allowed: ${allowedKinds.join(', ') || 'none'}).`,
+          followup: 'Cite only evidence kinds the assignment policy allows for this criterion.',
+        });
+      }
+      if (e.kind === 'custom' && !e.artifactRef) {
+        out.push({
+          code: 'EVIDENCE_CUSTOM_UNGROUNDED',
+          message: `Criterion "${criterionId}" cites custom evidence without an artifactRef.`,
+          followup: 'Give custom evidence an artifactRef pointing at its producer or schema.',
+        });
+      }
+      if (e.kind === 'repository') {
+        // Ground the anchor: an explicit graphNodeId, or the module a bare file locator resolves to.
+        // repository evidence must carry one — an explanation-only anchor proves nothing.
+        const anchorId = e.graphNodeId
+          ? (resolveAnchor(e.graphNodeId) ? e.graphNodeId : undefined)
+          : (e.file ? resolveFileToModule?.(e.file) : undefined);
+        if (e.graphNodeId && !anchorId) {
+          out.push({
+            code: 'EVIDENCE_ANCHOR_UNRESOLVED',
+            message: `Criterion "${criterionId}" cites repository evidence for a node not found in graph: ${e.graphNodeId}.`,
+            followup: 'Refresh context and correct the evidence graphNodeId to a canonical node id.',
+          });
+        } else if (!e.graphNodeId && e.file && !anchorId) {
+          out.push({
+            code: 'EVIDENCE_ANCHOR_UNRESOLVED',
+            message: `Criterion "${criterionId}" cites repository evidence for a file that resolves to no module: ${e.file}.`,
+            followup: 'Cite a graphNodeId, or a file that maps to a graph module.',
+          });
+        } else if (!e.graphNodeId && !e.file && status === 'covered') {
+          out.push({
+            code: 'EVIDENCE_REPOSITORY_UNGROUNDED',
+            message: `Criterion "${criterionId}" is covered by repository evidence with no graphNodeId or file locator.`,
+            followup: 'Ground repository evidence with a graphNodeId or file locator, or lower the status to gap/needs-developer.',
+          });
+        } else if (
+          anchorId
+          && status === 'covered'
+          && nodeChangedInRun
+          && criterionKinds?.get(criterionId) !== 'invariant'
+          && !nodeChangedInRun(anchorId)
+        ) {
+          // A delivery criterion's proof must be a node the run changed; an existing, untouched node
+          // cited as proof is a false-"covered". Invariant criteria (advisory) are exempt.
+          out.push({
+            code: 'EVIDENCE_ANCHOR_UNCHANGED',
+            message: `Criterion "${criterionId}" cites repository evidence at a node unchanged in this run's change-set: ${anchorId}.`,
+            followup: 'Cite a node the run changed, or lower the criterion status to gap/needs-developer.',
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function appendAnnotationFollowupsForWeakContext(input: {
+  contextQuality: ContextQualityReport;
+  result: AgentRunResult;
+  assignment?: AgentAssignment;
+  health: ReturnType<typeof validateAnnotationHealth>;
+  scan: AnnotationHealthScan;
+  graph: RepositoryGraph;
+  requiredFollowups: string[];
+}): void {
+  const weakContext = !input.contextQuality.acceptHandoff || input.contextQuality.belowWarningThreshold;
+  if (!weakContext) return;
+
+  const add = (message: string) => {
+    if (!input.requiredFollowups.includes(message)) input.requiredFollowups.push(message);
+  };
+
+  const scopeHints = [
+    ...(input.assignment?.scope ?? []),
+    ...input.result.scope,
+    ...input.result.graphNodesTouched.map(id => resolveGraphNodeId(input.graph, id) ?? id),
+  ];
+  const queue = input.scan.rows;
+  const touchedHard = queue.filter(item => {
+    if (item.status !== 'stale' && item.status !== 'unannotated') return false;
+    if (scopeHints.length === 0) return true;
+    return scopeHints.some(scope => item.nodeId === scope || item.nodeId.startsWith(`${scope}/`) || scope.startsWith(item.nodeId));
+  });
+  const touchedDerived = queue.filter(item => {
+    if (!isPropagationStaleItem(item)) return false;
+    if (scopeHints.length === 0) return true;
+    return scopeHints.some(scope => item.nodeId === scope || item.nodeId.startsWith(`${scope}/`) || scope.startsWith(item.nodeId));
+  });
+
+  if (input.health.counts.stale > 0 || touchedHard.length > 0) {
+    add('Annotations in touched scope are stale or missing; run targeted review and write_annotation before relying on handoff context.');
+  }
+  if ((input.health.counts.stalePropagation > 0) || touchedDerived.length > 0) {
+    add('Propagation-stale annotations remain; clear with refreshImportBaseline or rewrite integrationPoints/dataFlow when upstream contract changed.');
+  }
+  if (input.health.counts.unannotated > 0 && scopeHints.length > 0) {
+    add('Annotation coverage is low in the repo; with weak repovine context, prefer inspect_node + file reads and update annotations in touched scope.');
+  }
+  add('Repeat the context funnel: search_context(types:["package","module"]) → map_context → inspect_node / analyze_dependencies.');
+}

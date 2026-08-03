@@ -1,0 +1,4 @@
+[project]
+name = "basic-python"
+version = "0.1.0"
+description = "Fixture package for the repovine Python source plugin"

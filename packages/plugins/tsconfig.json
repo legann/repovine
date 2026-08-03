@@ -1,0 +1,32 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "source-typescript"
+    },
+    {
+      "path": "source-python"
+    },
+    {
+      "path": "iac-sam"
+    },
+    {
+      "path": "iac-kubernetes"
+    },
+    {
+      "path": "iac-helm"
+    },
+    {
+      "path": "iac-terraform"
+    },
+    {
+      "path": "iac-vercel"
+    },
+    {
+      "path": "iac-dockerfile"
+    },
+    {
+      "path": "iac-docker-compose"
+    }
+  ]
+}

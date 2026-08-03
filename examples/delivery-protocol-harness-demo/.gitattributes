@@ -1,0 +1,10 @@
+# Force LF on files that run *inside* the Linux container, so a checkout/edit on
+# Windows (or any CRLF-prone client) can't break them. A CRLF in a `#!/usr/bin/env
+# bash` shebang yields "bad interpreter"; CRLF in a Dockerfile RUN line breaks the
+# build the same way. LF everywhere keeps host and container in agreement.
+*.sh         text eol=lf
+*.mjs        text eol=lf
+*.yaml       text eol=lf
+*.yml        text eol=lf
+Dockerfile   text eol=lf
+.env.example text eol=lf

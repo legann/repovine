@@ -1,0 +1,140 @@
+{
+  "name": "repovine",
+  "version": "0.1.0",
+  "description": "repovine turns your repository into a structured, queryable context framework for AI coding agents.",
+  "mcpName": "io.github.legann/repovine",
+  "type": "module",
+  "packageManager": "npm@10.9.7",
+  "workspaces": [
+    "packages/plugin-sdk",
+    "packages/plugins/*"
+  ],
+  "bin": {
+    "repovine": "./dist/mcp/index.js"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "author": "legann",
+  "keywords": [
+    "mcp",
+    "repovine",
+    "codebase-navigation",
+    "repository-graph",
+    "dependency-analysis",
+    "code-intelligence",
+    "typescript",
+    "cursor-plugin"
+  ],
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build:sdk": "tsc -p packages/plugin-sdk/tsconfig.json",
+    "typecheck:sdk": "tsc -p packages/plugin-sdk/tsconfig.json --noEmit",
+    "build:workspaces": "tsc -b packages/plugin-sdk packages/plugins",
+    "typecheck:workspaces": "npm run typecheck --workspaces --if-present",
+    "build": "npm run clean && npm run build:workspaces && tsc && node scripts/copy-build-assets.mjs && node scripts/verify-build-output.mjs",
+    "typecheck": "npm run build:workspaces && npm run typecheck:workspaces && npm run typecheck:tests",
+    "typecheck:tests": "tsc -p tsconfig.test.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "node --experimental-vm-modules --max-old-space-size=8192 node_modules/jest/bin/jest.js",
+    "test:projections": "npm run build && node --test test/integration/client-projections.test.mjs",
+    "test:coverage": "node --experimental-vm-modules --max-old-space-size=8192 node_modules/jest/bin/jest.js --coverage",
+    "profile": "npm run build && node --expose-gc dist/profile.js",
+    "render-client-plugins": "npm run build && node scripts/render-client-plugins.mjs",
+    "render-client-plugins:validate": "node scripts/validate-client-plugins.mjs",
+    "render-client-plugins:check": "npm run build && node scripts/render-client-plugins.mjs --check",
+    "smoke:pack-install": "npm run build && node scripts/smoke-pack-install.mjs",
+    "smoke:sdk-standalone": "npm run build:sdk && node scripts/smoke-sdk-standalone.mjs",
+    "smoke:canary-plugins": "npm run build && node scripts/smoke-canary-plugins.mjs",
+    "check:embedder": "npm run build && node scripts/check-embedder.mjs",
+    "audit:check": "node scripts/audit-gate.mjs",
+    "sync:version": "node scripts/sync-version.mjs",
+    "sync:version:check": "node scripts/sync-version.mjs --check",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm test",
+    "cli": "node dist/mcp/index.js",
+    "inspector": "npx --yes @modelcontextprotocol/inspector --config mcp-inspector-config.json --server repovine",
+    "inspector:debug": "npx --yes @modelcontextprotocol/inspector --config mcp-inspector-config.json --server repovine-debug",
+    "smoke:isolated-install": "npm run build && node scripts/smoke-isolated-install.mjs",
+    "api:report": "npm run build:sdk && node scripts/generate-plugin-api-report.mjs",
+    "api:report:check": "npm run build:sdk && node scripts/generate-plugin-api-report.mjs --check"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@repovine/plugin-default-preset": "0.1.0",
+    "@repovine/plugin-iac-docker-compose": "0.1.0",
+    "@repovine/plugin-iac-dockerfile": "0.1.0",
+    "@repovine/plugin-iac-helm": "0.1.0",
+    "@repovine/plugin-iac-kubernetes": "0.1.0",
+    "@repovine/plugin-iac-sam": "0.1.0",
+    "@repovine/plugin-iac-terraform": "0.1.0",
+    "@repovine/plugin-iac-vercel": "0.1.0",
+    "@repovine/plugin-sdk": "0.1.0",
+    "@repovine/plugin-source-python": "0.1.0",
+    "@repovine/plugin-source-typescript": "0.1.0",
+    "js-yaml": "4.3.0",
+    "ts-morph": "28.0.0",
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
+  },
+  "peerDependencies": {
+    "@huggingface/transformers": "^3.8.1 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@huggingface/transformers": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@huggingface/transformers": "3.8.1",
+    "@jest/globals": "^30.4.1",
+    "@types/jest": "30.0.0",
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "22.19.19",
+    "eslint": "9.29.0",
+    "jest": "^30.4.2",
+    "smol-toml": "^1.7.0",
+    "ts-jest": "^29.4.11",
+    "typescript-eslint": "8.58.0"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
+  },
+  "bundleDependencies": [
+    "@repovine/plugin-default-preset",
+    "@repovine/plugin-iac-docker-compose",
+    "@repovine/plugin-iac-dockerfile",
+    "@repovine/plugin-iac-helm",
+    "@repovine/plugin-iac-kubernetes",
+    "@repovine/plugin-iac-sam",
+    "@repovine/plugin-iac-terraform",
+    "@repovine/plugin-iac-vercel",
+    "@repovine/plugin-source-python",
+    "@repovine/plugin-source-typescript"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/legann/repovine.git"
+  },
+  "homepage": "https://github.com/legann/repovine#readme",
+  "bugs": {
+    "url": "https://github.com/legann/repovine/issues"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "DESIGN.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ]
+}

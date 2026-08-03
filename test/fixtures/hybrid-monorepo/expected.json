@@ -1,0 +1,15 @@
+{
+  "_description": "Hybrid monorepo: Lambda + React + Vue SFC in one workspace. auth domain should merge modules from all 3 packages (cross-package merging).",
+  "heavyDomains": ["auth", "client-react", "vue-shared"],
+  "lightweightDomains": ["auth-handler", "authcontext", "basebutton", "lambda-functions", "loginform", "siteheader", "useauth", "users-handler"],
+  "rejectedAsDomain": ["main"],
+  "modulesInDomain": {
+    "auth": [
+      "src/auth/useAuth.ts",
+      "src/auth/auth-client.ts",
+      "src/auth/AuthContext.tsx",
+      "src/auth/auth-vue.ts",
+      "src/auth/LoginForm.vue"
+    ]
+  }
+}

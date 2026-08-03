@@ -1,0 +1,454 @@
+# Bench archestra-restraint-tool-slug — Baseline run 1 — model: sonnet-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-sonnet-5; effort: max. Agent 95556fbbdc89457a.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to find where MCP tool names get converted into platform identifiers.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 43 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 21 line(s)]
+
+Found a strong candidate. Let me look at `platform/backend/src/models/tool.ts` around the identifier-generation logic.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/database/schemas/tool.ts
+    [source removed — 107 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 245 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 160 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 140 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 110 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 91 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 37 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 41 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-gateway.utils.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/models/mcp-server.ts
+    [source removed — 70 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 190 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 115 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 37 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 130 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 60 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 91 line(s)]
+
+Let me check the existing tests that mock `slugifyName` before I touch the reinstall call site, to make sure my refactor doesn't break them.
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 70 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 39 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 50 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Read: platform/shared/utils.test.ts
+    [source removed — 77 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/shared/index.ts
+    [source removed — 52 line(s)]
+
+Now let's implement. First, add the disambiguation utility to the shared package.
+
+  → Edit: platform/shared/utils.ts
+    [edit applied]
+
+Now let's add `ToolModel.slugifyToolNames`, which wraps `slugifyName` with disambiguation for a batch of tools from the same server.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 15 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now let's update the four call sites that batch-create tools from one server's discovery list. First, `routes/mcp-server.ts`:
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 15 line(s)]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now the second call site in the same file (synchronous install path):
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 14 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 10 line(s)]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now let's update the two call sites in `archestra-mcp-server/mcp-servers.ts`:
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 14 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 16 line(s)]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+Now let's handle `mcp-reinstall.ts`, which needs the disambiguation applied without relying on a new `ToolModel` method (the test mocks `ToolModel` narrowly).
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 30 line(s)]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+Now add the import for `disambiguateSlugs` in `mcp-reinstall.ts`:
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 6 line(s)]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 40 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 230 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 130 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 92 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now update the lookup to prefer the exact match:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 140 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 440 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 280 line(s)]
+
+Now let's verify everything compiles and existing tests still pass. Let's check how to run the relevant test suites.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+Let's run the shared package's tests first, since it's fast and isolated.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 1 line(s)]
+
+Understood — this worktree is static-analysis only. Let me carefully re-review every change by reading the files in full rather than executing anything.
+
+  → Read: platform/shared/utils.ts
+    [source removed — 128 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 105 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/biome.json
+    [source removed — 105 line(s)]
+
+That signature line is 81 characters — over this repo's 80-char formatter width. Let me wrap it to match the file's existing multi-line style.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 35 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Good. Now let's re-verify the `mcp-reinstall.ts` full context once more, and confirm the `disambiguateSlugs` import placement and usage are correct.
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 10 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 55 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 70 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+Let's do a final sweep to confirm all call sites of `slugifyName` are exactly as intended post-edit.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 100 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 23 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 30 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 30 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-tool-runtime-gate.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 140 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+Let me get a full diff to do a final correctness pass before reporting.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 88 line(s)]
+
+This looks correct. Now let's review the `tool.ts` and `mcp-server.ts`/`mcp-servers.ts` diffs together.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 67 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 71 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 70 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.test.ts
+    [source removed — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 49 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 31 line(s)]
+
+All five call sites are updated and I've verified correctness by static reading (test files, DB schema, mock setups, tsconfig strictness). Here's the report.
+
+## Where tool names become identifiers
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+## Files changed
+
+| File | Change |
+|---|---|
+| `platform/shared/utils.ts` | Added `disambiguateSlugs(…)` — groups equal slugs, keeps one member bare (ordered by raw name, not discovery order, so re-running discovery is stable) and suffixes the rest `_2`, `_3`, … , skipping any candidate already taken. |
+| `platform/backend/src/models/tool.ts` | Added `ToolModel.slugifyToolNames(…)` = `slugifyName` per name + `disambiguateSlugs`. `slugifyName` itself is untouched. Also fixed `syncToolsForCatalog`'s reconciliation match to try the exact stored name first, falling back to its existing fuzzy raw-name match. |
+| `platform/backend/src/routes/mcp-server.ts` | 2 call sites (sync remote install, async local post-deploy) switched to `slugifyToolNames`. |
+| `platform/backend/src/archestra-mcp-server/mcp-servers.ts` | 2 call sites (`discoverLocalMcpServerTools`, `discoverRemoteMcpServerTools`) switched to `slugifyToolNames`. |
+| `platform/backend/src/services/mcp-reinstall.ts` | `syncToolsForServer` still calls `ToolModel.slugifyName` per tool (unchanged calls — `mcp-reinstall.test.ts` replaces the whole `ToolModel` export with a stub exposing only `slugifyName`/`syncToolsForCatalog`, so a new `ToolModel` method would throw there); disambiguation is applied via `disambiguateSlugs` imported straight from `@archestra/shared`. |
+
+The `syncToolsForCatalog` fix was necessary, not optional: without it, the first reinstall after two colliding tools got distinct rows would re-derive both new tools' lookup key from their true (colliding) raw names, match both to the *same* pre-existing row, and delete the other as "orphaned" — silently undoing the fix on every pod restart.
+
+## Deliberately left unchanged
+
+| Path | Why out of scope |
+|---|---|
+| `ToolModel.slugifyName` body | Pinned by ~10 exact-output tests in `models/tool.test.ts:43-127`; the "keep today's identifier" constraint is exactly what leaving it untouched guarantees. |
+| `cloneToolsAndPoliciesFromCatalog` (`[expr]`) | Re-slugifies one already-unique tail per source tool under a new prefix. Its own comment (`[expr]`) states source names are unique within their catalog; since `slugifyName` is an identity transform on a string already restricted to `[expr]`, distinct tails can't collide after a prefix swap. |
+| `bulkCreateToolsIfNotExists` | Its existing-row lookup (`[expr]`) already matches on the exact full stored name, not a derived raw-name key — it never had the class of bug `syncToolsForCatalog` had. |
+| `app-mcp-backing.ts:73`, `mcp-client.ts:2120` | Single, non-batch `slugifyName` calls (a synthetic app tool with no siblings; a bare-prefix computation) — no sibling list to disambiguate against. |
+| `mcp-client.ts` `resolveActualToolName`/`stripServerPrefix` (:2118-2157), `mcp-server-gateway.utils.ts:56-60`, `mcp-server-proxy.ts:164-169`, `ToolModel.getMcpToolsAssignedToAgentBySuffix`/`AppBySuffix` (`[expr]`,`[expr]`) | All recover the *live* upstream raw name via case-insensitive or bare-suffix re-derivation rather than a persisted raw name (no column stores it) — a separate, pre-existing simplification. |
+
+## Residual risk
+
+The primary agent/LLM dispatch path (`ToolModel.getMcpToolsAssignedToAgent`, exact `IN` match on `toolCall.name`) now resolves each disambiguated tool to its own row, so both are independently selectable, policy-scoped, and assignable — the core bug. However, the final "what literal name do we send to the upstream MCP server" hop (`resolveActualToolName`) still re-derives that name via a live case-insensitive lookup; for a tool whose collision was case/whitespace-only, its suffixed identifier (`..._2`) won't match anything in that lookup, so the wire-level call could still fail post-disambiguation rather than silently invoking the wrong tool. Fixing that would mean rewriting sensitive OAuth/connection-caching dispatch code across three more files — a materially larger change than tool-name→identifier minting, so I left it as a known gap rather than attempting it.
+
+I could not run tests/typecheck/lint in this environment (blocked, static-analysis only per the sandbox), so this is verified by careful reading of the mock setups, schema, and tsconfig rather than execution.

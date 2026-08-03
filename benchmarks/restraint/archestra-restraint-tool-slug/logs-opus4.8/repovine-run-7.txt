@@ -1,0 +1,301 @@
+# Bench archestra-restraint-tool-slug — Repovine run 7 — model: opus-4.8 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-4-8; effort: max. Agent 3be07a069fc94979.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by loading the repovine MCP tools and searching for the relevant context, since the task involves how MCP tool names become identifiers.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+Now let me search the repovine graph for where tool names become identifiers.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@backend/src/types/mcp-tool-call, export:@backend/src/observability/metrics/mcp/reportMcpToolCall, export:@backend/src/utils/upload-filename/sanitizeUploadFilename; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@archestra/shared/tool-call-normalization, export:@backend/src/database/schemas/tool/ARCHESTRA_TOOL_NAME_UNIQUE_INDEX, export:@backend/src/routes/proxy/llm-proxy-helpers/normalizeToolCallsForPolicy; source-derived fields removed]
+
+The strongest match is `mod:@backend/src/models/tool`, which carries an annotation. Let me inspect it with its source body.
+
+  → repovine.inspect_node: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, export:@backend/src/models/tool/parseArchestraBuiltInName, export:@backend/src/models/tool/toolUiResourceUriSql, export:@backend/src/models/tool/default; functions parseArchestraBuiltInName, toolUiResourceUriSql, default; architectural annotation delivered; source-derived fields removed]
+
+This module carries a rich, task-specific annotation. The key function is `ToolModel.slugifyName`. The annotation is explicit about the design: `slugifyName` is a per-tool-pair transform with no visibility into sibling tools, so disambiguation belongs in the **write/discovery layer that sees a server's tools as a set** — not in the codec, and not in the frozen wire consumers. Let me find the callers of `slugifyName` and the discovery/write layer.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s); non-zero exit]
+
+Let me find the repo structure first.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+I now have all call sites. The `slugifyName` (write/discovery) sites are in `mcp-server.ts`, `mcp-reinstall.ts`, `mcp-servers.ts`, `app-mcp-backing.ts`, and `tool.ts` itself. The `unslugifyName`/prefix-stripping sites (`mcp-server-proxy.ts`, `mcp-server-gateway.utils.ts`, `mcp-client.ts`) are the frozen wire consumers. Let me read each write site in context to find where a server's tools are processed as a set.
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 230 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 80 line(s)]
+
+Now let me read the remaining write sites and the bulk-create/sync methods, plus the shared codec constants.
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 110 line(s)]
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 130 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+Let me read the `bulkCreateToolsIfNotExists` and `syncToolsForCatalog` methods, and the shared separator/parser definitions.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 150 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 36 line(s)]
+
+`bulkCreateToolsIfNotExists` confirms the collision: two input tools with the same slug both go to `toolsToInsert`, the `onConflictDoNothing` insert keeps only the first row, and `resultToolsByName` maps both inputs back to that single row — so the second tool is unaddressable. Now let me check `syncToolsForCatalog`, `bulkCreateProxyToolsIfNotExists`, all their callers, and whether any existing test pins the current collision behavior.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+Let me verify the potentially-affected tests won't break — particularly `mcp-reinstall.test.ts` (which mocks `ToolModel`) and the `bulkCreateToolsIfNotExists` idempotency/conflict tests.
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 75 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 62 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 51 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 175 line(s)]
+
+Let me check the `mcp-reinstall.ts` imports, the reinstall test's assertions on `syncToolsForCatalog`, and whether the route tests mock `ToolModel`.
+
+  → Read: platform/backend/src/services/mcp-reinstall.ts
+    [source removed — 30 line(s)]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 70 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 35 line(s)]
+
+Let me examine the `syncToolsForCatalog` unit tests (especially any passing multiple/duplicate tool names in a single call) to confirm internal disambiguation there is test-safe.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 90 line(s)]
+
+The reinstall/sync path (`syncToolsForCatalog`) matters for durability — I need to understand exactly what its tests pin before deciding scope. Let me read the full sync test suite and check `rawToolName` usage in tests.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 90 line(s)]
+
+I now have a complete picture. Let me set up a task list and verify the exact anchor text before editing.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 22 line(s)]
+
+Now I'll implement. First, add the set-level disambiguation helper right after `unslugifyName` (keeping it in the name-handling family, as the write-layer companion to the per-pair `slugifyName`).
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+The boundary advisory confirms the design is correct: I added a new set-level method above the codec, without touching `slugifyName`/`unslugifyName` or the frozen wire consumers. Now let me wrap the four discovery/install call sites (where a server's exposed tool set becomes identifiers) with the disambiguation helper.
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+Now the two `mcp-servers.ts` discovery sites:
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+The boundary advisory is satisfied — I'm adding to the write layer, not the codec. Now the reinstall/sync path. `mcp-reinstall.ts`'s call site is pinned by a test that asserts the exact args to `syncToolsForCatalog`, so disambiguation for that path must live *inside* `syncToolsForCatalog` (which is mocked in that test). Let me update it — disambiguate at the top, and key matching on the disambiguated stored name so colliding tools pair with their own rows on reinstall instead of collapsing.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now update the match-key derivation in `syncToolsForCatalog` to key on the disambiguated stored name (consistent with how `existingToolsByRawName` is built):
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now let me verify the changes compile and the affected tests still pass. Let me run type-check and the targeted test files.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+The worktree isn't bootstrapped, so I'll verify by careful static review. Let me re-read each edited region to confirm correctness and syntax.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 55 line(s)]
+
+The helper is correct. Now let me verify the `syncToolsForCatalog` edits (top + match loop):
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 22 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 40 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 10 line(s)]
+
+Both `discoveredToolNames` derivations now read the disambiguated `toolsToCreate`. Let me read the `existingToolsByRawName`/`newToolNames` construction in `syncToolsForCatalog` to confirm the disambiguated `tools` flows through consistently:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 22 line(s)]
+
+The `syncToolsForCatalog` flow is consistent — `inputTools` only in the empty-guard, disambiguated `tools` everywhere after. Let me do a final test-safety sweep: check for any test that returns colliding tool names from discovery or asserts the old collapse behavior at the route/model level.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 28 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 45 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/routes/proxy/utils/tools.ts
+    [source removed — 45 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+Let me review the complete diff and refresh the repovine graph.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 229 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+The diff is complete and coherent; the graph refreshed cleanly. Let me do a final confirmation that `newToolNames` (the other consumer of the disambiguated `tools` inside `syncToolsForCatalog`) is intact:
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Implementation is complete and internally consistent. Here's the report.
+
+## Summary
+
+MCP tool identifiers are the `tools.name` column, produced by `ToolModel.slugifyName(…)` (`platform/backend/src/models/tool.ts:80`). Because `slugifyName` lowercases, folds whitespace to `_`, and strips characters outside `[expr]`, two distinct raw tool names can collapse to one slug (e.g. `"get user"` and `"get_user"` → `server__get_user`; or several names that strip to empty → the bare `server__`). The DB unique index + `onConflictDoNothing` then keeps only the first row, so the others become unaddressable.
+
+Per the module's own annotation, `slugifyName` is a **per-tool-pair transform with no visibility into sibling tools** — making identifiers distinct is a property of *the write layer that holds a server's tools as a set*, not the codec. So I added a set-level pass and applied it where a server's exposed tool set is turned into identifiers.
+
+### 1. Where tool names become identifiers
+
+| Site | When | Write method |
+|---|---|---|
+| `routes/mcp-server.ts:761` | local server install | `bulkCreateToolsIfNotExists` |
+| `routes/mcp-server.ts:925` | remote server install | `bulkCreateToolsIfNotExists` |
+| `archestra-mcp-server/mcp-servers.ts:1450` | local deploy discovery | `bulkCreateToolsIfNotExists` |
+| `archestra-mcp-server/mcp-servers.ts:1507` | remote deploy discovery | `bulkCreateToolsIfNotExists` |
+| `services/mcp-reinstall.ts:405` → `syncToolsForCatalog` | reinstall / restart re-sync | `syncToolsForCatalog` |
+
+Codec (inverse, unchanged): `unslugifyName` (`tool.ts:90`) + `parseFullToolName` (`shared/utils.ts:54`).
+
+### 2. Files changed
+
+- **`platform/backend/src/models/tool.ts`**
+  - Added `[expr]` — pure set-level pass: the first occurrence of each slug keeps it exactly; each later collision takes the smallest free `[expr]` suffix (avoiding reserved and already-assigned names), staying within the `[expr]` grammar and a single `__` separator.
+  - `syncToolsForCatalog` now disambiguates its incoming set first, and matches incoming tools to existing rows by the **(disambiguated) stored name's last segment** — the same derivation used for `existingToolsByRawName` — instead of the raw MCP name. Keying on the raw name (a different character space than the slug) would re-collapse colliding tools and delete them on reinstall.
+- **`platform/backend/src/routes/mcp-server.ts`** — wrapped both install `toolsToCreate` maps. `discoveredToolNames` (clone reconciliation) derives from `toolsToCreate`, so it now sees the disambiguated names automatically.
+- **`platform/backend/src/archestra-mcp-server/mcp-servers.ts`** — wrapped both discovery `toolsToCreate` maps.
+
+The `mcp-reinstall.ts` call site is untouched (a test pins the exact args it passes to `syncToolsForCatalog`, which is mocked there), so disambiguation for that path lives *inside* `syncToolsForCatalog`.
+
+### Deliberately left unchanged (out of scope), with proof
+
+| Path | Why out of scope | Source |
+|---|---|---|
+| `slugifyName` / `unslugifyName` (`[expr]`) | The codec is a per-pair transform; disambiguation belongs to the set-holding layer. Editing it would change a lone bare-prefix tool's working identifier and couple name-policy to stored+wire identity. | Module annotation + PreToolUse boundary advisory |
+| Wire consumers: `mcp-server-gateway.utils.ts:60`, `mcp-server-proxy.ts:168`, `mcp-client.ts:2120` | Resolve stored name ↔ upstream by matching the live tool list; "frozen alongside the codec". | Module annotation |
+| `app-mcp-backing.ts:72` (launch tool) | Single tool via `ToolModel.create`, not a set; prefix already `[expr]`. | Site comment lines 68–71 |
+| `cloneToolsAndPoliciesFromCatalog` (`tool.ts:820`) | Clone names "deterministic and unique per source tool"; source rows are collision-free by unique index. | Site comment lines 833–836 |
+| `bulkCreateProxyToolsIfNotExists` + `proxy/utils/tools.ts:96` | Proxy tools from wire-observed names (`name: toolName`, no slugify), deduped by `seenToolNames`. | `[expr]` |
+| `bulkCreateToolsIfNotExists` (`tool.ts:678`) | Now receives already-disambiguated lists from its callers; kept as a pure per-name upsert (its many unit tests stay untouched). | Call sites above |
+
+### 3. Changed behavior & residual risk
+
+**Behavior:** when two of a server's tools would share a slug, the first keeps its exact identifier and each later one gets `[expr]`, `[expr]`, … So they become distinct rows — individually addressable for assignments, policies, and gateway listings. Non-colliding tools and a lone `server__` tool are byte-for-byte unchanged. Reinstall now pairs disambiguated tools to their own rows (durable) rather than deleting them.
+
+**Residual risk:**
+- **Upstream call-through:** a disambiguated colliding tool's slug does not reverse to a live raw upstream name, so it's addressable *in the platform* but still not callable through to the origin server. The annotation states colliding/degenerate tools are already unresolvable upstream and the wire is intentionally not extended; already-working tools keep their working round-trip.
+- **Ordering:** "first occurrence keeps the base slug" depends on the server's `tools/list` order; a reordering server could swap which colliding tool keeps the bare slug — same order-dependence as today's "first insert wins."
+- **Length:** `[expr]` can push a name past the documented 128 chars; `slugifyName` already neither enforces nor truncates, so no newly-broken enforced invariant, and only suffixed (new) identifiers are affected.
+- **`rawToolName`** is now unused by `syncToolsForCatalog` matching (retained because `mcp-reinstall` passes it and a test pins that; its value equals the stored last segment for every non-colliding tool).
+- **Verification:** the worktree is intentionally not bootstrapped, so I could not run type-check/tests. Verified statically — traced every `syncToolsForCatalog` test (name-derived key equals the passed `rawToolName` for all clean-name cases → no-op), confirmed no discovery test returns colliding names within one batch (`disambiguateToolNames` is a no-op there), and left `bulkCreateToolsIfNotExists` and all wire consumers untouched.

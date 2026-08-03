@@ -1,0 +1,187 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 6 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent 7d0a240920844287.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by looking at the connector and how its documents are stored/served.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 47 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 33 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 81 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 21 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 77 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — checked or prepared the local tool environment]
+    [output redacted — 1 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 33 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 37 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 10 line(s)]
+
+Now I'll implement the patch.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the two new helpers, next to `normalizeCrawlUrl`:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 101 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 6 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 5 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Write: [temporary file]
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 27 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Read: docs/pages/platform-knowledge-connectors.md
+    [source removed — 32 line(s)]
+
+  → Edit: docs/pages/platform-knowledge-connectors.md
+    [edit applied]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 52 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 16 line(s)]
+
+Implementation complete. Here's the report.
+
+## What changed
+
+**`platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`**
+
+| Location | Change |
+|---|---|
+| `:50-58` | `TRACKING_QUERY_PARAMS` — `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`, `fbclid` |
+| `:627-650` | `canonicalPageKey()` — folds tracking params, trailing slash on non-root paths, host case, default port, fragment |
+| `:652-660` | `claimPageKey()` — first URL to claim a key wins; later variants return `false` |
+| `:203` | Per-crawl `claimedPageKeys` set, seeded with the start URL's key |
+| `:429-431` | Discovered links filtered through `claimPageKey` after the scope check |
+
+The strengthened normalization is a **crawl-frontier key**, not a rewrite of the URL that gets fetched or stored. That split is what keeps already-indexed documents intact:
+
+- `buildDocument` hashes the page's own canonical URL for the document id (`:462-467`), and `connector-sync.ts:419-422` looks documents up by exactly that id. Rewriting the canonical URL would re-key every affected row — `connector-sync.ts` has no prune pass, so old rows would linger as stale duplicates alongside new ones. `sourceUrl`, `metadata.url`, and ids are byte-identical to before.
+- Requests keep the form a link actually used. Servers do distinguish `/docs` from `/docs/` — the existing suite's own fixture proves it (`web-crawler-connector.test.ts:722-731` routes on exact `pathname` with routes like `"/docs/"`), so fetching a synthesized slash-stripped URL would 404.
+- Host lowercasing needs no code: WHATWG parsing folds it for http(s), and every URL enters through `new URL` (`normalizeCrawlUrl` at `:615`). Verified: `[expr]`. Default-port stripping is inherited by building the key on `normalizeCrawlUrl`.
+
+**`docs/pages/platform-knowledge-connectors.md:305`** — one paragraph stating the folding rules and that a page counts once against Max Pages (per `platform/CLAUDE.md` rule 4).
+
+## Deliberately unchanged
+
+| Path | Proof it's out of scope |
+|---|---|
+| `normalizeCrawlUrl` (`:615`) | Feeds the fetched URL and, via `normalizeCanonicalUrl` (`:598`), the document id at `:462-467`. Strengthening it in place re-keys indexed rows. |
+| `buildAllowedPathPrefixes` (`:478-490`) | `:487` returns `[expr]` only when the path ends in `/`; otherwise `:490` falls back to the parent directory. A trailing-slash-stripped start URL of `/docs/` would derive prefix `/` — widening a scoped crawl to the whole origin. |
+| Document-level folding of canonical URLs | `:462-467` derives identity from each page's own canonical URL. Folding variants would make identity depend on crawl order, the exact thing that must stay stable. |
+| `isPathInScope` exclude matching (`:568`) | Patterns run against the real `[expr]`, so a pattern matching `[expr]` or a trailing slash keeps working — untouched because the fetched URL is untouched. |
+| `WebCrawlerConfigSchema.startUrl` (`types/knowledge-connector.ts:348-355`) | Only adds a protocol and validates; it never normalizes paths. Normalizing there would rewrite persisted connector configs. |
+| Other connectors | `normalizeCrawlUrl`/`normalizeDiscoveredUrl` have no callers outside this file (grep across `backend/src` returns only `web-crawler-connector.ts`); other connectors take URLs from their APIs, e.g. `linear-connector.ts:1134`. |
+
+## Residual risk
+
+- **Not bootstrapped.** `platform/node_modules` is absent and the `pnpm` shim exits 127, so I could not run `vitest`, `tsc`, or `biome`. I validated the normalization logic by replicating the three helpers in Node and asserting fold/distinct/claim-order tables plus every URL the existing suite uses (all pass), and verified the wiring by reading. Unrun: the real crawl path.
+- **First-variant-wins fetch.** If a broken variant is discovered before a working one (`/a` 404s, `/a/` works), the page is now missed where two fetches previously succeeded. Inherent to URL dedup; mitigated by only ever requesting URLs that appeared as real links.
+- **Pre-existing rows for now-folded variants.** A site that previously produced two rows for `/a` and `/a/` keeps both; the survivor refreshes, the loser goes stale. Nothing in `connector-sync.ts` deletes documents that stop appearing, so pruning would be a separate change.
+- **Cross-sync variant flap.** Identity still tracks whichever variant is discovered first, so a site that reshuffles its links can shift a page's id. Unchanged from today's behavior, not introduced here.
+- `enqueueLinks` retains its own dedup as a second layer; this filter runs ahead of it and is authoritative for variant folding.

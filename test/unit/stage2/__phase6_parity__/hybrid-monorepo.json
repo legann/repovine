@@ -1,0 +1,1166 @@
+{
+  "stats": {
+    "totalNodes": 33,
+    "totalEdges": 43,
+    "nodesByType": {
+      "domain": 11,
+      "export-symbol": 7,
+      "module": 10,
+      "package": 4,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 21,
+      "tagged": 22
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:auth",
+      "domain:client-react",
+      "domain:useauth",
+      "domain:authcontext",
+      "domain:siteheader",
+      "domain:auth-handler",
+      "domain:lambda-functions",
+      "domain:users-handler",
+      "domain:vue-shared",
+      "domain:loginform",
+      "domain:basebutton"
+    ],
+    "export-symbol": [
+      "export:@hybrid/client-react/src/auth/auth-client/login",
+      "export:@hybrid/client-react/src/auth/useAuth/useAuth",
+      "export:@hybrid/client-react/src/auth/AuthContext/AuthContext",
+      "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader",
+      "export:@hybrid/lambda-functions/src/auth-handler/handler",
+      "export:@hybrid/lambda-functions/src/users-handler/handler",
+      "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth"
+    ],
+    "module": [
+      "mod:@hybrid/client-react/src/auth/auth-client",
+      "mod:@hybrid/client-react/src/auth/useAuth",
+      "mod:@hybrid/client-react/src/main",
+      "mod:@hybrid/client-react/src/auth/AuthContext",
+      "mod:@hybrid/client-react/src/components/SiteHeader",
+      "mod:@hybrid/lambda-functions/src/auth-handler",
+      "mod:@hybrid/lambda-functions/src/users-handler",
+      "mod:@hybrid/vue-shared/src/auth/auth-vue",
+      "mod:@hybrid/vue-shared/src/auth/LoginForm.vue",
+      "mod:@hybrid/vue-shared/src/components/BaseButton.vue"
+    ],
+    "package": [
+      "pkg:hybrid-monorepo-fixture",
+      "pkg:@hybrid/client-react",
+      "pkg:@hybrid/lambda-functions",
+      "pkg:@hybrid/vue-shared"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:auth",
+      "type": "domain",
+      "label": "auth",
+      "description": "Domain: auth",
+      "data": {
+        "weight": "heavy",
+        "tier": "business"
+      }
+    },
+    {
+      "id": "domain:auth-handler",
+      "type": "domain",
+      "label": "auth-handler",
+      "description": "Domain: auth-handler",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:authcontext",
+      "type": "domain",
+      "label": "authcontext",
+      "description": "Domain: authcontext",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:basebutton",
+      "type": "domain",
+      "label": "basebutton",
+      "description": "Domain: basebutton",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:client-react",
+      "type": "domain",
+      "label": "client-react",
+      "description": "Domain: client-react",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:lambda-functions",
+      "type": "domain",
+      "label": "lambda-functions",
+      "description": "Domain: lambda-functions",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:loginform",
+      "type": "domain",
+      "label": "loginform",
+      "description": "Domain: loginform",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:siteheader",
+      "type": "domain",
+      "label": "siteheader",
+      "description": "Domain: siteheader",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:useauth",
+      "type": "domain",
+      "label": "useauth",
+      "description": "Domain: useauth",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:users-handler",
+      "type": "domain",
+      "label": "users-handler",
+      "description": "Domain: users-handler",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:vue-shared",
+      "type": "domain",
+      "label": "vue-shared",
+      "description": "Domain: vue-shared",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/auth/auth-client/login",
+      "type": "export-symbol",
+      "label": "login",
+      "description": "function login: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/auth/AuthContext/AuthContext",
+      "type": "export-symbol",
+      "label": "AuthContext",
+      "description": "const AuthContext",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/auth/useAuth/useAuth",
+      "type": "export-symbol",
+      "label": "useAuth",
+      "description": "function useAuth: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader",
+      "type": "export-symbol",
+      "label": "SiteHeader",
+      "description": "function SiteHeader: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@hybrid/lambda-functions/src/auth-handler/handler",
+      "type": "export-symbol",
+      "label": "handler",
+      "description": "function handler: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@hybrid/lambda-functions/src/users-handler/handler",
+      "type": "export-symbol",
+      "label": "handler",
+      "description": "function handler: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth",
+      "type": "export-symbol",
+      "label": "setupAuth",
+      "description": "function setupAuth: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/auth/auth-client",
+      "type": "module",
+      "label": "…/auth/auth-client",
+      "description": "Module src/auth/auth-client.ts in @hybrid/client-react",
+      "data": {
+        "absPath": "<FIXTURE>/packages/client-react/src/auth/auth-client.ts",
+        "pkgRelPath": "src/auth/auth-client.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/auth/AuthContext",
+      "type": "module",
+      "label": "…/auth/AuthContext",
+      "description": "Module src/auth/AuthContext.tsx in @hybrid/client-react",
+      "data": {
+        "absPath": "<FIXTURE>/packages/client-react/src/auth/AuthContext.tsx",
+        "pkgRelPath": "src/auth/AuthContext.tsx",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/auth/useAuth",
+      "type": "module",
+      "label": "…/auth/useAuth",
+      "description": "Module src/auth/useAuth.ts in @hybrid/client-react",
+      "data": {
+        "absPath": "<FIXTURE>/packages/client-react/src/auth/useAuth.ts",
+        "pkgRelPath": "src/auth/useAuth.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/components/SiteHeader",
+      "type": "module",
+      "label": "…/components/SiteHeader",
+      "description": "Module src/components/SiteHeader.tsx in @hybrid/client-react",
+      "data": {
+        "absPath": "<FIXTURE>/packages/client-react/src/components/SiteHeader.tsx",
+        "pkgRelPath": "src/components/SiteHeader.tsx",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/main",
+      "type": "module",
+      "label": "src/main",
+      "description": "Module src/main.tsx in @hybrid/client-react",
+      "data": {
+        "absPath": "<FIXTURE>/packages/client-react/src/main.tsx",
+        "pkgRelPath": "src/main.tsx",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/lambda-functions/src/auth-handler",
+      "type": "module",
+      "label": "src/auth-handler",
+      "description": "Module src/auth-handler.ts in @hybrid/lambda-functions",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/auth-handler.ts",
+        "pkgRelPath": "src/auth-handler.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/lambda-functions/src/users-handler",
+      "type": "module",
+      "label": "src/users-handler",
+      "description": "Module src/users-handler.ts in @hybrid/lambda-functions",
+      "data": {
+        "absPath": "<FIXTURE>/packages/lambda-functions/src/users-handler.ts",
+        "pkgRelPath": "src/users-handler.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/vue-shared/src/auth/auth-vue",
+      "type": "module",
+      "label": "…/auth/auth-vue",
+      "description": "Module src/auth/auth-vue.ts in @hybrid/vue-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/vue-shared/src/auth/auth-vue.ts",
+        "pkgRelPath": "src/auth/auth-vue.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/vue-shared/src/auth/LoginForm.vue",
+      "type": "module",
+      "label": "…/auth/LoginForm.vue",
+      "description": "Module src/auth/LoginForm.vue in @hybrid/vue-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/vue-shared/src/auth/LoginForm.vue",
+        "pkgRelPath": "src/auth/LoginForm.vue",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/vue-shared/src/components/BaseButton.vue",
+      "type": "module",
+      "label": "…/components/BaseButton.vue",
+      "description": "Module src/components/BaseButton.vue in @hybrid/vue-shared",
+      "data": {
+        "absPath": "<FIXTURE>/packages/vue-shared/src/components/BaseButton.vue",
+        "pkgRelPath": "src/components/BaseButton.vue",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:@hybrid/client-react",
+      "type": "package",
+      "label": "@hybrid/client-react",
+      "description": "Package @hybrid/client-react (packages/client-react)",
+      "data": {
+        "path": "packages/client-react",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:@hybrid/lambda-functions",
+      "type": "package",
+      "label": "@hybrid/lambda-functions",
+      "description": "Package @hybrid/lambda-functions (packages/lambda-functions)",
+      "data": {
+        "path": "packages/lambda-functions",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:@hybrid/vue-shared",
+      "type": "package",
+      "label": "@hybrid/vue-shared",
+      "description": "Package @hybrid/vue-shared (packages/vue-shared)",
+      "data": {
+        "path": "packages/vue-shared",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:hybrid-monorepo-fixture",
+      "type": "package",
+      "label": "hybrid-monorepo-fixture",
+      "description": "Package hybrid-monorepo-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "0.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 4 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:auth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:auth",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:auth-handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:auth-handler",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:authcontext",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:authcontext",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:basebutton",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:basebutton",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:client-react",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:client-react",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:lambda-functions",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:lambda-functions",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:loginform",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:loginform",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:siteheader",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:siteheader",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:useauth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:useauth",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:users-handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:users-handler",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:vue-shared",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:vue-shared",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/auth/auth-client/login",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@hybrid/client-react/src/auth/auth-client/login",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/auth/AuthContext/AuthContext",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@hybrid/client-react/src/auth/AuthContext/AuthContext",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/auth/useAuth/useAuth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@hybrid/client-react/src/auth/useAuth/useAuth",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@hybrid/lambda-functions/src/auth-handler/handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@hybrid/lambda-functions/src/auth-handler/handler",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@hybrid/lambda-functions/src/users-handler/handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@hybrid/lambda-functions/src/users-handler/handler",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/auth/auth-client",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:client-react",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@hybrid/client-react/src/auth/auth-client/login"
+      ],
+      "view": {
+        "id": "mod:@hybrid/client-react/src/auth/auth-client",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@hybrid/client-react/src/auth/auth-client/login",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:client-react",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/auth/AuthContext",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:client-react",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:authcontext",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:@hybrid/client-react/src/auth/AuthContext/AuthContext"
+      ],
+      "view": {
+        "id": "mod:@hybrid/client-react/src/auth/AuthContext",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@hybrid/client-react/src/auth/AuthContext/AuthContext",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:client-react",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:authcontext",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/auth/useAuth",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:client-react",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:useauth",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:@hybrid/client-react/src/auth/useAuth/useAuth"
+      ],
+      "view": {
+        "id": "mod:@hybrid/client-react/src/auth/useAuth",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@hybrid/client-react/src/auth/useAuth/useAuth",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:client-react",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:useauth",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/components/SiteHeader",
+      "links": [
+        {
+          "to": "domain:client-react",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:siteheader",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader"
+      ],
+      "view": {
+        "id": "mod:@hybrid/client-react/src/components/SiteHeader",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@hybrid/client-react/src/components/SiteHeader/SiteHeader",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:client-react",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:siteheader",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/client-react/src/main",
+      "links": [
+        {
+          "to": "domain:client-react",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:@hybrid/client-react/src/main",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:client-react",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/lambda-functions/src/auth-handler",
+      "links": [
+        {
+          "to": "domain:auth-handler",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-functions",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@hybrid/lambda-functions/src/auth-handler/handler"
+      ],
+      "view": {
+        "id": "mod:@hybrid/lambda-functions/src/auth-handler",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@hybrid/lambda-functions/src/auth-handler/handler",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth-handler",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-functions",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/lambda-functions/src/users-handler",
+      "links": [
+        {
+          "to": "domain:users-handler",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:lambda-functions",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@hybrid/lambda-functions/src/users-handler/handler"
+      ],
+      "view": {
+        "id": "mod:@hybrid/lambda-functions/src/users-handler",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@hybrid/lambda-functions/src/users-handler/handler",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:users-handler",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:lambda-functions",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/vue-shared/src/auth/auth-vue",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:vue-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth"
+      ],
+      "view": {
+        "id": "mod:@hybrid/vue-shared/src/auth/auth-vue",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:@hybrid/vue-shared/src/auth/auth-vue/setupAuth",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:vue-shared",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/vue-shared/src/auth/LoginForm.vue",
+      "links": [
+        {
+          "to": "domain:auth",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:vue-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:loginform",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:@hybrid/vue-shared/src/auth/LoginForm.vue",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:auth",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:vue-shared",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:loginform",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:@hybrid/vue-shared/src/components/BaseButton.vue",
+      "links": [
+        {
+          "to": "domain:vue-shared",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:basebutton",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "mod:@hybrid/vue-shared/src/components/BaseButton.vue",
+        "level": 2,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:vue-shared",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:basebutton",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:@hybrid/client-react",
+      "links": [],
+      "children": [
+        "mod:@hybrid/client-react/src/auth/auth-client",
+        "mod:@hybrid/client-react/src/auth/useAuth",
+        "mod:@hybrid/client-react/src/main",
+        "mod:@hybrid/client-react/src/auth/AuthContext",
+        "mod:@hybrid/client-react/src/components/SiteHeader"
+      ],
+      "view": {
+        "id": "pkg:@hybrid/client-react",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:@hybrid/client-react/src/auth/auth-client",
+            "type": "module"
+          },
+          {
+            "id": "mod:@hybrid/client-react/src/auth/useAuth",
+            "type": "module"
+          },
+          {
+            "id": "mod:@hybrid/client-react/src/main",
+            "type": "module"
+          },
+          {
+            "id": "mod:@hybrid/client-react/src/auth/AuthContext",
+            "type": "module"
+          },
+          {
+            "id": "mod:@hybrid/client-react/src/components/SiteHeader",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:@hybrid/lambda-functions",
+      "links": [],
+      "children": [
+        "mod:@hybrid/lambda-functions/src/auth-handler",
+        "mod:@hybrid/lambda-functions/src/users-handler"
+      ],
+      "view": {
+        "id": "pkg:@hybrid/lambda-functions",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:@hybrid/lambda-functions/src/auth-handler",
+            "type": "module"
+          },
+          {
+            "id": "mod:@hybrid/lambda-functions/src/users-handler",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:@hybrid/vue-shared",
+      "links": [],
+      "children": [
+        "mod:@hybrid/vue-shared/src/auth/auth-vue",
+        "mod:@hybrid/vue-shared/src/auth/LoginForm.vue",
+        "mod:@hybrid/vue-shared/src/components/BaseButton.vue"
+      ],
+      "view": {
+        "id": "pkg:@hybrid/vue-shared",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:@hybrid/vue-shared/src/auth/auth-vue",
+            "type": "module"
+          },
+          {
+            "id": "mod:@hybrid/vue-shared/src/auth/LoginForm.vue",
+            "type": "module"
+          },
+          {
+            "id": "mod:@hybrid/vue-shared/src/components/BaseButton.vue",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:hybrid-monorepo-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "pkg:hybrid-monorepo-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:hybrid-monorepo-fixture",
+        "pkg:@hybrid/client-react",
+        "pkg:@hybrid/lambda-functions",
+        "pkg:@hybrid/vue-shared"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:hybrid-monorepo-fixture",
+            "type": "package"
+          },
+          {
+            "id": "pkg:@hybrid/client-react",
+            "type": "package"
+          },
+          {
+            "id": "pkg:@hybrid/lambda-functions",
+            "type": "package"
+          },
+          {
+            "id": "pkg:@hybrid/vue-shared",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

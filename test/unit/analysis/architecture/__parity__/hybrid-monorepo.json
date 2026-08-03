@@ -1,0 +1,53 @@
+{
+  "scope": "all",
+  "totalFindings": 1,
+  "returnedFindings": 1,
+  "summary": {
+    "duplicate-like": 1,
+    "boundary": 0,
+    "god-module": 0,
+    "god-domain": 0,
+    "low-cohesion": 0,
+    "client-business-logic": 0,
+    "flow-convergence": 0,
+    "state-fragmentation": 0,
+    "effect-spaghetti": 0,
+    "prop-drilling-orchestration": 0,
+    "service-wrapper-explosion": 0,
+    "ui-domain-coupling": 0,
+    "route-convergence": 0,
+    "duplicated-client-policy": 0,
+    "design-system-leakage": 0,
+    "event-driven-boundary": 0,
+    "secret-config-boundary": 0,
+    "authorization-policy-drift": 0,
+    "trust-boundary-validation": 0,
+    "privileged-client-side-effect": 0,
+    "sensitive-browser-storage": 0,
+    "server-client-boundary": 0,
+    "source-disclosure-surface": 0,
+    "annotation-secret-hygiene": 0,
+    "annotation-risk": 0,
+    "unclear-architecture": 0
+  },
+  "findings": [
+    {
+      "id": "duplicate-like:auth",
+      "category": "duplicate-like",
+      "confidence": 0.77,
+      "severity": "medium",
+      "impact": "medium",
+      "title": "Several modules appear to own similar \"auth\" responsibility",
+      "nodes": [
+        "mod:@hybrid/client-react/src/auth/auth-client",
+        "mod:@hybrid/lambda-functions/src/auth-handler"
+      ],
+      "evidence": [
+        "2 modules normalize to the same responsibility key",
+        "2 package(s): pkg:@hybrid/client-react, pkg:@hybrid/lambda-functions",
+        "Examples: …/auth/auth-client, src/auth-handler"
+      ],
+      "suggestion": "Compare their annotations and public exports; consider extracting a shared abstraction only if their invariants and side effects truly match."
+    }
+  ]
+}

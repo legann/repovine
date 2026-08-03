@@ -1,0 +1,48 @@
+{
+  "_description": "K8s Deployment with container image linked to in-repo Dockerfile via runtime container linking.",
+  "heavyDomains": ["infra-dockerfile", "infra-k8s"],
+  "lightweightDomains": ["handler", "k8s-operator-fixture"],
+  "rejectedAsDomain": [],
+  "runtimeResourceNodes": [
+    { "label": "Dockerfile", "kind": "other", "provider": "generic" },
+    { "label": "demo-operator", "kind": "k8s-deployment", "provider": "k8s" },
+    { "label": "operator-certs", "kind": "secret", "provider": "k8s" },
+    { "label": "operator-env", "kind": "secret", "provider": "k8s" },
+    { "label": "operator-secrets", "kind": "secret", "provider": "k8s" }
+  ],
+  "runtimeLinks": [
+    {
+      "fromServiceLabel": "demo-operator",
+      "toDockerfileSuffix": "Dockerfile"
+    }
+  ],
+  "serviceLinks": [
+    {
+      "fromServiceLabel": "demo-operator",
+      "fromServiceKind": "k8s-deployment",
+      "fromServiceProvider": "k8s",
+      "toServiceLabel": "operator-certs",
+      "toServiceKind": "secret",
+      "toServiceProvider": "k8s",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "demo-operator",
+      "fromServiceKind": "k8s-deployment",
+      "fromServiceProvider": "k8s",
+      "toServiceLabel": "operator-env",
+      "toServiceKind": "secret",
+      "toServiceProvider": "k8s",
+      "edge": "uses_env"
+    },
+    {
+      "fromServiceLabel": "demo-operator",
+      "fromServiceKind": "k8s-deployment",
+      "fromServiceProvider": "k8s",
+      "toServiceLabel": "operator-secrets",
+      "toServiceKind": "secret",
+      "toServiceProvider": "k8s",
+      "edge": "uses_env"
+    }
+  ]
+}

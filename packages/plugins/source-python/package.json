@@ -1,0 +1,102 @@
+{
+  "name": "@repovine/plugin-source-python",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "repovine": {
+    "kind": "plugin",
+    "id": "python",
+    "apiVersion": 1,
+    "entry": "dist/index.js",
+    "declarations": {
+      "ecosystem": "python",
+      "dirs": [
+        {
+          "name": ".venv",
+          "role": "dependencies",
+          "because": "the conventional virtualenv location"
+        },
+        {
+          "name": "venv",
+          "role": "dependencies",
+          "because": "the same virtualenv under its other conventional name"
+        },
+        {
+          "name": "env",
+          "role": "dependencies",
+          "because": "a virtualenv named after the older convention",
+          "whenContains": [
+            "pyvenv.cfg",
+            "bin/activate",
+            "Scripts/activate"
+          ]
+        },
+        {
+          "name": "site-packages",
+          "role": "dependencies",
+          "because": "installed distributions inside an environment"
+        },
+        {
+          "name": ".eggs",
+          "role": "dependencies",
+          "because": "setuptools keeps resolved build dependencies here"
+        },
+        {
+          "name": "__pycache__",
+          "role": "build-output",
+          "because": "the interpreter writes bytecode caches here"
+        },
+        {
+          "name": "htmlcov",
+          "role": "build-output",
+          "because": "coverage.py writes its HTML report here"
+        },
+        {
+          "name": ".tox",
+          "role": "tool-output",
+          "because": "tox keeps one environment per target here"
+        },
+        {
+          "name": ".nox",
+          "role": "tool-output",
+          "because": "nox keeps one environment per session here"
+        },
+        {
+          "name": ".pytest_cache",
+          "role": "tool-output",
+          "because": "pytest keeps run state here"
+        },
+        {
+          "name": ".mypy_cache",
+          "role": "tool-output",
+          "because": "mypy keeps its incremental cache here"
+        },
+        {
+          "name": ".ruff_cache",
+          "role": "tool-output",
+          "because": "ruff keeps its incremental cache here"
+        }
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@repovine/plugin-sdk": "0.1.0"
+  }
+}

@@ -1,0 +1,323 @@
+# Bench archestra-correctness-web-crawler-url-identity — Repovine run 3 — model: opus-4.8 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-4-8; effort: max. Agent 068343dffd655879.
+# Gate: pass — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by loading the repovine MCP tools, as the project instructions require using them before reading files for non-trivial tasks.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+The graph is ready. Let me orient using repovine MCP tools to understand the web crawler connector and its context.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields, mod:@backend/src/routes/chat/normalization/extract-inline-attachments; source-derived fields removed]
+
+  → repovine.map_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, export:@backend/src/types/knowledge-connector/WebCrawlerConfig, export:@backend/src/types/knowledge-connector/WebCrawlerCheckpoint; source-derived fields removed]
+
+The top match carries annotations — the tool requires I inspect it before reasoning from source. Let me inspect the connector module with its body.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, pkg:@backend, domain:connectors; functions WebCrawlerConnector; architectural annotation delivered; source-derived fields removed]
+
+This annotation is critical. It tells me `normalizeCrawlUrl` is the single chokepoint that produces `kb_documents.source_id`, which is persisted once and never re-derived. Changing the normalizer without re-keying existing `source_id`s creates duplicates on the next sync (no prune step) — so "served correctly" requires more than just editing the normalizer. Let me read the rest of the module body and the key functions.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, pkg:@backend, domain:connectors; functions WebCrawlerConnector; architectural annotation delivered; source-derived fields removed]
+
+Now I have the full connector. Notably, the version repovine indexed already strips tracking params, lowercases the host, and strips default ports — but the git status shows this file has uncommitted modifications. I must read the actual file on disk to establish ground truth, since repovine's graph may reflect a different state.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 779 line(s)]
+
+This is a critical discovery. The file on disk **already** lowercases the host, strips default ports, and strips tracking params — only trailing-slash removal is missing. But git status shows this file has uncommitted modifications, and the task states today's normalization is "minimal." I must reconcile this: let me see the committed baseline vs. the working tree.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 46 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 64 line(s)]
+
+Now the picture is clear. The committed baseline (`normalizeCrawlUrl` strips only hash + default ports) matches the task's "minimal" premise. The working tree already added host-lowercasing and tracking-param stripping — a partial implementation. Missing: **trailing-slash removal**. And critically, the annotation's re-keying requirement (existing `source_id`s must be migrated or duplicates appear) is not yet addressed.
+
+Let me now understand the persistence layer to scope this correctly. I'll investigate the sync pipeline, the document model, the schema, and the referenced migration 0131 in parallel.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@backend/src/services/apps/app-connector-resource, export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsResponses, export:@frontend/src/lib/knowledge/kb-document.query/useConnectorDocuments; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@frontend/src/lib/knowledge/kb-document.query, export:@frontend/src/lib/knowledge/kb-document.query/KnowledgeBaseDocumentListItem, export:@frontend/src/lib/knowledge/kb-document.query/KnowledgeBaseDocumentDetail; source-derived fields removed]
+
+Let me inspect the sync pipeline and locate the document model, the `kb_documents` schema, and the referenced migration 0131 in parallel.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 12 line(s)]
+
+Let me read the `ingestDocument` logic (rest of connector-sync), the document model, schema, and the migration 0131 template.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Read: platform/backend/src/database/migrations/0131_fix_agent_tool_trailing_underscores.sql
+    [source removed — 14 line(s)]
+
+Now I understand the persistence precisely. Critically:
+
+- `kb_documents.source_id` = `doc.id` = **`sha256(…)`** — a hash, not the raw URL (connector-sync.ts:421,504; web-crawler-connector.ts:456-458).
+- `source_url` and `metadata.url` = the normalized `canonicalUrl` string (web-crawler-connector.ts:461,464).
+- Lookup is by `[expr]` with a unique index (kb-document.ts:151-166; schema kb-document.ts:44-47).
+
+So changing the normalizer changes the hash → next sync inserts a duplicate row (no prune), and search returns both. The `source_id` being a **hash** means a pure-SQL regex re-key (like 0131) would have to re-implement URL normalization *and* sha256 in SQL — exactly the SQL/TS mismatch class 0131 was fixing. A TypeScript data migration reusing the same normalizer is the sound path.
+
+Let me load the migrations skill and inspect the migration infrastructure and metadata type.
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+The migrations skill confirms data-only migrations are SQL files tracked by drizzle's journal, citing 0131 (a trivial `REGEXP_REPLACE`). But here `source_id` is a **sha256 hash**, so a faithful re-key must reuse the exact TS normalizer, not re-implement URL parsing + hashing in SQL (the very SQL/TS mismatch 0131 fixed). Let me determine the repo's migration vehicle — SQL-only vs. a TS backfill path — and check pgcrypto, the journal, and metadata types.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 49 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 80 line(s)]
+
+The migration mechanism is drizzle-kit SQL only (`db:migrate` = `drizzle-kit migrate`), no TS migration runner, no pgcrypto precedent, latest is `0312`. This matters: `[expr]`, and `normalizeCrawlUrl` uses `url.searchParams.delete()` which re-serializes the query via `application/x-www-form-urlencoded` (space→`[expr]`) — a WHATWG-URL behavior SQL regex cannot reproduce. A SQL re-key would silently mis-key exactly the tracking-param rows — re-introducing the SQL/TS mismatch class that migration 0131 existed to fix. So a faithful re-key must reuse the TS normalizer.
+
+Let me check whether the repo has any startup/bootstrap or one-time-task hook where a TS backfill could run faithfully, before deciding the vehicle.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 42 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 24 line(s)]
+
+Important precedent found: `src/database/seed.ts` contains `migrateSecretsToEncrypted()` and `migratePlaywrightToolsToDynamicCredential()` — **TypeScript idempotent data-migrations that reuse application logic** (encryption) precisely because SQL can't express it. This is the exact shape of my problem (reuse `normalizeCrawlUrl` + sha256, which SQL can't reproduce faithfully). Let me verify seed.ts runs in production and study the pattern and its invocation.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+Confirmed: `server.ts:955` calls `seedRequiredStartingData()` at production startup, and seed.ts already hosts TS idempotent data-migrations that reuse app logic SQL can't express (`migrateSecretsToEncrypted` reuses TS crypto). That is the faithful, convention-blessed vehicle for a re-key backfill reusing `normalizeCrawlUrl`. Let me study the precedent pattern and the chunk model.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: platform/backend/src/models/kb-chunk.ts
+    [source removed — 217 line(s)]
+
+Let me read the precedent data-migration functions and the seed entry point to match the pattern exactly.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 200 line(s)]
+
+The precedent is clear: idempotent TS backfills in `seed.ts` called from `seedRequiredStartingData()`, some reusing app logic SQL can't express (`migrateSecretsToEncrypted`). My re-key backfill fits this exactly. Let me confirm two schema details — whether `kb_chunks` cascades on document delete, and the connector-type column — before implementing.
+
+  → Read: platform/backend/src/database/schemas/kb-chunk.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+Both schema details confirmed: `kb_chunks.document_id` has `onDelete: "cascade"` (kb-chunk.ts:44) — deleting a document removes its chunks automatically; and `connector_type` is a column with the `web_crawler` literal. 
+
+Before implementing, I must ensure my changes won't break existing tests (I can't modify tests). Let me check what the existing connector and model/seed tests pin.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 47 line(s)]
+
+**Critical finding.** The existing connector test (which I cannot modify) at lines 132/175/179/271 pins **trailing-slash preservation**: a page with `[expr]` is asserted to store `[expr]` and `[expr]`. Implementing trailing-slash stripping would break these unmodifiable tests. This is pivotal — let me read the full test to understand exactly what's pinned.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 240 line(s)]
+
+Decisive finding. The existing tests (which I'm forbidden to modify) pervasively pin **trailing-slash preservation** as the connector's contract:
+- `web-crawler-connector.test.ts:163-166` — crawled pages produce `sourceUrl` `/docs/` and `/docs/install/` (slashes kept)
+- `[expr]` — `metadata.url` and `[expr]` (slash in the hashed identity)
+- `:271` — `/docs/dest/` kept
+- `:317-318` — `/docs/` kept
+
+In a "do not modify tests" task these tests are the oracle. Stripping trailing slashes would break all of them and change existing document identities — the opposite of "served correctly." So the trailing-slash bullet directly conflicts with the frozen contract. The other three requirements (tracking params, host-lowercase, default-port) are already in the working tree and are test-safe. Let me confirm my planned seed/model additions won't break their test oracles before implementing.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 44 line(s)]
+
+All planned additions are test-safe: `seed.test.ts` doesn't touch `seedRequiredStartingData`/`web_crawler`/`kb_documents`, and `kb-document.test.ts` only exercises existing methods (my new ones are additive). 
+
+My decision is settled and coherent:
+- **Keep** the working tree's test-safe normalization (tracking-param strip + explicit host-lowercase; default-port strip already present).
+- **Do not** add trailing-slash stripping — it contradicts the frozen test oracle and would change existing document identities (violating "served correctly"). Scope it out with citations.
+- **Implement** the "served correctly" re-key backfill (the annotation's core concern) faithfully in TS, reusing `normalizeCrawlUrl`.
+
+Let me verify one import detail (the `KbDocumentMetadata` barrel export), then implement.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+`@/types` re-exports kb-document types (index.ts:41), so `KbDocumentMetadata` resolves there. All facts gathered. Let me track this multi-file change and implement.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 4 line(s)]
+
+Now implementing. First the connector: reuse a shared id-derivation helper in `buildDocument`, export the normalizer, and add the shared helper.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now export the normalizer and add the shared id-derivation helper (keeping identity derivation as one function reused by the connector and the backfill).
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the model methods. Add the metadata type import and the two methods.
+
+  → Edit: platform/backend/src/models/kb-document.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/kb-document.ts
+    [edit applied]
+
+Now wire up seed.ts. First the imports.
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+A formatter ran. Let me read the current import region of seed.ts before the next edit.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 42 line(s)]
+
+The formatter tidied the imports. Now add the metadata type import.
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Now add the re-key backfill function before `seedRequiredStartingData`.
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Now call it from `seedRequiredStartingData`.
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+All edits applied. Let me verify the connector's final state around the changed regions, then run type-check, lint, and the affected tests.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 20 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 50 line(s)]
+
+The connector correctly retains the working-tree normalization (host-lowercase, tracking-params, default-port) and does **not** strip trailing slashes. Now let me verify: type-check, then the affected tests.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 14 line(s)]
+
+Let me run type-check and lint on the changed files in parallel.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Type-check and lint both pass. Now the affected tests — the connector contract (trailing-slash preservation), the model, and seed.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 44 line(s)]
+
+Tests fail at load with "Database URL is not set" — an environment/config issue, not a code failure. The backend uses PGlite for tests; the DB URL must come from a setup/config. Let me check how the test harness provides it.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+This is an environment gap (no `ARCHESTRA_DATABASE_URL` set), not a code failure — it would hit any test in the repo. Backend tests use PGlite via mocks, so config just needs a non-empty URL. Let me confirm how the harness supplies it, then run with it set.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 83 line(s)]
+
+`global-setup.ts` builds the PGlite test schema by replaying migration SQL — confirming my new model methods only touch pre-existing columns (`source_id`, `source_url`, `metadata`), needing no schema migration. The failure is just the missing `ARCHESTRA_DATABASE_URL` env var at config import (PGlite is swapped in for the real connection). Let me provide a dummy URL and re-run.
+
+  → Bash: [command removed — ran model-directed tests]
+    [output redacted — 14 line(s)]
+
+All 68 tests pass — the connector's trailing-slash contract is preserved, and the model/seed additions are safe. Now the knip check (CLAUDE.md flags that `knip --production` fails on exports used only by tests; mine are used by production `seed.ts`, but let me confirm), and I'll refresh repovine in parallel to update the stale graph.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 7 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Knip hit the same env issue (loading `drizzle.config.ts`). repovine refreshed (+2 nodes = my new exports). Let me re-run knip with the URL set.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 3 line(s)]
+
+Knip passes (dev + production, no issues). All gates green: type-check ✓, lint ✓, 68 tests ✓, knip ✓.
+
+Let me review the complete diff to finalize my report.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 237 line(s)]
+
+All gates pass and the diff is coherent. Here is the final report.
+
+## What I changed and why
+
+The task's four normalization items split cleanly by risk. Three were already applied in the working tree (uncommitted) and are safe; one conflicts with the frozen test oracle; and the "served correctly" clause is the real hidden work.
+
+**Committed baseline** (`HEAD`) had a minimal `normalizeCrawlUrl` (hash + default-port strip only). The **working tree** already added host-lowercasing and tracking-param stripping. I kept those and added the persistence reconciliation the annotation flagged.
+
+| File | Change | Why |
+|---|---|---|
+| `web-crawler-connector.ts` | Export `normalizeCrawlUrl`; add + export `deriveWebCrawlerDocumentId`; `buildDocument` reuses it | Make the identity derivation (`sha256(…)`) one shared function so the connector and the backfill can never diverge |
+| `models/kb-document.ts` | Add `findIdentitiesByConnectorType` + `reindexSourceIdentity` | Models-only DB access; `reindexSourceIdentity` can rewrite `source_id`, which the schema-restricted `update()` cannot |
+| `database/seed.ts` | Add idempotent `renormalizeWebCrawlerDocumentIdentities()`, called from `seedRequiredStartingData()` | Re-key already-stored identities onto the new normalization at startup, before the next sync |
+
+**Why the backfill is required (the annotation's core point):** `kb_documents.source_id` = `sha256(…)`, persisted once and never re-derived (`[expr]`), and connector-sync has no prune step. Changing the normalizer changes the hash, so the next sync inserts a *second* row for an unchanged page (`findBySourceId` misses → `create`), and full-text search returns both (`kb-chunk.ts:171` joins every row's chunks). The backfill recomputes each `web_crawler` document's identity through the *same* `normalizeCrawlUrl`, rewrites rows in place, and drops rows that now collapse onto an identity another row already holds (chunks cascade via `kb-chunk.ts:44`; the page stays served by the survivor). It is idempotent and provably collision-safe: a normalized URL is a fixed point, so any row occupying a survivor's target slot would itself be canonical and win that slot, making the mover a deleted duplicate instead.
+
+**Why `seed.ts` and not a SQL migration:** the established path the annotation cites (0131) was a trivial `REGEXP_REPLACE` on plaintext. Here the identity is a **hash of a WHATWG-normalized URL**, and `url.searchParams.delete()` re-serializes the query as `application/x-www-form-urlencoded` (`b c`→`[expr]`). SQL regex cannot reproduce that, so a SQL re-key would silently mis-key exactly the tracking-param rows — re-introducing the SQL/TS mismatch class 0131 existed to fix. `seed.ts` already hosts startup data-migrations that reuse app logic SQL can't express (`migrateSecretsToEncrypted`, `seed.ts:739`); reusing the TS normalizer there is the only faithful option.
+
+## Related paths deliberately left unchanged, with proof
+
+| Path | Left unchanged because |
+|---|---|
+| **Trailing-slash stripping** (the 2nd requirement) | Directly contradicts the frozen test oracle (`do not modify tests`). `web-crawler-connector.test.ts:163-166` asserts crawled pages keep `/docs/` and `/docs/install/`; `:175` and `:178-179` pin `metadata.url` and `[expr]` **with** the slash; `:271` pins `/docs/dest/`; `:317-318` pins `/docs/`. Stripping slashes breaks all of these. |
+| `connector-sync.ts` ingest/prune | The dedup key is `doc.id` (`connector-sync.ts:421`); leaving it and adding a prune step is out of scope. The backfill converges existing rows without touching the sync path. |
+| `contentHash` of re-keyed rows (`connector-sync.ts:416`) | Not part of identity. Left stale; the next sync sees a mismatch and re-embeds the row once (self-healing). Re-deriving it here would couple the backfill to connector-sync's private hash formula. |
+| Other connectors' `source_id` | `web_crawler`-specific; the backfill filters by `connector_type` (`kb-document.ts` join on `knowledge-base-connector.ts:33`). |
+
+Note on trailing-slash: the data-consistency machinery to support it already exists in my backfill (it re-keys through `normalizeCrawlUrl` regardless of what that function does). So the *only* blocker is the frozen tests — enabling it is a ~3-line normalizer change **plus** updating the five cited test assertions. Say the word and I'll do it.
+
+## Summary
+
+**Behavior:** crawled URLs now canonicalize by lowercasing host, stripping default ports, and dropping tracking params (`[expr]`, `gclid`, `fbclid`) — so trivially-different URLs collapse to one document. A startup backfill brings every already-indexed `web_crawler` document's stored identity onto the current normalization, so no page is duplicated in search after the change. Trailing-slash stripping is intentionally not applied (frozen-test conflict, cited above).
+
+**Files:** connector (share the id derivation, export the normalizer), `kb-document` model (two identity methods), `seed.ts` (the re-key backfill). No schema/migration change — only existing columns are touched.
+
+**Verification:** `tsgo` type-check ✓, Biome ✓, knip dev+production ✓, and the three directly-affected suites (`web-crawler-connector`, `kb-document`, `seed`) = 68 tests ✓. The connector suite passing confirms the trailing-slash contract is preserved.
+
+**Residual risk:**
+- Re-keyed rows re-embed once on the next sync (stale `contentHash`) — a one-time cost, not a correctness issue.
+- The backfill loads all `web_crawler` identity rows into memory (bounded per connector; consistent with `migrateSecretsToEncrypted`). It runs per-op via models rather than in one transaction; crash-safety rests on idempotency, not atomicity.
+- I ran the directly-affected suites, not the full 400+ backend suite; changes are additive and localized, but I did not exhaustively prove no unrelated integration test asserts on `seedRequiredStartingData`'s effects.
+- The requested trailing-slash normalization is unimplemented pending resolution of the test conflict.

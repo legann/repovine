@@ -1,0 +1,176 @@
+# Bench archestra-restraint-tool-slug — Baseline run 2 — model: opus-4.8 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max. Agent 3be7574f3e6e4e50.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to understand how MCP tool names are turned into identifiers.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 27 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+This is the Archestra platform. Let me search more specifically for where MCP tool names are converted to identifiers.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+`platform/backend/src/models/tool.ts` looks like the key file. Let me read it.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 1550 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 49 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+Let me read the existing `slugifyName` tests to understand the exact contract I must preserve, and locate the shared helpers.
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+The tests pin the current deletion behavior for many inputs, so a global transform change is out. The collision must be fixed surgically. Let me trace how the slug round-trips back to upstream tool names, since that determines whether a suffix approach is safe.
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-proxy.ts
+    [source removed — 80 line(s)]
+
+`unslugifyName` is used to recover the raw upstream tool name (`mcp-server-proxy.ts`), which only round-trips for already-clean names. Let me find how a slugified DB name maps back to the raw upstream name at execution time, and whether the raw name is stored anywhere (e.g. `meta`).
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 70 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+There's a `rawToolName`/`meta` path at `tool.ts`. This is crucial — if the raw upstream name is stored, execution may not depend on slug round-trip. Let me read that section and the gateway utils.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 280 line(s)]
+
+Let me find this reconciliation method's signature and callers, and see what `rawToolName` actually holds (raw upstream name vs slugified portion). This determines whether a slug suffix breaks re-sync.
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 55 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+`rawToolName` holds the raw upstream name (`mcp-reinstall.ts`), and `syncToolsForCatalog` matches on it — a rename/reinstall path with its own semantics. Let me confirm the primary discovery path and which reconciler each caller uses, so I fix the true chokepoint (`slugifyName`) and correctly scope what I leave alone.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+I now have the full picture. Let me confirm the two remaining call sites (`app-mcp-backing.ts` and the `mcp-client.ts` prefix use) to be certain my change is safe there, then implement.
+
+  → Read: platform/backend/src/services/apps/app-mcp-backing.ts
+    [source removed — 25 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 30 line(s)]
+
+Both are safe: `app-mcp-backing.ts` uses a fixed internal short name, and `mcp-server-gateway.utils.ts` pairs `unslugifyName` with the same-file matcher (`mcp-server-proxy.ts`), so they round-trip consistently regardless of the suffix. Let me confirm the app launch constant is clean, then implement.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the `slugifyName` method itself:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now let me verify the change compiles and the existing `slugifyName`/`unslugifyName` tests still pass.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+Change is in. Let me verify the reinstall test's mock of `slugifyName` won't be affected, and re-read my final method to confirm correctness.
+
+  → Read: platform/backend/src/services/mcp-reinstall.test.ts
+    [source removed — 22 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 40 line(s)]
+
+The reinstall test fully mocks `slugifyName`, so it's unaffected. Now let me make sure no other test feeds a tool name with stripped characters through discovery and asserts the old stripped identifier — the one way my change could break an existing test.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 34 line(s)]
+
+Two need checking: the Bedrock adapter test (special chars) and the `syncToolsForCatalog` rename tests. Let me verify the Bedrock path uses its own sanitizer (not `slugifyName`) and that the sync tests use clean raw names.
+
+  → Read: platform/backend/src/routes/proxy/adapters/bedrock.test.ts
+    [source removed — 55 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 130 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Read: platform/backend/src/routes/proxy/adapters/bedrock.ts
+    [source removed — 55 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 55 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+The implementation is complete and the diff is minimal (one file, +31/−1). My sweep confirms no other code path constructs the platform tool identifier by hand — `slugifyName` is the sole chokepoint (the one other hit is a log message).
+
+## Deliverables
+
+### 1. Patch implemented
+`platform/backend/src/models/tool.ts` — `ToolModel.slugifyName(…)`.
+
+The old body stripped every character outside `[expr]` (deleting, not replacing them). Two tool names on one server that differ only in stripped characters (e.g. non-ASCII scripts `工具`/`导航`, or `a@b`/`[expr]`) collapsed to one slug; the `[expr]` unique constraint then dropped all but one row, so the rest were unaddressable.
+
+The fix keeps the exact same transform, then:
+- If the **tool-name portion** loses no character (`[expr]`), return the slug byte-identical — this is the already-usable path.
+- Otherwise append `[expr]`, a deterministic per-name suffix, so distinct raw names get distinct identifiers.
+
+The trigger is scoped to the tool portion, so server-name stripping (shared by every tool of a server, never collides two tools) never adds a suffix — that keeps the existing `slugifyName` tests (which pin server-name stripping like `[expr]` → `[expr]`) unchanged.
+
+### 2. Where names become identifiers / what I left alone
+`ToolModel.slugifyName` is the single conversion point. Every discovery/create/reinstall caller funnels through it: `[expr]` and `[expr]` (→ `bulkCreateToolsIfNotExists`), `services/mcp-reinstall.ts:406` (→ `syncToolsForCatalog`), `services/apps/app-mcp-backing.ts:73`, `models/tool.ts:839` (clone). **Changed: `tool.ts` only.**
+
+Deliberately unchanged, with the source that scopes each out:
+- **`bulkCreateToolsIfNotExists` (primary discovery, `tool.ts:677`)** — matches by full `name` (`[expr]`). Distinct slugs make both rows insert and survive; no logic change needed. This is what fixes the bug.
+- **`syncToolsForCatalog` (reinstall/rename, `tool.ts:2007`)** — matches on `rawToolName`/part-after-`__` (`[expr]`). Lossy names already fail to round-trip here *today* (existing key `toolname` vs raw key `tool@name`), independent of my change; its tests (`tool.test.ts:2185-2305`) use only clean names. Rename semantics are unrelated to the collision. Left as-is.
+- **Bedrock adapter (`routes/proxy/adapters/bedrock.ts`)** — a per-request shim to Bedrock's stricter `[expr]` with its own reverse map (`toOriginal`, `bedrock.ts:210`) and its own identical `[expr]` dedup (`appendToolNameHash`, `bedrock.ts:239-250`; asserted `bedrock.ts:194`). It renames *already-platform* identifiers and reverses them per response, so it is a separate layer, not "the identifier the platform uses." My 8-hex choice matches this house convention.
+- **Upstream execution mapping (`clients/mcp-client.ts:2118-2157`)** — recovers the raw upstream name by stripping the prefix and case-insensitively matching the server's live tool list (`[expr]`); the stripped form of a lossy name is never in that map, so such tools were already non-executable upstream. Unchanged.
+- **`shared/utils.ts` `slugify`/`urlSlugify`/`buildFullToolName`** — agent/URL slugs and unsanitized display reconstruction, different charset/purpose. Not the tool identifier.
+
+### 3. Summary
+- **Behavior change:** MCP tool names whose slug previously lost characters now yield a distinct, deterministic identifier (`[expr]`); every tool whose name already slugified cleanly keeps its exact current identifier and addressing. The primary discovery path now persists a separate row per such tool instead of silently dropping duplicates.
+- **Files touched:** `platform/backend/src/models/tool.ts` (add `node:crypto` import; extend `slugifyName`).
+- **Residual risk:**
+  1. Exotic-named tools are now individually *addressable* in the platform, but upstream *execution* of them stays broken exactly as before — the raw upstream name isn't persisted, so `resolveActualToolName` still sends the stripped name. Fixing execution needs storing the raw name; larger, out of scope.
+  2. The 8-hex (32-bit) suffix leaves a negligible birthday-bound collision chance between two lossy names on one server (matches the existing Bedrock convention).
+  3. `syncToolsForCatalog` (reinstall) continues to mishandle lossy names as it did before; no previously-stable clean tool is affected.
+
+I could not run type-check/tests — this worktree is intentionally not bootstrapped — so the above rests on static verification against the pinned `slugifyName`/`unslugifyName` tests and all call sites.

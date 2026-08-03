@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+# Scenario 1: an existing IaC vertical supports a new case. The S3 event below is expressed
+# with the same canonical trigger DTO every other SAM event uses; the engine learns nothing new.
+Resources:
+  Uploads:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: scenario-uploads
+
+  ThumbnailMaker:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/thumbnails.handler
+      Runtime: nodejs20.x
+      Events:
+        ObjectCreated:
+          Type: S3
+          Properties:
+            Bucket: !Ref Uploads
+            Events: 's3:ObjectCreated:*'

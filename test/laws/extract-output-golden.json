@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "fingerprints": {
+    "basic-typescript": "c32cd496e0d6336c2acd6de8c61420d9c1f592b24085cf727fc933f1d6351385",
+    "sam-lambda-app": "279f23033a39facbbc815033d6d3496a55bd2f949991d90baf8f6b3eb282502a"
+  },
+  "summaries": {
+    "basic-typescript": {
+      "modules": 6,
+      "exports": 12,
+      "imports": 2,
+      "calls": 9,
+      "reExports": 3,
+      "infraModules": 0,
+      "infraResources": 0,
+      "templates": 0,
+      "semanticHintKinds": {}
+    },
+    "sam-lambda-app": {
+      "modules": 1,
+      "exports": 1,
+      "imports": 0,
+      "calls": 0,
+      "reExports": 0,
+      "infraModules": 1,
+      "infraResources": 4,
+      "templates": 0,
+      "semanticHintKinds": {}
+    }
+  }
+}

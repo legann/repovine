@@ -1,0 +1,5 @@
+{
+  "name": "k8s-operator-fixture",
+  "private": true,
+  "version": "1.0.0"
+}

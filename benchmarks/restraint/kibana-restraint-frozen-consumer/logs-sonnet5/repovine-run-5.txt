@@ -1,0 +1,254 @@
+# Bench kibana-restraint-frozen-consumer — Repovine run 5 — model: sonnet-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-sonnet-5; effort: max. Agent ea44ba6c23a943ef.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase structure using repovine MCP to find where synthetics monitor validation happens.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — status building; source-derived fields removed]
+
+  → repovine.map_context: [repository query]
+    [graph output redacted — status building; source-derived fields removed]
+
+The repovine graph is still building. I'll wait for it to complete.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.get_build_status: [repository query]
+    [graph output redacted — status ready; source-derived fields removed]
+
+Graph is ready. Now let me search for synthetics monitor validation logic.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/synthetics_private_locations, mod:x-pack-solutions-observability-plugins-synthetics/common/types/monitor_validation, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_locations_utils/validateMonitorPrivateLocationSpaces, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateProjectMonitor; source-derived fields removed]
+
+  → repovine.map_context: [repository query]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation, mod:x-pack-solutions-observability-plugins-synthetics/server/saved_objects/migrations/monitors/8.8.0, export:@kbn/synthtrace-client/src/lib/synthetics/SyntheticsMonitorDocument, export:@kbn/response-ops-rule-params/synthetics_monitor_status/v1/SyntheticsMonitorStatusRuleParams; source-derived fields removed]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.map_context: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation, pkg:kibana, pkg:kibana-buildkite, pkg:examples-content_management_examples; functions validateMonitor, validateProjectMonitor, validateLocation, MonitorValidationError, normalizeAPIConfig; source-derived fields removed]
+
+This gives a clear picture. Let me set up tasks and trace how these validation functions connect to the create/update routes.
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [source removed — 591 line(s)]
+
+Now let's find where `validateMonitor` and `validateProjectMonitor` are called from — the actual create/update routes.
+
+  → repovine.analyze_dependencies: [target export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateMonitor]
+    [graph output redacted — scope export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateMonitor, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/add_monitor, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/edit_monitor, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/inspect_monitor; source-derived fields removed]
+
+  → repovine.analyze_dependencies: [target export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateProjectMonitor]
+    [graph output redacted — scope export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateProjectMonitor, mod:x-pack-solutions-observability-plugins-synthetics/server/synthetics_service/project_monitor/project_monitor_formatter, mod:@kbn/i18n/index, mod:@kbn/securitysolution-io-ts-utils/index; source-derived fields removed]
+
+The `validateMonitor` function is also called from a saved-object migration — I need to check that carefully since it must not retroactively reject already-persisted monitors. Let me inspect that and the project monitor formatter.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/saved_objects/migrations/monitors/8.8.0]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/saved_objects/migrations/monitors/8.8.0, export:x-pack-solutions-observability-plugins-synthetics/server/saved_objects/migrations/monitors/8.8.0/SyntheticsMonitor880, export:x-pack-solutions-observability-plugins-synthetics/server/saved_objects/migrations/monitors/8.8.0/migration880, pkg:x-pack-solutions-observability-plugins-synthetics; functions migration880; architectural annotation delivered; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/synthetics_service/project_monitor/project_monitor_formatter]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/synthetics_service/project_monitor/project_monitor_formatter, export:x-pack-solutions-observability-plugins-synthetics/server/synthetics_service/project_monitor/project_monitor_formatter/ExistingMonitor, export:x-pack-solutions-observability-plugins-synthetics/server/synthetics_service/project_monitor/project_monitor_formatter/PreviousMonitorForUpdate, export:x-pack-solutions-observability-plugins-synthetics/server/synthetics_service/project_monitor/project_monitor_formatter/CANNOT_UPDATE_MONITOR_TO_DIFFERENT_TYPE; functions ProjectMonitorFormatter; source-derived fields removed]
+
+The migration annotation explicitly flags `validateMonitor` as a frozen boundary reused by the migration — I must not add the check there directly. Let me check the actual route handlers (add_monitor, edit_monitor) and the test-run paths (inspect_monitor, run_once_monitor) to see which are real persistence paths.
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/add_monitor]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/add_monitor, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/add_monitor/addSyntheticsMonitorRoute, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/add_monitor/invalidOriginError, pkg:x-pack-solutions-observability-plugins-synthetics; functions addSyntheticsMonitorRoute, invalidOriginError; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/edit_monitor]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/edit_monitor, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/edit_monitor/editSyntheticsMonitorRoute, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/edit_monitor/syncEditedMonitor, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/edit_monitor/validatePermissions; functions editSyntheticsMonitorRoute, syncEditedMonitor, validatePermissions, validateLocationPermissions; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/inspect_monitor]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/inspect_monitor, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/inspect_monitor/inspectSyntheticsMonitorRoute, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/inspect_monitor/buildPackagePolicyLinks, pkg:x-pack-solutions-observability-plugins-synthetics; functions inspectSyntheticsMonitorRoute, buildPackagePolicyLinks; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/synthetics_service/run_once_monitor]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/synthetics_service/run_once_monitor, export:x-pack-solutions-observability-plugins-synthetics/server/routes/synthetics_service/run_once_monitor/runOnceSyntheticsMonitorRoute, pkg:x-pack-solutions-observability-plugins-synthetics, domain:synthetics-service; functions runOnceSyntheticsMonitorRoute; source-derived fields removed]
+
+This confirms the persistence boundary: `add_monitor.ts` and `edit_monitor.ts` are the real create/update writes; `inspect_monitor.ts` and `run_once_monitor.ts` are transient test/dry-run endpoints that don't persist. Let me check the bulk create/update paths used by project monitors to make sure there's no separate persistence route that bypasses validation.
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/add_monitor_bulk]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/add_monitor_bulk, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/add_monitor_bulk/syncNewMonitorBulk, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/add_monitor_bulk/deleteMonitorIfCreated, pkg:x-pack-solutions-observability-plugins-synthetics; functions syncNewMonitorBulk, deleteMonitorIfCreated; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/edit_monitor_bulk]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/edit_monitor_bulk, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/edit_monitor_bulk/MonitorConfigUpdate, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/edit_monitor_bulk/syncEditedMonitorBulk, export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/bulk_cruds/edit_monitor_bulk/rollbackCompletely; functions syncEditedMonitorBulk, rollbackCompletely, rollbackFailedUpdates; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-uptime/server/legacy_uptime/routes/monitors/monitor_locations, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/settings/private_locations/get_location_monitors, mod:x-pack-solutions-observability-plugins-synthetics/public/apps/synthetics/components/settings/private_locations/view_location_monitors, mod:x-pack-solutions-observability-plugins-synthetics/server/routes/settings/private_locations/edit_private_location; source-derived fields removed]
+
+Let me verify `validateLocation` has no other callers, and check the exact type shapes for `locations`/`privateLocations` fields to write a type-correct check.
+
+  → repovine.analyze_dependencies: [target export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateLocation]
+    [graph output redacted — scope export:x-pack-solutions-observability-plugins-synthetics/server/routes/monitor_cruds/monitor_validation/validateLocation, mod:@kbn/i18n/index, mod:@kbn/securitysolution-io-ts-utils/index, mod:@kbn/config-schema/index; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types_project]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types_project, export:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types_project/ProjectMonitorThrottlingConfigCodec, export:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types_project/ProjectMonitorCodec, export:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types_project/ProjectMonitorsRequestCodec; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types]
+    [graph output redacted — scope mod:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types, export:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types/TLSFieldsCodec, export:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types/TLSSensitiveFieldsCodec, export:x-pack-solutions-observability-plugins-synthetics/common/runtime_types/monitor_management/monitor_types/TLSCodec; source-derived fields removed]
+
+Let me verify the exact field names in the `ProjectMonitor` codec and confirm file paths before editing.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/common/runtime_types/monitor_management/monitor_types_project.ts
+    [source removed — 72 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+Now implementing. First, add the shared constant and error message, plus the check in `validateLocation` (project-monitor path):
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [edit applied]
+
+That advisory concerns `validateMonitor` specifically — my edit only touched `validateLocation`, a separate function not used by the frozen migration. Let me refresh the index and continue with the two route files.
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Now let me add the constant and error message definitions near `LOCATION_REQUIRED_ERROR`.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [source removed — 39 line(s)]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [edit applied]
+
+Now let's update `add_monitor.ts` to enforce the limit on the create path.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [source removed — 30 line(s)]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [edit applied]
+
+Now add the check right after `normalizedMonitor` is obtained:
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [edit applied]
+
+Now let's do the same for `edit_monitor.ts`:
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [source removed — 45 line(s)]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [edit applied]
+
+  → Edit: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [edit applied]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Let me review the full diff to verify correctness before running verification.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 105 line(s)]
+
+Diff looks correct. Now let's run type checking, linting, and the i18n check since I added new translation strings.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 24 line(s)]
+
+Dependencies aren't bootstrapped in this worktree. Let me check if `node_modules` exists at all before deciding whether to bootstrap.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 5 line(s); non-zero exit]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 9 line(s)]
+
+The environment blocks build tooling entirely (no node_modules, by design) — I'll do rigorous static verification by re-reading the modified files in full instead of running type_check/eslint.
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/add_monitor.ts
+    [source removed — 218 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/edit_monitor.ts
+    [source removed — 422 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/routes/monitor_cruds/monitor_validation.ts
+    [source removed — 115 line(s)]
+
+Let me do a few grep-based sanity checks: verify no i18n key collisions, confirm no other missed call sites, and check translation file conventions.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 23 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+Let me confirm the `locations` field type on `SyntheticsMonitor`/`MonitorFields` to be fully certain about type correctness.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/common/runtime_types/monitor_management/monitor_types.ts
+    [source removed — 40 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+## Summary
+
+Added a 100-location cap for synthetics monitors, enforced at both real write paths, without touching the shared low-level validator that a frozen saved-object migration depends on.
+
+**Files changed:**
+- `server/routes/monitor_cruds/monitor_validation.ts` — added `[expr]` and `TOO_MANY_LOCATIONS_ERROR`; added a count check inside `validateLocation()` (public + private location count > 100 → reject).
+- `server/routes/monitor_cruds/add_monitor.ts` — after the existing `validateMonitor()` success check, reject if `[expr]`.
+- `server/routes/monitor_cruds/edit_monitor.ts` — same guard on `validationResult.decodedMonitor.locations.length`.
+
+**Why not inside `validateMonitor()` itself:** that function is annotated as a frozen boundary — `server/saved_objects/migrations/monitors/8.8.0.ts` calls it (`omitZipUrlFields`) to re-validate **already-persisted** monitors during upgrade, and throws if invalid. Adding the cap there would let the migration retroactively reject old documents, violating the constraint directly. So the rule lives in `validateLocation()` (used only by the project-monitor write path) and as an explicit extra check in the two single-monitor route handlers — all real create/update entry points, none of them the migration.
+
+**Code paths changed:**
+| Path | Covers |
+|---|---|
+| `add_monitor.ts` | UI/REST create (`POST .../monitors`) |
+| `edit_monitor.ts` | UI/REST update (`[expr]`) |
+| `validateLocation()` → `validateProjectMonitor()` | CLI-pushed project monitors, both create and update — `project_monitor_formatter.ts`'s `configureAllProjectMonitors` calls `this.validateProjectMonitor` for every monitor before branching into new vs. update |
+
+**Code paths intentionally left unchanged, with citations:**
+- **`validateMonitor()` body** — untouched. Its own repovine annotation: *"validateMonitor is a shared validator a released saved-object migration runs unchanged... A released migration's output and accept/reject behavior are frozen."* Confirmed by reading `migrations/monitors/8.8.0.ts`, which imports and calls it on pre-existing documents and throws on invalid result.
+- **`migrations/monitors/8.8.0.ts`** — not modified; it only consumes the (unchanged) `validateMonitor`, so it's unaffected.
+- **`inspect_monitor.ts`** — not modified. Its handler calls `validateMonitor` then only `syntheticsMonitorClient.inspectMonitor(…)` (a dry-run config preview); no `monitorConfigRepository`/`savedObjectsClient` create/update call anywhere in the file — it doesn't persist a monitor.
+- **`run_once_monitor.ts`** — not modified. Handler calls `validateMonitor` then `syntheticsMonitorClient.testNowConfigs(…)`; likewise no persistence call — it's a one-off test run, not a create/update.
+- **`bulk_cruds/add_monitor_bulk.ts` / `edit_monitor_bulk.ts`** — not modified. They only run `monitorConfigRepository.createBulk`/`bulkUpdate` on monitors that `project_monitor_formatter.ts` already pushed into `normalizedNewMonitors`/`normalizedUpdateMonitors`, which only happens after `this.validateProjectMonitor(…)` (the now-updated gate) returned non-null — the new rule is already enforced upstream of these.
+
+**Residual risk:** I could not run `node scripts/type_check`, `eslint`, or `i18n_check` — this worktree has no `node_modules` by design (bootstrap/build tooling is intentionally disabled here). I verified types by reading the actual codecs (`locations` is `[expr]`, `.length` is valid) and cross-checked import ordering/style against surrounding code, but this hasn't been machine-verified. Recommend running `node scripts/type_check --project x-pack/solutions/observability/plugins/synthetics/tsconfig.json` and `node scripts/eslint --fix` in a bootstrapped environment before merging.

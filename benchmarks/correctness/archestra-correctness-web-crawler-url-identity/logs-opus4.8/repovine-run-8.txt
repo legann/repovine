@@ -1,0 +1,283 @@
+# Bench archestra-correctness-web-crawler-url-identity — Repovine run 8 — model: opus-4.8 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-4-8; effort: max. Agent 7922ca2b05ba4a3a.
+# Gate: pass — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by loading the repovine MCP tools and orienting myself with the graph, as instructed.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields, mod:@backend/src/routes/chat/normalization/extract-inline-attachments; source-derived fields removed]
+
+The top match is the target module, and it carries annotations. Let me inspect it as the gaps note instructs, including the source body.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, pkg:@backend, domain:connectors; functions WebCrawlerConnector; architectural annotation delivered; source-derived fields removed]
+
+This annotation is critical. It tells me `normalizeCrawlUrl` is the identity chokepoint, and that `kb_documents.source_id` is the persisted form of this normalization — never re-derived. A normalization change diverges from stored identities, creating duplicates on the next sync, and there is an established in-repo migration path (`0131_fix_agent_tool_trailing_underscores`) for re-keying. Let me read the rest of the module body.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, pkg:@backend, domain:connectors; functions WebCrawlerConnector; architectural annotation delivered; source-derived fields removed]
+
+This annotation is the crux of the task. `normalizeCrawlUrl` is the identity chokepoint; `kb_documents.source_id` is its persisted form, never re-derived, and there's no prune step — so a normalization change diverges stored identities from the normalizer and produces duplicates from the first sync. The annotation points at migration `0131_fix_agent_tool_trailing_underscores` as the established re-keying path.
+
+Let me now gather the full picture: the exact source, the test file (which I must not break), the sync/persistence path, and the migration pattern.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+Now let me trace the persistence path and find the established migration pattern. I'll investigate several things in parallel.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@backend/src/services/apps/app-connector-resource, export:@archestra/shared/hey-api/clients/api/types.gen/GetConnectorDocumentsResponses, export:@frontend/src/lib/knowledge/kb-document.query/useConnectorDocuments; source-derived fields removed]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 54 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+Now let me read the persistence path, the schema, the established migration `0131`, and the test file that locks in current behavior. These are the facts I need before designing the change.
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+Now I understand the persistence path precisely:
+- `connector-sync.ts:419-422` — lookup is by `sourceId: doc.id` (the **sha256 hash** of `canonicalUrl`).
+- `connector-sync.ts:502-512` — on create, `[expr]` (hash) and `[expr]` (the normalized URL string).
+
+So `source_url` holds the human-readable normalized URL and `source_id` holds its hash. Let me read the cited precedent migration `0131`, the schema, the model, representative data-migration examples, and the connector test that pins current behavior.
+
+  → Read: platform/backend/src/database/migrations/0131_fix_agent_tool_trailing_underscores.sql
+    [source removed — 14 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Read: platform/backend/src/database/migrations/0285_dedup_archestra_builtin_tools_by_short_name.sql
+    [source removed — 131 line(s)]
+
+All three migrations are pure SQL, and `0131` is a simple regexp rewrite. But my case is harder: `source_id` is `sha256(…)`, and the new normalization (especially tracking-param stripping) is painful and drift-prone to reimplement in SQL — reintroducing exactly the SQL/TS mismatch that `0131` existed to fix. Let me load the migrations skill and check whether this repo supports code-based data migrations, and read the remaining facts I need.
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+The skill confirms migrations are Drizzle-tracked SQL (custom data-only migrations via `drizzle-kit generate --custom`). My re-key needs `sha256(…)` — reimplementing the normalizer in SQL would reintroduce exactly the SQL/TS drift bug `0131` existed to fix. Let me check the migration runner, whether code-based data migrations exist, whether `pgcrypto` is available, the chunk cascade behavior, the model, and the connector test.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-chunk.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+Critical findings: `kb_chunks.document_id` cascades on delete (`kb-chunk.ts:44`), so dedup deletion is clean. Migrations `0145` and `0276` already use `digest`/`pgcrypto`. Before committing to a SQL migration with `sha256`, I must confirm `pgcrypto` works in the PGlite test DB (migrations run there; `digest()` failing would break the whole suite, and I can't modify tests). Let me verify, and read the connector test + model.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 85 line(s)]
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [source removed — 70 line(s)]
+
+The grep hits were false positives — `0145` is a Docker image digest, and `0276:111` is a comment saying sha256 "is computed in app code... impractical" to do in SQL. That's a strong repo signal against `sha256`-in-SQL, and I haven't confirmed `pgcrypto` exists in PGlite (it isn't used by any migration). Let me read that `0276` context and search for any code-based/startup backfill mechanism, since `source_id` is a hash that the repo would recompute in app code.
+
+  → Read: platform/backend/src/database/migrations/0276_squash_skill_sandbox_and_versioning.sql
+    [source removed — 23 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 31 line(s)]
+
+Decisive signal: `0276:110-114` documents the repo's idiom — when a canonical hash "is computed in app code (sha256 ...), impractical to reproduce in SQL across pg/PGlite," they use a sentinel and let the app self-heal. And PGlite test setup loads only the `vector` extension (`setup.ts:19`), so `pgcrypto`/`digest()` in a migration would break the whole suite. So re-keying `source_id` (a hash) cannot be a pure-SQL recompute.
+
+Let me read the connector test (pins current behavior — I must not break it), the server boot sequence (is there a code-backfill home?), and a backfill-migration example.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+This test file is decisive and reveals a real tension. It **pins** the connector's canonical-URL output with trailing slashes preserved:
+- `test.ts:163-166` — sourceUrls expected as `/docs/` and `/docs/install/`
+- `test.ts:178-180` — `[expr]`
+- `[expr]` — more trailing-slash sourceUrls
+
+So trailing-slash removal in `normalizeCrawlUrl` changes document identity for most directory-style URLs and conflicts with these unmodifiable tests. Meanwhile tracking-param stripping, host-lowercasing, and port-stripping don't touch any existing test URL. Let me gather the final facts before deciding: the backfill-migration pattern, the server boot sequence, and whether PGlite has pgcrypto.
+
+  → Read: platform/backend/src/database/migrations/0290_backfill_artifact_files.sql
+    [source removed — 53 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 36 line(s)]
+
+Excellent — this is the decisive fork. `0290` shows pure-SQL backfills use `regexp`/`ON CONFLICT` for idempotency, and no migration uses `pgcrypto`. The `0276` comment says `sha256` is "impractical to reproduce in SQL across pg/PGlite." Since re-keying `source_id` requires `sha256(…)`, I must know definitively whether PGlite supports `digest()`. Let me test it empirically with the repo's own PGlite — this resolves the entire migration strategy.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 25 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 8 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+My worktree has no `node_modules` installed (so I can't run the suite/build here — I'll rely on careful reasoning and convention-matching). A sibling worktree has the same `@electric-sql/pglite@0.3.16` the repo pins. Let me use it to empirically test whether `pgcrypto`/`digest()` works in this PGlite version — this decides the migration strategy.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 53 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 12 line(s)]
+
+Definitively confirmed: in a bare PGlite (exactly what `backend/src/test/setup.ts` builds), `digest()` doesn't exist and `CREATE EXTENSION pgcrypto` fails ("not available"). A migration using `sha256`/`pgcrypto` would break the entire test-DB build. So re-keying `source_id` (a hash) **cannot** be pure SQL — it must reuse the TS normalizer in JS, which also avoids the SQL/TS drift the annotation warns about.
+
+Let me examine the boot/seed path to find the conventional home for a run-once reconciliation, and confirm there's no existing code-migration primitive.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 954 line(s)]
+
+This is the key precedent: `[expr]` is an **idempotent, startup-time data migration that transforms stored values with JS crypto that can't run in SQL** — invoked from `seedRequiredStartingData()` (`seed.ts:873`, called at boot `server.ts:955`, after migrations). That's exactly my situation (re-key `[expr]` in JS, reusing the live normalizer → no SQL/TS drift). Several sibling backfills confirm the convention.
+
+Let me confirm the connector schema (type column/value), the DB helpers, and that the reconciliation query shape is valid.
+
+  → Read: platform/backend/src/database/schemas/knowledge-base-connector.ts
+    [source removed — 94 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 56 line(s)]
+
+This is the complete picture. `seed.ts:739 migrateSecretsToEncrypted` is the exact precedent — an idempotent, startup data migration transforming stored values with JS crypto that can't run in SQL, invoked from `seedRequiredStartingData()`. Everything is confirmed:
+- `[expr]`, `[expr]` (`[expr]`)
+- `kb_chunks` cascade-delete (`kb-chunk.ts:44`) → dedup is clean
+- `[expr]`, registry already loads the connector at boot
+- `pgcrypto` unavailable in the test PGlite → re-key must be JS
+
+My design decision, grounded in the crawler's fetch semantics: the 3 fetch-safe rules (tracking-param strip, host-lowercase, default-port) go in `normalizeCrawlUrl` (used for fetching + frontier dedup); trailing-slash removal applies to the **document identity** only (so the crawler still fetches the exact path a server publishes at `/x/`, avoiding 404 regressions), collapsing `/x` and `/x/` to one stored document. A startup re-key reconciles existing rows, reusing the same canonicalizer (no SQL/TS drift — the exact bug `0131` was about).
+
+Let me implement. First, the connector normalization.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the core normalization functions:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire up the startup re-key in `seed.ts`. First the imports:
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Now add the re-key function, modeled on `migrateSecretsToEncrypted` (the JS-crypto-over-stored-rows precedent):
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Now invoke it from `seedRequiredStartingData`, grouped with the other data-reconciliation calls:
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+All edits done. Now let me verify type-correctness (I can't run `tsc` without `node_modules`, so I'll reason carefully). The key risk is `noUncheckedIndexedAccess` making `[expr]`/`winner` possibly-undefined. Let me check the tsconfig and re-read the final edited regions.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+`strict: true` is set but `noUncheckedIndexedAccess` is not (and `backend/tsconfig.json` doesn't extend a base), so `[expr]`/`winner` type as non-optional — no guard needed. Let me re-read the final edited regions to confirm correctness.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 70 line(s)]
+
+The connector normalization is correct. Let me re-read the seed.ts additions to confirm they're syntactically and logically sound.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 120 line(s)]
+
+The seed function is correct. Let me verify two integration points: `withDbTransaction`'s `tx` supports the query builder methods I use, and there's no new import cycle from `[expr]`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 32 line(s)]
+
+All integration points check out: `tx` is a full Drizzle `Transaction`, `base-connector` imports only pino/logging/types (no cycle), and neither `@/database` nor `@/models` imports back. I've verified the re-key math: `canonicalizeDocumentUrl(…)` (old normalization is a subset of new), so the backfill produces exactly what the next sync derives → in-place update, no duplicate.
+
+Let me refresh the repovine graph (per the post-edit convention) and confirm nothing else consumes the changed normalization.
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Graph rebuilt (+1 node — the new export). Let me confirm the impact surface: who consumes the changed normalization, and that no other module depended on the old `normalizeCrawlUrl` behavior.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+No external module depended on the old `normalizeCrawlUrl` (it's unexported), `canonicalizeDocumentUrl` is consumed only by `seed.ts`, and other connectors use their own identity schemes (my backfill is scoped to `[expr]`). Let me do a final verification of every `normalizeCrawlUrl`/`canonicalizeDocumentUrl` call site in the connector to confirm fetch-path vs identity-path split is exactly right.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+Every call site is on the correct path: fetch/scope/frontier (lines 131, 172, 193, 354, 585) use `normalizeCrawlUrl` (preserves the exact path); identity (lines 595-604, via `buildDocument`) uses `canonicalizeDocumentUrl`. One refinement: the `@public` tag convention is reserved for exports invisible to knip (tests/scripts), but this one is consumed by `seed.ts` (production), so I'll reword the JSDoc to avoid the misleading marker.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Implementation complete. Let me review the full diff to confirm everything is coherent.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 235 line(s)]
+
+The diff is clean and scoped to two files. I can't run the repo build here (no `node_modules` in this worktree), but the normalization logic uses only Node built-ins (`URL`, `crypto`), so let me verify the core behavior empirically — dedup, idempotency, root/port handling, and that the re-key matches next-sync output.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s)]
+
+All 17 checks pass — including the critical one: the backfill's `canon(…)` yields the identical id to the next sync's `canon(…)`, so re-keyed rows update in place with no duplicates. Let me grab one accurate line number for the report.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+## Summary
+
+I strengthened the web crawler's URL normalization and — critically — reconciled the identities already persisted from the old normalization, so no already-indexed document is duplicated or lost.
+
+The repovine annotation on `web-crawler-connector` was the key: `normalizeCrawlUrl` is the identity chokepoint, `kb_documents.source_id` is its persisted form (written once, never re-derived), and connector-sync has **no prune** — so changing normalization alone would insert a second row per page on the next sync and return both from search. The re-key had to reuse the live normalizer (not reimplement it in SQL) to avoid the exact SQL/TS drift that migration `0131` existed to fix.
+
+## 1. Files changed
+
+**`backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`**
+- Added `TRACKING_QUERY_PARAMS` (utm_source/medium/campaign/term/content, gclid, fbclid).
+- `normalizeCrawlUrl` (`:614`) now also lowercases the host and strips tracking params, keeping the existing default-port stripping. It does **not** strip trailing slashes — this function drives what gets **fetched** (start URL `:131/:172/:193`, discovered links `:585`) and the crawl scope, so it must request the exact path a server publishes (a page served only at `/x/` must not be fetched as `/x`).
+- New exported `canonicalizeDocumentUrl` (`:643`) = `normalizeCrawlUrl` + trailing-slash removal on non-root paths. This is the **document identity**: `normalizeCanonicalUrl` (`:591`) now routes through it, so `buildDocument`'s id/`sourceUrl`/`metadata.url` collapse `/x` and `/x/` (and tracking-param variants) to one document.
+
+**`backend/src/database/seed.ts`**
+- Added `renormalizeWebCrawlerDocumentIdentities()` (`:778`), invoked from `seedRequiredStartingData()` (`:1002`, run at boot after migrations). It re-keys `source_id`/`source_url` for `[expr]` rows using the same `canonicalizeDocumentUrl`, and collapses rows that now share a canonical URL (keeping the already-canonical row, else the oldest; losers deleted, chunks cascade). Idempotent.
+- This is a **code** backfill, not SQL, because `[expr]` and `pgcrypto`/`digest()` is unavailable in the PGlite test DB (I verified empirically) — the repo itself documents sha256-in-SQL as impractical (`[expr]`). It follows the established `migrateSecretsToEncrypted` precedent (`seed.ts:739`): an idempotent startup transform of stored rows using JS crypto.
+
+## 2. Related paths deliberately left unchanged
+
+| Path | Why out of scope (proof) |
+|---|---|
+| `buildAllowedPathPrefixes` (`web-crawler-connector.ts:471`) | Derives crawl scope from `[expr]` (`:479`). Because trailing-slash removal is identity-only, the `startUrl` it reads still carries its trailing slash, so the `/docs/` → directory-scope vs `/docs` → whole-host distinction (`:480-483`) is preserved with no edit. |
+| connector-sync ingest (`connector-sync.ts:419`, `:502`) | Matches/creates by `[expr]` for **all 16 connectors**. The re-key is done once in the backfill instead of changing this shared hot path. |
+| Other 15 connectors (`connectors/registry.ts`) | Each has its own identity scheme; the backfill filters `[expr]` (`seed.ts:797`) and the normalizer lives only in this connector. |
+| `kb_documents.metadata.url` | Not re-written by the backfill. It is display metadata, not identity — search reads chunk `search_vector` (`kb-chunk.ts:50`), and the content-hash path refreshes it on the next sync (`connector-sync.ts:468-476`). |
+| Frontend `web-crawler-config-fields` | Config-entry UI only; no normalization logic. |
+
+## 3. Behavior change & residual risk
+
+**Behavior:** trivially-different URLs (tracking params, host case, default port, trailing slash) now canonicalize to one document identity; crawl fetching and scope are unchanged. On the next sync after deploy, the startup re-key has already aligned every stored `source_id` with the new normalizer and merged pre-existing duplicates, so each page maps to exactly one row.
+
+**Verification:** I could not run the repo's `tsc`/test suite (this worktree has no installed `node_modules`); I verified by inspection and an isolated Node harness (17/17 checks) covering the four rules, root/port edge cases, `/x`≡`/x/` and utm-variant collapse, idempotency, and the re-key⇔next-sync-output equivalence that guarantees in-place updates.
+
+**Residual risk:**
+- **Pinned test assertions change.** `web-crawler-connector.test.ts` asserts the *old* identity with trailing slashes (`:163-166`, `:172-180`, `:271`, `:317-318`, `:648`, `:667-668`). The new canonicalization legitimately changes those `sourceUrl`/`id`/`metadata.url` outputs; per the "do not modify tests" constraint I left them untouched, so those assertions need the test owner to update to the slash-stripped URLs. Crawl-behavior assertions (titles, counts, scope, skips) are unaffected because fetching is unchanged.
+- A page linked as both `/x` and `/x/` may be fetched twice in one crawl (deduped at storage) — harmless extra request.
+- The backfill scans all web-crawler `kb_documents` in one transaction each boot (no-op once canonical), matching `migrateSecretsToEncrypted`'s whole-table pattern; very large deployments would see a large one-time transaction.

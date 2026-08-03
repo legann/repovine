@@ -1,0 +1,570 @@
+{
+  "stats": {
+    "totalNodes": 15,
+    "totalEdges": 22,
+    "nodesByType": {
+      "domain": 4,
+      "export-symbol": 1,
+      "module": 4,
+      "package": 1,
+      "root": 1,
+      "runtime-resource": 4
+    },
+    "edgesByKind": {
+      "contains": 10,
+      "infra": 1,
+      "tagged": 10,
+      "uses_env": 1
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:infra-helm",
+      "domain:infra-dockerfile",
+      "domain:placeholder",
+      "domain:helm-images-fixture"
+    ],
+    "export-symbol": [
+      "export:helm-images-fixture/src/placeholder/placeholder"
+    ],
+    "module": [
+      "mod:helm-images-fixture/src/placeholder",
+      "infra:helm:helm/demo-chart/Chart.yaml",
+      "infra:dockerfile:helm/demo-chart/Dockerfile",
+      "infra:helm:helm/demo-chart/values.yaml"
+    ],
+    "package": [
+      "pkg:helm-images-fixture"
+    ],
+    "root": [
+      "root"
+    ],
+    "runtime-resource": [
+      "resource:generic:demo-chart",
+      "resource:generic:helm/demo-chart/Dockerfile",
+      "resource:generic:app",
+      "resource:generic:secret:app-db-credentials"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:helm-images-fixture",
+      "type": "domain",
+      "label": "helm-images-fixture",
+      "description": "Domain: helm-images-fixture",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "type": "domain",
+      "label": "infra-dockerfile",
+      "description": "Domain: infra-dockerfile (Dockerfiles)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:infra-helm",
+      "type": "domain",
+      "label": "infra-helm",
+      "description": "Domain: infra-helm (Helm charts)",
+      "data": {
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:placeholder",
+      "type": "domain",
+      "label": "placeholder",
+      "description": "Domain: placeholder",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:helm-images-fixture/src/placeholder/placeholder",
+      "type": "export-symbol",
+      "label": "placeholder",
+      "description": "const placeholder",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 1,
+          "end": 1
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "infra:dockerfile:helm/demo-chart/Dockerfile",
+      "type": "module",
+      "label": "…/demo-chart/Dockerfile",
+      "description": "IaC dockerfile module helm/demo-chart/Dockerfile",
+      "data": {
+        "absPath": "<FIXTURE>/helm/demo-chart/Dockerfile",
+        "repoRelPath": "helm/demo-chart/Dockerfile"
+      }
+    },
+    {
+      "id": "infra:helm:helm/demo-chart/Chart.yaml",
+      "type": "module",
+      "label": "…/demo-chart/Chart.yaml",
+      "description": "IaC helm module helm/demo-chart/Chart.yaml",
+      "data": {
+        "absPath": "<FIXTURE>/helm/demo-chart/Chart.yaml",
+        "repoRelPath": "helm/demo-chart/Chart.yaml"
+      }
+    },
+    {
+      "id": "infra:helm:helm/demo-chart/values.yaml",
+      "type": "module",
+      "label": "…/demo-chart/values.yaml",
+      "description": "IaC helm module helm/demo-chart/values.yaml",
+      "data": {
+        "absPath": "<FIXTURE>/helm/demo-chart/values.yaml",
+        "repoRelPath": "helm/demo-chart/values.yaml"
+      }
+    },
+    {
+      "id": "mod:helm-images-fixture/src/placeholder",
+      "type": "module",
+      "label": "src/placeholder",
+      "description": "Module src/placeholder.ts in helm-images-fixture",
+      "data": {
+        "absPath": "<FIXTURE>/src/placeholder.ts",
+        "pkgRelPath": "src/placeholder.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:helm-images-fixture",
+      "type": "package",
+      "label": "helm-images-fixture",
+      "description": "Package helm-images-fixture (.)",
+      "data": {
+        "path": ".",
+        "version": "1.0.0",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "resource:generic:app",
+      "type": "runtime-resource",
+      "label": "app",
+      "description": "other declared in helm/demo-chart/values.yaml",
+      "data": {
+        "envRefs": [
+          {
+            "varName": "app.existingSecret",
+            "refType": "literal",
+            "targetLogicalId": "secret:app-db-credentials"
+          }
+        ],
+        "contentHash": "838b62f76d805b51",
+        "kind": "other",
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/values.yaml"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:demo-chart",
+      "type": "runtime-resource",
+      "label": "demo-chart",
+      "description": "helm-release declared in helm/demo-chart/Chart.yaml",
+      "data": {
+        "contentHash": "af97c39ffa3bfd55",
+        "kind": "helm-release",
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/Chart.yaml"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:helm/demo-chart/Dockerfile",
+      "type": "runtime-resource",
+      "label": "helm/demo-chart/Dockerfile",
+      "description": "other declared in helm/demo-chart/Dockerfile",
+      "data": {
+        "contentHash": "ac6a433d1a7a3688",
+        "kind": "other",
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/Dockerfile"
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:secret:app-db-credentials",
+      "type": "runtime-resource",
+      "label": "secret:app-db-credentials",
+      "description": "secret declared in helm/demo-chart/values.yaml",
+      "data": {
+        "contentHash": "c9c591c9e3a07274",
+        "kind": "secret",
+        "provider": "generic",
+        "declaredIn": [
+          "helm/demo-chart/values.yaml"
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 1 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:helm-images-fixture",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:helm-images-fixture",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-dockerfile",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-dockerfile",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:infra-helm",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:infra-helm",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:placeholder",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:placeholder",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:helm-images-fixture/src/placeholder/placeholder",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:helm-images-fixture/src/placeholder/placeholder",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "infra:dockerfile:helm/demo-chart/Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:helm/demo-chart/Dockerfile"
+      ],
+      "view": {
+        "id": "infra:dockerfile:helm/demo-chart/Dockerfile",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:generic:helm/demo-chart/Dockerfile",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:helm:helm/demo-chart/Chart.yaml",
+      "links": [
+        {
+          "to": "domain:infra-helm",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:demo-chart"
+      ],
+      "view": {
+        "id": "infra:helm:helm/demo-chart/Chart.yaml",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:generic:demo-chart",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-helm",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "infra:helm:helm/demo-chart/values.yaml",
+      "links": [
+        {
+          "to": "domain:infra-helm",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "resource:generic:app",
+        "resource:generic:secret:app-db-credentials"
+      ],
+      "view": {
+        "id": "infra:helm:helm/demo-chart/values.yaml",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "resource:generic:app",
+            "type": "runtime-resource"
+          },
+          {
+            "id": "resource:generic:secret:app-db-credentials",
+            "type": "runtime-resource"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:infra-helm",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod:helm-images-fixture/src/placeholder",
+      "links": [
+        {
+          "to": "domain:placeholder",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:helm-images-fixture",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:helm-images-fixture/src/placeholder/placeholder"
+      ],
+      "view": {
+        "id": "mod:helm-images-fixture/src/placeholder",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:helm-images-fixture/src/placeholder/placeholder",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:placeholder",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:helm-images-fixture",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:helm-images-fixture",
+      "links": [],
+      "children": [
+        "mod:helm-images-fixture/src/placeholder"
+      ],
+      "view": {
+        "id": "pkg:helm-images-fixture",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:helm-images-fixture/src/placeholder",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "resource:generic:app",
+      "links": [
+        {
+          "to": "domain:infra-helm",
+          "kind": "tagged"
+        },
+        {
+          "to": "resource:generic:secret:app-db-credentials",
+          "kind": "uses_env"
+        },
+        {
+          "to": "infra:dockerfile:helm/demo-chart/Dockerfile",
+          "kind": "infra"
+        },
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:app",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-helm",
+            "kind": "tagged"
+          },
+          {
+            "to": "resource:generic:secret:app-db-credentials",
+            "kind": "uses_env"
+          },
+          {
+            "to": "infra:dockerfile:helm/demo-chart/Dockerfile",
+            "kind": "infra"
+          },
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:demo-chart",
+      "links": [
+        {
+          "to": "domain:infra-helm",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:demo-chart",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-helm",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:helm/demo-chart/Dockerfile",
+      "links": [
+        {
+          "to": "domain:infra-dockerfile",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:helm/demo-chart/Dockerfile",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-dockerfile",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource:generic:secret:app-db-credentials",
+      "links": [
+        {
+          "to": "domain:infra-helm",
+          "kind": "tagged"
+        }
+      ],
+      "children": [],
+      "view": {
+        "id": "resource:generic:secret:app-db-credentials",
+        "level": 1,
+        "drillDown": [],
+        "links": [
+          {
+            "to": "domain:infra-helm",
+            "kind": "tagged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:helm-images-fixture",
+        "infra:helm:helm/demo-chart/Chart.yaml",
+        "infra:dockerfile:helm/demo-chart/Dockerfile",
+        "infra:helm:helm/demo-chart/values.yaml"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:helm-images-fixture",
+            "type": "package"
+          },
+          {
+            "id": "infra:helm:helm/demo-chart/Chart.yaml",
+            "type": "module"
+          },
+          {
+            "id": "infra:dockerfile:helm/demo-chart/Dockerfile",
+            "type": "module"
+          },
+          {
+            "id": "infra:helm:helm/demo-chart/values.yaml",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

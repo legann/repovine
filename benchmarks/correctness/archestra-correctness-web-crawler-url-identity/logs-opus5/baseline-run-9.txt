@@ -1,0 +1,217 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 9 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent 2e69abd1a56e4550.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the web crawler connector to understand the current normalization.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+I'll look at how documents flow from the connector into storage and serving, since the document `id` is derived from the normalized URL.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 328 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 200 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 220 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 160 line(s)]
+
+The task tools aren't a fit here — this is a focused single-file patch. Let me check how documents are keyed and served.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 24 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 66 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 32 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 80 line(s)]
+
+Now let me confirm the scope-derivation interaction, which is the risky part of the trailing-slash change.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 36 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 130 line(s)]
+
+Let me read the full test file to understand exactly which behaviors are pinned.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 96 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 200 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 230 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 48 line(s)]
+
+Confirmed the constraint set. The test site 404s on unregistered paths (`web-crawler-connector.test.ts:727`), and the pinned assertions require the fetched/stored URLs to keep their current form. Let me verify the two code paths that make a naive rewrite unsafe:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+Now I'll implement the patch.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wiring it into the discovery path, which is where "same page" is decided:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me verify the normalization logic behaves as specified with a standalone harness:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 25 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 107 line(s)]
+
+Let me try to actually run the test suite to verify nothing regressed.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 5 line(s)]
+
+Dependencies aren't installed in this worktree, so I can't run vitest. Let me at least verify the file parses and hand-check the change against every existing test scenario:
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 3 line(s)]
+
+The worktree intentionally blocks installs/builds/tests, so I finalized from static reading. Final review of the changed regions:
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+## What changed
+
+One file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`
+
+| Addition | Location | Role |
+|---|---|---|
+| `TRACKING_QUERY_PARAMS` | `:49` | utm_source/medium/campaign/term/content, gclid, fbclid |
+| `canonicalPageKey()` | `:636` | Full normalization: tracking params + trailing slash (non-root) + host case, on top of `normalizeCrawlUrl`'s hash/default-port stripping |
+| `claimedPageKeys` set | `:202` | Per-crawl record of pages already claimed, seeded with the start URL |
+| Claim loop in `enqueueAllowedLinks` | `:432` | Enqueues one URL per canonical page |
+
+All four requested folding rules are implemented and load-bearing. Verified against 6 equivalence groups and 7 must-stay-distinct pairs (`/a` vs `[expr]`, `/a//b` vs `/a/b`, differing scheme/non-default port, path case): all pass, and non-tracking query params survive.
+
+## The one design decision worth your attention
+
+The strengthened form is the **key used to decide "same page"**, not a rewrite of the URL that gets requested and stored. Three specific things break if `normalizeCrawlUrl` itself strips trailing slashes:
+
+1. **Already-indexed documents get re-keyed.** `id` is `sha256(…)` (`:471`) and lands as `sourceId` under a unique index on `[expr]` (`database/schemas/kb-document.ts:44`), which is the sole lookup key for refreshing a document (`connector-sync.ts:419`). Every page whose URL had a trailing slash or tracking param would insert a *new* row, and the old row is never pruned — `deleteByConnectorAndSourceId` (`models/kb-document.ts:332`) has zero callers. The connector has no DB access, so it cannot detect what was already indexed; any change to its id derivation is unconditionally breaking. This is your stated hard constraint.
+2. **The crawl scope silently widens.** `buildAllowedPathPrefixes` reads the start URL's trailing slash (`:495-499`): `/docs/` yields prefix `[expr]`, but `/docs` falls to `[expr]` → **`/`, the whole origin**. That prefix is the boundary the redirect guard enforces (`:246`).
+3. **Requests can 404.** An origin serving `/docs/` is free to 404 rather than redirect `/docs` — the repo's own test server does exactly this (`web-crawler-connector.test.ts:727`).
+
+So `sourceUrl`, `metadata.url`, and `id` stay byte-identical for every page already indexed; the dedup happens before a request is made.
+
+If you want the stored URLs themselves rewritten, that is a separate change needing a `sourceId` backfill migration plus test updates — say so and I'll do it.
+
+## Deliberately unchanged
+
+| Path | Proof it's out of scope |
+|---|---|
+| `normalizeCrawlUrl` | `:471` derives `sourceId` from it; re-keys existing documents |
+| `normalizeCanonicalUrl` (`:607`) | Feeds `sourceUrl` at `:476`; same re-keying |
+| `buildAllowedPathPrefixes` (`:487`) | Reads the raw trailing slash at `:496` to scope the crawl |
+| `connector-sync.ts` / `KbDocumentModel` | `findBySourceId` at `connector-sync.ts:419` is shared by all 18 connectors |
+| Serving path | `query.ts:265` passes `sourceUrl` straight through; nothing re-derives the hash, so existing rows serve unchanged |
+
+## Residual risk
+
+- **First-form-wins is order-dependent.** A page linked under several variants is indexed under whichever the site lists first. If that order changes between syncs, the id flips → one orphaned row. A deterministic rule (always prefer the clean form) would be stable but would re-key already-indexed pages once, which your constraint forbids.
+- **Pre-existing duplicate rows go stale.** A page double-indexed under two variants now refreshes only the surviving one; the other keeps being served, never updated. Removing it needs the unused pruning path above.
+- **New pages can carry a tracking param in the citation URL** if that's the only form linked.
+- **Redirect targets aren't deduped** — two URLs redirecting to one page still yield two documents. Pre-existing; untouched.
+
+**Not verified by execution:** this worktree blocks installs, type-checks, and tests by design. I confirmed the file parses (`node --check` with type stripping), validated `canonicalPageKey` against the case matrix in a standalone harness, and hand-traced all 17 existing tests — none has two discovered links or a link/start-URL pair sharing a canonical key, so none changes behavior. Please run `pnpm test` in a bootstrapped checkout before merging.

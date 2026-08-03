@@ -1,0 +1,218 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Manual runs from the Actions tab on any branch — lets the native jobs be
+  # exercised without opening a PR.
+  workflow_dispatch:
+
+# Least privilege: CI only reads the repo. No step pushes, comments, or writes checks,
+# so contents:read overrides any read/write-all repo default for the ambient token.
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The Linux leg of the core gate carries the repo-wide checks (audit, lint,
+  # typecheck, dist shape) on top of the same build+test+smoke the native legs
+  # run — one OS runs them, every OS shares the verdict.
+  core-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # No later step uses the git token; keep it off disk while npm ci runs
+          # dependency lifecycle scripts.
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit (fails only on advisories outside the documented allowlist)
+        run: npm run audit:check
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --maxWorkers=2
+
+      - name: Client projections suite (node:test)
+        shell: bash
+        run: node --test test/integration/client-projections.test.mjs
+
+      - name: Verify dist structure
+        run: |
+          test -f dist/mcp/index.js
+          test -f dist/index.js
+          echo "✓ dist/ structure OK"
+
+      - name: Verify bin is executable
+        run: |
+          set -o pipefail
+          chmod +x dist/mcp/index.js
+          test -x dist/mcp/index.js
+          node dist/mcp/index.js --help | grep -q 'repovine'
+          echo "✓ bin entry OK"
+
+      # These are the packages a third-party author copies. Each runs conformance and the real
+      # Stage-1/Stage-2 path while asserting that absPath uses host spelling and relative paths stay
+      # POSIX. The same two steps run in core-native below, so the assertion executes on real win32.
+      - name: Go plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-go/run.mjs
+
+      - name: IaC plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-iac/run.mjs
+
+      # Stronger than the linked examples: pack the SDK and two plugins that are not workspaces,
+      # install them into a repo under a path with spaces and Unicode, and drive the real MCP.
+      - name: Packed external plugin canaries
+        run: node scripts/smoke-canary-plugins.mjs
+
+      # Pack, install into a clean repo, and drive the MCP over stdio — the path
+      # `npx -y repovine@<version>` takes. Catches runtime imports that resolve in the
+      # engine checkout only because devDependencies are installed there.
+      - name: Smoke test packed install
+        run: node scripts/smoke-pack-install.mjs
+
+      # The plugin repo (legann/repovine-client-plugins) is rendered from engine SSoT.
+      # Render it to a temp root and validate the projection: manifests, MCP pins, hook layout.
+      - name: Verify client plugin projection
+        run: |
+          node scripts/render-client-plugins.mjs --out "$RUNNER_TEMP/client-plugins" --allow-unpublished
+          node scripts/validate-client-plugins.mjs --out "$RUNNER_TEMP/client-plugins"
+          echo "✓ client plugin projection OK"
+
+  # Native core jobs (docs/platform-support.md): required merge gates since the
+  # 2026-07-22 green run (flipped from advisory once the native
+  # suites went green). Add both names to branch protection.
+  core-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: core-windows
+            os: windows-latest
+          - name: core-macos-arm
+            os: macos-15
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # No later step uses the git token; keep it off disk while npm ci runs
+          # dependency lifecycle scripts.
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --maxWorkers=2
+
+      - name: Client projections suite (node:test)
+        shell: bash
+        run: node --test test/integration/client-projections.test.mjs
+
+      - name: Go plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-go/run.mjs
+
+      - name: IaC plugin example (conformance + end-to-end + path bases)
+        run: node examples/repovine-plugin-iac/run.mjs
+
+      - name: Packed external plugin canaries
+        run: node scripts/smoke-canary-plugins.mjs
+
+      - name: Smoke test packed install
+        run: node scripts/smoke-pack-install.mjs
+
+  # Required merge gate (docs/platform-support.md): runs the demo unit+render
+  # suite plus the actual-container egress smoke (allow-list, default-deny rule
+  # order, IPv6 fail-closed drop, worker hardening probes). Add `harness-linux`
+  # (the exact job name below) to branch protection required checks — the old
+  # advisory name `harness-linux (advisory)` was never a required context.
+  harness-linux:
+    name: harness-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # No later step uses the git token; keep it off disk while npm ci runs
+          # dependency lifecycle scripts.
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      - name: Install engine dependencies
+        run: npm ci
+
+      - name: Build engine
+        run: npm run build
+
+      - name: Install demo dependencies
+        run: npm ci
+        working-directory: examples/delivery-protocol-harness-demo
+
+      - name: Audit demo dependencies (same allowlist as the engine)
+        run: node ../../scripts/audit-gate.mjs
+        working-directory: examples/delivery-protocol-harness-demo
+
+      - name: Demo tests
+        run: npm test
+        working-directory: examples/delivery-protocol-harness-demo
+
+      - name: Docker versions
+        run: docker version && docker compose version
+
+      # The required gate advertises the IPv6 fail-closed drop, so the runner
+      # daemon must be able to create an enable_ipv6 network — enable it and
+      # restart dockerd before the smoke. HARNESS_SMOKE_STRICT then makes an
+      # IPv6 downgrade (or an absent daemon) a hard failure, never a green skip.
+      - name: Enable IPv6 in the Docker daemon
+        run: |
+          sudo mkdir -p /etc/docker
+          echo '{"ipv6": true, "ip6tables": true, "experimental": true, "fixed-cidr-v6": "fd00:dead:beef::/48"}' \
+            | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker network create --ipv6 --subnet fd42:7265:706f:7699::/64 rv-ipv6-probe
+          docker network rm rv-ipv6-probe
+
+      - name: Docker container smokes (egress + local-model forward)
+        run: npm run test:docker-smoke
+        working-directory: examples/delivery-protocol-harness-demo
+        env:
+          HARNESS_SMOKE_STRICT: '1'
+
+      - name: Compose down
+        if: always()
+        run: docker compose --profile cli down -v --remove-orphans || true
+        working-directory: examples/delivery-protocol-harness-demo

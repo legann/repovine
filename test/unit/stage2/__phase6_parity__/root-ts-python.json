@@ -1,0 +1,755 @@
+{
+  "stats": {
+    "totalNodes": 19,
+    "totalEdges": 27,
+    "nodesByType": {
+      "domain": 7,
+      "export-symbol": 5,
+      "module": 5,
+      "package": 1,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 12,
+      "tagged": 15
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:static",
+      "domain:myapp",
+      "domain:router",
+      "domain:home",
+      "domain:health",
+      "domain:web",
+      "domain:routing"
+    ],
+    "export-symbol": [
+      "export:myapp/static/app/api/client/fetchHealth",
+      "export:myapp/static/app/router/routes/appRoutes",
+      "export:myapp/static/app/views/home/HomeView",
+      "export:myapp/src/myapp/api/health/health_view",
+      "export:myapp/src/myapp/web/urls/urlpatterns"
+    ],
+    "module": [
+      "mod:myapp/static/app/api/client",
+      "mod:myapp/static/app/router/routes",
+      "mod:myapp/static/app/views/home",
+      "mod:myapp/src/myapp/api/health",
+      "mod:myapp/src/myapp/web/urls"
+    ],
+    "package": [
+      "pkg:myapp"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:health",
+      "type": "domain",
+      "label": "health",
+      "description": "Domain: health",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:home",
+      "type": "domain",
+      "label": "home",
+      "description": "Domain: home",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:myapp",
+      "type": "domain",
+      "label": "myapp",
+      "description": "Domain: myapp",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:router",
+      "type": "domain",
+      "label": "router",
+      "description": "Domain: router",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:routing",
+      "type": "domain",
+      "label": "routing",
+      "description": "Domain: routing (modules containing <Route> definitions)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:static",
+      "type": "domain",
+      "label": "static",
+      "description": "Domain: static",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:web",
+      "type": "domain",
+      "label": "web",
+      "description": "Domain: web",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "export:myapp/src/myapp/api/health/health_view",
+      "type": "export-symbol",
+      "label": "health_view",
+      "description": "function health_view",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 1,
+          "end": 2
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:myapp/src/myapp/web/urls/urlpatterns",
+      "type": "export-symbol",
+      "label": "urlpatterns",
+      "description": "const urlpatterns",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 5,
+          "end": 7
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:myapp/static/app/api/client/fetchHealth",
+      "type": "export-symbol",
+      "label": "fetchHealth",
+      "description": "function fetchHealth: (baseUrl: string): Promise<Response>",
+      "data": {
+        "symbolKind": "function",
+        "signature": "(baseUrl: string): Promise<Response>",
+        "params": [
+          {
+            "name": "baseUrl",
+            "type": "string"
+          }
+        ],
+        "returnType": "Promise<Response>",
+        "calls": [
+          "fetch"
+        ],
+        "lineRange": {
+          "start": 1,
+          "end": 3
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:myapp/static/app/router/routes/appRoutes",
+      "type": "export-symbol",
+      "label": "appRoutes",
+      "description": "const appRoutes",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 3,
+          "end": 12
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:myapp/static/app/views/home/HomeView",
+      "type": "export-symbol",
+      "label": "HomeView",
+      "description": "function HomeView: ()",
+      "data": {
+        "symbolKind": "function",
+        "signature": "()",
+        "params": [],
+        "lineRange": {
+          "start": 3,
+          "end": 5
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:myapp/src/myapp/api/health",
+      "type": "module",
+      "label": "…/api/health",
+      "description": "Module src/myapp/api/health.py in myapp",
+      "data": {
+        "absPath": "<FIXTURE>/src/myapp/api/health.py",
+        "pkgRelPath": "src/myapp/api/health.py",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:myapp/src/myapp/web/urls",
+      "type": "module",
+      "label": "…/web/urls",
+      "description": "Module src/myapp/web/urls.py in myapp",
+      "data": {
+        "absPath": "<FIXTURE>/src/myapp/web/urls.py",
+        "pkgRelPath": "src/myapp/web/urls.py",
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:myapp/static/app/api/client",
+      "type": "module",
+      "label": "…/api/client",
+      "description": "Module static/app/api/client.ts in myapp",
+      "data": {
+        "absPath": "<FIXTURE>/static/app/api/client.ts",
+        "pkgRelPath": "static/app/api/client.ts",
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:myapp/static/app/router/routes",
+      "type": "module",
+      "label": "…/router/routes",
+      "description": "Module static/app/router/routes.tsx in myapp",
+      "data": {
+        "absPath": "<FIXTURE>/static/app/router/routes.tsx",
+        "pkgRelPath": "static/app/router/routes.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:myapp/static/app/views/home",
+      "type": "module",
+      "label": "…/home/index",
+      "description": "Module static/app/views/home/index.tsx in myapp",
+      "data": {
+        "absPath": "<FIXTURE>/static/app/views/home/index.tsx",
+        "pkgRelPath": "static/app/views/home/index.tsx",
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:myapp",
+      "type": "package",
+      "label": "myapp",
+      "description": "Package myapp (.)",
+      "data": {
+        "path": ".",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 2 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:health",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:health",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:home",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:home",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:myapp",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:myapp",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:router",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:router",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:routing",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:routing",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:static",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:static",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:web",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:web",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:myapp/src/myapp/api/health/health_view",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:myapp/src/myapp/api/health/health_view",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:myapp/src/myapp/web/urls/urlpatterns",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:myapp/src/myapp/web/urls/urlpatterns",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:myapp/static/app/api/client/fetchHealth",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:myapp/static/app/api/client/fetchHealth",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:myapp/static/app/router/routes/appRoutes",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:myapp/static/app/router/routes/appRoutes",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:myapp/static/app/views/home/HomeView",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:myapp/static/app/views/home/HomeView",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:myapp/src/myapp/api/health",
+      "links": [
+        {
+          "to": "domain:myapp",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:health",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:myapp/src/myapp/api/health/health_view"
+      ],
+      "view": {
+        "id": "mod:myapp/src/myapp/api/health",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:myapp/src/myapp/api/health/health_view",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:myapp",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:health",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:myapp/src/myapp/web/urls",
+      "links": [
+        {
+          "to": "domain:myapp",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:web",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:myapp/src/myapp/web/urls/urlpatterns"
+      ],
+      "view": {
+        "id": "mod:myapp/src/myapp/web/urls",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:myapp/src/myapp/web/urls/urlpatterns",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:myapp",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:web",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:myapp/static/app/api/client",
+      "links": [
+        {
+          "to": "domain:static",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:myapp",
+          "kind": "tagged",
+          "tagSource": "package"
+        }
+      ],
+      "children": [
+        "export:myapp/static/app/api/client/fetchHealth"
+      ],
+      "view": {
+        "id": "mod:myapp/static/app/api/client",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:myapp/static/app/api/client/fetchHealth",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:static",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:myapp",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:myapp/static/app/router/routes",
+      "links": [
+        {
+          "to": "domain:static",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:myapp",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:router",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:myapp/static/app/router/routes/appRoutes"
+      ],
+      "view": {
+        "id": "mod:myapp/static/app/router/routes",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:myapp/static/app/router/routes/appRoutes",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:static",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:myapp",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:router",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "mod:myapp/static/app/views/home",
+      "links": [
+        {
+          "to": "domain:static",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:myapp",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:home",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:routing",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:myapp/static/app/views/home/HomeView"
+      ],
+      "view": {
+        "id": "mod:myapp/static/app/views/home",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:myapp/static/app/views/home/HomeView",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:static",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:myapp",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:home",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:routing",
+            "kind": "tagged"
+          }
+        ],
+        "hasRoutes": true,
+        "sourcePluginId": "typescript"
+      }
+    },
+    {
+      "id": "pkg:myapp",
+      "links": [],
+      "children": [
+        "mod:myapp/static/app/api/client",
+        "mod:myapp/static/app/router/routes",
+        "mod:myapp/static/app/views/home",
+        "mod:myapp/src/myapp/api/health",
+        "mod:myapp/src/myapp/web/urls"
+      ],
+      "view": {
+        "id": "pkg:myapp",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:myapp/static/app/api/client",
+            "type": "module"
+          },
+          {
+            "id": "mod:myapp/static/app/router/routes",
+            "type": "module"
+          },
+          {
+            "id": "mod:myapp/static/app/views/home",
+            "type": "module"
+          },
+          {
+            "id": "mod:myapp/src/myapp/api/health",
+            "type": "module"
+          },
+          {
+            "id": "mod:myapp/src/myapp/web/urls",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:myapp",
+        "pkg:myapp"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:myapp",
+            "type": "package"
+          },
+          {
+            "id": "pkg:myapp",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": [
+    {
+      "id": "entrypoint:route:mod:myapp/static/app/router/routes:/health/",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/health/",
+      "component": "(route-config)",
+      "moduleId": "mod:myapp/static/app/router/routes",
+      "source": "react-router",
+      "webFramework": "react-router"
+    },
+    {
+      "id": "entrypoint:route:mod:myapp/static/app/router/routes:/",
+      "kind": "page",
+      "layer": "frontend",
+      "path": "/",
+      "component": "(index)",
+      "moduleId": "mod:myapp/static/app/router/routes",
+      "source": "react-router",
+      "webFramework": "react-router"
+    },
+    {
+      "id": "entrypoint:route:mod:myapp/static/app/views/home:/",
+      "kind": "route",
+      "layer": "frontend",
+      "path": "/",
+      "component": "div",
+      "moduleId": "mod:myapp/static/app/views/home",
+      "source": "react-router",
+      "webFramework": "react-router"
+    },
+    {
+      "id": "entrypoint:api:mod:myapp/src/myapp/web/urls:/api/health/:GET",
+      "kind": "api",
+      "layer": "backend",
+      "path": "/api/health/",
+      "component": "health_view",
+      "method": "GET",
+      "moduleId": "mod:myapp/src/myapp/web/urls",
+      "source": "django-urlpatterns",
+      "webFramework": "django"
+    }
+  ]
+}

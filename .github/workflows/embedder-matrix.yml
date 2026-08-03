@@ -1,0 +1,79 @@
+name: Embedder compatibility
+
+# Guards the @huggingface/transformers peer range (^3.8.1 || ^4.0.0) with real ONNX inference
+# through repovine's own createEmbedder. Heavy (pulls the ONNX runtime + a model), so it runs only
+# when embedder-relevant files change, on demand, and weekly to catch upstream transformers/onnx drift.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/semantic/**'
+      - 'scripts/check-embedder.mjs'
+      - 'package.json'
+      - '.github/workflows/embedder-matrix.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/semantic/**'
+      - 'scripts/check-embedder.mjs'
+      - 'package.json'
+      - '.github/workflows/embedder-matrix.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+
+# Least privilege: the job only reads source and installs public packages.
+permissions:
+  contents: read
+
+concurrency:
+  group: embedder-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inference:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Floor and latest-resolvable of each accepted major branch of the peer
+        # range (^3.8.1 || ^4.0.0). 3.x floor == 3.x latest (3.8.1 is the last
+        # 3.x), so one pin covers it; 4.x needs both. '^4' resolves at run time,
+        # so the weekly schedule catches upstream transformers/onnx drift; the
+        # check echoes the exact resolved version as release evidence.
+        transformers: ['3.8.1', '4.0.0', '^4']
+        # Native ONNX runtimes differ per OS/arch. The script's own
+        # process exit doubles as the macOS teardown-SIGABRT smoke.
+        os: [ubuntu-latest, macos-15, windows-latest]
+        exclude:
+          # Documented per-OS floor, NOT a silent skip (run #4 evidence, 2026-07-22):
+          # transformers 3.8.1 bundles onnxruntime-node 1.21.0, whose exit teardown
+          # aborts on macOS (libc++ "mutex lock failed" → exit 134) — inference
+          # itself passed 11/11. In-repo session options cannot fix the bundled
+          # runtime; 4.x ships ort 1.24.3 where the bug is fixed and is green on
+          # macOS. Embedder on darwin therefore requires transformers 4.x
+          # (docs/platform-support.md; doctor warns about it).
+          - os: macos-15
+            transformers: '3.8.1'
+    name: transformers@${{ matrix.transformers }} (${{ matrix.os }})
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pin @huggingface/transformers ${{ matrix.transformers }}
+        run: npm install --no-save @huggingface/transformers@${{ matrix.transformers }}
+
+      - name: Build
+        run: npm run build
+
+      - name: Embedder inference contract
+        run: node scripts/check-embedder.mjs

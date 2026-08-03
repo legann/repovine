@@ -1,0 +1,1036 @@
+{
+  "stats": {
+    "totalNodes": 28,
+    "totalEdges": 42,
+    "nodesByType": {
+      "domain": 7,
+      "export-symbol": 11,
+      "module": 7,
+      "package": 2,
+      "root": 1
+    },
+    "edgesByKind": {
+      "contains": 20,
+      "imports": 6,
+      "tagged": 16
+    }
+  },
+  "byType": {
+    "domain": [
+      "domain:basic-python",
+      "domain:sharedlib",
+      "domain:models",
+      "domain:services",
+      "domain:gateway",
+      "domain:helpers",
+      "domain:config"
+    ],
+    "export-symbol": [
+      "export:basic-python/app/API_VERSION",
+      "export:basic-python/app/handler",
+      "export:basic-python/app/App",
+      "export:basic-python/models/User",
+      "export:basic-python/services/load_user",
+      "export:basic-python/services/fetch_remote",
+      "export:basic-python/services/run_job",
+      "export:basic-python/utils/greet",
+      "export:sharedlib/gateway/entry",
+      "export:sharedlib/sharedlib/format_label",
+      "export:sharedlib/sharedlib/helpers/format_label"
+    ],
+    "module": [
+      "mod:basic-python/app",
+      "mod:basic-python/models",
+      "mod:basic-python/services",
+      "mod:basic-python/utils",
+      "mod:sharedlib/gateway",
+      "mod:sharedlib/sharedlib",
+      "mod:sharedlib/sharedlib/helpers"
+    ],
+    "package": [
+      "pkg:basic-python",
+      "pkg:sharedlib"
+    ],
+    "root": [
+      "root"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "domain:basic-python",
+      "type": "domain",
+      "label": "basic-python",
+      "description": "Domain: basic-python",
+      "data": {
+        "weight": "heavy",
+        "tier": "feature"
+      }
+    },
+    {
+      "id": "domain:config",
+      "type": "domain",
+      "label": "config",
+      "description": "Domain: config (modules referencing environment variables)",
+      "data": {
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:gateway",
+      "type": "domain",
+      "label": "gateway",
+      "description": "Domain: gateway",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:helpers",
+      "type": "domain",
+      "label": "helpers",
+      "description": "Domain: helpers",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:models",
+      "type": "domain",
+      "label": "models",
+      "description": "Domain: models",
+      "data": {
+        "weight": "lightweight",
+        "tier": "layer"
+      }
+    },
+    {
+      "id": "domain:services",
+      "type": "domain",
+      "label": "services",
+      "description": "Domain: services",
+      "data": {
+        "weight": "lightweight",
+        "tier": "technical"
+      }
+    },
+    {
+      "id": "domain:sharedlib",
+      "type": "domain",
+      "label": "sharedlib",
+      "description": "Domain: sharedlib",
+      "data": {
+        "weight": "heavy",
+        "tier": "business"
+      }
+    },
+    {
+      "id": "export:basic-python/app/API_VERSION",
+      "type": "export-symbol",
+      "label": "API_VERSION",
+      "description": "const API_VERSION",
+      "data": {
+        "symbolKind": "const",
+        "lineRange": {
+          "start": 7,
+          "end": 7
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:basic-python/app/App",
+      "type": "export-symbol",
+      "label": "App",
+      "description": "class App",
+      "data": {
+        "symbolKind": "class",
+        "lineRange": {
+          "start": 15,
+          "end": 17
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:basic-python/app/handler",
+      "type": "export-symbol",
+      "label": "handler",
+      "description": "function handler",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 10,
+          "end": 12
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:basic-python/models/User",
+      "type": "export-symbol",
+      "label": "User",
+      "description": "class User",
+      "data": {
+        "symbolKind": "class",
+        "lineRange": {
+          "start": 5,
+          "end": 6
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:basic-python/services/fetch_remote",
+      "type": "export-symbol",
+      "label": "fetch_remote",
+      "description": "function fetch_remote",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 12,
+          "end": 13
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:basic-python/services/load_user",
+      "type": "export-symbol",
+      "label": "load_user",
+      "description": "function load_user",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 8,
+          "end": 9
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:basic-python/services/run_job",
+      "type": "export-symbol",
+      "label": "run_job",
+      "description": "function run_job",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 16,
+          "end": 17
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:basic-python/utils/greet",
+      "type": "export-symbol",
+      "label": "greet",
+      "description": "function greet",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 1,
+          "end": 2
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sharedlib/gateway/entry",
+      "type": "export-symbol",
+      "label": "entry",
+      "description": "function entry",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 4,
+          "end": 5
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sharedlib/sharedlib/format_label",
+      "type": "export-symbol",
+      "label": "format_label",
+      "description": "unknown format_label",
+      "data": {
+        "symbolKind": "unknown",
+        "lineRange": {
+          "start": 4,
+          "end": 4
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "export:sharedlib/sharedlib/helpers/format_label",
+      "type": "export-symbol",
+      "label": "format_label",
+      "description": "function format_label",
+      "data": {
+        "symbolKind": "function",
+        "lineRange": {
+          "start": 1,
+          "end": 2
+        },
+        "isDefault": false
+      }
+    },
+    {
+      "id": "mod:basic-python/app",
+      "type": "module",
+      "label": "app",
+      "description": "Module app.py in basic-python",
+      "data": {
+        "absPath": "<FIXTURE>/packages/basic-python/app.py",
+        "pkgRelPath": "app.py",
+        "envVars": [
+          "USER"
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:basic-python/models",
+      "type": "module",
+      "label": "models",
+      "description": "Module models.py in basic-python",
+      "data": {
+        "absPath": "<FIXTURE>/packages/basic-python/models.py",
+        "pkgRelPath": "models.py",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:basic-python/services",
+      "type": "module",
+      "label": "services",
+      "description": "Module services.py in basic-python",
+      "data": {
+        "absPath": "<FIXTURE>/packages/basic-python/services.py",
+        "pkgRelPath": "services.py",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:basic-python/utils",
+      "type": "module",
+      "label": "utils/__init__",
+      "description": "Module utils/__init__.py in basic-python",
+      "data": {
+        "absPath": "<FIXTURE>/packages/basic-python/utils/__init__.py",
+        "pkgRelPath": "utils/__init__.py",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:sharedlib/gateway",
+      "type": "module",
+      "label": "gateway",
+      "description": "Module gateway.py in sharedlib",
+      "data": {
+        "absPath": "<FIXTURE>/packages/sharedlib/gateway.py",
+        "pkgRelPath": "gateway.py",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:sharedlib/sharedlib",
+      "type": "module",
+      "label": "sharedlib/__init__",
+      "description": "Module sharedlib/__init__.py in sharedlib",
+      "data": {
+        "absPath": "<FIXTURE>/packages/sharedlib/sharedlib/__init__.py",
+        "pkgRelPath": "sharedlib/__init__.py",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:sharedlib/sharedlib/helpers",
+      "type": "module",
+      "label": "sharedlib/helpers",
+      "description": "Module sharedlib/helpers.py in sharedlib",
+      "data": {
+        "absPath": "<FIXTURE>/packages/sharedlib/sharedlib/helpers.py",
+        "pkgRelPath": "sharedlib/helpers.py",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "pkg:basic-python",
+      "type": "package",
+      "label": "basic-python",
+      "description": "Package basic-python (packages/basic-python)",
+      "data": {
+        "path": "packages/basic-python",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "pkg:sharedlib",
+      "type": "package",
+      "label": "sharedlib",
+      "description": "Package sharedlib (packages/sharedlib)",
+      "data": {
+        "path": "packages/sharedlib",
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "root",
+      "type": "root",
+      "label": "Repository",
+      "description": "Root of 2 packages",
+      "data": null
+    }
+  ],
+  "links": [
+    {
+      "id": "domain:basic-python",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:basic-python",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:config",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:config",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:gateway",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:gateway",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:helpers",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:helpers",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:models",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:models",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:services",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:services",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "domain:sharedlib",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "domain:sharedlib",
+        "level": 1,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/app/API_VERSION",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/app/API_VERSION",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/app/App",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/app/App",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/app/handler",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/app/handler",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/models/User",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/models/User",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/services/fetch_remote",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/services/fetch_remote",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/services/load_user",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/services/load_user",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/services/run_job",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/services/run_job",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:basic-python/utils/greet",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:basic-python/utils/greet",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sharedlib/gateway/entry",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sharedlib/gateway/entry",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sharedlib/sharedlib/format_label",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sharedlib/sharedlib/format_label",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "export:sharedlib/sharedlib/helpers/format_label",
+      "links": [],
+      "children": [],
+      "view": {
+        "id": "export:sharedlib/sharedlib/helpers/format_label",
+        "level": 3,
+        "drillDown": [],
+        "links": []
+      }
+    },
+    {
+      "id": "mod:basic-python/app",
+      "links": [
+        {
+          "to": "mod:basic-python/models",
+          "kind": "imports"
+        },
+        {
+          "to": "mod:basic-python/utils",
+          "kind": "imports"
+        },
+        {
+          "to": "mod:sharedlib/sharedlib/helpers",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:basic-python",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:sharedlib",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:config",
+          "kind": "tagged"
+        }
+      ],
+      "children": [
+        "export:basic-python/app/API_VERSION",
+        "export:basic-python/app/handler",
+        "export:basic-python/app/App"
+      ],
+      "view": {
+        "id": "mod:basic-python/app",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:basic-python/app/API_VERSION",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:basic-python/app/handler",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:basic-python/app/App",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "mod:basic-python/models",
+            "kind": "imports"
+          },
+          {
+            "to": "mod:basic-python/utils",
+            "kind": "imports"
+          },
+          {
+            "to": "mod:sharedlib/sharedlib/helpers",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:basic-python",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sharedlib",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:config",
+            "kind": "tagged"
+          }
+        ],
+        "envVars": [
+          "USER"
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:basic-python/models",
+      "links": [
+        {
+          "to": "domain:basic-python",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:sharedlib",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:models",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:basic-python/models/User"
+      ],
+      "view": {
+        "id": "mod:basic-python/models",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:basic-python/models/User",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:basic-python",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sharedlib",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:models",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:basic-python/services",
+      "links": [
+        {
+          "to": "mod:basic-python/models",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:basic-python",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:sharedlib",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        },
+        {
+          "to": "domain:services",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:basic-python/services/load_user",
+        "export:basic-python/services/fetch_remote",
+        "export:basic-python/services/run_job"
+      ],
+      "view": {
+        "id": "mod:basic-python/services",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:basic-python/services/load_user",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:basic-python/services/fetch_remote",
+            "type": "export-symbol"
+          },
+          {
+            "id": "export:basic-python/services/run_job",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "mod:basic-python/models",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:basic-python",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sharedlib",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:services",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:basic-python/utils",
+      "links": [
+        {
+          "to": "domain:basic-python",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:sharedlib",
+          "kind": "tagged",
+          "tagSource": "cluster"
+        }
+      ],
+      "children": [
+        "export:basic-python/utils/greet"
+      ],
+      "view": {
+        "id": "mod:basic-python/utils",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:basic-python/utils/greet",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:basic-python",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:sharedlib",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:sharedlib/gateway",
+      "links": [
+        {
+          "to": "mod:sharedlib/sharedlib/helpers",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:sharedlib",
+          "kind": "tagged",
+          "tagSource": "package"
+        },
+        {
+          "to": "domain:gateway",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:sharedlib/gateway/entry"
+      ],
+      "view": {
+        "id": "mod:sharedlib/gateway",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sharedlib/gateway/entry",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "mod:sharedlib/sharedlib/helpers",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:sharedlib",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:gateway",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:sharedlib/sharedlib",
+      "links": [
+        {
+          "to": "mod:sharedlib/sharedlib/helpers",
+          "kind": "imports"
+        },
+        {
+          "to": "domain:sharedlib",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:sharedlib/sharedlib/format_label"
+      ],
+      "view": {
+        "id": "mod:sharedlib/sharedlib",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sharedlib/sharedlib/format_label",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "mod:sharedlib/sharedlib/helpers",
+            "kind": "imports"
+          },
+          {
+            "to": "domain:sharedlib",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "mod:sharedlib/sharedlib/helpers",
+      "links": [
+        {
+          "to": "domain:sharedlib",
+          "kind": "tagged",
+          "tagSource": "path"
+        },
+        {
+          "to": "domain:helpers",
+          "kind": "tagged",
+          "tagSource": "path"
+        }
+      ],
+      "children": [
+        "export:sharedlib/sharedlib/helpers/format_label"
+      ],
+      "view": {
+        "id": "mod:sharedlib/sharedlib/helpers",
+        "level": 2,
+        "drillDown": [
+          {
+            "id": "export:sharedlib/sharedlib/helpers/format_label",
+            "type": "export-symbol"
+          }
+        ],
+        "links": [
+          {
+            "to": "domain:sharedlib",
+            "kind": "tagged"
+          },
+          {
+            "to": "domain:helpers",
+            "kind": "tagged"
+          }
+        ],
+        "sourcePluginId": "python"
+      }
+    },
+    {
+      "id": "pkg:basic-python",
+      "links": [],
+      "children": [
+        "mod:basic-python/app",
+        "mod:basic-python/models",
+        "mod:basic-python/services",
+        "mod:basic-python/utils"
+      ],
+      "view": {
+        "id": "pkg:basic-python",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:basic-python/app",
+            "type": "module"
+          },
+          {
+            "id": "mod:basic-python/models",
+            "type": "module"
+          },
+          {
+            "id": "mod:basic-python/services",
+            "type": "module"
+          },
+          {
+            "id": "mod:basic-python/utils",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "pkg:sharedlib",
+      "links": [],
+      "children": [
+        "mod:sharedlib/gateway",
+        "mod:sharedlib/sharedlib",
+        "mod:sharedlib/sharedlib/helpers"
+      ],
+      "view": {
+        "id": "pkg:sharedlib",
+        "level": 1,
+        "drillDown": [
+          {
+            "id": "mod:sharedlib/gateway",
+            "type": "module"
+          },
+          {
+            "id": "mod:sharedlib/sharedlib",
+            "type": "module"
+          },
+          {
+            "id": "mod:sharedlib/sharedlib/helpers",
+            "type": "module"
+          }
+        ],
+        "links": []
+      }
+    },
+    {
+      "id": "root",
+      "links": [],
+      "children": [
+        "pkg:basic-python",
+        "pkg:sharedlib"
+      ],
+      "view": {
+        "id": "root",
+        "level": 0,
+        "drillDown": [
+          {
+            "id": "pkg:basic-python",
+            "type": "package"
+          },
+          {
+            "id": "pkg:sharedlib",
+            "type": "package"
+          }
+        ],
+        "links": []
+      }
+    }
+  ],
+  "entrypoints": []
+}

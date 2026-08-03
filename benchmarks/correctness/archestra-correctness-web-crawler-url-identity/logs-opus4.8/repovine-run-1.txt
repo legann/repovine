@@ -1,0 +1,361 @@
+# Bench archestra-correctness-web-crawler-url-identity — Repovine run 1 — model: opus-4.8 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-4-8; effort: max. Agent 879707fd85b84a0b.
+# Gate: pass — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by loading the repovine MCP tool schemas, then use them to understand the web crawler connector's URL normalization before editing.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+Now let me search the graph for the web crawler connector and its URL normalization logic.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@frontend/src/app/knowledge/knowledge-bases/_parts/web-crawler-config-fields, mod:@backend/src/routes/chat/normalization/extract-inline-attachments; source-derived fields removed]
+
+  → repovine.map_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector; source-derived fields removed]
+
+Found the target module. It carries annotations, so let me inspect it with the source body to understand the current normalization and how documents are keyed/served.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/WebCrawlerConnector, pkg:@backend, domain:connectors; functions WebCrawlerConnector; architectural annotation delivered; source-derived fields removed]
+
+This module has a rich annotation with a critical consumer-scoped risk. Key facts:
+
+- `normalizeCrawlUrl` is the single chokepoint; its output becomes the document identity → `kb_documents.source_id` (written once, never re-derived).
+- **connector-sync has no prune step.** Changing the normalizer means the next sync inserts a *new* row for the same page while the old row survives → search returns duplicates. So "every document already indexed must continue to be served correctly" requires re-keying the stored `source_id`s.
+- Precedent: migration `0131_fix_agent_tool_trailing_underscores` re-keyed stored values after a normalization change of the same shape.
+
+Let me read the full connector file and investigate the persistence path and migration precedent in parallel.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, mod:@backend/src/services/apps/app-connector-resource, export:@backend/src/types/knowledge-connector/ConnectorDocument, export:@frontend/src/lib/knowledge/kb-document.query/useConnectorDocuments; source-derived fields removed]
+
+This is the crux of the task. The annotation is explicit: changing `normalizeCrawlUrl` re-keys the document identity (`kb_documents.source_id`), and connector-sync has no prune step, so existing rows would duplicate from the first sync. The requirement "every document already indexed must continue to be served correctly" means I must also re-key the stored `source_id`s — and the annotation names the precedent: migration `0131_fix_agent_tool_trailing_underscores`.
+
+Let me verify exactly how `ConnectorDocument` maps to `kb_documents.source_id`, the schema, and how that precedent migration is structured.
+
+  → repovine.inspect_node: [target mod:@backend/src/knowledge-base/connector-sync]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connector-sync, export:@backend/src/knowledge-base/connector-sync/connectorSyncService, pkg:@backend, domain:knowledge-base; source-derived fields removed]
+
+  → repovine.inspect_node: [target export:@backend/src/types/knowledge-connector/ConnectorDocument]
+    [graph output redacted — scope export:@backend/src/types/knowledge-connector/ConnectorDocument, mod:@backend/src/types/knowledge-connector, domain:backend, domain:knowledge-base; source-derived fields removed]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 6 line(s)]
+
+Now let me read the `ingestDocument` mapping (rest of connector-sync), the precedent migration 0131, and locate the kb_documents schema + model.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 39 line(s)]
+
+Key finding at `[expr]`: the identity mapping is `[expr]` (a hash), while `[expr]` (the plain normalized URL string). So re-keying is feasible: `source_url` holds the recoverable old normalized URL; the new `source_id` is `sha256(…)`.
+
+Let me read the full `ingestDocument` (confirm no prune), the schema's unique constraint, the model's write surface, and the migration infra.
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 160 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 63 line(s)]
+
+Confirmed the full picture:
+- **No prune step** (`ingestDocument` only does findBySourceId → update-or-create; `connector-sync.ts:418-531`).
+- Unique index `kb_documents_source_idx` on `[expr]` (`kb-document.ts:44-47`) → re-keyed collisions would violate it.
+- `source_url` (plain normalized URL) is recoverable; `source_id` is its sha256.
+- Migrations are versioned `.sql` files (latest `0312`); many have paired `.test.ts` (e.g. `0299_backfill_orphaned_schedule_projects`), and `seed.ts` has TS reconciliation functions (`migrateSecretsToEncrypted`).
+
+The normalization is too complex/divergence-prone for raw SQL (exactly the SQL/TS mismatch that `0131` was born from). Let me load the migrations skill and study the repo's data-migration conventions (SQL backfill examples + the seed.ts TS pattern) before deciding the mechanism.
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+The skill confirms data migrations are SQL files (via `drizzle-kit generate --custom`). But this normalization (query-param stripping, trailing-slash, sha256 recompute) is fragile in raw SQL and risks the exact SQL/TS divergence that spawned `0131`. Let me examine the repo's actual data-migration conventions: the `seed.ts` TS reconciliation pattern, a real backfill SQL example, pgcrypto availability, and chunk cascade behavior.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 93 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 138 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 14 line(s)]
+
+I have the mechanism data. Key facts:
+- `seed.ts` runs at startup in all envs (`server.ts:955`) and hosts idempotent TS reconciliations (`migrateSecretsToEncrypted`, `ensureExistingUsersHavePersonalChatAgents`) — the established pattern for data fixes needing TS logic.
+- The repo writes complex SQL migrations (0285), but param-stripping/trailing-slash + sha256 in raw SQL re-creates the exact SQL/TS divergence the annotation warns about. Reusing the TS `normalizeCrawlUrl` in a startup reconciliation eliminates that divergence by construction.
+- `kb_chunks.document_id` cascades on delete (`kb-chunk.ts:44`) → deleting a duplicate doc cleans its chunks.
+
+Let me read the `KbDocumentModel` and connector-model surface to choose model methods (model-only rule) and confirm no existing reconciliation.
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+`KbDocumentModel` exposes `update(…)`, `delete(…)`, `findBySourceId`. Now let me read `seed.ts` — its imports, the `migrateSecretsToEncrypted` transaction style, and the `seedRequiredStartingData` orchestrator where reconciliations are sequenced — to match the established pattern exactly.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 70 line(s)]
+
+Now I have the full pattern. Before writing, three quick confirmations: (a) whether the connector registry already eager-loads the web-crawler module at startup (so importing `normalizeCrawlUrl` into `seed.ts` adds no new load cost), (b) any existing tracking-param constant to reuse, (c) the `web_crawler` connector-type literal.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 53 line(s)]
+
+Everything is confirmed. `registry.ts` eager-loads `WebCrawlerConnector`, so `seed.ts` importing `normalizeCrawlUrl` adds no new startup cost. No existing tracking-param constant. Let me verify one correctness-critical fact — that `seedRequiredStartingData()` runs unconditionally at prod startup (the reconciliation must run before any sync) — then implement.
+
+  → Read: platform/backend/src/server.ts
+    [source removed — 22 line(s)]
+
+Confirmed: `seedRequiredStartingData()` runs unconditionally at startup (`server.ts:955`), before routes and any connector sync. The ordering is correct in production.
+
+I have a complete, verified picture. Let me set up task tracking, then implement.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskCreate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+Now the connector changes — add the tracking-param constant and strengthen/export `normalizeCrawlUrl`:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now strengthen and export `normalizeCrawlUrl`:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Task 1 complete. Now the seed.ts reconciliation.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Now add the reconciliation function before `seedRequiredStartingData` and wire the call into it:
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Now wire the call into `seedRequiredStartingData`, grouped with the other re-key reconciliations:
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Task 2 complete. Now verify: refresh the repovine graph and lint the two files.
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+Biome isn't at the workspace root. Let me find the correct lint/type-check invocation and run type-check (the key check).
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 21 line(s)]
+
+Backend uses `biome check` and `tsgo --noEmit`. Let me run both on the changes (via `--dir backend`):
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 4 line(s)]
+
+The repovine graph rebuilt cleanly (nodes 11758→11759, files parsed, 0 orphans). But `node_modules` isn't installed, so I couldn't run biome/tsgo. Let me tighten the seed.ts formatting to match biome's rules (I'll hand-verify widths) and check whether any runnable toolchain exists. First, re-read the inserted region to replace it precisely.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 98 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 4 line(s)]
+
+No toolchain is installed (no `node_modules`), so I'll hand-verify types/formatting. Two refinements to the seed.ts function: extract module-level types (avoids a `[expr]` inference risk and keeps the `Map` generic biome-stable) and wrap the one over-width line. Let me apply both.
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Let me do a final review of both changed regions to confirm correctness.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 108 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 32 line(s)]
+
+Let me confirm the tail of `normalizeCrawlUrl` (port + trailing-slash + return):
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 16 line(s)]
+
+The repovine annotation flagged `normalizeCrawlUrl` as the single chokepoint feeding both document identity *and* crawl-scope derivation. Tracing that: `buildAllowedPathPrefixes` uses the normalized start URL's path, and it relies on a trailing slash to distinguish a directory scope (`/docs/` → crawl under `/docs/`) from a file (`/docs` → crawl whole origin). My trailing-slash trim would silently **widen** a directory start URL to the entire site. That's a real regression I must fix — scope must derive from the configured start URL, not the slash-trimmed one.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now update the two call sites to the new single-arg signature:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now verify no stale references remain and refresh the graph. Let me grep for `buildAllowedPathPrefixes` call sites and confirm `normalizedStartUrl`/`startUrl` are still used.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Both call sites updated to the single-arg signature; `startUrl`/`normalizedStartUrl` remain used elsewhere; graph rebuilt with 0 orphans. Let me confirm two last things for the write-up: that `kb_chunks` has no denormalized `source_id`/`source_url` that would go stale after re-key, and the consumer surface of the newly-exported `normalizeCrawlUrl`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → repovine.analyze_dependencies: [target export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/normalizeCrawlUrl]
+    [graph output redacted — scope export:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector/normalizeCrawlUrl, mod:@backend/src/database/seed, mod:@backend/src/types, mod:@backend/src/knowledge-base/connectors/base-connector; source-derived fields removed]
+
+Both confirmed: `kb_chunks` has **no denormalized `source_id`/`source_url`** (only `document_id` FK with cascade) — so re-keying the document row fully propagates to search results, which read `d.source_id`/`d.source_url` from the joined document. And `normalizeCrawlUrl`'s only new consumer is `seed.ts` — a clean, additive export.
+
+Since I can't run tsc/biome (no `node_modules`), let me at least empirically verify the core normalization logic with Node against the required cases:
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 21 line(s)]
+
+All cases pass — tracking params stripped, non-tracking preserved, trailing slash trimmed only on non-root, host lowercased (path case preserved), default ports stripped, exact-key matching (no `utm_source_id` false positive), and **idempotent**. Let me verify the one property the reconciliation depends on: re-normalizing an *old-normalized* stored URL yields the same identity as normalizing fresh (`newNorm(…)`).
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 12 line(s)]
+
+Both critical properties verified empirically: normalization is correct + idempotent, and re-keying a stored (old-normalized) URL yields exactly the identity a future crawl produces — so post-reconciliation the next sync updates in place instead of duplicating.
+
+One robustness check before finalizing: I want the reconciliation to fail-soft (a bug shouldn't crash startup). Let me see how `server.ts` handles a `seedRequiredStartingData` throw to decide whether I need local error handling.
+
+  → Read: platform/backend/src/server.ts
+    [source removed — 40 line(s)]
+
+  → Read: platform/backend/src/server.ts
+    [source removed — 30 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+The startup try catches at `server.ts:1164` and calls `process.exit(…)` — so any throw from `seedRequiredStartingData` **crashes startup**. My non-critical re-key must fail-soft. Let me refactor into a per-connector helper wrapped in try/catch (isolated + won't crash startup). First, re-read the current function text precisely.
+
+  → Read: platform/backend/src/database/seed.ts
+    [source removed — 90 line(s)]
+
+Before refactoring, I must confirm `withDbTransaction`'s signature — whether it's generic and propagates the callback's return value (my helper needs to return counts through it).
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+`[expr]` is generic and uses `withTransactionRetry` (auto-retries transient failures) — good. But rather than refactor the (already biome-correct) function body and risk indentation drift, the cleaner fail-soft approach is a `[expr]` at the call site — exactly the repo's own pattern for non-critical startup tasks (`[expr]`). This keeps the function body untouched and prevents a re-key error from hitting the `process.exit(…)` path.
+
+  → Edit: platform/backend/src/database/seed.ts
+    [edit applied]
+
+Implementation complete. Let me review the full diff and refresh the graph.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 259 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+The full diff is clean and consistent; graph rebuilt with 0 orphans. All verification that's possible without installed deps is done: normalization behavior + idempotency + re-key identity equivalence empirically confirmed via Node, types hand-checked against the actual schema/model types, and formatting hand-checked against biome's rules (imports order matches the repo's `node:`-first convention).
+
+  → TaskUpdate: [arguments redacted — tool action recorded]
+    [output redacted — 1 line(s)]
+
+All three tasks complete. Here is the final report.
+
+## What I changed and why
+
+Two files, one behavior change plus the data-consistency work it requires.
+
+**1. `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`**
+- **Strengthened `normalizeCrawlUrl`** (now exported): drops the fragment (existing), **lowercases the host**, **strips tracking params** (`utm_source/medium/campaign/term/content`, `gclid`, `fbclid` via a new `TRACKING_QUERY_PARAMS` constant), keeps **default-port stripping** (existing), and **trims a trailing slash on non-root paths**. Exported so the re-key (below) reuses the identical function.
+- **Fixed `buildAllowedPathPrefixes`** to derive the default crawl scope from `config.startUrl` instead of the normalized start URL. Without this, trimming the trailing slash would silently widen a directory start URL (`[expr]` → prefix `/docs/`) to the whole origin (`/`). This is a required correction *caused by* the normalization change, not optional.
+
+**2. `platform/backend/src/database/seed.ts`**
+- Added **`renormalizeWebCrawlerDocumentIdentities`**, wired into `seedRequiredStartingData` (fail-soft via `.catch`, matching the repo's startup-task pattern at `server.ts:960/996/1003`). It re-keys already-stored `web_crawler` `kb_documents` to the new normalization: for each connector (own transaction) it recomputes `[expr]`, updates `source_id`+`source_url`, and merges collisions (two stored URLs collapsing to one) by keeping the freshest row and deleting the rest.
+
+**Why the re-key is mandatory (not optional):** the normalized URL *is* the document identity — `buildDocument` hashes it into `kb_documents.source_id` (`connector-sync.ts:504`), incremental sync matches by `[expr]` (`connector-sync.ts:419-422`), and there is **no prune step** (`connector-sync.ts:393-532`). Changing the normalizer without re-keying means the first post-deploy sync inserts a *new* row per already-indexed page and orphans the old one — search returns the page twice. Doing it in TS (reusing the normalizer) rather than SQL avoids the SQL/TS normalization divergence that migration `0131` had to repair.
+
+## Related code paths deliberately left unchanged (with proof of scope)
+
+| Path | File:line | Why out of scope |
+|---|---|---|
+| `buildDocument` id derivation | `web-crawler-connector.ts:448-451` | Identity *formula* (`sha256(…)`) is unchanged; only its normalized input changes. The re-key mirrors this exact formula. |
+| `normalizeCanonicalUrl`, `normalizeDiscoveredUrl` | `[expr]` | Both delegate to `normalizeCrawlUrl`; they inherit the stronger normalization with no edit. |
+| `pathMatchesPrefix` | `web-crawler-connector.ts:554-560` | Already trailing-slash-agnostic (`[expr]`), so a slash-trimmed discovered URL still matches its prefix. |
+| `connector-sync` ingest | `connector-sync.ts:419-509` | Persists `doc.id`→`source_id`, `doc.sourceUrl`→`source_url` unchanged in shape; correct once historical rows are re-keyed. |
+| `kb_chunks` | `kb-chunk.ts:42-44` | No denormalized `source_id`/`source_url` (only `document_id`, `onDelete: cascade`); search reads `d.source_id`/`d.source_url` from the joined document, so re-keying the doc fully propagates and deleting a duplicate drops its chunks. |
+| `KbDocumentModel` | `models/kb-document.ts` | Existing update/delete suffice; the reconciliation follows `seed.ts`'s raw-`tx` convention (`migrateSecretsToEncrypted`). |
+| No SQL migration file | — | Re-key runs as a startup reconciliation reusing the TS normalizer (deliberate, to avoid SQL/TS divergence). |
+
+## Summary, files, and residual risk
+
+**Behavior:** trivially-different URLs for the same page now canonicalize to one identity (tracking params, trailing slash, host case, default port). Verified empirically with Node — all required transforms correct, exact-key param matching (no `utm_source_id` false positive), **idempotent**, and `newNorm(…)` (so re-keyed rows match what a future crawl produces). Every already-indexed document remains served exactly once: startup re-key aligns stored `source_id`s before any sync, so sync updates in place instead of duplicating.
+
+**Files touched:** the connector (normalizer + scope fix) and `seed.ts` (startup re-key). No tests added/modified (per constraints).
+
+**Residual risk:**
+- **`metadata.url` staleness** — the re-key updates `source_url` (the primary citation field search returns) but not the mirror in `kb_documents.metadata.url`; for pages whose content doesn't change on the next sync, that mirror keeps the old form until a content change rewrites metadata (`connector-sync.ts:468-476`). Cosmetic.
+- **Startup cost** — loads a connector's documents into memory per transaction (bounded by `maxPages`), and runs every boot (idempotent no-op after the first pass), consistent with existing `seed.ts` reconciliations.
+- **Fail-soft trade-off** — a persistent error on one connector aborts that boot's remaining connectors; retried (idempotent) next boot. Log counts are best-effort (a transaction retry can slightly inflate them); DB state stays correct.
+- **Query re-serialization** — stripping params via `URLSearchParams` canonicalizes query encoding (e.g. `[expr]`→`[expr]`) even without tracking params, so such pages are also re-keyed; benign, and re-key + crawler use the same function so no duplication results.
+- **Could not run `tsc`/`biome`** here (`node_modules` absent). Types were hand-verified against the schema/model types and formatting against biome's rules; recommend `pnpm --dir backend type-check` + `biome check` before merge.

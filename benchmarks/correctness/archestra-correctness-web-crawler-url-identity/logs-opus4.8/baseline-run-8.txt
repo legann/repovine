@@ -1,0 +1,205 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 8 — model: opus-4.8 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-4-8; effort: max. Agent 28bc79b64fad4b6e.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the web crawler connector to understand the current normalization.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+[source-heavy implementation detail removed — files and functions are identified elsewhere]
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+Now let me look at how `doc.id` (hash function of canonical URL) is used for lookup and serving.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 65 line(s)]
+
+  → Read: platform/backend/src/database/schemas/kb-document.ts
+    [source removed — 52 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 84 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 69 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 35 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 59 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+Let me check for stale-document pruning, existing data migrations touching `source_id`, and the crawler's test expectations.
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 22 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 6 line(s)]
+
+Let me read the existing test file (which I must not modify but must keep green) and the migrations pattern.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 22 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 18 line(s)]
+
+The tests pin `sourceUrl` values with trailing slashes. Let me read the full test file carefully — this determines what I can change.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+Let me check what Crawlee itself does for request dedupe (uniqueKey normalization), since that affects whether the frontier already collapses variants.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+I need to know whether Crawlee's request queue already normalizes `uniqueKey`. Let me check the lockfile and any cached package source.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+I now have the full picture. Before editing, let me confirm two load-bearing facts about the blast radius.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+Confirmed. Two facts now drive the design:
+
+1. [source-heavy implementation detail removed — files and functions are identified elsewhere]
+2. **Nothing ever prunes a document that stops appearing in a crawl.** `executeSync` has no delete path; the only `deleteByConnector` call is connector deletion (`routes/knowledge-base.ts`). So re-keyed rows would linger forever — still chunked, still embedded, still returned by `queryService.query`.
+
+That means normalization that rewrites the *stored* URL orphans the existing index. Let me implement accordingly.
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the normalization helpers:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now wire the canonical key into the two crawl entry points and into link discovery:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me verify the pure normalization logic with a quick harness, and check whether I can typecheck at all.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 9 line(s)]
+
+The normalization collapses every variant group to a single key. Let me check whether the toolchain shims can actually build or test.
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 7 line(s)]
+
+No builds, typechecks, or tests are available in this worktree — the toolchain is deliberately stubbed, so I verified the normalization logic standalone (above) and everything else by reading. Let me review the final diff.
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 99 line(s)]
+
+One style fix — the file gives every helper an explicit return type:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Let me pin the exact line numbers for the code paths I'm citing as out of scope.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+## What changed
+
+The crawler now treats trivially-different URLs as one page. I added a canonical form — tracking params stripped, trailing slash removed on non-root paths, host lowercased, default port dropped — and used it as the **request dedupe key**, so `[expr]`, `[expr]`, and `https://example.com/docs` all resolve to a single fetch and a single document.
+
+I deliberately did **not** rewrite the URL the crawler requests and stores. That distinction is what keeps already-indexed documents working, and it's the main thing worth reviewing.
+
+## Files changed
+
+Only `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`:
+
+- **`TRACKING_QUERY_PARAMS`** (new constant) — the six utm params plus `gclid`/`fbclid`.
+- **`canonicalizeCrawlUrl()`** (new) — builds on `normalizeCrawlUrl` and applies all four rules. Host-lowercasing and default-port dropping already fall out of WHATWG `[expr]` parsing, so the existing port branch is retained and the host needs no extra code; I noted that in a comment rather than writing a no-op `toLowerCase()`.
+- **`buildCrawlRequest()`** (new) + the two `crawler.run(…)` seeds — the start URL is fetched exactly as configured, but keyed canonically.
+- **`enqueueAllowedLinks()`** — passes `transformRequestFunction` so each discovered link gets its canonical `uniqueKey`.
+
+I verified the pure normalization standalone with `node` (this worktree has no `node_modules`; `pnpm`/`tsc` are stubs that exit 127, so builds, typechecks, and tests cannot run here). Variant groups collapse to one key, the root `/` keeps its slash, non-tracking params like `[expr]` survive, and the function is idempotent.
+
+## Why the stored URL is untouched
+
+`buildDocument` derives the document id from the canonical URL — `[expr]` at `web-crawler-connector.ts:461`, and `sourceUrl: [expr]` at `:466`. That id **is the upsert key**: `connector-sync.ts:419-421` looks up the existing row by `[expr]`, against a unique index on that pair (`database/schemas/kb-document.ts:44`).
+
+Nothing prunes a document that stops appearing in a crawl. `executeSync` has no delete path, and the only `KbDocumentModel.deleteByConnector` call is connector deletion (`routes/knowledge-base.ts:1074`). So if the canonical URL changes, every page re-keys, a fresh row is inserted, and the old row survives forever — still chunked, still embedded, still returned by `queryService.query`. Since a trailing slash is the common case (`/docs/`), a literal rewrite would have orphaned most of the existing index as stale duplicates. Keying the *request* instead of the *document* gets the dedupe with zero re-keying.
+
+This is also what the pinned tests encode: `web-crawler-connector.test.ts:163-166` expects `sourceUrl` of `/docs/` and `/docs/install/`, and `:178-180` expects `[expr]`. Independently, the test server matches `pathname` exactly (`:724-731`), so requesting `/docs` for a start URL of `/docs/` would 404 — which mirrors the real-world hazard that `/docs` and `/docs/` are distinct HTTP resources and only *some* servers redirect between them.
+
+## Related paths left unchanged
+
+| Path | Why it's out of scope |
+|---|---|
+| `buildAllowedPathPrefixes` (`:477`) | Derives crawl scope from `[expr]` and branches on `path.endsWith(…)` (`:485-486`). Feeding it a slash-stripped URL would turn prefix `/docs/` into `/`, silently widening the crawl to the whole origin. It still receives `normalizeCrawlUrl(…)` at `:194` and `:359`. |
+| `isPathInScope` (`:552`) | Tests exclude patterns against `[expr]` (`:567`). Stripping tracking params from the *request* would have silently changed which patterns match. The fetched query string is unchanged. |
+| `pathMatchesPrefix` (`:571`) | Already normalizes a trailing slash off the prefix and matches `/docs` and `/docs/` alike. |
+| `normalizeCanonicalUrl` (`:597`), `buildDocument` (`:455`) | Document identity — see above. |
+| Other connectors | Only the web crawler hashes a URL into an id; `grep createHash` across `knowledge-base/` returns just `connector-sync.ts:416` (content hash) and `web-crawler-connector.ts:461`. |
+
+## Residual risk
+
+**`transformRequestFunction` and `uniqueKey` are unverified against the installed types.** Both are long-standing public Crawlee APIs and `@crawlee/cheerio` is pinned at `3.14.1`, but I could not typecheck. This is the one thing to confirm on a bootstrapped checkout.
+
+**Dedupe strands the loser.** If a site links both `/a` and `[expr]`, that page previously produced two documents; now it produces one. The surviving document keeps its id, but the other row is never pruned and will serve stale content. That's inherent to any dedupe here, not to this implementation.
+
+**The stored URL is the first-reached variant.** If a page is *only* ever linked with a tracking parameter, the citation URL retains it. Canonicalizing stored URLs is a reasonable follow-up, but it re-keys documents and therefore needs a backfill migration over `kb_documents.source_url` → `source_id` (with collision collapsing) — a data change well outside a normalization patch, and one I couldn't pair with a migration test under the no-tests constraint.
+
+**Crawlee may already normalize `uniqueKey` by default.** Setting it explicitly makes the connector's dedupe independent of that, and is idempotent if the defaults happen to agree.
+
+**`maxRequestsPerCrawl` now counts fewer requests**, so a crawl that previously hit the page cap on duplicates may now reach deeper pages. Intended, but it is a visible change in what gets indexed.

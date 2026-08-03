@@ -1,0 +1,28 @@
+{
+  "_description": "Helm values.yaml images become container-image resources and link to chart Dockerfile; Chart.yaml is helm-release (no id collision with Dockerfile). Best-effort secrets: explicit existingSecret/secretName/secretRef keys become kind='secret' nodes and link from the co-located image (templated Secret manifests in templates/ are not rendered — documented limit).",
+  "heavyDomains": ["infra-dockerfile", "infra-helm"],
+  "lightweightDomains": ["helm-images-fixture", "placeholder"],
+  "rejectedAsDomain": [],
+  "runtimeResourceNodes": [
+    { "label": "app", "kind": "other", "provider": "generic" },
+    { "label": "demo-chart", "kind": "helm-release", "provider": "generic" },
+    { "label": "helm/demo-chart/Dockerfile", "kind": "other", "provider": "generic" },
+    { "label": "secret:app-db-credentials", "kind": "secret", "provider": "generic" }
+  ],
+  "runtimeLinks": [
+    {
+      "fromServiceLabel": "app",
+      "toDockerfileSuffix": "helm/demo-chart/Dockerfile"
+    }
+  ],
+  "serviceLinks": [
+    {
+      "fromServiceLabel": "app",
+      "fromServiceProvider": "generic",
+      "toServiceLabel": "secret:app-db-credentials",
+      "toServiceKind": "secret",
+      "toServiceProvider": "generic",
+      "edge": "uses_env"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "_description": "Next.js App Router: app/<route>/{page,layout,loading,route}.tsx are framework conventions, not domains. Directory names are the domain candidates.",
+  "heavyDomains": ["dashboard", "infra-vercel", "nextjs-app-router-fixture", "routing", "slug"],
+  "lightweightDomains": ["about", "blog", "docs", "error-fallback", "marketing", "posts", "shop", "ui", "users"],
+  "rejectedAsDomain": ["page", "layout", "loading", "route"],
+  "modulesInDomain": {
+    "users": ["app/api/users/route.ts"],
+    "posts": ["app/api/posts/route.ts"],
+    "dashboard": [
+      "app/dashboard/page.tsx",
+      "app/dashboard/loading.tsx",
+      "components/error-fallback.tsx",
+      "components/ui/button.tsx"
+    ],
+    "blog": ["app/blog/[slug]/page.tsx"],
+    "error-fallback": ["components/error-fallback.tsx"],
+    "ui": ["components/ui/button.tsx"]
+  },
+  "typescript": {
+    "codeEdges": [
+      {
+        "from": "mod:nextjs-app-router-fixture/app/dashboard/page",
+        "to": "mod:nextjs-app-router-fixture/components/error-fallback",
+        "kind": "imports"
+      },
+      {
+        "from": "mod:nextjs-app-router-fixture/components/error-fallback",
+        "to": "mod:nextjs-app-router-fixture/components/ui/button",
+        "kind": "imports"
+      }
+    ],
+    "resolvedImports": [
+      {
+        "moduleId": "mod:nextjs-app-router-fixture/app/dashboard/page",
+        "specifier": "@/components/error-fallback",
+        "resolvedModuleId": "mod:nextjs-app-router-fixture/components/error-fallback",
+        "isExternal": false
+      },
+      {
+        "moduleId": "mod:nextjs-app-router-fixture/components/error-fallback",
+        "specifier": "./ui/button",
+        "resolvedModuleId": "mod:nextjs-app-router-fixture/components/ui/button",
+        "isExternal": false
+      }
+    ]
+  },
+  "entrypoints": [
+    { "path": "/", "kind": "page", "layer": "frontend" },
+    { "path": "/api/posts", "kind": "api", "layer": "backend", "method": "GET" },
+    { "path": "/api/users", "kind": "api", "layer": "backend", "method": "GET" },
+    { "path": "/api/users", "kind": "schedule", "layer": "backend" },
+    { "path": "/dashboard", "kind": "page", "layer": "frontend" }
+  ],
+  "entrypointEdgeCases": {
+    "dynamic-segment": [
+      { "path": "/blog/[slug]", "kind": "page", "layer": "frontend" }
+    ],
+    "catch-all-segment": [
+      { "path": "/docs/[...slug]", "kind": "page", "layer": "frontend" }
+    ],
+    "optional-catch-all-segment": [
+      { "path": "/shop/[[...slug]]", "kind": "page", "layer": "frontend" }
+    ],
+    "route-group": [
+      { "path": "/about", "kind": "page", "layer": "frontend" }
+    ]
+  },
+  "runtimeResourceNodes": [
+    { "label": "project", "kind": "other", "provider": "vercel" },
+    { "label": "function:app/api/users/route.ts", "kind": "vercel-function", "provider": "vercel" },
+    { "label": "cron:/api/users", "kind": "vercel-cron", "provider": "vercel" },
+    { "label": "rewrite:/legacy-users", "kind": "vercel-route", "provider": "vercel" },
+    { "label": "secret:database-url", "kind": "secret", "provider": "vercel" }
+  ],
+  "runtimeLinks": [
+    {
+      "fromServiceLabel": "function:app/api/users/route.ts",
+      "fromServiceKind": "vercel-function",
+      "fromServiceProvider": "vercel",
+      "toModuleSuffix": "app/api/users/route"
+    }
+  ],
+  "serviceLinks": [
+    {
+      "fromServiceLabel": "project",
+      "fromServiceProvider": "vercel",
+      "toServiceLabel": "secret:database-url",
+      "toServiceKind": "secret",
+      "toServiceProvider": "vercel",
+      "edge": "uses_env"
+    }
+  ]
+}

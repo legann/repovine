@@ -1,0 +1,359 @@
+# Bench kibana-correctness-mapped-params-migration — Repovine run 3 — model: sonnet-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-sonnet-5; effort: max. Agent 6e7d5468ec364b4c.
+# Gate: pass — projection-consistency gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by using the repovine MCP tools to understand the codebase structure around alerting rules and saved-object migrations.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — status building; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — status building; source-derived fields removed]
+
+The graph is still building. I'll wait for it via long-poll since the task needs structural context.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.get_build_status: [repository query]
+    [graph output redacted — status ready; source-derived fields removed]
+
+Graph is ready. Now let me search for the alerting rules saved-object type and severity params.
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions, mod:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rules_settings_model_versions, export:src-platform-plugins-shared-dashboard/server/dashboard_saved_object/migrations/dashboard_saved_object_migrations/DashboardSavedObjectTypeMigrationsDeps, export:src-platform-plugins-shared-dashboard/server/dashboard_saved_object/migrations/dashboard_saved_object_migrations/createDashboardSavedObjectTypeMigrations; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions, mod:@kbn/security-solution-plugin/public/detection_engine/rule_management/components/rule_details/three_way_diff/final_edit/fields/severity_mapping, export:x-pack-platform-plugins-shared-alerting_v2/server/lib/services/rules_saved_object_service/rules_saved_object_service/RulesSavedObjectServiceContract, export:@kbn/check-saved-objects-cli/src/findings/types/SavedObjectsCheckFinding; source-derived fields removed]
+
+Found the key module. Let me set up task tracking and inspect the rule model versions module in detail.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.inspect_node: [target mod:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions]
+    [graph output redacted — scope mod:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions, export:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions/ruleModelVersions, pkg:x-pack-platform-plugins-shared-alerting, domain:model-versions; architectural annotation delivered; source-derived fields removed]
+
+  → repovine.inspect_node: [target export:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions/ruleModelVersions]
+    [graph output redacted — scope export:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions/ruleModelVersions, domain:model-versions, domain:saved-objects; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:x-pack-platform-plugins-shared-alerting/server/rules_client/common/mapped_params_utils, mod:@kbn/security-solution-plugin/public/detection_engine/rule_management/components/rule_details/three_way_diff/final_edit/fields/severity_mapping, export:x-pack-platform-plugins-shared-alerting/server/rules_client/common/mapped_params_utils/getMappedParams, export:@kbn/alerting-types/rule_types/MappedParamsProperties; source-derived fields removed]
+
+Let me read the actual source with the correct parameter and inspect the mapped_params utility.
+
+  → repovine.inspect_node: [target export:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions/ruleModelVersions]
+    [graph output redacted — scope export:x-pack-platform-plugins-shared-alerting/server/saved_objects/model_versions/rule_model_versions/ruleModelVersions, domain:model-versions, domain:saved-objects; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:x-pack-platform-plugins-shared-alerting/server/rules_client/common/mapped_params_utils]
+    [graph output redacted — scope mod:x-pack-platform-plugins-shared-alerting/server/rules_client/common/mapped_params_utils, export:x-pack-platform-plugins-shared-alerting/server/rules_client/common/mapped_params_utils/MAPPED_PARAMS_PROPERTIES, export:x-pack-platform-plugins-shared-alerting/server/rules_client/common/mapped_params_utils/getMappedParams, export:x-pack-platform-plugins-shared-alerting/server/rules_client/common/mapped_params_utils/getModifiedFilter; functions getMappedParams, getModifiedFilter, getModifiedField, getModifiedSearchFields, getModifiedValue, getModifiedSearch, modifyFilterKueryNode; source-derived fields removed]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+Now let me read the key files.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 189 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/rules_client/common/mapped_params_utils.ts
+    [source removed — 186 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 34 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v13.ts
+    [source removed — 10 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/index.ts
+    [source removed — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 23 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/ad_hoc_run_params_model_versions.ts
+    [source removed — 53 line(s)]
+
+  → Read: src/core/packages/saved-objects/server/src/model_version/model_change.ts
+    [source removed — 186 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Read: src/core/packages/saved-objects/server/src/model_version/transformations.ts
+    [source removed — 100 line(s)]
+
+  → Read: x-pack/solutions/observability/plugins/synthetics/server/saved_objects/migrations/private_locations/model_version_1.ts
+    [source removed — 65 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 37 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/types.ts
+    [source removed — 29 line(s)]
+
+Now let's look at the raw_rule schema `index.ts` and `latest.ts` to see the actual `RawRule` type shape, particularly `params` and `mapped_params`.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/index.ts
+    [source removed — 23 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/latest.ts
+    [source removed — 28 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v12.ts
+    [source removed — 56 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v1.ts
+    [source removed — 27 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/application/rule/transforms/index.ts
+    [source removed — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: src/platform/packages/shared/kbn-alerting-types/rule_types.ts
+    [source removed — 25 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 331 line(s)]
+
+This is critical: `params` and `mapped_params` are both included in the Encrypted Saved Objects AAD for the rule type (`RuleAttributesIncludedInAAD` in `saved_objects/index.ts`). Mutating `severity` inside either during a migration could invalidate the AAD used to decrypt the rule's `apiKey`, breaking rule execution. Let me load the ESO skill before writing the migration.
+
+  → Skill: [arguments redacted — tool action recorded]
+    [skill content loaded — 1 line]
+
+  → Read: x-pack/platform/plugins/shared/actions/server/saved_objects/model_versions/connector_model_versions.ts
+    [source removed — 36 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/server/create_model_version.ts
+    [source removed — 141 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+Let's see the actions plugin's real usage since it's most structurally similar to alerting.
+
+  → Read: x-pack/platform/plugins/shared/actions/server/saved_objects/model_versions/connector_token_model_versions.ts
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+  → Read: examples/eso_model_version_example/server/plugin.ts
+    [source removed — 488 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 14 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/partially_update_rule.ts
+    [source removed — 113 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 17 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v10.ts
+    [source removed — 14 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v11.ts
+    [source removed — 70 line(s)]
+
+Let me verify the `EncryptedSavedObjectsPluginSetup` interface exposes `createModelVersion`.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/server/plugin.ts
+    [source removed — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/plugin.ts
+    [source removed — 30 line(s)]
+
+  → Bash: [command removed — ran model-directed scratch database verification]
+    [output redacted — 7 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+No existing tests reference the rule model version count, so the version bump is safe. Now implementing the changes.
+
+  → Write: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/v14.ts
+    [edit applied]
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/index.ts
+    [edit applied]
+
+Now the main model version file.
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+This confirms I've followed the annotation's guidance correctly — appending a new version 14 rather than altering any frozen version, while fixing the `mapped_params` consistency it warned about. Now updating the registration call site.
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [edit applied]
+
+Let me refresh the repovine index and review the final file.
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 260 line(s)]
+
+The closing brace needs fixing since I wrapped the object in an arrow function — let me add the '14' entry and correct the closing syntax.
+
+  → Edit: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [edit applied]
+
+Now let's typecheck this package to catch any type errors.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 24 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — checked or prepared the local tool environment]
+    [output redacted — 1 line(s)]
+
+Bootstrap finished already — let me check the result.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 1 line(s)]
+
+That confirms this benchmark environment intentionally has no `node_modules` — tooling is unavailable here, so I'll verify by careful static reading instead. Let me re-read the complete modified file end-to-end.
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts
+    [source removed — 277 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_rule/index.ts
+    [source removed — 24 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/index.ts
+    [source removed — 50 line(s)]
+
+Let me verify how the merged transform function composition works for a single `unsafe_transform` change, to be certain the wrapping behaves as expected.
+
+  → Read: src/core/packages/saved-objects/base-server-internal/src/model_version/build_transform_fn.ts
+    [source removed — 112 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/encrypted_saved_objects/server/saved_objects/map_attributes.ts
+    [source removed — 15 line(s)]
+
+Let me check the parallel `alerting_v2` plugin surfaced earlier, to determine if it also needs this fix or is out of scope.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 55 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Read: x-pack/platform/plugins/shared/alerting/server/saved_objects/schemas/raw_ad_hoc_run_params/v1.ts
+    [source removed — 56 line(s)]
+
+Let me do a final review via git diff to confirm everything is consistent.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 9 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 22 line(s)]
+
+Both small diffs are clean and correct. This completes the implementation. Let me mark it verified and write the final report.
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 118 line(s)]
+
+The diff is complete and consistent. Everything checks out — the implementation is done.
+
+## Where the migration is localized
+
+The single canonical registration point for `alert` (rule) saved-object model versions: `x-pack/platform/plugins/shared/alerting/server/saved_objects/model_versions/rule_model_versions.ts`. This was the only place repovine's search surfaced (already carrying an annotation warning about exactly this class of change), and file-system inspection confirms it's the sole definition site for `ruleModelVersions`.
+
+## Files changed
+
+| File | Change |
+|---|---|
+| `saved_objects/model_versions/rule_model_versions.ts` | Appended model version `'14'`: an `unsafe_transform` that lowercases `params.severity` and re-derives `mapped_params.severity`, wrapped in `encryptedSavedObjects.createModelVersion(…)` for AAD-safe re-encryption. Converted `ruleModelVersions` from a static object to a factory `[expr]` (matching the existing `connectorTokenModelVersions` pattern in the actions plugin). Versions `1`–`13` untouched. |
+| `saved_objects/schemas/raw_rule/index.ts` | Added `rawRuleSchemaV14` export (re-exports v13 unchanged — no shape change), matching the v13 precedent. |
+| `saved_objects/schemas/raw_rule/v14.ts` (new) | `[expr]` |
+| `saved_objects/index.ts` | Call site updated: `[expr]`. |
+
+**The critical finding**: `params` and `mapped_params` are both listed in `RuleAttributesIncludedInAAD` (`saved_objects/index.ts:58-77`) — they're Additional Authenticated Data for the rule's encrypted `apiKey`/`uiamApiKey`. A plain `unsafe_transform` mutating `severity` inside either would change the AAD without re-encrypting, making every affected rule's API key undecryptable — silently breaking rule execution. That's why the migration is wrapped in `createModelVersion` (decrypt with old AAD → transform → re-encrypt with new AAD), following the exact pattern already used by `connector_token_model_versions.ts` in the actions plugin.
+
+I also fixed `mapped_params.severity` (via the existing `getModifiedValue` helper, not reimplemented), not just `params.severity`. The annotation on this module states that `mapped_params` is a separate stored projection that find/sort/filter reads instead of `params`, and non-canonical-case severities project to `''` there. Fixing only `params.severity` would leave the search projection permanently wrong for previously-affected rules — I didn't want it to be like that.
+
+## Deliberately left unchanged (with proof)
+
+- **Versions `1`–`13`**: frozen; new behavior appended as `'14'` only (per the repovine boundary annotation).
+- **`rules_client/common/mapped_params_utils.ts`**: read-only reuse of `getModifiedValue`/`SEVERITY_MAP`, not modified — guarantees the migrated value matches what the live write path would produce.
+- **`application/rule/transforms/transform_rule_domain_to_rule_attributes.ts`** and rule create/update validation: untouched — task scope is a migration for existing data, not write-path validation.
+- **`alerting_v2` plugin**: `grep -rln severity .../alerting_v2/server/saved_objects` returned nothing — no severity/mapped_params concept exists there.
+- **`raw_rule_template` schema**: no `severity`/`mapped_params` fields (confirmed by empty grep) — templates aren't executing rules.
+- **`ad_hoc_run_params` schema** (`raw_ad_hoc_run_params/v1.ts:28`): embeds a `rule.params` snapshot (including possibly-miscased `severity`) with no `mapped_params` sibling. Excluded because these are short-lived execution/backfill records, not the rule of record the task scopes to.
+- **`raw_rule/latest.ts`**: unchanged — no data-shape change, same precedent as v13.
+
+## Residual risk
+
+- The `EncryptedSavedObjectTypeRegistration` (type name + AAD/encrypt attribute lists) is duplicated locally in `rule_model_versions.ts` rather than imported, to avoid a circular import with `saved_objects/index.ts`. This mirrors the actions plugin's existing precedent but means the two lists must be kept manually in sync if `RuleAttributesIncludedInAAD`/`RuleAttributesToEncrypt` ever change — I verified they match today, element-for-element.
+- I could not run typecheck/lint/tests — this benchmark worktree has no `node_modules` and its bootstrap is intentionally disabled ("finalize your implementation from static reading of the source"). Verification here is by careful manual tracing of types and the ESO decrypt/transform/encrypt pipeline, not compiler/test confirmation.

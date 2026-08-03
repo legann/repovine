@@ -1,0 +1,216 @@
+# Bench archestra-restraint-tool-slug — Repovine run 7 — model: opus-5 — effort: max
+# Arm: repovine — identical native environment plus Repovine graph, annotations, bootstrap files, and skills. Model: claude-opus-5; effort: max. Agent 96f13bc1475b4360.
+# Gate: pass — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by orienting in the graph to find where MCP tool names become platform identifiers.
+
+  → ToolSearch: [arguments redacted — tool action recorded]
+    [output redacted — 0 line(s)]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/models/tool, mod:@backend/src/database/schemas/tool, mod:@frontend/src/app/mcp/tool-guardrails/_parts/assigned-tools-table.utils, mod:@backend/src/types/tool; source-derived fields removed]
+
+  → repovine.search_context: [repository query]
+    [graph output redacted — scope mod:@backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector, export:@archestra/shared/utils/slugify, export:@archestra/shared/utils/urlSlugify; source-derived fields removed]
+
+  → repovine.inspect_node: [target mod:@backend/src/models/tool]
+    [graph output redacted — scope mod:@backend/src/models/tool, export:@backend/src/models/tool/parseArchestraBuiltInName, export:@backend/src/models/tool/toolUiResourceUriSql, export:@backend/src/models/tool/default; functions parseArchestraBuiltInName, toolUiResourceUriSql, default; architectural annotation delivered; source-derived fields removed]
+
+  → repovine.inspect_node: [target export:@archestra/shared/utils/slugify]
+    [graph output redacted — scope export:@archestra/shared/utils/slugify, mod:@archestra/shared/utils, domain:utils, domain:shared; functions slugify; source-derived fields removed]
+
+Graph gives a strong lead with a boundary annotation. Let me read the actual code.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 48 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 80 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 130 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 62 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 140 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 80 line(s)]
+
+Now let me check every path that turns a discovered tool name into a stored identifier.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 153 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 113 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 40 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 100 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 83 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 70 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 31 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 107 line(s)]
+
+I have the full picture. Let me implement the fix.
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Read: platform/backend/src/routes/mcp-server.ts
+    [source removed — 14 line(s)]
+
+  → Read: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [source removed — 12 line(s)]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/routes/mcp-server.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/archestra-mcp-server/mcp-servers.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/services/mcp-reinstall.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 24 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 54 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+Can't run installs/tests here, so I'll verify by static reading plus a standalone logic check.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 36 line(s); non-zero exit]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 56 line(s)]
+
+The reinstall/sync path needs a check — let me verify how it matches existing rows against disambiguated names.
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 69 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 78 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 180 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 92 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 58 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 55 line(s)]
+
+  → repovine.refresh_context: [repository query]
+    [graph output redacted — refresh_context result recorded; source-derived fields removed]
+
+Implemented. The graph refresh is clean (no orphaned annotations).
+
+## Where tool names become identifiers
+
+`ToolModel.slugifyName(…)` (`platform/backend/src/models/tool.ts:80`) builds the string stored in `tools.name` — that string is the identifier the gateway serves and the LLM addresses. It drops every character LLM providers disallow, so distinct upstream names can produce one slug (`"get user"` / `"get_user"`, or any two names made only of dropped characters, which both yield the bare `[expr]`). It sees one name at a time and cannot detect this. Five call sites turn a server's `tools/list` into stored identifiers, all feeding `bulkCreateToolsIfNotExists` / `syncToolsForCatalog`.
+
+## Changed
+
+| File | Change |
+|---|---|
+| `models/tool.ts` | New `ToolModel.slugifyNamesForServer(…)`: slugs the server's tool list as a set — first tool to claim a slug keeps it, later collisions take the lowest free `[expr]`. Also `syncToolsForCatalog` now prefers the row already stored under the exact incoming name before raw-name matching. |
+| `routes/mcp-server.ts` | Local + remote install discovery use the set-level naming (2 sites). |
+| `archestra-mcp-server/mcp-servers.ts` | Local + remote deploy discovery (2 sites). |
+| `services/mcp-reinstall.ts` | Reinstall sync (1 site). |
+
+`slugifyName` itself is untouched, so every non-colliding tool gets byte-identical names, and a lone tool whose name strips to empty keeps its bare `[expr]`.
+
+## Deliberately unchanged
+
+| Path | Source that puts it out of scope |
+|---|---|
+| `slugifyName` (`tool.ts:80`) | Per-pair transform; a fix here would move *every* degenerate tool off `[expr]`, including a lone one that is already unique. `models/tool.test.ts:105` pins `[expr]`. |
+| `unslugifyName` (`tool.ts:145`), `mcp-server-gateway.utils.ts:60`, `mcp-server-proxy.ts:168`, `mcp-client.ts:2120` | Read/serve side. `mcp-client.ts:2120` builds a *prefix* via `slugifyName(…)`, not a tool identifier. Editing these changes how working tools are addressed upstream. |
+| Clone copy (`tool.ts:895`) | Re-derives names from an existing catalog's stored rows, which already came through the write path — no set to disambiguate. |
+| `apps/app-mcp-backing.ts:73` | One synthesized launch tool via `ToolModel.create`; the name is already uniquified with the app id (comment at :66-71). Not an MCP-exposed list. |
+| `proxy/utils/tools.ts:96` | Persists names the client already sent — `name: toolName`, no slugification — and already dedupes via `seenToolNames` (:52-63). |
+| Delegation tools (`tool.ts:2525`, `:2666`) | `[expr]` from an agent name; the delegation wire resolves by that same slug at `archestra-mcp-server/delegation.ts:111`. |
+| `seedArchestraTools` | Built-in names are code constants, uniqueness enforced by `ARCHESTRA_TOOL_NAME_UNIQUE_INDEX` (`database/schemas/tool.ts:93`). |
+
+## Verification
+
+The worktree has no `node_modules` and a hook blocks installs, so **type-check and tests were not run**. I verified by static reading plus a standalone run of the naming algorithm: no-collision lists are returned unchanged, a lone degenerate tool keeps `s__`, two degenerate tools become `s__` / `s___2`, `[expr]` → `[expr]` (a generated name never steals a real one), repeated identical raw names stay one identifier, and all outputs match `[expr]`. No tests were added or modified.
+
+## Residual risk
+
+- Suffixes follow the upstream `tools/list` order. If a server reorders colliding tools between discoveries, which sibling holds the bare slug can flip, and assignments/policies follow the name.
+- If a server later exposes a literal `[expr]`, a previously suffixed sibling shifts to `_3`.
+- Reinstall/sync still matches upstream raw names against stored slug tails (`tool.ts:2186-2196`), so tools whose raw names differ only by case still resolve to one row on that path; I left that matching contract alone.
+- Disambiguated names do not round-trip to an upstream raw name through `unslugifyName` — colliding tools were already unresolvable there, and the wire was not extended to route them.

@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # SHA-pinned actions still need bumping. Dependabot opens a reviewed PR that moves the
+  # pin (and its `# v5` version comment) instead of trusting a mutable tag to move under us.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

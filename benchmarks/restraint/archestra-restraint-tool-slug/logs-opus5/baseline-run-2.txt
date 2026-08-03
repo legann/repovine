@@ -1,0 +1,219 @@
+# Bench archestra-restraint-tool-slug — Baseline run 2 — model: opus-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-opus-5; effort: max. Agent a7ef51d5983e45bf.
+# Gate: DQ — frozen-surface gate; scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by exploring the codebase to find where MCP tool names are converted into platform identifiers.
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 10 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 50 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 18 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 120 line(s)]
+
+  → Read: platform/shared/utils.ts
+    [source removed — 75 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 54 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 31 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 80 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 121 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 160 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 190 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 155 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 11 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 80 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 190 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 33 line(s)]
+
+  → Read: platform/backend/src/models/tool.test.ts
+    [source removed — 180 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 13 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 40 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 41 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 26 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 45 line(s)]
+
+  → Read: platform/backend/src/routes/mcp-server-gateway.utils.ts
+    [source removed — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 61 line(s)]
+
+Now let me implement the fix. First, the core identifier generation:
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 22 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the module-level helpers at the bottom and the `createHash` import:
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+Now the reverse mapping so these tools are actually callable upstream:
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 36 line(s)]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 5 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 2 line(s); non-zero exit]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 51 line(s)]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 27 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 105 line(s)]
+
+  → Edit: platform/backend/src/clients/mcp-client.ts
+    [edit applied]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 45 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 15 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 66 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 50 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 42 line(s)]
+
+  → Edit: platform/backend/src/models/tool.ts
+    [edit applied]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 40 line(s)]
+
+  → Read: platform/backend/src/clients/mcp-client.ts
+    [source removed — 36 line(s)]
+
+  → Read: platform/backend/src/models/tool.ts
+    [source removed — 22 line(s)]
+
+Verified the change by simulating old vs. new mapping over a cross-product of server/tool names (no test run is possible in this worktree — it has no `node_modules`; the harness blocks install/type-check/test).
+
+## Where names become identifiers
+
+`ToolModel.slugifyName(…)` — `platform/backend/src/models/tool.ts:81` — is the single chokepoint. Its output is stored as `tools.name`, which is exactly what the gateway lists and dispatches `tools/call` on (`routes/mcp-gateway.utils.ts:256`, `:350`). Every discovery path funnels through it: `[expr]`, `[expr]`, `services/mcp-reinstall.ts:406`, catalog clone at `models/tool.ts:864`, app launch tool at `services/apps/app-mcp-backing.ts:73`.
+
+The defect: the sanitizer deletes every character outside `[expr]`, so a name written entirely in such characters (CJK, emoji, punctuation-only) sanitizes to nothing. All of them collapse onto `[expr]`, and `bulkCreateToolsIfNotExists` (`onConflictDoNothing`, tool.ts:792) keeps one row for the lot.
+
+## Files changed
+
+| File | Change |
+|---|---|
+| `backend/src/models/tool.ts` | `slugifyName` composes a sanitized server part with the new `slugifyToolNamePart`; that helper falls back to `[expr]` when a non-empty name sanitizes to empty. `syncToolsForCatalog` gets a second-chance lookup on the slugified segment. Bottom helpers `sanitizeNameCharacters` + digest consts. |
+| `backend/src/clients/mcp-client.ts` | `resolveActualToolName` indexes each upstream name's slugified segment in a second pass, so a digest identifier maps back to the server's real name. Exact case-insensitive keys still win. |
+
+Simulation results: across 17 server names × 17 tool names that yield a usable identifier today, **0 identifiers change**; all 10 expectations pinned in `tool.test.ts` reproduce byte-for-byte (including `[expr]`); 7 previously-colliding names now yield 7 distinct identifiers; clone re-slugification stays idempotent.
+
+## Deliberately unchanged
+
+1. **Case collapse** (`ListRepos` → `listrepos`) — pinned by `tool.test.ts:49-52`; `mcp-client.ts:2130-2132` documents case-insensitive resolution as intended. Both names are usable today.
+2. **Whitespace collapse** (`list all repos` / `list_all_repos`) — `tool.test.ts:54-59` and `:85-91` pin both mappings.
+3. **Dropped-character collapse** (`tool@name` → `toolname`) — `tool.test.ts:110-126` treats these as valid identifiers; each is usable on its own, so re-keying would change a working identifier. Only names sanitizing to *nothing* are unusable independent of siblings.
+4. **Server-name portion** (a CJK-only catalog → `__tool`) — `stripServerPrefix` (`mcp-client.ts:2118-2126`) resolves those today and tools stay distinct within the server, so the identifiers work.
+5. **App-call gate**, `routes/mcp-server-proxy.ts:165-171` — fail-closed exact match; normalizing there could attribute a call to a different tool's visibility/policy row.
+6. **`callToolForServer`**, `mcp-client.ts:3009-3020` — forwards the caller's name verbatim through a per-call client (`withDirectServerClient`, `:2952`), with no `connectionKey` cache to hook into.
+7. **`shared/utils.ts` `slugify()`** — agent/delegation and skill names (`[expr]`), not MCP-exposed tool names.
+8. **Length cap** — the JSDoc claims `[expr]` but no truncation exists; adding it would create collisions and change working identifiers.
+
+## Residual risk
+
+Digest identifiers are opaque, so the model relies entirely on the description for those tools. 48 bits of digest makes collisions negligible at per-server scale. An upstream rename yields a new identifier and a new row — the same as any rename today. MCP Apps calling such a tool through the server-scoped proxy still fail upstream (item 6), as they do today with the empty name. No tests were added or modified, per the task constraint — this departs from `platform/CLAUDE.md` rule 5, which normally asks for a behavior test alongside a behavior change.

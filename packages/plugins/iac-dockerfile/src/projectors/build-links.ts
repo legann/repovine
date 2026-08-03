@@ -1,0 +1,248 @@
+import { lastPathSegment, pathMatchKey } from '@repovine/plugin-sdk';
+import type {
+  PluginProjectionBatch,
+  ProjectionContributor,
+  ReadonlyInfraModuleFact,
+  ReadonlyProjectionInput,
+  SemanticLinkContribution,
+} from '@repovine/plugin-sdk';
+
+/**
+ * Link every resource that names a container image or a build context to the Dockerfile it was
+ * built from.
+ *
+ * This is Docker's question, so it is answered here. A producer states what its own document says —
+ * "this service builds from `services/api/Dockerfile`", "this workload runs `registry/acme/api:1.2`"
+ * — and this projector decides which Dockerfile in the repository that names. The engine draws the
+ * edge and knows neither half.
+ *
+ * One implementation, three producers. The alternative was a copy of the matching in each producer
+ * plugin, and the repository's duplication law reads plugin packages too — the same question would
+ * have had three answers that could drift apart.
+ *
+ * Matching by image name answers or declines; it never picks a favourite. Only the candidate's own
+ * path ranks it, and a top score shared by two Dockerfiles is no answer at all. The alternative —
+ * keeping the first of a tie — attributed a registry-upstream image to whichever Dockerfile sorted
+ * earliest, because the evidence that produced the tie said nothing about any of them.
+ *
+ * A fourth producer joins by publishing a fact with `containerImages` or `dockerfileRepoRelPath`
+ * under its own schema and adding that schema below. Nothing else changes.
+ */
+
+/** Schemas this projector reads, each owned by the plugin that publishes it. */
+const IMAGE_SCHEMAS = ['kubernetes/object@1', 'helm/container-image@1'] as const;
+const BUILD_SCHEMAS = ['docker-compose/build@1'] as const;
+
+/** The `kind` the Dockerfile parser declares, which is what its documents are found by. */
+const DOCKERFILE_KIND = 'dockerfile';
+
+interface ResourceSubject {
+  namespace: string;
+  localKey: string;
+}
+
+function subjectOf(subjectRef: unknown): ResourceSubject | undefined {
+  if (!subjectRef || typeof subjectRef !== 'object') return undefined;
+  const ref = subjectRef as { type?: unknown; namespace?: unknown; localKey?: unknown };
+  if (ref.type !== 'resource') return undefined;
+  if (typeof ref.namespace !== 'string' || typeof ref.localKey !== 'string') return undefined;
+  return { namespace: ref.namespace, localKey: ref.localKey };
+}
+
+function stringsAt(value: unknown, field: string): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  const raw = (value as Record<string, unknown>)[field];
+  if (typeof raw === 'string') return raw.trim() ? [raw] : [];
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+}
+
+/**
+ * Tokens an image reference offers for matching: its name, and the path segments above it.
+ *
+ * `registry.example.com/acme/api:1.2@sha256:…` offers `api`, `acme` — the digest and the tag are
+ * not names of anything in the repository.
+ */
+function imagePathTokens(image: string): string[] {
+  const ref = image.split('@')[0]!.toLowerCase();
+  const nameTag = lastPathSegment(ref);
+  const stem = nameTag.includes(':') ? nameTag.slice(0, nameTag.indexOf(':')) : nameTag;
+  const tokens = new Set<string>();
+  if (stem.length >= 2) tokens.add(stem);
+  const repoPath = (ref.includes(':') ? ref.slice(0, ref.indexOf(':')) : ref).split('/').slice(0, -1);
+  for (const segment of repoPath) {
+    if (segment.length < 2) continue;
+    tokens.add(segment);
+    for (const part of segment.split(/[-_.]/)) {
+      if (part.length >= 2) tokens.add(part);
+    }
+  }
+  return [...tokens];
+}
+
+/**
+ * Tokens a Dockerfile's path offers.
+ *
+ * A file named `Dockerfile` stands for the directory holding it — `services/api/Dockerfile` is the
+ * api service's recipe, and the basename says nothing. A named variant (`Dockerfile.worker`) keeps
+ * its own segments too.
+ */
+function dockerfilePathTokens(repoRelPath: string): string[] {
+  const normalized = pathMatchKey(repoRelPath);
+  const tokens = new Set<string>();
+  const segments = normalized.split('/');
+  const dir = segments.slice(0, -1).join('/');
+  if (dir) {
+    for (const segment of dir.split('/')) {
+      if (segment.length >= 2) tokens.add(segment);
+      for (const part of segment.split(/[-_.]/)) {
+        if (part.length >= 2) tokens.add(part);
+      }
+    }
+  }
+  const base = lastPathSegment(normalized);
+  if (base.startsWith('dockerfile')) {
+    const parent = lastPathSegment(dir);
+    if (parent.length >= 2) tokens.add(parent);
+  }
+  return [...tokens];
+}
+
+/** What one Dockerfile scores against an image reference, on path evidence alone. */
+function pathScoreFor(
+  repoRelPath: string,
+  imageTokens: readonly string[],
+): number {
+  const rel = repoRelPath.toLowerCase();
+  const pathTokens = dockerfilePathTokens(rel);
+  let score = 0;
+  for (const token of imageTokens) {
+    if (rel.includes(token)) score += token.length >= 4 ? 4 : 2;
+    for (const pathToken of pathTokens) {
+      if (pathToken === token || pathToken.includes(token) || token.includes(pathToken)) score += 4;
+    }
+  }
+  return score;
+}
+
+/**
+ * Does the resource's own name carry the image name?
+ *
+ * Evidence that the image belongs to this repository rather than to a registry upstream — a workload
+ * called `api` running `registry/acme/api:1.2` is running something built here. It says nothing about
+ * WHICH Dockerfile, because it does not mention one: the same answer comes back for every candidate.
+ * So it is a threshold, never a ranking.
+ */
+function labelNamesImage(resourceLabel: string, imageTokens: readonly string[]): boolean {
+  const labelLower = resourceLabel.toLowerCase();
+  if (!labelLower) return false;
+  return imageTokens.some(token => token.length >= 3 && labelLower.includes(token));
+}
+
+/**
+ * Is this the plain default recipe of its directory, rather than a named variant?
+ *
+ * `services/api/Dockerfile` and `services/api/Dockerfile.dev` describe the same service and offer
+ * identical path tokens, so a token score cannot separate them. The basename can: the suffixed one
+ * is an alternate build of the default, and an image that names the directory names the default.
+ */
+function isDefaultRecipe(repoRelPath: string): boolean {
+  return lastPathSegment(pathMatchKey(repoRelPath).toLowerCase()) === 'dockerfile';
+}
+
+/** The Dockerfile an image reference names, or nothing when the repository does not answer. */
+function resolveByImage(
+  image: string,
+  dockerfiles: readonly ReadonlyInfraModuleFact[],
+  resourceLabel: string,
+): { moduleId: string; because: string } | undefined {
+  const imageTokens = imagePathTokens(image);
+  const scored = dockerfiles.map(dockerfile => ({
+    moduleId: dockerfile.moduleId,
+    repoRelPath: String(dockerfile.repoRelPath),
+    score: pathScoreFor(String(dockerfile.repoRelPath), imageTokens),
+  }));
+  const best = Math.max(0, ...scored.map(entry => entry.score));
+  const contenders = scored.filter(entry => entry.score === best);
+
+  // A path signal that singles one out. Several sharing the top score is not a near-miss to break by
+  // order — picking the first was how an upstream image ended up attributed to whichever Dockerfile
+  // sorted earliest. The one separation left is the basename, and it is still a fact about the path.
+  if (best > 0) {
+    const winners = contenders.length === 1
+      ? contenders
+      : contenders.filter(entry => isDefaultRecipe(entry.repoRelPath));
+    return winners.length === 1
+      ? { moduleId: winners[0]!.moduleId, because: 'the container image resembles this Dockerfile' }
+      : undefined;
+  }
+
+  // No path signal anywhere. One Dockerfile in the repository leaves nothing to choose between, so
+  // the resource naming the image is enough. More than one and there is no answer.
+  if (dockerfiles.length === 1 && labelNamesImage(resourceLabel, imageTokens)) {
+    return {
+      moduleId: dockerfiles[0]!.moduleId,
+      because: 'the resource names this image and the repository holds one Dockerfile',
+    };
+  }
+  return undefined;
+}
+
+export const buildLinksProjector: ProjectionContributor = {
+  id: 'build-links',
+  requires: [...IMAGE_SCHEMAS, ...BUILD_SCHEMAS].map(schema => ({ schema })),
+
+  project(input: ReadonlyProjectionInput): readonly PluginProjectionBatch[] {
+    const dockerfiles = input.facts.infraModules({ kind: DOCKERFILE_KIND });
+    if (dockerfiles.length === 0) return [];
+    const byPath = new Map(dockerfiles.map(mod => [pathMatchKey(String(mod.repoRelPath)), mod.moduleId]));
+
+    const links: SemanticLinkContribution[] = [];
+    const seen = new Set<string>();
+    const addLink = (subject: ResourceSubject, moduleId: string, because: string): void => {
+      const key = `${subject.namespace}\0${subject.localKey}\0${moduleId}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      links.push({
+        from: { type: 'resource', namespace: subject.namespace, localKey: subject.localKey },
+        to: { type: 'module', moduleId },
+        relation: 'builds-from',
+        because,
+      });
+    };
+
+    // An exact build path first: a document that names its Dockerfile is not a guess, so it is never
+    // overridden by a token match.
+    for (const schema of BUILD_SCHEMAS) {
+      for (const record of input.facts.select({ schema })) {
+        const subject = subjectOf(record.subjectRef);
+        if (!subject) continue;
+        for (const declared of stringsAt(record.value, 'dockerfileRepoRelPath')) {
+          const moduleId = byPath.get(pathMatchKey(declared));
+          if (moduleId) addLink(subject, moduleId, 'the build configuration names this Dockerfile');
+        }
+      }
+    }
+
+    // Then image references, resolved by name.
+    const resolvedImages = new Map<string, { moduleId: string; because: string } | undefined>();
+    for (const schema of IMAGE_SCHEMAS) {
+      for (const record of input.facts.select({ schema })) {
+        const subject = subjectOf(record.subjectRef);
+        if (!subject) continue;
+        const label = stringsAt(record.value, 'name')[0] ?? subject.localKey;
+        for (const image of stringsAt(record.value, 'containerImages')) {
+          const cacheKey = `${image}\0${label}`;
+          if (!resolvedImages.has(cacheKey)) {
+            resolvedImages.set(cacheKey, resolveByImage(image, dockerfiles, label));
+          }
+          const resolved = resolvedImages.get(cacheKey);
+          if (resolved) addLink(subject, resolved.moduleId, resolved.because);
+        }
+      }
+    }
+
+    if (links.length === 0) return [];
+    return [{ batchId: 'build-links', delta: { links } }];
+  },
+};

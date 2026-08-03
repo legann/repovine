@@ -1,0 +1,25 @@
+{
+  "_description": "Root TS+Python: same name in package.json and pyproject.toml at repo root (Sentry-shaped, minimal). Regression for stage1 package-collision between TS and Python plugins.",
+  "polyglot": {
+    "packageName": "myapp",
+    "tsModuleIds": [
+      "mod:myapp/static/app/views/home",
+      "mod:myapp/static/app/api/client",
+      "mod:myapp/static/app/router/routes"
+    ],
+    "pythonModuleIds": [
+      "mod:myapp/src/myapp/web/urls",
+      "mod:myapp/src/myapp/api/health"
+    ],
+    "pythonPackages": ["myapp"],
+    "routes": [
+      { "moduleId": "mod:myapp/src/myapp/web/urls", "path": "/api/health/", "method": "GET", "source": "ast" }
+    ],
+    "entrypoints": [
+      { "moduleId": "mod:myapp/src/myapp/web/urls", "path": "/api/health/", "method": "GET", "layer": "backend", "kind": "api" },
+      { "moduleId": "mod:myapp/static/app/views/home", "path": "/", "layer": "frontend", "kind": "route", "source": "react-router" },
+      { "moduleId": "mod:myapp/static/app/router/routes", "path": "/health/", "layer": "frontend", "kind": "route", "source": "react-router" },
+      { "moduleId": "mod:myapp/static/app/router/routes", "path": "/", "layer": "frontend", "kind": "page", "source": "react-router" }
+    ]
+  }
+}

@@ -1,0 +1,146 @@
+# Bench archestra-correctness-web-crawler-url-identity — Baseline run 5 — model: fable-5 — effort: max
+# Arm: baseline — native repository instructions, skills, and tools active; Repovine absent. Model: claude-fable-5; effort: max. Agent 951b3d84ea42413a.
+# Gate: DQ — identity-reconciliation gate (G1); scored from the final diff.
+# FULL transcript (reasoning, tool actions, results, and final report; source and executable payloads redacted per METHODOLOGY.md).
+================================================================================================
+
+I'll start by reading the web crawler connector to understand the current normalization and how documents are keyed/served.
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 756 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 78 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 30 line(s)]
+
+Now let me look at how documents are persisted and served — `connector-sync.ts`, the kb-document model, and the query path.
+
+  → Read: platform/backend/src/knowledge-base/connector-sync.ts
+    [source removed — 608 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 47 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+The only URL-hash is in the connector itself. Now let me check the serve paths: the knowledge-base routes, search tools, and the base connector (to see if there's a read-time fetch-by-URL path).
+
+  → Read: platform/backend/src/knowledge-base/connectors/base-connector.ts
+    [source removed — 329 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 20 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 19 line(s)]
+
+Let me read the kb-document model and the MCP search tools to see all lookup paths.
+
+  → Read: platform/backend/src/models/kb-document.ts
+    [source removed — 409 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 3 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 8 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 12 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 16 line(s)]
+
+Routes serve documents by DB id only. Now let me read the test file to see exactly what normalization behavior is currently pinned (I can't modify tests, so I need to know what must keep passing).
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.test.ts
+    [source removed — 766 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 6 line(s)]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now the core normalization function:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+Now update the two call sites:
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Edit: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [edit applied]
+
+  → Bash: [command removed — performed a shell operation]
+    [output redacted — 1 line(s)]
+
+All canonicalization cases pass, and unaffected URLs are byte-identical to the old normalization (document IDs stable). Now type-check and lint:
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — ran model-directed static verification]
+    [output redacted — 1 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 113 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 34 line(s)]
+
+  → Bash: [command removed — inspected the working-tree change]
+    [output redacted — 2 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 60 line(s)]
+
+  → Bash: [command removed — searched repository files]
+    [output redacted — 4 line(s)]
+
+  → Bash: [command removed — inspected repository files]
+    [output redacted — 46 line(s)]
+
+  → Read: platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts
+    [source removed — 210 line(s)]
+
+Everything checks out statically. The work is complete — here's the full report.
+
+## What changed
+
+One file: `platform/backend/src/knowledge-base/connectors/web-crawler/web-crawler-connector.ts`. Three edits:
+
+1. **`normalizeCrawlUrl` (web-crawler-connector.ts:608)** — the connector's single normalization choke point, used for the crawl seed, every discovered link, and the canonical URL that document IDs are hashed from. It now additionally lowercases the host, strips the seven tracking parameters (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`, `fbclid` — new `TRACKING_QUERY_PARAMS` set beside the other module constants), and trims the trailing slash on non-root paths. Fragment removal and default-port stripping are kept as-is. Because all URL flows go through this one function, `[expr]` and plain variants of a link now collapse to one string before enqueue (so the crawl queue dedupes them into one fetch) and to one canonical URL before hashing (so they become one document).
+
+2. **`stripTrackingQueryParams` (web-crawler-connector.ts:629)** — strips tracking params by filtering the raw query string rather than via `url.searchParams.delete()`. This is the serving-correctness guarantee: `URLSearchParams` re-serializes *every* parameter on any mutation (`[expr]` becomes `[expr]`, bare `a` becomes `[expr]`, `[expr]` gets percent-encoded — I verified this in Node), which would silently change the canonical URL, and therefore the sha256 document ID, of pages whose URLs merely contain an ordinary query string. The manual filter leaves untouched queries byte-identical and returns early when no tracking param is present. I verified with a script that every URL lacking the three targeted anomalies normalizes to the exact byte string the old code produced — so already-indexed documents keep their `sourceId`, and the next sync matches them via `KbDocumentModel.findBySourceId` (connector-sync.ts:419) and updates in place instead of re-creating them.
+
+3. **`buildAllowedPathPrefixes` (web-crawler-connector.ts:463)** — now derives the default crawl scope from the configured start URL instead of the normalized one (both call sites updated: web-crawler-connector.ts:192, :354). Without this, trailing-slash stripping would have silently widened a `https://host/docs/` crawl from `/docs/` to the entire host. Since the old normalization never touched the path, deriving from the raw config URL reproduces today's scope exactly for every existing config.
+
+## Related paths deliberately left unchanged, with proof of scope
+
+- **Ingestion/upsert** — `connector-sync.ts:419-421` looks up documents by opaque `[expr]`; it contains no URL logic, and ID stability for unaffected URLs is handled inside the connector.
+- **Serving** — `knowledge-base/query.ts:265` returns the stored `sourceUrl` column from search results, and the document endpoints at `routes/knowledge-base.ts:648/701/732` list/get/delete by database ID. A repo-wide grep for `createHash`/`sha256` confirms the only place a URL is ever hashed is the connector itself (web-crawler-connector.ts:447), so no read path recomputes IDs from URLs.
+- **Redirect scope check** — the `beforeRedirect` hook (web-crawler-connector.ts:230-254) evaluates the raw redirect target. Left as-is so a slash-stripped request that a server 301s back to `/docs/` is followed (same-origin, in-scope) and then re-canonicalized on extraction.
+- **Other connectors and `base-connector.ts`** — key documents by native platform IDs, not URLs (base-connector.ts:264-268 has only an API-path `joinUrl`, unrelated to identity).
+- **Docs** — `docs/pages/platform-knowledge-connectors.md:303` describes the crawler above this level of detail ("stores each page with its canonical URL when one is present"), which stays true.
+
+## Behavior summary and residual risk
+
+URLs differing only by fragment, default port, host case, tracking parameters, or a trailing slash now canonicalize to one crawl request and one document; all other URLs normalize byte-identically to before, so existing document IDs — and therefore serving of everything already indexed — are unaffected.
+
+Residual risks: (1) pages whose URLs *do* exhibit a targeted anomaly get a new ID on the next crawl, and since nothing prunes stale rows (the only bulk delete is connector deletion / the force re-sync endpoint, routes/knowledge-base.ts:1044-1073), the old row lingers as a same-content duplicate until a force re-sync. (2) A server that 404s instead of redirecting on slash-stripped paths would fail those fetches; the page is recorded as skipped and its existing document serves stale. (3) An exclude pattern matching only a tracking-param substring no longer fires, since patterns now see the cleaned URL. Also note: several existing tests in `web-crawler-connector.test.ts` (e.g. lines 163-180) pin the *old* canonical form (slashed `sourceUrl`s and their hashes), so they will fail against the new behavior — that's inherent to the requested change and the no-test-modification constraint; I left them untouched. This environment is deliberately un-bootstrapped (no node_modules), so type-check/lint/tests couldn't run here — the normalization logic itself was verified with a standalone Node script covering the anomaly cases, root-path/bare-`[expr]`/`[expr]`/`[expr]`/IPv6 edges, and old-vs-new byte equivalence.

@@ -1,0 +1,349 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { describe, expect, it, beforeAll, beforeEach, afterEach } from '@jest/globals';
+import { PROTOCOL_VERSION } from '../../src/agents/protocol.js';
+
+const REPOVINE_ROOT = process.cwd();
+const CLI = path.join(REPOVINE_ROOT, 'dist', 'mcp', 'index.js');
+const FIXTURE_PATH = path.join(
+  REPOVINE_ROOT,
+  'test',
+  'fixtures',
+  'delivery-protocol-harness',
+  'harness-spec-fixtures.json',
+);
+
+type JsonObject = Record<string, unknown>;
+
+function parseJsonObject(text: string): JsonObject | undefined {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as JsonObject;
+    }
+  } catch {
+    // Non-JSON output is surfaced through stdout/stderr assertions.
+  }
+  return undefined;
+}
+
+function run(command: string[], cwd: string): {
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  error?: string;
+  stdout: string;
+  stderr: string;
+  json?: JsonObject;
+} {
+  const res = spawnSync(process.execPath, [CLI, ...command], {
+    cwd,
+    env: { ...process.env, REPOVINE_ROOT: cwd },
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const json = parseJsonObject(res.stdout);
+  return {
+    status: res.status,
+    signal: res.signal,
+    ...(res.error ? { error: res.error.message } : {}),
+    stdout: res.stdout,
+    stderr: res.stderr,
+    ...(json === undefined ? {} : { json }),
+  };
+}
+
+/** Exit-0 assertion whose failure output carries the diagnosis (signal, spawn
+ * error, stderr tail) — a bare status diff from a native CI runner is
+ * undebuggable from the log alone. Throws (rather than expect-diffs): jest's
+ * toMatchObject diff elides the non-compared keys, hiding exactly the fields
+ * that carry the diagnosis. */
+function expectExit0(r: ReturnType<typeof run>): void {
+  if (r.status === 0) return;
+  throw new Error(
+    `CLI exited status=${r.status} signal=${r.signal} spawnError=${r.error ?? 'none'}\n` +
+      `stdout bytes=${r.stdout.length} stderr bytes=${r.stderr.length}\n` +
+      `stderr tail:\n${r.stderr.slice(-1200)}`,
+  );
+}
+
+function writeJson(dir: string, name: string, value: unknown): string {
+  const file = path.join(dir, name);
+  fs.writeFileSync(file, JSON.stringify(value, null, 2));
+  return file;
+}
+
+function createMiniRepo(): string {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'delivery-protocol-blackbox-'));
+  const pkgRoot = path.join(repoRoot, 'packages', 'orders');
+  const srcRoot = path.join(pkgRoot, 'src');
+  fs.mkdirSync(srcRoot, { recursive: true });
+
+  fs.writeFileSync(path.join(repoRoot, 'repovine.annots.json'), '{"version":1,"annotations":{}}\n');
+  // This suite tests the delivery-protocol contract, not inference: embeddings add
+  // a model download per CLI subprocess and hit onnxruntime's macOS exit-teardown
+  // SIGABRT. The real-inference surface lives in the embedder matrix workflow.
+  fs.writeFileSync(path.join(repoRoot, 'repovine.config.json'), '{"semantic_search_embeddings": false}\n');
+  fs.writeFileSync(path.join(pkgRoot, 'package.json'), JSON.stringify({ name: 'orders', version: '0.0.0' }, null, 2));
+  fs.writeFileSync(path.join(pkgRoot, 'tsconfig.json'), JSON.stringify({
+    compilerOptions: {
+      target: 'ES2022',
+      module: 'ESNext',
+      moduleResolution: 'Bundler',
+      strict: true,
+    },
+    include: ['src/**/*.ts'],
+  }, null, 2));
+  fs.writeFileSync(path.join(srcRoot, 'audit-log-writer.ts'), [
+    'export interface AuditEvent {',
+    '  orderId: string;',
+    '  status: string;',
+    '}',
+    '',
+    'export class AuditLogWriter {',
+    '  write(event: AuditEvent): void {',
+    '    void event;',
+    '  }',
+    '}',
+    '',
+  ].join('\n'));
+  fs.writeFileSync(path.join(srcRoot, 'order-service.ts'), [
+    "import { AuditLogWriter } from './audit-log-writer';",
+    '',
+    'export class OrderService {',
+    '  constructor(private readonly auditLogWriter = new AuditLogWriter()) {}',
+    '',
+    '  transition(orderId: string, status: string): void {',
+    '    this.auditLogWriter.write({ orderId, status });',
+    '  }',
+    '}',
+    '',
+  ].join('\n'));
+
+  return repoRoot;
+}
+
+describe('delivery protocol CLI black-box harness surface', () => {
+  let repoRoot: string;
+  let fixture: Record<string, unknown>;
+
+  beforeAll(() => {
+    if (!fs.existsSync(CLI)) {
+      throw new Error(`Compiled CLI missing at ${CLI}; Jest globalSetup should run npm run build before tests.`);
+    }
+  });
+
+  beforeEach(() => {
+    repoRoot = createMiniRepo();
+    fixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf-8')) as Record<string, unknown>;
+  });
+
+  afterEach(() => {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('validates the full harness contract through node dist/mcp/index.js delivery ...', () => {
+    const protocol = run(['delivery', '--schemas'], repoRoot);
+    expectExit0(protocol);
+    // A missing json means stdout was not one complete JSON document; surface its tail.
+    expect({ parsed: protocol.json !== undefined, stdoutTail: protocol.stdout.slice(-300) }).toMatchObject({
+      parsed: true,
+    });
+    expect(protocol.json).toHaveProperty('protocol.protocolVersion', PROTOCOL_VERSION);
+    expect(protocol.json).toHaveProperty('jsonSchemas.ContextPack');
+    expect(protocol.json).toHaveProperty('jsonSchemas.ArchitectureAuditResult');
+    expect(protocol.json).toHaveProperty('jsonSchemas.CodeReviewResult');
+    expect(protocol.json).toHaveProperty('jsonSchemas.ReviewInput');
+
+    const codeReviewer = run(['delivery', 'manifests', '--role', 'code-reviewer'], repoRoot);
+    expectExit0(codeReviewer);
+    expect(codeReviewer.json).toHaveProperty('manifests.0.name', 'repovine-code-reviewer');
+
+    const architectureAuditor = run(['delivery', 'manifests', '--role', 'architecture-auditor'], repoRoot);
+    expectExit0(architectureAuditor);
+    expect(architectureAuditor.json).toHaveProperty('manifests.0.name', 'repovine-architecture-auditor');
+
+    const cases = [
+      ['implementation', 'implementationAssignment', 'implementationResult', 'project-subagent-sample'],
+      ['architecture audit', 'architectureAuditAssignment', 'architectureAuditRunResult', 'repovine-architecture-auditor'],
+      ['code review', 'codeReviewAssignment', 'codeReviewRunResult', 'repovine-code-reviewer'],
+    ] as const;
+
+    for (const [label, assignmentKey, resultKey, manifest] of cases) {
+      const assignmentFile = writeJson(repoRoot, `${label.replace(/\s+/g, '-')}-assignment.json`, fixture[assignmentKey]);
+      const resultFile = writeJson(repoRoot, `${label.replace(/\s+/g, '-')}-result.json`, fixture[resultKey]);
+
+      const assignment = run(['delivery', 'validate-assignment', assignmentFile], repoRoot);
+      expectExit0(assignment);
+      expect(assignment.json).toHaveProperty('valid', true);
+
+      // validate-result is schema-only (structural) — no compliance report.
+      const validateResult = run([
+        'delivery',
+        'validate-result',
+        resultFile,
+      ], repoRoot);
+      expectExit0(validateResult);
+      expect(validateResult.json).toHaveProperty('valid', true);
+
+      const compliance = run([
+        'delivery',
+        'compliance',
+        resultFile,
+        '--assignment',
+        assignmentFile,
+        '--manifest',
+        manifest,
+      ], repoRoot);
+      expectExit0(compliance);
+      expect(compliance.json).toHaveProperty('report.valid', true);
+      expect(compliance.json).toHaveProperty('report.errors', []);
+    }
+  });
+
+  it('resolves required result fields from the assignment role when --manifest is omitted', () => {
+    // With no --manifest, the CLI resolves the manifest from the assignment's role instead of the
+    // silent ['summary'] fallback, so the implementation result validates against the implementer
+    // manifest's required fields exactly as the explicit --manifest run does.
+    const assignmentFile = writeJson(repoRoot, 'role-resolved-assignment.json', fixture.implementationAssignment);
+    const resultFile = writeJson(repoRoot, 'role-resolved-result.json', fixture.implementationResult);
+
+    const compliance = run([
+      'delivery',
+      'compliance',
+      resultFile,
+      '--assignment',
+      assignmentFile,
+    ], repoRoot);
+    expectExit0(compliance);
+    expect(compliance.json).toHaveProperty('report.valid', true);
+    expect(compliance.json).toHaveProperty('report.errors', []);
+  });
+
+  it('validates a standalone ReviewInput and rejects linkage/set mismatches', () => {
+    const reviewInput = fixture.reviewInput as JsonObject;
+    const validFile = writeJson(repoRoot, 'review-input.json', reviewInput);
+    const valid = run(['delivery', 'validate-review-input', validFile], repoRoot);
+    expectExit0(valid);
+    expect(valid.json).toHaveProperty('valid', true);
+    expect(valid.json).toHaveProperty('errors', []);
+
+    // runId linkage: assignment must be the implementation assignment.
+    const badLink = {
+      ...reviewInput,
+      assignment: fixture.codeReviewAssignment,
+    };
+    const badLinkFile = writeJson(repoRoot, 'review-input-badlink.json', badLink);
+    const badLinkRun = run(['delivery', 'validate-review-input', badLinkFile], repoRoot);
+    expect(badLinkRun.status).not.toBe(0);
+    expect(badLinkRun.json).toHaveProperty('valid', false);
+    expect(String((badLinkRun.json as JsonObject).errors)).toMatch(/linkage: assignment\.runId/);
+
+    // changedFiles must set-equal implementationResult.filesChanged.
+    const badFiles = { ...reviewInput, changedFiles: ['packages/orders/src/audit-log-writer.ts'] };
+    const badFilesFile = writeJson(repoRoot, 'review-input-badfiles.json', badFiles);
+    const badFilesRun = run(['delivery', 'validate-review-input', badFilesFile], repoRoot);
+    expect(badFilesRun.status).not.toBe(0);
+    expect(String((badFilesRun.json as JsonObject).errors)).toMatch(/changedFiles must set-equal/);
+
+    // graphNodesTouched must set-equal implementationResult.graphNodesTouched.
+    const badNodes = { ...reviewInput, graphNodesTouched: ['mod:orders/src/audit-log-writer'] };
+    const badNodesFile = writeJson(repoRoot, 'review-input-badnodes.json', badNodes);
+    const badNodesRun = run(['delivery', 'validate-review-input', badNodesFile], repoRoot);
+    expect(badNodesRun.status).not.toBe(0);
+    expect(String((badNodesRun.json as JsonObject).errors)).toMatch(/graphNodesTouched must set-equal/);
+  });
+
+  it('rejects a schema-valid result that claims a graph node which does not exist', () => {
+    const assignmentFile = writeJson(
+      repoRoot,
+      'tampered-assignment.json',
+      fixture.implementationAssignment,
+    );
+    const implementationResult = fixture.implementationResult as JsonObject;
+    const tamperedResult = {
+      ...implementationResult,
+      graphNodesTouched: [
+        ...(implementationResult.graphNodesTouched as string[]),
+        'mod:orders/src/ghost-module',
+      ],
+    };
+    const resultFile = writeJson(repoRoot, 'tampered-result.json', tamperedResult);
+
+    // The claim is structurally valid AgentRunResult JSON; only repository-aware
+    // compliance can determine that the declared node does not exist.
+    const validateResult = run(['delivery', 'validate-result', resultFile], repoRoot);
+    expect(validateResult.status).toBe(0);
+    expect(validateResult.json).toHaveProperty('valid', true);
+
+    const compliance = run([
+      'delivery',
+      'compliance',
+      resultFile,
+      '--assignment',
+      assignmentFile,
+      '--manifest',
+      'project-subagent-sample',
+    ], repoRoot);
+    expect(compliance.status).not.toBe(0);
+    expect(compliance.json).toHaveProperty('report.valid', false);
+    expect(compliance.json).toHaveProperty(
+      'report.unresolvedGraphNodes',
+      ['mod:orders/src/ghost-module'],
+    );
+    expect(compliance.json).toHaveProperty(
+      'report.errors',
+      expect.arrayContaining([
+        'Declared graphNodesTouched not found in graph: mod:orders/src/ghost-module.',
+      ]),
+    );
+    expect(compliance.json).toHaveProperty(
+      'report.requiredFollowups',
+      expect.arrayContaining([
+        'Run refresh_context and correct graphNodesTouched to canonical node ids.',
+      ]),
+    );
+  });
+
+  it('orient returns search + trace_flow without LLM', () => {
+    // orient spawns a fresh CLI that rebuilds the fixture graph. TypeScript extraction in the
+    // subprocess can under-build (fewer folded tokens on a node), so orient searches match:'auto' —
+    // AND across every token, then bounded OR when no single node carries all of them. The retry
+    // absorbs a transient total-build miss; a persistent one fails on the cause below.
+    let orient = run(['agents', 'orient', '--query', 'OrderService audit transition'], repoRoot);
+    for (let attempt = 0; attempt < 3 && (orient.json?.search as JsonObject | undefined)?.nodeCount === 0; attempt++) {
+      orient = run(['agents', 'orient', '--query', 'OrderService audit transition'], repoRoot);
+    }
+    expectExit0(orient);
+    expect(orient.json).toMatchObject({
+      query: 'OrderService audit transition',
+      flowChecked: true,
+      mcpTools: ['search_context', 'trace_flow'],
+    });
+    expect(orient.json).toHaveProperty('search.summary');
+    expect(orient.json).toHaveProperty('traceFlow.summary');
+    expect(orient.json).toHaveProperty('graphNodes');
+    expect(Array.isArray(orient.json?.graphNodes)).toBe(true);
+
+    // Assert the CAUSE, not the derived confidence: the build must produce the fixture's
+    // `packages/orders` nodes and search must resolve them. graphNodes/nodeCount reflect the real top
+    // hits (buildOrientReport reads result.matches.topResults). On failure, surface the subprocess
+    // build log (Stage-1 "Discovered N modules") so a CI-only under-build is diagnosable.
+    const search = orient.json?.search as Record<string, unknown>;
+    const graphNodes = orient.json?.graphNodes as string[];
+    if ((search.nodeCount as number) === 0) {
+      // Surface the subprocess Stage-1 build log ("Discovered N modules") so a CI-only under-build
+      // is diagnosable from the failure alone.
+      throw new Error(`orient resolved no graph nodes.\norient stderr:\n${orient.stderr}\nsearch: ${JSON.stringify(search)}`);
+    }
+    expect(search.nodeCount as number).toBeGreaterThan(0);
+    expect(graphNodes.some((id) => id.includes('order-service'))).toBe(true);
+    // The relaxed-OR gap is fine; the empty-corpus gap is not — the fixture nodes must be found.
+    expect((search.gaps as string[]).some((g) => /no graph node strongly matched/i.test(g))).toBe(false);
+    // summary + confidence are stable once ≥ 2 tokens resolve to a hit (score no longer flips it).
+    expect(String(search.summary)).toContain('Found context candidates');
+    expect(search.confidence).toBe('medium');
+  });
+});
