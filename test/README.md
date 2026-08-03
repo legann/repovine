@@ -4,10 +4,18 @@ Run from the `repovine/` package root:
 
 ```bash
 npm test
+npm run test:projections
 npm run test:coverage
 ```
 
-CI runs `typecheck` → `build` → `npm test`; coverage is informational for the regression-priority plan, not a threshold gate yet.
+`npm test` runs the Jest suites against source. `test:projections` builds first, then runs the
+separate `node:test` client-projection contract. Coverage is informational; there is no threshold
+gate yet.
+
+The Linux CI gate runs audit, typecheck, lint, build, Jest, client projections, plugin examples, and
+packed-install smokes. Native Windows and macOS gates repeat the build, tests, projections, plugin
+examples, and packed plugin/install paths on their host filesystems. The Delivery Protocol harness
+has its own Linux gate.
 
 ## Layout
 
@@ -15,9 +23,12 @@ CI runs `typecheck` → `build` → `npm test`; coverage is informational for th
 |------|------|
 | `test/unit/` | Fast, focused tests next to the code they cover (`stage1/`, `mcp/`, `cli/`, …) |
 | `test/integration/` | Full pipeline on mini-repo fixtures (stage1 → stage2 → graph/MCP surfaces) |
+| `test/laws/` | Cross-cutting executable contracts for determinism, boundaries, delivery, and public APIs |
+| `test/cli/` | CLI-level interaction tests kept outside the unit tree |
 | `test/fixtures/` | Self-contained sample projects + `expected.json` contracts |
+| `test/evals/` | Agent-driven MCP evaluation cards; Markdown corpus, not part of `npm test` |
 | `test/helpers/` | Small shared helpers (CLI output, agent metrics) |
-| `test/jest.setup.ts` | Global Jest setup (caps package workers for stable ts-jest runs) |
+| `test/jest.setup.ts` | Global Jest setup: quiet logs, inline Stage 1/2 defaults, and the bundled plugin preset |
 
 Mirror `src/` under `test/unit/` when you can: `src/mcp/…` → `test/unit/mcp/…`.
 
@@ -45,7 +56,8 @@ The same fixture may appear in several suites — they guard **different contrac
 2. Add `expected.json` with the fields your suite reads (`heavyDomains`, `runtimeLinks`, `python`, …).
 3. Wire asserts in the matching integration or parity test (or extend an existing `describe.each` harness).
 
-Plugin examples: `external-source-plugin/`, `external-interpreter/`.
+External-plugin coverage spans `integration/external-source-plugin.test.ts`, the packed canaries in
+`test/fixtures/canary-plugins/`, and the runnable packages under `examples/`.
 
 ## Golden / parity updates
 

@@ -7,7 +7,8 @@
 // emitted facts plus the API entrypoints the core route collector projects from semanticHints.routes.
 //
 // This check calls that collector directly. In a graph build the built-in `server-entrypoints`
-// interpreter reads `semanticHints.routes` for the `typescript` and `python` source plugins.
+// interpreter reads normalized `semanticHints.routes` from any source plugin; the fact gates
+// projection, not the producer id.
 
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';

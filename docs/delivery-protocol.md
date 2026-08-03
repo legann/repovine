@@ -429,7 +429,7 @@ A clean run returns an `AgentComplianceReport` with `valid: true` and an empty
 In **client mode**, the same protocol is projected into IDE-facing assets instead
 of a harness round trip. **First time and refresh:** `repovine setup <client>` —
 `cursor`, `claude`, `codex`, or `all` (MCP config, hooks, rules, skills, managed
-agents, `AGENTS.md` block). Without a client, `setup` writes workspace config only.
+agents; the `AGENTS.md` block on `claude` / `codex`). Without a client, `setup` writes workspace config only.
 Re-run after repovine upgrades or when `repovine doctor` reports projection drift.
 
 Generated client assets (`AGENTS.md`, repovine-managed Cursor / Codex / Claude
@@ -491,7 +491,7 @@ is the implementation aggregate under review.
 | graph nodes | `graphNodesTouched` set-equals `implementationResult.graphNodesTouched` |
 | path shape | file entries are repository-relative POSIX — absolute and `..` paths reject |
 
-Path comparison normalizes `\\`→`/`, strips leading `./`, collapses duplicate
-separators, then compares stable-sorted unique sets. Graph node ids are
+Path comparison normalizes `\\`→`/`, collapses duplicate separators, then drops `.` segments and
+trailing separators before comparing stable-sorted unique sets. Graph node ids are
 trimmed/deduplicated/sorted; their graph existence is left to result/compliance
 validation. The reviewer remains read-only.

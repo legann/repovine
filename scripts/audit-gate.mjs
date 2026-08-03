@@ -2,21 +2,17 @@
 /**
  * Audit gate — passes allowlisted advisories, fails on any new one.
  *
- * `npm audit` flags transitive advisories in upstream-blocked / optional-peer dependencies that
- * repovine cannot fix and does not expose (see SECURITY.md § "Known audit findings"). This gate lets
- * those through by GHSA id and fails on anything else, so `npm audit` stays a live signal without
- * `npm audit fix --force` — which downgrades @modelcontextprotocol/sdk to 1.24.3 (a breaking major
- * downgrade) and still does not fix sharp.
+ * `npm audit` flags an image-decoding advisory in the development install of the optional text-
+ * embedding peer (see SECURITY.md § "Known audit findings"). This gate accepts that finding by GHSA
+ * id and fails on anything else, so `npm audit` remains a live signal.
  *
  * Run: `npm run audit:check`. Exit 0 = only allowlisted advisories present; 1 = a new advisory;
  * 2 = the audit itself could not run.
  */
 import { runNpm } from './lib/spawn.cjs';
 
-// Keep in sync with SECURITY.md. Each entry is upstream-blocked and unreachable in repovine's usage.
+// Keep in sync with SECURITY.md. Each entry is upstream-blocked and outside repovine's usage.
 const ALLOWLIST = {
-  'GHSA-frvp-7c67-39w9':
-    '@hono/node-server serve-static path traversal (Windows/HTTP). repovine runs over stdio; the MCP SDK still pins node-server ^1.',
   'GHSA-f88m-g3jw-g9cj':
     'sharp/libvips image CVEs. Dev-only via optional @huggingface/transformers (text embeddings); image path unused; no transformers release adopts sharp >=0.35.',
 };

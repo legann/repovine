@@ -8,8 +8,8 @@ example owns its setup and verification instructions.
 
 | Example | Demonstrates | Requirements |
 |---|---|---|
-| [Go source plugin](repovine-plugin-go) | A third-party language producer that emits packages, modules, imports, exports, and route hints without changing the core graph. | Build repovine; no Go toolchain or external package is required. |
-| [IaC plugin](repovine-plugin-iac) | A third-party infrastructure producer whose facts become runtime resources, entrypoints, and graph edges through core projection. | Build repovine; no external package is required. |
+| [Go source plugin](repovine-plugin-go) | A third-party language producer that emits packages, modules, imports, exports, and route hints through the existing graph contracts, without changing core or extending its ontology. | Build repovine; no Go toolchain is required. |
+| [IaC plugin](repovine-plugin-iac) | A third-party infrastructure producer whose facts become runtime resources, entrypoints, and graph edges through core projection. | Build repovine; no format-specific parser dependency is required. |
 
 Both examples include an optional author runner for SDK conformance and
 integration checks. The runners verify the examples; they are not required to

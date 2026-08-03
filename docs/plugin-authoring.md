@@ -1,29 +1,34 @@
 # Authoring a repovine plugin
 
-Third-party plugins extend repovine at one public boundary: the **fact layer**. A plugin emits *facts*
-about an artifact (a source file's imports/exports/`semanticHints`, or an IaC document's resources);
-the engine owns everything else — node ids, paths, content hashes, provenance, and the graph
-ontology (`NodeType`/`EdgeKind`). You never name an edge or node type.
+Third-party plugins extend repovine through one public SDK boundary with two complementary stages:
 
-Two of those the SDK hands back, because a producer does have to write them. An import that resolves
-to a package rather than a file is reported as `packageNodeId(name)` — the engine's own spelling of
-the id, exported so a plugin matches it instead of reproducing it from a sample. And a per-resource
-`contentHash` is `hashResourcePayload(payload)`: the SDK owns the digest, the width, and the
-canonicalization, because this is the one hash a producer mints and it drives runtime-resource
-freshness. Two parsers reading the same resource have to agree, so key order carries no meaning,
-array order does, and a key set to `undefined` is the same fact as an absent key.
+- **producers** extract facts from individual artifacts — source imports, exports and `semanticHints`,
+  or resources from an IaC document;
+- **projectors** read the completed repository fact view and contribute bounded semantics — resources,
+  links from a closed relation vocabulary, entrypoints and namespaced extensions.
 
-The complete taxonomy of public producers and core-only interpreters, detectors, and delivery
-mechanics is defined in [DESIGN.md](../DESIGN.md#extension-families-and-boundaries).
+Core validates both stages and retains ownership of graph ids, paths, provenance, graph application
+and the canonical ontology (`NodeType`/`EdgeKind`). Plugins never name a node or edge type directly.
+
+The SDK exposes the few engine-defined spellings a producer must use. An import that resolves to a
+package rather than a file is reported as `packageNodeId(name)`, so a plugin does not reproduce the id
+format from a sample. A per-resource `contentHash` is produced with `hashResourcePayload(payload)`:
+the SDK owns the digest, width and canonicalization because the hash drives runtime-resource freshness.
+Two parsers reading the same resource must agree, so key order carries no meaning, array order does,
+and a key set to `undefined` is the same fact as an absent key.
+
+The complete taxonomy of public producers and projectors, and core-only interpreters, detectors and
+delivery mechanics, is defined in [DESIGN.md](../DESIGN.md#extension-families-and-boundaries).
 
 > **Status: API 1 is preview.** `@repovine/plugin-sdk` is at `0.1.0` and the runtime contract is
 > `apiVersion: 1`. The two are separate axes: the npm version of the SDK and the runtime `apiVersion`
 > a manifest declares move independently, and the pairing is published in
 > [`plugin-api-compatibility.md`](plugin-api-compatibility.md).
 >
-> Preview means an export can still be removed, renamed or tightened. That arrives as a minor SDK bump
-> and a changelog entry, so **pin the exact version and read the release notes**. `apiVersion: 1` says
-> which contract you wrote against; it is not yet a compatibility promise.
+> Preview means an export can still be removed, renamed or tightened. That arrives as the next minor
+> SDK line and a changelog entry, so **stay on the current minor line and read the release notes before
+> upgrading** (`^0.1.0` stays within `0.1.x`). `apiVersion: 1` says which contract you wrote against;
+> it is not yet a compatibility promise.
 >
 > Preview ends on one written condition: a plugin authored outside this repository, by someone who did
 > not write the SDK, from this document alone, published and loaded against the published tarballs —
@@ -125,12 +130,13 @@ runtime descriptor as the entry module's default export.
 
 | Half | Form | Lives in | Lifetime |
 |---|---|---|---|
-| `declarations` | JSON data | `package.json#repovine` | survives a disabled capability |
-| `capabilities` | code | the entry module's descriptor | active while the plugin is enabled and available |
+| `declarations` | JSON data | `package.json#repovine` | retained when an executable capability is unavailable |
+| `capabilities` | code | the entry module's descriptor | active while the plugin is selected and available |
 
-The host reads and validates declarations without importing plugin code, so turning a capability off
-keeps the facts that bound a scan. Ownership is host-stamped from package identity: a declaration
-that spells its own `declaredBy` is refused.
+The host reads and validates declarations before importing plugin code, so an unavailable executable
+capability does not discard the facts that bound a scan. Disabling or removing the plugin removes its
+declarations as well. Ownership is host-stamped from package identity: a declaration that spells its
+own `declaredBy` is refused.
 
 | Declaration | States |
 |---|---|
@@ -145,7 +151,7 @@ that spells its own `declaredBy` is refused.
 | `source` | `discover` / `extract` for one language or ecosystem |
 | `iac` | infrastructure `parsers`, and the graph domain each kind they emit belongs to |
 | `loaders` | document decoding, by loader id |
-| `projectors` | contributions to the canonical graph |
+| `projectors` | bounded repository semantics: resources, links, entrypoints and extensions |
 
 `capabilities.iac.kindDomains` sits with the parsers rather than in the manifest: it is metadata
 about the kinds those parsers emit, and a kind with no parser to emit it names a domain nothing
@@ -291,9 +297,8 @@ descriptor's capability set.
 The cross-language contract is **`semanticHints`** — a versioned, `passthrough` bag. The SDK publishes
 the version (`SEMANTIC_HINTS_VERSION`) and the verdict (`validateSemanticHints`); the schema behind
 them stays private, so a producer branches on a verdict and the schema is free to change shape. It has
-ten slots, and they differ in reach: three carry
-values any ecosystem can produce, two assume a framework that serves requests, and five encode web,
-JavaScript or AWS shapes in their own field types. Fill the ones your ecosystem has.
+ten slots with different reach: four carry values any ecosystem can produce, two assume a framework
+that serves requests, and four describe web or JavaScript shapes. Fill the ones your ecosystem has.
 
 An interpreter is gated on the facts a repository carries, never on who produced them. Fill a slot
 and the interpreter that reads it runs for your plugin the same way it runs for a bundled one.
@@ -393,11 +398,12 @@ A trigger type declared with a `provider` and no `namespace` answers for every n
 provider mints; one declared with both answers only for that pair. Nothing is inferred from a
 resource id: an undeclared kind is a node with no linking, not a guess.
 
-### Projectors — contributing to the graph
+### Projectors — contributing repository semantics
 
 A parser or extractor emits facts about one artifact. A **projector** reads the finished fact view of
-the whole repository and contributes graph structure from it: links, resources, entrypoints,
-extensions. This is where a relation between two artifacts belongs — routing, deployment, ownership.
+the whole repository and contributes bounded semantics from it: graph links, resources and entrypoints,
+plus namespaced extensions stored beside the graph. This is where a relation between two artifacts
+belongs — routing, publication or deployment.
 
 ```ts
 const orbitRoutes: ProjectionContributor = {
@@ -422,8 +428,9 @@ const orbitRoutes: ProjectionContributor = {
 };
 ```
 
-The five relations plus `builds-from` are the whole vocabulary. `builds-from` says the target is the
-build document the source was produced from, which is a different claim from `binds-to` ("runs as").
+The closed vocabulary has six relations: `publishes`, `consumes`, `binds-to`, `uses-env`, `routes-to`
+and `builds-from`. `builds-from` says the target is the build document the source was produced from,
+which is a different claim from `binds-to` ("runs as").
 
 To link to an infrastructure document — a build recipe, a deployment manifest — read the documents the
 graph holds and reference the id it hands you:
@@ -458,14 +465,15 @@ the order plugins were registered in changes nothing a reader can see.
 | **conflicts** | two plugins declaring the same key with the same effect is one record with both owners. Different effects is a conflict, and it drops **both** sides while naming both — no winner is picked |
 | **determinism** | your `project()` is called twice by the conformance kit and must return the same batches |
 
-### Extensions — data the graph carries but never interprets
+### Extensions — namespaced data core carries but never interprets
 
 When a fact has no canonical DTO, contribute a namespaced **extension** instead of bending one.
 
 ```ts
 extensions: [{
   schema: 'orbit/deployment@1',
-  subject: { type: 'resource', namespace: 'orbit', localKey: 'checkout' },
+  localKey: 'checkout-deployment',
+  subjectRef: { type: 'resource', namespace: 'orbit', localKey: 'checkout' },
   payload: { rolloutStrategy: 'blue-green' },
 }]
 ```
@@ -480,8 +488,9 @@ an extension claiming another plugin's namespace.
 
 Bundled plugins compile against the published SDK alone: each lives in its own package under
 `packages/plugins/`, and a boundary law fails the build on an import of engine or SDK internals. A
-bundled plugin states its ecosystem the way an installed one does — the engine holds no name of any
-ecosystem, and a plugin outside this repository can say everything a bundled plugin says.
+bundled plugin states its ecosystem the way an installed one does: the engine grants no privilege
+based on plugin identity, and a plugin outside this repository can say everything a bundled plugin
+says.
 
 Every isolate that runs plugin code loads the set from the same serialisable spec.
 
@@ -526,11 +535,15 @@ process and calls it. There is no sandbox: no separate process, no permission se
 network confinement. A plugin can do anything the repovine process can do, and installing one is the
 same trust decision as installing any other npm dependency.
 
-`trusted:false` on a config-loaded plugin names something narrower, and the distinction matters:
+Code trust and output validation are separate boundaries:
 
-| Trusted | Not trusted |
+| Boundary | Treatment |
 |---|---|
-| the plugin's **code** — it runs in-process, uncontained | the plugin's **output** — every delta is schema-validated at the boundary |
+| plugin code | trusted execution — it runs in-process without confinement |
+| plugin output | untrusted data — source and IaC deltas and projection batches are schema-validated |
+
+This distinction is not configurable per plugin. Bundled and independently installed plugins pass
+through the same output-validation path.
 
 Validation is applied to what a plugin returns, so a malformed fact is dropped with a refusal instead
 of corrupting the graph. The verdict is what the SDK publishes (`checkPluginConformance` and the
@@ -546,7 +559,7 @@ Every one of these names the plugin and the reason, and none of them is silent.
 
 | Refusal | When |
 |---|---|
-| incompatible `apiVersion` | the manifest's major does not match `PLUGIN_API_VERSION` |
+| incompatible `apiVersion` | the manifest value does not match `PLUGIN_API_VERSION` |
 | manifest invalid | `kind`, `id` or `declarations` fail the schema — an unknown declaration key rejects the whole package |
 | entry escapes the package | `entry` resolves outside the package directory |
 | id disagreement | the manifest id and the descriptor id differ |
@@ -597,7 +610,7 @@ The core owns the **contract**, not the **ecosystem**. Anyone may publish `repov
 | Path A (adoption) | merge plugin into core | full control, costs maintenance |
 | Verified tier (registry) | social badge in a catalog | **social**, not runtime |
 | Conformance kit | objective self-cert bar | objective, self-served |
-| Contract + `apiVersion` | loader refuses an incompatible major; output that fails validation is dropped | **only runtime gate** |
+| Contract validation + `apiVersion` | loader validates the package contract and version; output that fails validation is dropped | runtime enforcement |
 
 There is no per-plugin trust flag. A bundled plugin and an installed one are validated by the same
 code; the difference is ownership, bundling and default selection.
@@ -608,10 +621,15 @@ interpreter is handed the set of producers, and nothing in the engine branches o
 
 ## What stays in the core (never a plugin)
 
-- **Interpreters** (facts → nodes/edges) and **the schema** (`NodeType`/`EdgeKind`).
-  Route through `semanticHints` instead.
+- **Canonical interpreters** (facts → canonical nodes/edges) and **the graph schema**
+  (`NodeType`/`EdgeKind`). Plugins may contribute through the bounded projector contract, but they do
+  not define node or edge types.
 - **Architecture detectors** — the opinion/curation layer.
 - **Delivery mechanics** — graph/annotation signals projected through core response and hook contracts.
+
+Use `semanticHints` for normalized module facts, declarations for ecosystem metadata, projectors for
+repository-wide resources, links and entrypoints, and namespaced extensions for data with no canonical
+meaning yet.
 
 ## SDK reference
 

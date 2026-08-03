@@ -67,12 +67,12 @@ From another console:
 
 ```bash
 curl -s localhost:8080/status
-# {"ok":true,"provider":"claude","agents":"auto","busy":false,"episodeBusy":false,"askBusy":false,"currentRun":{…}}
+# {"ok":true,"provider":"claude","agents":"auto","targetMode":"sandbox","resetAllowed":true,"busy":false,"episodeBusy":false,"askBusy":false,"workspace":"…","currentRun":{…}}
 # (named /status for parity with the Telegram /status command; "currentRun" is the live run snapshot)
 
 curl -s localhost:8080/goal -H 'content-type: application/json' \
   -d '{"goal":"add a GET /health route returning { ok: true }"}'
-# → { ok, status, replyText, turn, graphNodesTouched }
+# → { ok, status, replyText, turn, graphNodesTouched, mode, telemetry, subAgents? }
 # Empty/missing goal → 400 {"ok":false,"error":"missing required field \"goal\" …"}
 
 curl -s localhost:8080/ask -H 'content-type: application/json' \
@@ -142,8 +142,8 @@ The harness is locked down to **an isolated sandbox that can reach only the LLM 
   namespace (`network_mode: "service:egress-gw"`). The gateway runs dnsmasq +
   ipset + iptables: it resolves only via the upstream, tags the allow-listed
   domains' IPs into an ipset, and **default-denies all other egress**. Default
-  `ALLOW_DOMAINS` is `anthropic.com` only. `api.telegram.org` opens when the
-  `tg-bot` profile sets `EGRESS_ALLOW_TELEGRAM=1`. Orchestrator **runtime_check**
+  `ALLOW_DOMAINS` is `anthropic.com` only. `api.telegram.org` opens when
+  `EGRESS_ALLOW_TELEGRAM=1` is set in `.env` for the `tg-bot` profile (default `0`). Orchestrator **runtime_check**
   (dependency install + build/test) needs npm and GitHub asset hosts; add
   `registry.npmjs.org`, `api.github.com`, and the `githubusercontent.com`
   release-asset hosts to `ALLOW_DOMAINS` to enable it. At startup and in the
@@ -347,12 +347,14 @@ the check and exits non-zero before any docker invocation.
 
 | Check | Rejects |
 |---|---|
+| `platform` | non-Linux host (macOS / native Windows) — attach needs a Linux host or WSL2; step 0, before any other check |
 | `attach-env` | unset / relative / unresolvable `HARNESS_ATTACH_WORKTREE` or `HARNESS_ATTACH_STATE_DIR`; identical paths; not a directory |
 | `path-overlap` | worktree ⟷ state dir nesting; either path containing — or inside — the git dirs or the source checkout |
 | `git-pointer` | missing `.git`; `.git` is a directory (primary checkout); pointer without `gitdir: ` |
 | `git-resolve` | per-worktree git dir / common dir do not resolve; `git worktree list` / `rev-parse` failures |
 | `state-empty` | non-empty state dir — each launch needs a fresh empty one |
-| `mount-table` | a host mount point strictly below the worktree or the state dir; unreadable `/proc/self/mountinfo` (Linux host required) |
+| `mount-table` | a host mount point strictly below the worktree, state dir, or agents dir; unreadable `/proc/self/mountinfo` |
+| `fs-type` | worktree, state, or agents dir on a projection / network filesystem (9p, drvfs, virtiofs, nfs, cifs, sshfs, `fuse.*`, overlay); under WSL, a non-ext4 checkout |
 | `worktree-walk` | sockets / FIFOs / device nodes; hardlinked regular files (`nlink > 1`). Symlinks pass and are never followed |
 | `worktree-registration` | worktree is not the checkout toplevel, is unregistered, or is the main checkout entry (linked worktrees only) |
 | `worktree-clean` | dirty or untracked paths — pre-existing changes must not be confusable with agent output |
@@ -622,7 +624,7 @@ Each `/goal` writes lightweight operator telemetry under `.harness/`:
 - `active/current-run.json` — live run snapshot for `/status` (Telegram command and HTTP `GET /status`).
 - `active/events.jsonl` — append-only run events (`plan_finished` — carries `droppedAnnotationRoles`,
   `overPlanAdvisories`, `planReview` when present — `sub_agent_started`, `sub_agent_finished`,
-  `runtime_check_finished`, `refresh_context`, `run_usage`, etc.).
+  `runtime_check_finished`, `phase_started` (carries `phase`, e.g. `refresh_context`), `run_usage`, etc.).
 - `runs/<runId>/summary.json` — final compact card for the completed run. The card sits under
   `active/<runId>/` while the run is in flight and moves to `runs/<runId>/` when it is archived.
 
@@ -680,7 +682,7 @@ The graph owns the Delivery Protocol cycle:
 
 ```text
 START -> intake -> build_assignment -> validate_assignment -> run_sub_agent
-      -> validate_result -> compliance -> runtime_check -> compose_reply
+      -> persist_result -> validate_result -> compliance -> runtime_check -> compose_reply
 ```
 
 LangGraph owns step order, branching, retries, and persisted state; it does **not**
@@ -735,7 +737,9 @@ Full design rationale: [`langgraph-orchestrator-design.md`](langgraph-orchestrat
 
 | File | Role |
 |---|---|
-| `compose.yaml` | **Source of truth** for security + opt-in profiles: `cli` / `http` / `tg-bot` / `attach-cli` / `attach-http` / `attach-tg-bot` |
+| `compose.yaml` | **Source of truth** for security + opt-in profiles: `cli` / `http` / `tg-bot` |
+| `compose.attach.yaml` | Attach-mode overlay: `attach-cli` / `attach-http` / `attach-tg-bot` (stacked over `compose.yaml`) |
+| `compose.ipv6.yaml` | IPv6 egress overlay (harness-linux gate) |
 | `Dockerfile` | Node 22; builder stage compiles `dist` from source; runs as non-root `node`, no Docker CLI |
 | `docker/egress-gw/` | Egress allow-list gateway image (dnsmasq + ipset + iptables) |
 | `docker/init-workspace.sh` | One-shot bind-mount ownership fix (`workspace-init` service) |

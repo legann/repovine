@@ -9,16 +9,31 @@ on:
   # exercised without opening a PR.
   workflow_dispatch:
 
+# Least privilege: CI only reads the repo. No step pushes, comments, or writes checks,
+# so contents:read overrides any read/write-all repo default for the ambient token.
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # The Linux leg of the core gate carries the repo-wide checks (audit, lint,
   # typecheck, dist shape) on top of the same build+test+smoke the native legs
   # run — one OS runs them, every OS shares the verdict.
   core-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # No later step uses the git token; keep it off disk while npm ci runs
+          # dependency lifecycle scripts.
+          persist-credentials: false
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
 
@@ -100,10 +115,15 @@ jobs:
             os: macos-15
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # No later step uses the git token; keep it off disk while npm ci runs
+          # dependency lifecycle scripts.
+          persist-credentials: false
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
 
@@ -140,10 +160,15 @@ jobs:
   harness-linux:
     name: harness-linux
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # No later step uses the git token; keep it off disk while npm ci runs
+          # dependency lifecycle scripts.
+          persist-credentials: false
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
 

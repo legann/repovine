@@ -33,14 +33,22 @@ Expected: conformance passes, **2 Go modules**, **3 API entrypoints** projected 
 `semanticHints.routes` (GET `/health`, GET `/orders/:id`, POST `/orders`).
 
 `run.mjs` calls the core route collector directly. In a graph build the built-in
-`server-entrypoints` interpreter reads `semanticHints.routes` for the `typescript` and `python`
-source plugins.
+`server-entrypoints` interpreter reads normalized `semanticHints.routes` from any
+source plugin. The route facts gate projection; the producer id does not.
 
 ## Use in another repo
 
 ```bash
-npm i -D repovine-plugin-go   # or file:/path/to/this/directory
+# This checked-in example is private and is not published:
+npm i -D "file:/absolute/path/to/repovine/examples/repovine-plugin-go"
+
+# After adapting and publishing a plugin under its own package name:
+npm i -D my-repovine-plugin-go
 ```
+
+The configuration below enables the package installed from this example
+directory. After publishing an adaptation, use its published package name in
+both the install command and `plugins.add`.
 
 ```jsonc
 // repovine.config.json in the repo you analyze
@@ -56,9 +64,10 @@ installed. A missing install is skipped with a warning (never a hard error).
 |---|---|
 | Manifest (`package.json#repovine`) | `package.json` |
 | Resolve from analyzed repo's `node_modules` | `run.mjs` symlinks plugin into `fixtures/sample/node_modules` |
-| Semantics only in `extract()` | `index.js` — no id/paths/hash on deltas |
+| Semantics only in `extract()` | `index.js` — engine-minted `moduleId` key; no producer-minted identity, path, or hash fields |
 | Normalized route facts | `index.js` — `semanticHints.routes` + `webFramework: 'gin'` |
 | Conformance self-check | `run.mjs` → `checkSourcePluginConformance` |
 
-For production, wrap the descriptor with `definePlugin` from `@repovine/plugin-sdk` and add the SDK
-as a `peerDependency` — see the guide.
+The example already uses `definePlugin` from `@repovine/plugin-sdk` and declares
+the SDK as a `peerDependency`, which is the production authoring surface. See the
+guide for packaging and publishing.

@@ -1,7 +1,8 @@
 # Example plugin: `repovine-plugin-iac`
 
-Minimal **third-party IaC plugin** — a dependency-free parser for fictional `edge-stack.json`.
-Copy this directory as a starting point for your own `repovine-plugin-<format>`.
+Minimal **third-party IaC plugin** — a parser for fictional `edge-stack.json`
+with no format-specific parser dependency. Copy this directory as a starting
+point for your own `repovine-plugin-<format>`.
 
 Full walkthrough: [docs/plugin-authoring.md](../../docs/plugin-authoring.md).
 
@@ -32,8 +33,16 @@ consumer), resource edges projected by core interpreters.
 ## Use in another repo
 
 ```bash
-npm i -D repovine-plugin-iac   # or file:/path/to/this/directory
+# This checked-in example is private and is not published:
+npm i -D "file:/absolute/path/to/repovine/examples/repovine-plugin-iac"
+
+# After adapting and publishing a plugin under its own package name:
+npm i -D my-repovine-plugin-iac
 ```
+
+The configuration below enables the package installed from this example
+directory. After publishing an adaptation, use its published package name in
+both the install command and `plugins.add`.
 
 ```jsonc
 { "plugins": { "defaults": true, "add": ["repovine-plugin-iac"] } }
@@ -49,4 +58,6 @@ npm i -D repovine-plugin-iac   # or file:/path/to/this/directory
 | IaC facts → runtime resources/edges with no new interpreter | `run.mjs` Stage-2 compose |
 | Conformance self-check | `run.mjs` → `checkIaCPluginConformance` |
 
-For production, use `definePlugin` / `defineIaCParser` from `@repovine/plugin-sdk` — see the guide.
+The example already uses `definePlugin` and `defineIaCParser` from
+`@repovine/plugin-sdk` and declares the SDK as a `peerDependency`, which is the
+production authoring surface. See the guide for packaging and publishing.

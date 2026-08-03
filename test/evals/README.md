@@ -92,7 +92,7 @@ bleed into each other:
 
 - **Build-signal cards** (the structural majority — `search-map-inspect`, `entrypoint-coverage`,
   `dependencies-boundaries`, `trace-flow-topology`, `config-surface`, `naming-regression`,
-  `polyglot-ts-python-iac`, `stack-applicability`, `build-and-sync-health`). These verify parsing,
+  `polyglot-ts-python-iac`, `build-and-sync-health`). These verify parsing,
   indexing, extraction, projection, and navigation. Their verdicts rest on **extracted structure**:
   the preamble's evidence gate forbids summarizing a PASS *from annotations alone*. Annotation text
   is part of the search index, so `search-map-inspect` sees more hits and different ranking at 99%

@@ -24,7 +24,7 @@ workers: [`lib/workers/`](../lib/workers/) · channel: [`lib/channels/telegram-a
 2. **Orchestrator:** [**LangGraph**](https://langchain-ai.github.io/langgraphjs/) (JavaScript) owns step order, branching, retries, and persisted graph state — not custom `for` loops in the bot.
 3. **Protocol:** Every agent run is wrapped in the **repovine Delivery Protocol** cycle:
    `AgentAssignment` → validate → worker → `AgentRunResult` → validate → `compliance`.
-4. **MCP inside the worker step:** repovine MCP (`REPOVINE_ROOT` = sandbox) is available **during** the agent node only; orchestrator nodes call **CLI** `repovine agents …` (same as today’s [`lib/repovine.mjs`](../lib/repovine.mjs)).
+4. **MCP inside the worker step:** repovine MCP (`REPOVINE_ROOT` = sandbox) is available **during** the agent node only; orchestrator nodes call **CLI** `repovine delivery …` (same as today’s [`lib/repovine.mjs`](../lib/repovine.mjs)).
 5. **Demonstrate portability:** LangGraph is the variable; protocol boundaries stay stable so Temporal / Inngest / BullMQ can reuse the same node functions later.
 6. **Real LLM workers only:** every `run_sub_agent` invocation uses a **live provider** (Claude or local). Deterministic protocol and tamper-resistance coverage lives in the [CLI blackbox test](../../../test/integration/delivery-protocol-cli-blackbox.test.ts).
 
@@ -216,9 +216,10 @@ Each adapter calls `resolveAuth(provider)` before run:
 Return shape (for logging / blocked messages):
 
 ```javascript
-{ ok: true, mode: 'explicit', source: string }
+{ ok: true, mode: 'explicit', source: string }                 // claude: the env var name used
+{ ok: true, mode: 'local-endpoint', source: 'LOCAL_BASE_URL' } // local
 // or
-{ ok: false, reason: string, hints: string[] }
+{ ok: false, reason: string, hints: string[] }                 // blocked — no `mode` field
 ```
 
 Implement once; **Claude / local adapters must not duplicate** auth logic.
@@ -227,17 +228,17 @@ Implement once; **Claude / local adapters must not duplicate** auth logic.
 
 | Provider | Env vars (any one is enough) |
 |----------|------------------------------|
-| **claude** | `CLAUDE_CODE_OAUTH_TOKEN` (preferred), `ANTHROPIC_API_KEY` |
+| **claude** | `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` — either works; `auth.mjs` uses the first one set |
 | **local** | none — `LOCAL_BASE_URL` + `LOCAL_MODEL` point at the endpoint; no vendor key |
 
-`CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) is preferred over `ANTHROPIC_API_KEY`: a subscription rate-limit is a smaller blast radius than open billing, and the token is easy to revoke.
+`auth.mjs` reads `['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']` and uses the first one set, so in host mode with both present `ANTHROPIC_API_KEY` wins. Under Docker the worker holds only placeholders and the egress proxy custodies the real credentials, preferring `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`): a subscription rate-limit is a smaller blast radius than open billing, and the token is easy to revoke.
 
 ### Adapter behavior after `resolveAuth`
 
-| `mode` | Worker action |
+| Result | Worker action |
 |--------|----------------|
-| `explicit` | Pass through to SDK; do not log secret values |
-| `blocked` | Return `blockedResult(assignment, reason + hints)` — graph continues to `compose_reply` |
+| `ok: true` (`mode: 'explicit'` for claude, `'local-endpoint'` for local) | Pass through to SDK / endpoint; do not log secret values |
+| `ok: false` (no `mode`) | Return `blockedResult(assignment, reason + hints)` — graph continues to `compose_reply` |
 
 **Claude:** accepts `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`; `workers/claude.mjs` re-exports the shared Claude worker, which calls `resolveAuth('claude')`. Under Docker Compose the real credential lives in the egress-gw service env; the worker holds only a placeholder and points `ANTHROPIC_BASE_URL` at the proxy (see [Security](#security)).
 
@@ -335,8 +336,8 @@ The claude worker runs on `@anthropic-ai/claude-agent-sdk`. The `local` worker u
 
   // Multi-agent
   mode?: 'single' | 'multi';            // graph routing (set by intake)
-  planMode?: 'explicit' | 'implicit' | 'single' | 'llm';  // how the split was decided
-  sub-agents?: SubAgentRecord[];                // per-sub-agent result + own compliance + handoff
+  planMode?: 'explicit' | 'keyword' | 'auto' | 'single' | 'greenfield-single';  // how the split was decided
+  subAgents?: SubAgentRecord[];                // per-sub-agent result + own compliance + handoff
   execution?: 'sequential' | 'worktree-parallel';
 
   // Control
@@ -346,22 +347,22 @@ The claude worker runs on `@anthropic-ai/claude-agent-sdk`. The `local` worker u
 ```
 
 Single-sub-agent runs leave the multi-agent channels unset. See
-[Multi-agent orchestration](#multi-agent-orchestration) for `sub-agents` / the fan-out.
+[Multi-agent orchestration](#multi-agent-orchestration) for `subAgents` / the fan-out.
 
 ### Nodes (single-sub-agent path + a multi-agent branch)
 
 | Node | Input → output | Notes |
 |------|----------------|-------|
 | `intake` | Normalize task, `ensureRepovineWorkspace(repoRoot)`, bump turn, set `mode` (single\|multi) | Fails fast on unknown provider |
-| `multi_agent` | `task` → `sub-agents`, `ok`, `execution` | plan → schedule → sub-agents → join, all inside this one node |
+| `multi_agent` | `task` → `subAgents`, `ok`, `execution` | plan → schedule → sub-agents → join, all inside this one node |
 | `build_assignment` | `task` → `assignment`, `assignmentFile` | single-sub-agent path |
 | `validate_assignment` | assignment file → `assignmentValid` | Stop graph early if false |
 | `run_sub_agent` | assignment → `result`, `workerSessions`, `attempts` | Async; `getWorker(LLM_PROVIDER)` + MCP inside adapter |
 | `persist_result` | `result` → `resultFile` | Write `.harness/*.result.json` |
-| `validate_result` | result file → `valid` | repovine CLI |
+| `validate_result` | result file → `schemaValid` | repovine CLI |
 | `compliance` | result file → `report`, `ok` | repovine CLI |
-| `runtime_check` | `result`/`sub-agents` → `runtimeCheck` | Orchestrator runs build/test in the sandbox (agents stay write-only) |
-| `compose_reply` | `result`/`sub-agents`, `report`, `ok` → `replyText` | Channel-safe text; aggregates sub-agents in multi mode |
+| `runtime_check` | `result`/`subAgents` → `runtimeCheck` | Orchestrator runs build/test in the sandbox (agents stay write-only) |
+| `compose_reply` | `result`/`subAgents`, `report`, `ok` → `replyText` | Channel-safe text; aggregates sub-agents in multi mode |
 
 ### Edges
 
@@ -382,7 +383,7 @@ folded into the task; default `HARNESS_MAX_RETRIES=1` runs a single retry (set `
 
 ### Checkpointer / threads
 
-- **Thread id:** `telegram:<chatId>` — one graph thread per Telegram chat.
+- **Thread id:** `telegram:<chatId>:<gen>` — one graph thread per Telegram chat; the `<gen>` suffix bumps on `/new` / `/reset`.
 - **v1 checkpointer:** `@langchain/langgraph` `MemorySaver` (process memory).
 - **Resume worker session:** `workerSessions` in graph state — a per-role map (`{ [role]: sessionId }`); the checkpointer scopes it per thread (`telegram:<chatId>:<gen>`).
 
@@ -580,7 +581,7 @@ Full command / endpoint / flag reference: [`usage.md`](usage.md#channels-in-deta
 | `.workspace/sandbox/.harness/` | Protocol artifacts per run |
 | `.workspace/sandbox/.repovine/` | repovine cache (created on scan / MCP) |
 
-**Lazy init (recommended v1):** `/reset` sub-agents an **empty directory**; `intake` node calls `ensureRepovineWorkspace(repoRoot)` (writes empty `repovine.annots.json` + minimal `repovine.config.json` only when missing). Aligns with “new sheet until I ask to init repo”.
+**Lazy init (recommended v1):** `/reset` leaves an **empty directory**; the `intake` node calls `ensureTarget(repoRoot)`, which in sandbox mode delegates to the internal `ensureRepovineWorkspace` (writes empty `repovine.annots.json` + minimal `repovine.config.json` only when missing). Aligns with “new sheet until I ask to init repo”.
 
 ---
 
@@ -592,10 +593,11 @@ Full command / endpoint / flag reference: [`usage.md`](usage.md#channels-in-deta
 | `LLM_PROVIDER=local` | [`lib/workers/local.mjs`](../lib/workers/local.mjs) — any OpenAI-compatible endpoint (`LOCAL_BASE_URL` + `LOCAL_MODEL`), MCP via stdio, no vendor key |
 
 ```javascript
-// lib/workers/index.mjs
-export function getWorker(provider = process.env.LLM_PROVIDER || 'claude') {
+// lib/workers/index.mjs (simplified — omits the win32 provider guard)
+export function getWorker(provider = resolveProvider()) {  // resolveProvider(): LLM_PROVIDER || 'claude'
   switch (provider) {
     case 'local':  return import('./local.mjs');
+    case 'claude':
     default:       return import('./claude.mjs');
   }
 }
@@ -620,7 +622,7 @@ delivery-protocol-harness-demo/
     repovine.mjs        ← CLI wrapper (agents validate-*/compliance/run-brief + repovine build)
     env-file.mjs        ← minimal KEY=value loader for home env files
     assignment.mjs      ← task → AgentAssignment
-    target-repo.mjs     ← clean sandbox + ensureRepovineWorkspace / clearSandbox
+    target-repo.mjs     ← sandbox + attach lifecycle: ensureTarget (seed) / resetTarget (clean/baseline)
     claude-agent.mjs    ← Claude Agent SDK worker
     llm.mjs             ← lightweight no-tools LLM completion (for the plan node)
     ask.mjs             ← read-only /ask router (provider ask agents, session resume)
@@ -645,6 +647,10 @@ delivery-protocol-harness-demo/
       planner.mjs       ← LLM plan node (reads the orchestration rule → JSON plan)
       sub-agent.mjs          ← one validated protocol sub-agent
       worktree.mjs      ← git worktree isolation + merge (parallel sub-agents)
+      retry.mjs         ← sub-agent verdict classification + attempt/retry loop
+      repovine-process.mjs ← goal/process acceptance (goalOk) + deliveryVerification re-check
+      workspace-revision.mjs ← git-tree revision custody (baseline/head diff, promotion branch)
+      test-floor.mjs    ← grounded-test floor for verify acceptance
     channels/telegram-adapter.mjs        ← allowlist, poll, commands vs invoke
     channels/http-adapter.mjs            ← POST /goal + /ask + /reset, GET /status (curl-driven handle)
   package.json                           ← Claude Agent SDK + @langchain/langgraph
@@ -676,7 +682,7 @@ host `npm run build` needed for compose. Host dev (`npm run dev:*`) still needs
 - **`/new` and `/reset` use a per-chat thread generation**, not in-place mutation of
   checkpointed state: bumping the generation makes the next `invoke` use a fresh
   `MemorySaver` thread (`telegram:<chatId>:<gen>`), clearing `turn` + `workerSessions`
-  without reaching into checkpointer internals. `/reset` also `clearSandbox()`s the files.
+  without reaching into checkpointer internals. `/reset` also calls `resetTarget()` to clean the files.
 - **Claude worker is re-exported** from [`lib/claude-agent.mjs`](../lib/claude-agent.mjs)
   (not duplicated). That file's credential gate uses the shared `resolveAuth('claude')`
   source.

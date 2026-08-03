@@ -15,22 +15,32 @@ on:
           - 'true'
           - 'false'
 
+# Serialize releases: a second tag-push or dispatch queues behind the first rather than
+# racing the staging steps. Never cancel an in-flight publish mid-upload.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       checks: read      # read the Tier-1 check-runs on the tagged commit (the green-gate step below)
       id-token: write   # mint the OIDC token npm exchanges for a publish credential
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # Full history so the on-main ancestry check below is reliable, not shallow-grafted.
+          fetch-depth: 0
 
       # registry-url is intentionally omitted. When set, setup-node writes
       # //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} into the .npmrc it
       # manages; with no token that placeholder expands empty, npm treats auth as
       # already configured, and the OIDC token exchange never runs (ENEEDAUTH/E404).
       # npm defaults to registry.npmjs.org, so OIDC publishing works without it.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
 
@@ -44,8 +54,16 @@ jobs:
 
       - name: Read package versions
         run: |
+          set -euo pipefail
           root_version="$(node -p 'require("./package.json").version')"
           sdk_version="$(node -p 'require("./packages/plugin-sdk/package.json").version')"
+          # Reject anything outside the semver charset before it reaches $GITHUB_ENV: a
+          # newline in the value would append an attacker-chosen env var for later steps.
+          for v in "$root_version" "$sdk_version"; do
+            case "$v" in
+              ''|*[!0-9A-Za-z.+-]*) echo "::error::Invalid version string: $v"; exit 1 ;;
+            esac
+          done
           printf 'ROOT_VERSION=%s\n' "$root_version" >> "$GITHUB_ENV"
           printf 'SDK_VERSION=%s\n' "$sdk_version" >> "$GITHUB_ENV"
 
@@ -63,12 +81,14 @@ jobs:
             exit 1
           fi
 
-      # The tag check above only guards `push`. A non-dry-run workflow_dispatch reaches the staging
-      # steps from any ref, so require the commit to be on main — otherwise a branch commit that was
-      # never tagged or merged can be staged for approval.
-      - name: Verify dispatch publishes a commit on main
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+      # Both staging paths must point at a commit already merged to main. The push path
+      # otherwise passes on only the tag==version string match, so a tag on an off-main
+      # commit could be staged; the dispatch path could stage any ref. Require the ancestry
+      # check for both. (checkout above fetches full history, so this is reliable.)
+      - name: Verify publish target is a commit on main
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
         run: |
+          set -euo pipefail
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
             echo "::error::${GITHUB_SHA} is not an ancestor of origin/main; publish a tagged commit merged to main"
@@ -105,17 +125,33 @@ jobs:
           done
           exit $fail
 
+      # id-token: write is job-scoped, so GitHub exposes the OIDC request creds to every
+      # step. Strip them from the steps that execute third-party code (dependency install
+      # scripts, tsc, jest) so a compromised dependency cannot mint the publish token; only
+      # the staging steps below keep them. Go-live is still gated by npm staged 2FA.
       - name: Install dependencies
         run: npm ci
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
 
       - name: Type check
         run: npm run typecheck
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
 
       - name: Build
         run: npm run build
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
 
       - name: Test
         run: npm test
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ''
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ''
 
       - name: Verify bin entry
         run: |

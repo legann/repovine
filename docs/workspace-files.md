@@ -7,7 +7,7 @@ repovine keeps **committed tuning and memory** at the repository root, and **loc
 | `repovine.config.json` | Commit | Graph build (`build.scan` / `build.linking`), MCP output, architecture detectors, workspace paths |
 | `repovine.domains.json` | Commit | Domain inference, aliases, package grouping, infra noise filters |
 | `repovine.annots.json` | Commit | Shared semantic memory (default path; override via `workspace.annotationsFile`) |
-| `annotations.backup.*.json` | Ignore | Safety backups created before large annotation-file shrink writes; rotated locally |
+| `annotations.backup.*.json` | Untracked | Safety backups written beside `repovine.annots.json` before large annotation-file shrink writes; rotated locally. The managed `.gitignore` does not cover them — see [Local backups](#local-backups). |
 | `.repovine/` | Ignore | Engine cache under `.cache` (graph/search caches, build calibration, session roll-ups, optional dumps), generated boundary index; `onboarding-state.json` and `carrier-review.json` hold advisory declines a rebuild does not restore |
 
 `npx repovine setup` and the first MCP server startup both bootstrap missing workspace files: all three project-owned JSON files (`repovine.config.json`, `repovine.domains.json`, and an empty `repovine.annots.json`), `.repovine/`, and the managed `.gitignore` cache entry. Later `setup` and `clear` **preserve** all three project-owned JSON files. Both config files are optional: omit a field to keep the engine default.
@@ -157,7 +157,7 @@ Repovine **graph build** pipeline (not app `npm build` / Docker). Two sub-blocks
 
 #### `build.scan`
 
-Repo-root-relative **globs** (`*`, `**`, `?`). **`include` wins over `exclude`.** Engine always skips `.repovine/` and common build/test trees regardless of config.
+Repo-root-relative **globs** (`*`, `**`, `?`). **`include` wins over `exclude`.** The engine prunes `.repovine/` and common build/test trees ahead of `build.scan`; scan globs cannot re-include them.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -178,10 +178,11 @@ Each `include` / `exclude` entry is either:
 | `source` | Source modules only, from every source plugin | Source plugins |
 | `infra` | IaC files only (SAM, K8s, Helm, Terraform, Compose, Dockerfile, …) | Infra scan |
 
-**Precedence:** `include` wins over `exclude` for the same path. Engine always skips `.repovine/`, dependency
-and build-output trees (`node_modules`, `dist`, `build`, `out`, `target`, `coverage`, `.venv`, `.aws-sam`, …)
-and test trees (`test`, `tests`, `__tests__`, `e2e`, `cypress`, …) regardless of config. Discovery prunes at the
-directory, so a package manifest inside one of those trees mints no package node either.
+**Precedence:** `include` wins over `exclude` for the same path. Ahead of `build.scan`, the engine prunes
+`.repovine/`, `.git`, and common build-output and test trees; scan globs cannot re-include them. Base names
+(`build`, `out`, `target`, `coverage`, `test`, `tests`, `e2e`, …) prune unconditionally; each source plugin adds
+its own (`node_modules`, `dist`, `.venv`, `.aws-sam`, `__tests__`, `cypress`, …) while that plugin is enabled.
+Discovery prunes at the directory, so a package manifest inside one of those trees mints no package node either.
 
 **Example — exclude a folder but keep one file; infra-only skip:**
 
@@ -220,7 +221,7 @@ Optional hints for Stage 2 handler resolution. These settings add source search 
 |---|---|---|---|
 | `handlers` | `searchRoots` | `[]` | Extra roots used when resolving deployment handler paths to source modules. |
 | `bundles` | `scripts` | `[]` | esbuild/webpack entry scripts whose static handler→source map is parsed. |
-| `bundles` | `autoDetect` | `true` | Also scan conventional `scripts/bundle.{js,ts}` locations. |
+| `bundles` | `autoDetect` | `true` | Also scan conventional `scripts/bundle.{js,ts}` and `scripts/build.{js,ts}` locations. |
 
 **Example — fallback linking in a large monorepo:**
 
@@ -353,7 +354,7 @@ interpreter entrypoints enter the queue. There is no separate advisory derived c
 
 **Entrypoint roots:** propagation seeds `depCone` and `reachesEntrypoint` from interpreter entrypoints using both `moduleId` (routes, pages, file-based frontend) and `handlerModule` (SAM / runtime triggers: `api`, `queue-consumer`, `schedule`, etc.). Backend-only import chains are invisible if `handlerModule` is missing — check `get_entrypoints({ layer: "backend" })` and slice `entrypointRoots.handlerRoots`.
 
-**MCP blast preview:** `get_annotation_status({ view: "propagation-preview", from, includeDomains: true })` returns `{ hard, derived, domains?, entrypoints?, entrypointRoots?, warnings? }` without writing annotations. `write_annotation` accepts optional `propagationSlice` for audit trails after propagation review.
+**MCP blast preview:** `get_annotation_status({ view: "propagation-preview", from, includeDomains: true })` returns `{ hard, derived, domains, entrypoints, entrypointRoots?, warnings? }` without writing annotations. `write_annotation` accepts optional `propagationSlice` for audit trails after propagation review.
 
 **Example — optional override only (omit block for defaults):**
 
@@ -399,7 +400,7 @@ Supported `thresholds` categories (each has its own knobs — add only what you 
 
 #### `contextQuality`
 
-Deterministic reporting of repovine MCP context sessions (Context Session Quality). Common knobs: `enforcement.mode` (`client` | `harness`), per-phase `thresholds` (`explore`/`implement`/`annotate`, each with `threshold`, `warningThreshold`, `minAnchors`, `byteBudget`), `purgeSessionsOnMcpStart`, `retainSessions`, `persistEvents`, `maxRequestEchoes`, `exportSymbolFloodRatio`, `archResponseOversizeBytes`. Advanced tuning (`weights`, `recoveryWindow`, `recoveryDiscount`, `lowConfidenceRejectRatio`, `testPackageRegex`) follows the schema in `src/config.ts`; non-default weights are experimental and context-quality remains advisory until its documented validation bar is met. Defaults, scoring model, and lifecycle: [context-quality.md](context-quality.md).
+Deterministic reporting of repovine MCP context sessions (Context Session Quality). Common knobs: `enforcement.mode` (`client` | `harness`), per-phase `thresholds` (`explore`/`implement`/`annotate`, each with `threshold`, `warningThreshold`, `minAnchors`, `byteBudget`), `purgeSessionsOnMcpStart`, `retainSessions`, `persistEvents`, `maxRequestEchoes`, `exportSymbolFloodRatio`, `archResponseOversizeBytes`. Advanced tuning (`weights`, `recoveryWindow`, `recoveryDiscount`, `lowConfidenceRejectRatio`, `testPackageRegex`) follows the schema in `src/config.ts`; non-default weights are experimental and context-quality remains advisory until its documented validation bar is met. `REPOVINE_CONTEXT_SESSION_ID` sets a process-wide default `contextSessionId` for every MCP call and takes precedence over per-call ids — a harness sandbox sets it once so all tool responses score under one session. Defaults, scoring model, and lifecycle: [context-quality.md](context-quality.md).
 
 ---
 
@@ -515,7 +516,7 @@ The second form disables basename domains entirely (useful for UI-heavy React re
 Extra directory names treated like built-in structural segments (`src`, `components`, `features`, …) — skipped when inferring path-based domains.
 
 ```json
-"structuralDirs": ["app", "concerns"]
+"structuralDirs": ["concerns", "widgets"]
 ```
 
 #### `packages`
@@ -663,7 +664,7 @@ Design rationale: [DESIGN.md — Semantic merge](../DESIGN.md#semantic-merge).
 
 ### Local backups
 
-Before overwriting the configured annotations file with a write that would shrink the annotation count by more than 5%, the store copies the previous file beside it as `annotations.backup.<timestamp>.json` and keeps the newest five backups. Conflict-merge snapshots go to `.repovine/annotation-backups/` instead, where the managed `.gitignore` block already covers them. A backup whose content matches a retained one reuses that file. These are local recovery files; ignore them in Git.
+Before overwriting the configured annotations file with a write that would shrink the annotation count by more than 5%, the store copies the previous file beside it as `annotations.backup.<timestamp>.json` and keeps the newest five backups. Conflict-merge snapshots go to `.repovine/annotation-backups/` instead, where the managed `.gitignore` block already covers them. A backup whose content matches a retained one reuses that file. These shrink backups sit beside the configured annotations file, outside the managed `.gitignore` block; add an `annotations.backup.*.json` rule to keep them out of commits.
 
 ### Security
 
@@ -686,14 +687,16 @@ Gitignored engine artifacts under `{workspaceRoot}/.repovine/`. The cache under 
 ├── onboarding-state.json              # last ready build's onboarding counters + declined domains suggestions
 ├── carrier-review.json                # reviewed-not-a-gap carrier-link decisions (riskHash-invalidated)
 ├── boundary-index.json                # generated pre-edit boundary-risk lookup by source path
+├── annotation-backups/                # conflict-merge snapshots of the replaced annotations file
 └── .cache/
     ├── repository-facts-snapshot.json         # warm Stage 1 snapshot (incremental rebuilds)
     ├── build-calibration.json          # per-machine worker/shard advice from last cold run
     ├── semantic-index.json             # local graph-node embedding index when enabled
     ├── sessions/                       # Context Session Quality roll-ups
-    ├── repository-facts-snapshot-dump.json    # optional full snapshot dump (CLI/debug)
-    ├── graph.json                      # optional repository graph dump
-    └── graph.yaml                      # optional repository graph dump
+    ├── repository-facts-snapshot-dump.json    # optional full snapshot dump (src/index.ts)
+    ├── repovine.json                   # optional {stats,nodes,edges} graph dump (src/index.ts)
+    ├── graph.json                      # optional repository graph dump (src/dump/index.ts)
+    └── graph.yaml                      # optional repository graph dump (src/dump/index.ts)
 ```
 
 | File | Purpose |
@@ -701,6 +704,7 @@ Gitignored engine artifacts under `{workspaceRoot}/.repovine/`. The cache under 
 | `onboarding-state.json` | Gitignored, best-effort SessionStart payload cache written after a successful build/refresh. Mirrors graph-ready counters, annotation/domain onboarding counters, and locally declined domains suggestion ids. Safe to delete; declined suggestions reappear. |
 | `carrier-review.json` | Reviewed-not-a-gap decisions from `decline_advisory({ "kind": "carrier-link-gaps" })`, keyed by consumer-risk SSOT target. Each entry stores a `riskHash` (sha256[:16] of the target's sorted consumer-risk texts); a changed risk set re-surfaces the target. Workspace-local — triage does not travel with clones. Safe to delete; reviewed targets re-flag. |
 | `boundary-index.json` | Generated path-indexed boundary-risk surface consumed by client pre-edit hooks. Rebuilt from graph and annotations. |
+| `annotation-backups/` | Snapshots of the replaced annotations file written by `merge_annotations` when git index stages are the merge input, named in `replacedBackupPath`. Gitignored under `.repovine/`. Safe to delete. |
 | `repository-facts-snapshot.json` | Cached Stage 1 output. Invalidated when `STAGE1_ANALYSIS_VERSION` changes. Used by `refresh_context` for fast rebuilds. |
 | `build-calibration.json` | Records baseline/peak/incremental RSS, worker/shard shape, and reused/rescanned counts from the last representative cold build. Warm incremental runs leave it intact. Machine-local — do not commit. |
 | `semantic-index.json` | Persisted graph-node embedding vectors keyed by node-card hash. Rebuilt incrementally. |

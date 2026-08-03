@@ -25,7 +25,7 @@ initial development.
 | | preview `0.1.x` | stable `1.0.0` |
 |---|---|---|
 | changing the surface | an export may be removed, renamed or tightened; it arrives as a minor bump and a changelog entry | additive only; a break requires `apiVersion: 2` |
-| what an author should assume | pin the exact version, read the release notes | `^1`, and that it keeps working |
+| what an author should assume | stay on the current minor line (for example `^0.1.0`) and read the release notes before moving to the next one | `^1`, and that it keeps working |
 | cost of a mistake in the surface | a changelog line | a compatible workaround, or API 2 |
 
 Technically the two are the same code, the same `apiVersion: 1`, the same loader and the same

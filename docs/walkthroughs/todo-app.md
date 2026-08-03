@@ -23,6 +23,11 @@ todo/
 └── infra/template.yaml
 ```
 
+In this example, `api/client.ts` reads a public API base URL from an environment
+variable, while `lib/db.ts` reads `TABLE_NAME`. The SAM template passes
+`TABLE_NAME` to both Lambda functions by referencing `TodosTable`. Those facts
+are what produce the configuration and runtime links shown below.
+
 Reading these files individually reveals local implementation. It does not yet
 provide one navigable model of ownership, dependencies, deployed resources, or
 repository-specific constraints.
@@ -110,10 +115,10 @@ folder tree and not exclusive ownership.
 
 ## 5. Authored repository knowledge
 
-The graph can identify `mod:@todo/api/lib/db`, its importers, environment names,
-and runtime-resource links. It cannot derive every invariant or operational risk
-from syntax. Version-controlled annotations add that repository knowledge to the
-same node id:
+The graph can identify `mod:@todo/api/src/lib/db`, its importers and environment
+names, then follow its handler flow to resolved runtime-resource links. It cannot
+derive every invariant or operational risk from syntax. Version-controlled
+annotations add that repository knowledge to the same node id:
 
 ```json
 {
@@ -145,12 +150,12 @@ source inspection.
 | Step | Query | What the agent learns |
 |---:|---|---|
 | 1 | `search_context({ "query": "load todo list" })` | Likely starting points include the UI list, API handler, and related repository concepts. |
-| 2 | `inspect_node({ "nodeId": "mod:@todo/web/TodoList" })` | `TodoList` belongs to the web package and imports the browser client. |
-| 3 | `inspect_node({ "nodeId": "mod:@todo/web/api/client" })` | The client contains a fetch hint, but no deterministic web-to-API package edge is claimed. |
+| 2 | `inspect_node({ "nodeId": "mod:@todo/web/src/TodoList" })` | `TodoList` belongs to the web package and imports the browser client. |
+| 3 | `inspect_node({ "nodeId": "mod:@todo/web/src/api/client" })` | The client contains a fetch hint, but no deterministic web-to-API package edge is claimed. |
 | 4 | `trace_flow({ "scope": "resource:aws-lambda:ListTodosFunction" })` | The deployed function resolves to `listTodos`, then to the database adapter and table binding. |
-| 5 | `get_config_surface({ "scope": "mod:@todo/api/lib/db" })` | The database adapter reads the `TABLE_NAME` environment name. |
-| 6 | `analyze_dependencies({ "scope": "mod:@todo/api/lib/db", "mode": "impact" })` | Both read and write handlers depend on the shared adapter. |
-| 7 | Read the annotation on `mod:@todo/api/lib/db` | A change must preserve the runtime-config boundary and account for database side effects and risks. |
+| 5 | `get_config_surface({ "scope": "mod:@todo/api/src/lib/db" })` | The database adapter reads the `TABLE_NAME` environment name. |
+| 6 | `analyze_dependencies({ "scope": "mod:@todo/api/src/lib/db", "mode": "impact" })` | Both read and write handlers depend on the shared adapter. |
+| 7 | Read the annotation on `mod:@todo/api/src/lib/db` | A change must preserve the runtime-config boundary and account for database side effects and risks. |
 
 The result is a bounded inspection path rather than a claim that every nearby
 file must change:
@@ -166,8 +171,8 @@ ListTodosFunction -> listTodos -> db -> TodosTable
 
 The layers above compose into one context model. This final diagram is a compact
 view of the walkthrough, not a claim that every export symbol or derived domain
-is shown. Orange boxes visualize metadata attached to an existing node id; they
-are not additional graph nodes.
+is shown. The orange box visualizes metadata attached to an existing node id; it
+is not an additional graph node.
 
 ```mermaid
 graph LR
@@ -181,12 +186,12 @@ graph LR
   API["pkg:@todo/api"]:::pkg
   INFRA["infra:aws-sam:infra/template.yaml"]:::mod
 
-  APP["mod:@todo/web/App"]:::mod
-  LIST["mod:@todo/web/TodoList"]:::mod
-  CLIENT["mod:@todo/web/api/client"]:::mod
-  LISTH["mod:@todo/api/listTodos"]:::mod
-  ADDH["mod:@todo/api/addTodo"]:::mod
-  DB["mod:@todo/api/lib/db"]:::mod
+  APP["mod:@todo/web/src/App"]:::mod
+  LIST["mod:@todo/web/src/TodoList"]:::mod
+  CLIENT["mod:@todo/web/src/api/client"]:::mod
+  LISTH["mod:@todo/api/src/listTodos"]:::mod
+  ADDH["mod:@todo/api/src/addTodo"]:::mod
+  DB["mod:@todo/api/src/lib/db"]:::mod
 
   LF["resource:aws-lambda:ListTodosFunction"]:::res
   AF["resource:aws-lambda:AddTodoFunction"]:::res
@@ -197,8 +202,7 @@ graph LR
   DCONFIG["domain:config"]:::dom
   DDB["domain:db"]:::dom
 
-  DBNOTE["annotation for mod:@todo/api/lib/db"]:::note
-  CONFIGNOTE["annotation for domain:config"]:::note
+  DBNOTE["annotation for mod:@todo/api/src/lib/db"]:::note
 
   WEB -->|"contains"| APP
   WEB -->|"contains"| LIST
@@ -231,7 +235,6 @@ graph LR
   DB -->|"tagged"| DDB
 
   DBNOTE -.-> DB
-  CONFIGNOTE -.-> DCONFIG
 ```
 
 The completed model separates three kinds of repository context:

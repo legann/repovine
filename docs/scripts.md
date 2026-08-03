@@ -28,9 +28,10 @@ node dist/mcp/index.js setup all
 repovine                         MCP server (stdio)
 repovine setup [cursor|claude|codex|all] [-i|--interactive] [--force] [--replace-mcp] [--no-build] [--published]
 repovine build                   Build syntax index + graph cache
-repovine status                  Graph/config/annotation health snapshot
-repovine doctor                  Diagnose why an agent is not using repovine correctly
-repovine clear [--dry-run]
+repovine status [--json]         Graph/config/annotation health snapshot
+repovine doctor [--json]         Diagnose why an agent is not using repovine correctly
+repovine clear [--dry-run] [--yes]
+repovine delivery <subcommand> … # see repovine delivery --help
 repovine agents <subcommand> …   # see repovine agents --help
 repovine --help | --version
 ```
@@ -44,18 +45,23 @@ suggestions pending in `.repovine/onboarding-state.json` for an agent to review
 through `suggest_domains_config`. `--no-build` skips this advisor pass until the
 first build/refresh.
 
-`repovine agents` contains the CLI-only Delivery Protocol commands used by
+`repovine delivery` contains the CLI-only Delivery Protocol commands used by
 harnesses and CI. Their syntax and integration semantics are defined in
 [delivery-protocol.md — Protocol CLI surface](delivery-protocol.md#protocol-cli-surface).
 Worker MCP exposes context tools only; protocol validation is not on `tools/list`.
 
-The same command group also contains one non-protocol utility:
+General harness/CI agent utilities live under `repovine agents`:
 
 ```text
+repovine agents roles [--at <tree-ish>]
 repovine agents orient --query "<task text>" [--scope <pkg>]
+repovine agents session-quality <sessionId> [options]
 ```
 
-`orient` runs deterministic context orientation without an LLM.
+`roles` reads the repository role source, `orient` runs deterministic context
+orientation without an LLM, and `session-quality` reports the advisory quality
+of a recorded MCP context session. See `repovine agents --help` for the complete
+`session-quality` options.
 
 **Client projections** (MCP config, rules, managed agents, `AGENTS.md`): `repovine
 setup` — not `repovine agents`. **Drift checks:** `repovine doctor` (interactive) or
@@ -98,9 +104,12 @@ Colons in npm script names (e.g. `repovine:init:all:build` in a **consumer** rep
 
 ---
 
-## npm scripts in `package.json`
+## Main npm scripts in `package.json`
 
-Kept minimal on purpose. Use **`npx repovine`** in downstream projects or **`npm run cli --`** when working from a clone.
+This table highlights the development and contract gates maintainers normally
+invoke directly; lifecycle helpers remain discoverable through `npm run`. Use
+**`npx repovine`** in downstream projects or **`npm run cli --`** when working
+from a clone.
 
 ### Package maintenance
 
@@ -109,9 +118,16 @@ Kept minimal on purpose. Use **`npx repovine`** in downstream projects or **`npm
 | `build` | Compile the SDK and private plugin workspaces through TypeScript project references, then the engine → `dist/`, then verify every compiled module has an emitted counterpart |
 | `clean` | Remove engine, SDK, and private plugin workspace build output |
 | `typecheck` | Build/typecheck every workspace, then no-emit check of src + tests (`tsc -p tsconfig.test.json`) |
-| `test` | Jest unit tests. Builds first; `REPOVINE_SKIP_BUILD=1` skips that build |
-| `smoke:pack-install` | Pack both packages, install into a throwaway repo, drive the MCP over stdio |
+| `lint` | Run ESLint across the repository |
+| `test` | Run the Jest unit, integration, and law suites. Builds first; `REPOVINE_SKIP_BUILD=1` skips that build |
+| `test:projections` | Build, then run the client-projection integration tests |
+| `smoke:pack-install` | Pack the engine and SDK, install them into a throwaway repository, and drive the MCP over stdio |
 | `smoke:sdk-standalone` | Pack the SDK, install it into a non-workspace package, compile and conform a plugin against it |
+| `smoke:canary-plugins` | Pack external source and IaC canary plugins and verify them through the development engine |
+| `smoke:isolated-install` | Verify the packed engine with bundled and separately installed external plugins outside the workspace |
+| `api:report` | Regenerate the public plugin API inventory from the built SDK declarations |
+| `api:report:check` | Fail when the committed plugin API inventory is stale |
+| `audit:check` | Run the dependency audit gate and fail on advisories outside the documented allowlist |
 | `profile` | Memory profiler (dev) |
 
 `build` ends by checking its own output: every `.ts` under a compiled `src/` has a `.js` beside it
@@ -199,7 +215,7 @@ describe the old engine.
 
 - **MCP stdio**: stdout = JSON-RPC only; build progress on stderr or silent.
 - **Interactive commands** (`status`, `doctor`, `setup`, `clear`, `build` summary): readable text on stdout.
-- **JSON flags** (`doctor --json`, `status --json`): machine output on stdout. `doctor --help` lists `--json`; `status --json` is accepted but omitted from `status --help` so the default remains concise prose.
+- **JSON flags** (`doctor --json`, `status --json`): machine output on stdout; both flags are listed by their command help.
 - **Harness / CI commands** (`repovine delivery validate-*`, `repovine delivery compliance`, `repovine delivery` descriptor, `repovine agents session-quality`): JSON on stdout for file-in/file-out; progress on stderr.
 
 ANSI colors follow TTY / `NO_COLOR` / `FORCE_COLOR`; pipes and CI get plain text.

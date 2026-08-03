@@ -7,8 +7,8 @@
 //     engine-minted moduleId — discover() reports pkg + pkgRelPath and the engine mints the id, so a
 //     plugin never spells `mod:<pkg>/<path>` itself and never sets id/absPath/contentHash;
 //   • routes go into `semanticHints.routes`, the normalized route fact the core reads — in a graph
-//     build the built-in `server-entrypoints` interpreter reads that slot for the `typescript` and
-//     `python` source plugins.
+//     build the built-in `server-entrypoints` interpreter reads that slot from any source plugin;
+//     the fact gates projection, not the producer id.
 //
 // Authored through the SDK, which is what a real package does: `definePlugin` types the descriptor
 // against the published contract, the manifest in package.json carries `id` and `apiVersion`, and
