@@ -30,7 +30,7 @@ jobs:
       checks: read      # read the Tier-1 check-runs on the tagged commit (the green-gate step below)
       id-token: write   # mint the OIDC token npm exchanges for a publish credential
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history so the on-main ancestry check below is reliable, not shallow-grafted.
           fetch-depth: 0
