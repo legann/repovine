@@ -1,6 +1,6 @@
 # repovine
 
-[![CI](https://github.com/legann/repovine/actions/workflows/ci.yml/badge.svg)](https://github.com/legann/repovine/actions/workflows/ci.yml)
+[![CI](https://github.com/legann/repovine/actions/workflows/ci.yml/badge.svg)](https://github.com/legann/repovine/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/repovine)](https://www.npmjs.com/package/repovine)
 
 **Repository context assembled and conveyed to coding agents.**
 
